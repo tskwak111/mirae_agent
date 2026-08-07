@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — handoff package created; production implementation has not started.
+**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 1 implemented; independent verification pending.
 
 ## Frozen baseline
 
@@ -10,6 +10,18 @@
 - [x] Final architecture and domain contracts frozen
 - [x] Machine-readable seed policies and JSON schemas included
 - [x] TDD phase plans and Codex prompts included
+
+## Preflight safety remediation
+
+Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
+
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 1; final
+  spec/execution reviews pending
+- [ ] Task 2: separate official instruction authority from official data trust
+- [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
+- [ ] Task 4: non-self-referential release provenance and presentation claim evidence
+- [ ] Task 5: Python 3.12 lock, CI/quality gates, HCX capability probe, and final Preflight audit
+- [ ] Preflight gate passed
 
 ## Phase 1 — Repository and data foundation
 
@@ -58,7 +70,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1, Task 1.** Follow the phase plan under strict TDD. Do not start later tasks in the same uncontrolled change.
+**Preflight Task 1, Candidate 1 verification.** Do not begin Preflight Task 2 until both independent
+verifiers approve the current candidate with zero BLOCKER/HIGH findings and the Task 1 gate is
+recorded.
 
 ## Handoff validation record — not production implementation
 
@@ -78,4 +92,47 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 
 ## Work log
 
-No production implementation commands or commits have been recorded yet. The first Codex session must append actual failing/passing tests, command outputs, commit hash, risks, and next task below this line.
+### 2026-08-07 — Preflight Task 1 Candidate 1
+
+- Authorization: owner approved the Preflight design and directed implementation. No additional
+  organizer notice was supplied; the trust-plane record remains Preflight Task 2.
+- Frozen basis: design commit `b6f6dfc`, implementation-plan commit `1565c34`, base commit
+  `1565c34`, branch `codex/preflight-safety`, linked worktree `.worktrees/preflight-safety`.
+  Because `QUALITY_LOOP.md` is created by this bootstrap task, those reviewed commits serve as the
+  legacy frozen brief; future tasks require the canonical SHA-256 task brief before edits.
+- Writers: coordinator only for all modified files. Parallel specialists were read-only.
+- RED 1: `python -m pytest -p no:cacheprovider tests/contract/test_repo_root_guard.py -q` failed
+  during collection only with `ModuleNotFoundError: tools.check_repo_root`.
+- Infrastructure note: the unsupported Python 3.14 runner could not create pytest temp locks under
+  sandbox ACLs. A project-local Python 3.12.8 environment with pytest 9.1.1 was created; this was
+  infrastructure evidence, not behavioral RED.
+- GREEN 1: Python 3.12 root/ancestor/missing/CLI/Unicode/linked-worktree/environment tests reached
+  12 passed before adversarial expansion.
+- RED 2: clean-index and Markdown workflow contracts failed at collection because
+  `ensure_clean_index`, `unguarded_git_block_lines`, `unsafe_git_commit_lines`, and
+  `unsafe_git_stage_lines` did not exist.
+- Adversarial RED: 19 focused failures demonstrated staging variants, CommonMark fence evasion,
+  weak mutation guards, combined auto-staging commit flags, and missing staged-diff review.
+- GREEN 2: supported Python 3.12 Candidate 1 contract command — 73 passed in 14.37s, including 25
+  root/index/linked-worktree cases and the complete handoff/Markdown workflow suite.
+- Static repository gate: `python -B tools/verify_handoff.py` — PASS after routing/plan repair:
+  66 required files, 9 official inputs, 41,384,928 source bytes.
+- Source invariants: `tools/audit_source_data.py --check` — PASS, 145,393 rows and snapshot
+  2026-07-11; `tools/extract_schema_catalog.py --check` — PASS, 207 columns.
+- Focused style: Ruff initially reported four files requiring format and 25 lint findings. After
+  targeted corrections, Ruff check and format check passed for all four modified Python files.
+- Strict typing: focused mypy passed for both modified tool modules with skipped dependency
+  traversal. The four-file/global probe remains blocked by previously recorded bootstrap debt in
+  imported audit/schema modules and untyped pytest decorators. Full strict typing remains assigned
+  to Preflight Task 5; Task 1 does not claim the global gate.
+- Accepted oracle/security findings: bind default CWD, use same-file semantics, reject Git
+  repository/index/config injection variables, test Unicode and real linked worktrees, wrap launch
+  and timeout errors, use a cached-diff clean-index gate, parse CommonMark fences fail-closed, accept
+  only canonical literal staging, require root/clean-index first, forbid auto-staging commits, and
+  require observed staged name/status review.
+- Accepted prompt-contract findings: make `QUALITY_LOOP.md` the sole orchestration authority; route
+  `AGENTS.md`, README/startup/Codex/phase/review prompts and every plan through one `STATUS.md` task;
+  root-guard all Git blocks; add canonical staging to all 21 phase commit blocks; repair this
+  Preflight plan's own commit blocks.
+- Candidate 1 final spec and fresh-execution reviews: pending.
+- Candidate 1 commit: pending.

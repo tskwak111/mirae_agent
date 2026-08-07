@@ -1,14 +1,13 @@
-# Codex Prompt 00 — Initial Kickoff
+# Codex Prompt 00 — Initial Kickoff Router
 
-You are starting the FinProof implementation from a deliberately complete handoff. Do not rely on prior chat context.
+Read `AGENTS.md`, `START_HERE.md`, `docs/implementation/QUALITY_LOOP.md`, and
+`docs/implementation/STATUS.md`. Run the exact-root, handoff, source-audit, and schema-catalog
+preflight in `START_HERE.md` before editing.
 
-1. Read `AGENTS.md` and `START_HERE.md` completely.
-2. Read the frozen design and contracts listed by `START_HERE.md`.
-3. Run `python tools/verify_handoff.py` and `python tools/audit_source_data.py --check` before editing.
-4. Open `docs/implementation/STATUS.md` and identify the first incomplete task.
-5. Read that task in its phase plan.
-6. Execute exactly that one task with strict red-green-refactor TDD.
-7. Run the task checks and repository quality checks available at the current phase.
-8. Update `docs/implementation/STATUS.md`, commit the change, and leave a clean worktree.
+Freeze and execute exactly the one task selected by `STATUS.md`; read its complete plan section.
+External skills and agents are subordinate to its scope, allowed paths, ownership, review gates,
+and Candidate 1–3 budget. Follow RED/GREEN TDD, independent spec and execution verification,
+canonical staging, durable status, and reporting exactly as defined in `QUALITY_LOOP.md`.
 
-Do not start later tasks, weaken frozen source baselines, add non-HyperCLOVA generative models, use free-form SQL, silently merge fuzzy product matches, or change metric policies without a documented decision. Your final response must include the observed failing test, passing commands, files changed, commit hash, remaining risks, and exact next task.
+Domain and competition behavior comes from `AGENTS.md` and the selected frozen contracts. Do not
+infer a phase task or begin a second task.

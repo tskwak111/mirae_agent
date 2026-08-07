@@ -1,11 +1,10 @@
 # Preflight Safety Remediation Implementation Plan
 
 > **For agentic workers:** REQUIRED REPOSITORY CONTRACT: follow
-> `docs/implementation/QUALITY_LOOP.md` task-by-task. Use
-> `superpowers:test-driven-development` for behavior and
-> `superpowers:dispatching-parallel-agents` only for independent, non-writing specialist work.
-> External execution skills may not expand the current `STATUS.md` task or weaken repository
-> review gates. Steps use checkbox (`- [ ]`) syntax for tracking.
+> `docs/implementation/QUALITY_LOOP.md` for the one task selected by `STATUS.md`. Skills are
+> optional aids. Fan-out is read-only or uses isolated, disjoint files with named writers; it may
+> not expand scope, writable paths, ownership, or review gates. Steps use checkbox (`- [ ]`)
+> syntax for tracking.
 
 **Goal:** Remove the five demonstrated pre-implementation blockers and leave an exact-root,
 reproducible Python 3.12 repository ready to begin Phase 1 Task 1.
@@ -23,6 +22,8 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 - Work only in the exact `codex/preflight-safety` linked worktree.
 - Run `python tools/check_repo_root.py --expected-root .` before every Git status, stage, commit,
   tag, push, or release command after Task 1 creates the guard.
+- Run the guard with `--require-clean-index` immediately before canonical staging; no other
+  process or agent may write the index through commit.
 - Never run `git add .`, `git add tests`, or another unresolved/broad staging command.
 - Execute exactly one incomplete Preflight task per implementation session.
 - The coordinator is the only writer for shared prompts, plans, and `STATUS.md`.
@@ -44,7 +45,9 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 - Create: `docs/implementation/QUALITY_LOOP.md`
 - Modify: `tools/verify_handoff.py`
 - Modify: `tests/contract/test_handoff_package.py`
+- Modify: `AGENTS.md`
 - Modify: `START_HERE.md`
+- Modify: `README.md`
 - Modify: `CODEX_MASTER_PROMPT.md`
 - Modify: `CODEX_RESUME_PROMPT.md`
 - Modify: `CODEX_REVIEW_PROMPT.md`
@@ -58,6 +61,8 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 - Modify: `docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md`
 - Modify: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 - Modify: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
+- Modify: `docs/superpowers/plans/2026-08-07-00-roadmap.md`
+- Modify: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 - Modify: `HANDOFF_PACKAGE_MANIFEST.md`
 - Modify: `docs/implementation/STATUS.md`
 
@@ -66,11 +71,19 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 - Produces: `RepoRootError(RuntimeError)`
 - Produces: `git_top_level(cwd: Path) -> Path`
 - Produces: `ensure_exact_repo_root(expected_root: Path, cwd: Path | None = None) -> Path`
-- CLI: `python tools/check_repo_root.py --expected-root PATH`
+- Produces: `ensure_clean_index(root: Path) -> None`
+- CLI: `python tools/check_repo_root.py --expected-root PATH [--require-clean-index]`
 - Produces: `unsafe_git_stage_lines(text: str) -> tuple[tuple[int, str], ...]`
+- Produces: CommonMark-aware Git-block, commit, and routing-surface verification
 - Consumes: the approved preflight design and current Git checkout
 
-- [ ] **Step 1: Write focused failing exact-root tests**
+- [ ] **Step 1: Write focused failing exact-root and index tests**
+
+In addition to the nominal examples below, cover the real CLI, current-CWD binding, Unicode and
+spaces, linked worktrees nested under `.worktrees`, cross-mismatches, repository/config-selection
+environment variables, typed launch/timeout errors, unborn repositories, staged add/modify/delete/
+rename/conflict states, and linked-worktree index isolation. All Git subprocess decoding is UTF-8
+and fixtures neutralize ambient Git discovery/configuration.
 
 Create `tests/contract/test_repo_root_guard.py` with real temporary Git repositories:
 
@@ -127,7 +140,14 @@ python -m pytest -p no:cacheprovider tests/contract/test_repo_root_guard.py -q
 
 Expected: collection fails with `ModuleNotFoundError: No module named 'tools.check_repo_root'`.
 
-- [ ] **Step 3: Implement the minimal exact-root guard**
+- [ ] **Step 3: Implement the minimal exact-root and clean-index guard**
+
+The implementation must bind the default call to `Path.cwd()`, require invoking-directory and Git
+top-level identity with resolved/same-file semantics, reject repository/index/config injection
+variables before Git runs, use bounded subprocess timeouts, wrap launch/decoding/path failures in
+`RepoRootError`, and preserve Unicode paths. `--require-clean-index` uses cached diff exit codes,
+fails closed on every staged state, and prints escaped NUL-delimited diagnostic paths. The original
+snippet below is the starting skeleton; these requirements and the contract tests are normative.
 
 Create `tools/check_repo_root.py`:
 
@@ -217,7 +237,7 @@ python -m pytest -p no:cacheprovider tests/contract/test_repo_root_guard.py -q
 
 Expected: four tests pass.
 
-- [ ] **Step 5: Write RED tests for unsafe staging policy**
+- [ ] **Step 5: Write RED tests for fenced Git workflow policy**
 
 Add tests to `tests/contract/test_handoff_package.py`:
 
@@ -251,14 +271,16 @@ python -m pytest -p no:cacheprovider tests/contract/test_handoff_package.py::tes
 
 Expected: import fails because `unsafe_git_stage_lines` does not exist.
 
-- [ ] **Step 6: Implement the staging-policy validator and wire it into handoff checks**
+- [ ] **Step 6: Implement Git-workflow validation and wire it into handoff checks**
 
-Add a pure `unsafe_git_stage_lines` function to `tools/verify_handoff.py`. Inspect only fenced
-blocks labeled `bash`, `sh`, or `powershell`; examples inside Python/text fences are inert.
-Tokenize each single-line `git add` command with `shlex.split`; fail closed on `.` and on these
-bare broad directory targets: `tests`, `src`, `tools`, `docs`, `config`, `schemas`, `prompts`,
-`source_material`, and `release`. Exact files or task-owned subdirectories remain valid. Invoke
-the function for `START_HERE.md`, all repository prompts, and every phase plan.
+Parse CommonMark backtick/tilde fences of length three or greater, including attributes, longer
+closing fences, unclosed fences, and inert nested examples. Scan known shell labels and fail closed
+on Git inside unknown/unlabeled fences; Python/text fixtures remain inert. Accept only literal
+direct `git add -- <ASCII repo-relative forward-slash path>...`; reject every other staging form,
+context override, pathspec, variable, quote, wildcard, control operator, continuation, absolute/
+parent path, and case-folded bare broad directory. Every Git block starts with the exact guard;
+mutating blocks require clean-index mode, commits require an observed staged name/status diff, and
+auto-staging commit options are forbidden. Invoke the checks for every routing surface and plan.
 
 Add `tools/check_repo_root.py`, `docs/implementation/QUALITY_LOOP.md`, the preflight design, and
 this plan to `REQUIRED_FILES` and `HANDOFF_PACKAGE_MANIFEST.md`.
@@ -284,8 +306,9 @@ Replace duplicated orchestration prose in the three top-level Codex prompts and 
 `prompts/` with a concise link to `QUALITY_LOOP.md`, the current task, approval boundaries, and
 the exact-root command. Keep product/domain invariants in `AGENTS.md`; do not duplicate them.
 
-Replace every broad `git add` command in the four phase plans with exact file paths or a
-task-owned subdirectory. Each Git block begins with:
+Replace every broad staging command in the roadmap, all phase plans, and this Preflight plan with
+literal files or a task-owned subdirectory. Each mutating Git block begins with clean-index mode,
+uses canonical staging, and reviews the staged name/status list before commit.
 
 ```powershell
 python tools/check_repo_root.py --expected-root .
@@ -321,8 +344,9 @@ itself. Apply technically valid findings one at a time and rerun the focused sui
 Stage only the paths listed in Task 1:
 
 ```powershell
-python tools/check_repo_root.py --expected-root .
-git add -- tools/check_repo_root.py tools/verify_handoff.py tests/contract/test_repo_root_guard.py tests/contract/test_handoff_package.py docs/implementation/QUALITY_LOOP.md docs/implementation/STATUS.md START_HERE.md CODEX_MASTER_PROMPT.md CODEX_RESUME_PROMPT.md CODEX_REVIEW_PROMPT.md prompts/00_INITIAL_KICKOFF.md prompts/01_DATA_FOUNDATION.md prompts/02_QUERY_ENGINE.md prompts/03_HCX_AND_API.md prompts/04_EVALUATION_AND_RELEASE.md prompts/99_CODE_REVIEW.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md HANDOFF_PACKAGE_MANIFEST.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- tools/check_repo_root.py tools/verify_handoff.py tests/contract/test_repo_root_guard.py tests/contract/test_handoff_package.py docs/implementation/QUALITY_LOOP.md docs/implementation/STATUS.md AGENTS.md START_HERE.md README.md CODEX_MASTER_PROMPT.md CODEX_RESUME_PROMPT.md CODEX_REVIEW_PROMPT.md prompts/00_INITIAL_KICKOFF.md prompts/01_DATA_FOUNDATION.md prompts/02_QUERY_ENGINE.md prompts/03_HCX_AND_API.md prompts/04_EVALUATION_AND_RELEASE.md prompts/99_CODE_REVIEW.md docs/superpowers/plans/2026-08-07-00-roadmap.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md HANDOFF_PACKAGE_MANIFEST.md
+git diff --cached --name-status --
 git commit -m "chore: enforce exact-root quality workflow"
 ```
 
@@ -403,6 +427,9 @@ python -B tools/audit_source_data.py --check
 Stage exactly the Task 2 files and commit with:
 
 ```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- schemas/input_manifest.schema.json tests/contract/test_instruction_authority.py source_material/input_manifest.json source_material/README.md AGENTS.md CODEX_MASTER_PROMPT.md docs/08_SECURITY_OPERATIONS_AND_RELEASE.md docs/01_OFFICIAL_REQUIREMENTS_TRACEABILITY.md docs/10_DECISION_LOG.md tools/verify_handoff.py HANDOFF_PACKAGE_MANIFEST.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "security: separate instruction and data trust planes"
 ```
 
@@ -498,6 +525,9 @@ Run focused contracts, all contract tests, handoff, source audit, and schema-cat
 only Task 3 paths and commit:
 
 ```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- schemas/aggregate_evidence.schema.json schemas/golden_expected_result.schema.json schemas/golden_expected_answer.schema.json config/question_coverage.yaml tools/build_coverage_report.py tests/contract/test_evaluation_contracts.py tests/contract/test_question_coverage.py tests/evaluation/README.md schemas/golden_case.schema.json tests/golden/README.md tests/contract/test_handoff_package.py docs/07_TESTING_AND_EVALUATION.md docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md tools/verify_handoff.py HANDOFF_PACKAGE_MANIFEST.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "test: enforce independent evidence-backed evaluation"
 ```
 
@@ -571,6 +601,9 @@ attestation is created afterward. If stored in Git, label its containing commit 
 Run both focused contract suites and handoff verification, stage exact Task 4 paths, and commit:
 
 ```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- schemas/release_attestation.schema.json schemas/decision_evidence.schema.json tools/verify_release_attestation.py docs/release/RELEASE_PROVENANCE.md docs/presentation/DECISION_EVIDENCE_LEDGER.yaml tests/contract/test_release_provenance_contract.py tests/contract/test_decision_evidence_contract.py docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md docs/08_SECURITY_OPERATIONS_AND_RELEASE.md docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md docs/11_DEFINITION_OF_DONE.md HANDOFF_PACKAGE_MANIFEST.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "release: separate code freeze from attestation"
 ```
 
@@ -712,5 +745,8 @@ approved pass criteria. Name Phase 1 Task 1 as the exact next task. Stage only T
 the final review report, then commit:
 
 ```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- uv.lock tools/check_runtime_policy.py tools/probe_hcx_capability.py tests/contract/test_runtime_policy.py tests/contract/test_hcx_capability_probe.py docs/review/HCX_CAPABILITY_REPORT.md docs/review/PREFLIGHT_FINAL_AUDIT.md .github/workflows/ci.yml .pre-commit-config.yaml pyproject.toml Makefile CODEX_MASTER_PROMPT.md tools/audit_source_data.py tools/create_input_manifest.py tools/extract_schema_catalog.py tools/verify_handoff.py tools/xlsx_stream.py tests/contract/test_handoff_package.py docs/implementation/PHASE_GATES.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "chore: freeze verified preflight baseline"
 ```

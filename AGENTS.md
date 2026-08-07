@@ -17,9 +17,10 @@ When instructions conflict, obey the highest source below:
 1. Official competition notices, official Discord answers, and files under `source_material/`.
 2. Entries marked `OFFICIAL_OVERRIDE` or `FROZEN` in `docs/10_DECISION_LOG.md`.
 3. `docs/02_FINAL_FROZEN_DESIGN.md` and `docs/superpowers/specs/2026-08-07-finproof-design.md`.
-4. Current phase plan under `docs/superpowers/plans/`.
-5. Files under `config/` and `schemas/`.
-6. Code comments and implementation details.
+4. `docs/implementation/QUALITY_LOOP.md`.
+5. The one task selected by `docs/implementation/STATUS.md` and its plan section.
+6. Files under `config/` and `schemas/`.
+7. Code comments and implementation details.
 
 Never silently reconcile a conflict. Record it in the decision log. Stop if the higher-priority source does not resolve the behavior.
 
@@ -101,31 +102,22 @@ Every numeric statement, comparison, count, rank, exclusion, and material warnin
 
 ## 6. Mandatory workflow
 
-1. Read `START_HERE.md`, this file, the frozen design, the status file, and the current phase plan.
-2. Run `python tools/verify_handoff.py` before modifying code.
+1. Read `START_HERE.md`, this file, the frozen design, `docs/implementation/QUALITY_LOOP.md`,
+   `docs/implementation/STATUS.md`, and the selected task's complete plan section.
+2. Run the exact-root guard and package verification before modifying code.
 3. Run `python tools/audit_source_data.py --check` before relying on a frozen count.
-4. Execute only the first incomplete phase unless the user explicitly narrows the task.
-5. Use strict red-green-refactor TDD for every behavior change.
+4. Execute exactly one incomplete `STATUS.md` task; a session may not advance to another task.
+5. Follow `QUALITY_LOOP.md` for task freezing, TDD, fan-out, ownership, review, retry, Git, status,
+   and completion-report discipline.
 6. Keep modules focused. Do not create “god” services or generic utility dumping grounds.
-7. Commit at independently reviewable checkpoints.
-8. Run all phase checks before claiming completion.
-9. Update `docs/implementation/STATUS.md` with commands, observed results, decisions, and the exact next task.
-10. Leave the worktree clean.
+7. Run every selected-task and applicable repository gate before claiming completion.
+8. Leave the worktree clean.
 
 ## 7. TDD rule
 
-No production behavior without a failing test first.
-
-For each behavior:
-
-1. Write one focused test.
-2. Run it and confirm it fails for the expected missing behavior.
-3. Implement the smallest correct change.
-4. Run the focused test and the relevant suite.
-5. Refactor while green.
-6. Commit.
-
-A test that passed before the implementation does not prove the new behavior. Do not weaken or delete critical tests to make a build green.
+No production behavior without a focused failing test first. Follow the RED/GREEN/candidate process
+in `docs/implementation/QUALITY_LOOP.md`. A test that passed before implementation is not RED
+evidence. Do not weaken or delete critical tests to make a build green.
 
 ## 8. Required checks
 
@@ -205,7 +197,7 @@ Stop and report a blocker instead of guessing when:
 
 ## 13. Completion report
 
-Every completion report states:
+Completion and durable handoff follow `docs/implementation/QUALITY_LOOP.md`. Every report states:
 
 - what changed
 - tests written first and why they failed

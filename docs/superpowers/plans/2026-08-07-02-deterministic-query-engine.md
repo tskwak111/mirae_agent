@@ -1,6 +1,9 @@
 # Deterministic Query Engine Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED REPOSITORY CONTRACT: follow
+> `docs/implementation/QUALITY_LOOP.md` for the one task selected by `STATUS.md`. Skills are
+> optional aids and may not expand scope, writable paths, ownership, or review gates. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement the complete deterministic core from validated QueryPlan through product results, policy decisions, evidence, verified claims, and stable Korean answers without requiring HyperCLOVA X.
 
@@ -161,7 +164,9 @@ uv run pytest tests/unit/domain tests/unit/registry -q
 ```
 
 ```bash
-git add src/finproof/domain src/finproof/registry tests/unit/domain tests/unit/registry docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/domain src/finproof/registry tests/unit/domain tests/unit/registry docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: define FinProof plans evidence and registries"
 ```
 
@@ -264,7 +269,9 @@ uv run mypy src/finproof/entity tests/unit/entity tests/integration/entity
 ```
 
 ```bash
-git add src/finproof/entity tests/unit/entity tests/integration/entity docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/entity tests/unit/entity tests/integration/entity docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: add controlled financial product resolution"
 ```
 
@@ -384,7 +391,9 @@ uv run mypy src/finproof/query tests/unit/query tests/security
 ```
 
 ```bash
-git add src/finproof/query tests/unit/query tests/security docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/query tests/unit/query tests/security/test_query_injection.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: validate plans and compile allowlisted SQL"
 ```
 
@@ -464,7 +473,9 @@ uv run mypy src/finproof/query src/finproof/storage/repositories tests/integrati
 ```
 
 ```bash
-git add src/finproof/query src/finproof/storage/repositories tests/integration/query tests/differential tests/property docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/query/executor.py src/finproof/query/reference.py src/finproof/storage/repositories tests/integration/query tests/differential tests/property docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: execute deterministic financial queries"
 ```
 
@@ -568,7 +579,9 @@ Official integration cases must assert the frozen counts/tie groups for 325/254 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/finproof/quality tests/unit/quality tests/integration/quality docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/quality tests/unit/quality tests/integration/quality docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: enforce financial state and comparability policies"
 ```
 
@@ -694,6 +707,8 @@ uv run python tools/verify_handoff.py
 - [ ] **Step 9: Update status and commit**
 
 ```bash
-git add src/finproof/evidence src/finproof/answer src/finproof/service tests docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/evidence src/finproof/answer src/finproof/service tests/unit/evidence tests/unit/answer tests/integration/service tests/golden/test_seed_answer_semantics.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: render and verify evidence-backed answers"
 ```

@@ -1,13 +1,26 @@
-# FinProof — Codex Resume Prompt
+# FinProof — Codex Resume Router
 
-Resume FinProof from repository state, not from conversational memory.
+Resume from repository state, not conversational memory.
 
-1. Read `AGENTS.md`, `docs/implementation/STATUS.md`, and the current phase plan.
-2. Inspect `git status`, recent commits, and the last recorded commands/results.
-3. Run `python tools/verify_handoff.py`.
-4. If the next task consumes source data, run `python tools/audit_source_data.py --check`.
-5. Execute exactly the next incomplete task with strict red-green-refactor TDD.
-6. Do not alter frozen domain policies or expected source counts without an official override in `docs/10_DECISION_LOG.md`.
-7. Run the task’s gate, review the diff, update status, commit, and leave the worktree clean.
+1. Read `AGENTS.md`, `docs/implementation/QUALITY_LOOP.md`, and
+   `docs/implementation/STATUS.md` completely.
+2. Read the entire plan section for the single task selected by `STATUS.md`.
+3. From the externally selected worktree root, verify repository context:
 
-At the end, report verified commands/results, the commit hash, unresolved risks, and the next exact task. Never claim completion from code inspection alone.
+```powershell
+python tools/check_repo_root.py --expected-root .
+git status --short
+git branch --show-current
+git log -3 --oneline
+```
+
+4. Run `python tools/verify_handoff.py`; run the source audit before consuming frozen facts.
+5. Confirm the recorded task-brief hash, base commit, allowed paths, writers, RED/GREEN evidence,
+   candidate number, findings, and retry budget before editing.
+6. Continue only that task under `QUALITY_LOOP.md`. Skills and agents may not enlarge scope or
+   writable paths. Shared contracts and `STATUS.md` remain coordinator-only.
+7. Obtain the required independent reviews, run fresh verification, use canonical exact staging,
+   update the durable handoff, and report observed facts plus the exact next task.
+
+If state is inconsistent or a stop condition is unresolved, stop and report it instead of
+reconstructing intent from chat.

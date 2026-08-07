@@ -1,9 +1,13 @@
-# Codex Prompt 01 — Data Foundation
+# Codex Prompt 01 — Data Foundation Router
 
-Implement the first incomplete task in `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md` only.
+Use this prompt only when `docs/implementation/STATUS.md` selects a Phase 1 task. Otherwise stop
+and follow the selected task's plan.
 
-Before editing, read `AGENTS.md`, `docs/02_FINAL_FROZEN_DESIGN.md`, `docs/03_DATA_AUDIT_BASELINE.md`, `docs/04_DATA_AND_DOMAIN_CONTRACTS.md`, `docs/implementation/STATUS.md`, and the entire Phase 1 plan. Run the handoff and source-audit checks.
+Read `AGENTS.md`, `docs/implementation/QUALITY_LOOP.md`, `STATUS.md`, the complete selected Phase 1
+task, the frozen data/domain contracts, and the source-audit baseline. Run repository and source
+preflight before edits. Freeze one task brief and follow the repository-owned TDD, fan-out, review,
+retry, Git, status, and reporting gates.
 
-Use strict TDD. Preserve all raw source values and row lineage. Never change the expected source audit to accommodate implementation errors. Public-fund normalization must keep `itm_no` as the default product grain and `prfd_attr_cd` as a many-valued attribute. The malformed source row must be preserved in Bronze lineage and explicitly quarantined from normal results. Build deterministic, versioned artifacts only.
-
-End after one independently reviewable task. Run its focused tests plus required quality checks, update status with actual command results, commit, and report the exact next task.
+Preserve raw values and row lineage; never weaken the frozen audit. Keep public-fund `itm_no` grain,
+many-valued `prfd_attr_cd`, quarantine, and deterministic versioned artifacts exactly as specified
+by `AGENTS.md`. End after the selected task.

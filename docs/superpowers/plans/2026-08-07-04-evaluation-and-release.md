@@ -1,6 +1,9 @@
 # Evaluation, Hardening, and Release Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED REPOSITORY CONTRACT: follow
+> `docs/implementation/QUALITY_LOOP.md` for the one task selected by `STATUS.md`. Skills are
+> optional aids and may not expand scope, writable paths, ownership, or review gates. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Prove FinProof’s accuracy, stability, safety, latency, and reproducibility with reviewed evaluation assets, close material risks, and freeze an immutable submission release.
 
@@ -120,7 +123,9 @@ uv run finproof evaluate --suite canonical --output artifacts/evaluation/canonic
 - [ ] **Step 7: Commit harness and reviewed cases**
 
 ```bash
-git add src/finproof/evaluation src/finproof/cli tests/unit/evaluation tests/integration/evaluation evaluation artifacts/evaluation/canonical.json docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/evaluation src/finproof/cli/evaluate.py src/finproof/cli/main.py tests/unit/evaluation tests/integration/evaluation evaluation/canonical/.gitkeep evaluation/README.md artifacts/evaluation/canonical.json docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "test: add reviewed canonical FinProof evaluation"
 ```
 
@@ -212,7 +217,9 @@ uv run finproof evaluate --suite robustness --output artifacts/evaluation/robust
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/finproof/evaluation evaluation tests/evaluation artifacts/evaluation/robustness.json docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/evaluation/paraphrases.py src/finproof/evaluation/metamorphic.py src/finproof/evaluation/adversarial.py evaluation/paraphrase_rules.yaml evaluation/adversarial_cases.jsonl tests/evaluation artifacts/evaluation/robustness.json docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "test: harden FinProof language and policy behavior"
 ```
 
@@ -303,7 +310,9 @@ Prefer a 48-hour final soak. If organizer timeout/concurrency is disclosed, set 
 - [ ] **Step 7: Commit code and immutable raw reports**
 
 ```bash
-git add src/finproof/evaluation tests scripts docs/benchmark artifacts/evaluation docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/evaluation/ablation.py src/finproof/evaluation/latency.py src/finproof/evaluation/load.py src/finproof/evaluation/soak.py tests/unit/evaluation/test_latency_stats.py tests/integration/evaluation/test_fault_injection.py scripts/run_ablation.sh scripts/run_load.sh scripts/run_soak.sh docs/benchmark artifacts/evaluation docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "perf: measure FinProof quality latency and resilience"
 ```
 
@@ -372,7 +381,9 @@ No BLOCKER/HIGH release risk remains unresolved unless the organizer explicitly 
 - [ ] **Step 6: Commit review closure**
 
 ```bash
-git add tools tests/contract .github/workflows/ci.yml docs/review docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- tools/check_competition_compliance.py tools/check_claim_evidence_report.py tests/contract/test_competition_compliance.py docs/review docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "chore: close FinProof competition review findings"
 ```
 
@@ -489,7 +500,9 @@ organizer-approved failover procedure
 - [ ] **Step 7: Commit final submission assets**
 
 ```bash
-git add release docs/submission README.md docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- tools/create_release_manifest.py tools/verify_release_manifest.py scripts/clean_room_reproduce.sh docs/submission release/.gitkeep tests/contract/test_release_manifest.py README.md docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "chore: freeze FinProof competition release"
 git tag -a finproof-submission -m "FinProof competition submission"
 ```

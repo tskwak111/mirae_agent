@@ -1,11 +1,13 @@
-# Codex Prompt 03 — HyperCLOVA X Planner and Evaluation API
+# Codex Prompt 03 — HyperCLOVA X and API Router
 
-Implement the first incomplete task in `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md` only. Phase 2 must already have passed its gate.
+Use this prompt only when `docs/implementation/STATUS.md` selects a Phase 3 task and the Phase 2
+gate is recorded green. Otherwise stop and follow the selected task's plan.
 
-Read `AGENTS.md`, the QueryPlan/API contract, security/operations document, current status, and the full Phase 3 plan. Run repository verification before editing.
+Read `AGENTS.md`, `docs/implementation/QUALITY_LOOP.md`, `STATUS.md`, the complete selected task,
+and the QueryPlan/API/security contracts. Run repository verification, freeze one task brief, and
+follow the repository-owned TDD, fan-out, review, retry, Git, status, and reporting gates.
 
-Use strict TDD and recorded fixtures for model-contract tests. HyperCLOVA X is the only generative model permitted in runtime/evaluation. Prefer HCX-007 Structured Outputs where the configured competition account supports it; send only `schemas/hcx_query_plan.schema.json`, never the stricter local schema, and do not combine Structured Outputs with Function Calling or thinking in the same request. Every response then passes the strict canonical QueryPlan and semantic validator. Keep a validated strict-JSON adapter and deterministic fallback behind the same Planner interface. Bound timeouts, retries, repair attempts, concurrency, and output size.
-
-The public endpoint must be `GET /answer`, echo the request, and return exactly five string fields: `question_id`, `question`, `retrieved_context`, `think_trace`, and `answer`. `think_trace` is a reproducible execution summary, not hidden chain-of-thought. Default answer rendering is deterministic; optional HCX wording must consume verified facts and pass claim verification.
-
-End after one independently reviewable task. Run focused, contract, and relevant integration checks, update status, commit, and report the exact next task.
+HyperCLOVA X is the only runtime/evaluation generative model. Enforce provider-safe output plus
+strict local/semantic validation, bounded repair/fallback, exact `GET /answer` five-string schema,
+deterministic default rendering, verified-fact-only wording, safe `think_trace`, and bounded
+operational controls. End after the selected task.

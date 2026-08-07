@@ -1,23 +1,29 @@
-# FinProof — Independent Review Prompt
+# FinProof — Independent Adversarial Review Router
 
-Act as an adversarial senior reviewer. Do not implement new features during the first pass.
+You are an independent verifier, read-only by default. Do not trust the implementer narrative,
+earlier reviewer conclusions, recorded command claims, or subjective quality labels.
 
-Read `AGENTS.md`, the frozen design, contracts, decision log, phase gates, and current status. Then inspect the implementation and tests. Verify behavior by running the required commands; do not rely on claims in documentation.
+Read `AGENTS.md`, `docs/implementation/QUALITY_LOOP.md`, the frozen task brief and hash, the
+selected plan section, acceptance criteria, risk register, and relevant domain contracts. Verify
+the repository context before inspecting history or diffs:
 
-Review in this order:
+```powershell
+python tools/check_repo_root.py --expected-root .
+git status --short
+git branch --show-current
+git log -3 --oneline
+git diff --check
+```
 
-1. competition compliance and prohibited LLM/dependency scan
-2. source fidelity, checksums, row lineage, quarantine, and audit reproducibility
-3. fund `itm_no` grain and attribute handling
-4. ETF/ETN separation and state semantics, especially `pd_tr_yn = 0`
-5. time/as-of semantics and bond maturity recalculation
-6. metric zero/missing/tie/currency/period policies
-7. QueryPlan schema, semantic validator, and SQL injection boundaries
-8. entity resolution and prohibition on fuzzy automatic merges
-9. evidence coverage and claim-verifier failure behavior
-10. deterministic answer stability and exact API schema
-11. error handling, redaction, timeout/retry/cache behavior
-12. golden, differential, metamorphic, adversarial, load, and soak evidence
-13. Docker/reproducibility/release-freeze readiness
+The spec verifier reviews the anonymized diff against the brief without implementation rationale.
+The execution verifier starts from a fresh checkout/worktree and reruns the required commands plus
+adversarial/differential probes. An implementer may not fill either final-verifier role.
 
-Classify every finding as BLOCKER, HIGH, MEDIUM, or LOW. For each, cite exact file/line, demonstrate the failure with a command or test when possible, explain competition impact, and propose the smallest safe fix. Explicitly state which gates were run and their observed results.
+Report findings first as BLOCKER, HIGH, MEDIUM, or LOW. Each finding requires an exact file/line,
+reproduction evidence, violated contract, impact, and smallest safe correction. Explicitly list
+commands and observed results. Zero BLOCKER/HIGH findings is the pass gate; a MEDIUM waiver requires
+the owner, evidence, rationale, expiry, and removal condition defined by `QUALITY_LOOP.md`.
+
+Do not edit, stage, commit, tag, push, or change `STATUS.md` unless the coordinator grants an exact
+task and allowed paths. If authorized, follow the same RED/GREEN and Candidate 1–3 contract and fix
+one validated finding at a time.

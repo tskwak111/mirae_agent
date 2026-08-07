@@ -1,6 +1,9 @@
 # Repository and Data Foundation Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED REPOSITORY CONTRACT: follow
+> `docs/implementation/QUALITY_LOOP.md` for the one task selected by `STATUS.md`. Skills are
+> optional aids and may not expand scope, writable paths, ownership, or review gates. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a reproducible, source-faithful data foundation that converts the eight official workbooks into typed, quality-audited Parquet and read-only DuckDB artifacts.
 
@@ -178,7 +181,9 @@ Expected: all PASS.
 - [ ] **Step 8: Update status and commit**
 
 ```bash
-git add src/finproof/core src/finproof/cli tests/unit/core tests/contract docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/core src/finproof/cli tests/unit/core tests/contract/test_handoff_commands.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: bootstrap typed FinProof core and CLI"
 ```
 
@@ -291,7 +296,9 @@ Expected: PASS and frozen audit unchanged.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/finproof/data src/finproof/domain/source.py tests/source_contract docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/data src/finproof/domain/source.py tests/source_contract docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: add verified streaming source ingestion"
 ```
 
@@ -415,7 +422,9 @@ uv run mypy src/finproof/data/normalization src/finproof/domain src/finproof/reg
 ```
 
 ```bash
-git add src/finproof/data/normalization src/finproof/domain src/finproof/registry tests/unit docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/data/normalization src/finproof/domain/quality.py src/finproof/domain/products.py src/finproof/registry tests/unit/data tests/unit/registry docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: normalize bonds and domestic listed products"
 ```
 
@@ -528,7 +537,9 @@ uv run python tools/audit_source_data.py --check
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/finproof/data tests/unit/data tests/source_contract docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/data/normalization/overseas_listed.py src/finproof/data/normalization/public_funds.py src/finproof/data/quarantine.py tests/unit/data tests/source_contract/test_public_fund_grain.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: normalize overseas products and public fund grain"
 ```
 
@@ -637,7 +648,9 @@ Inspect DuckDB counts against `tests/contracts/expected_source_audit.json`.
 - [ ] **Step 8: Update phase status, record artifact hashes, and commit**
 
 ```bash
-git add src/finproof/data src/finproof/storage src/finproof/cli tests artifacts/manifest.json artifacts/reports docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/data/build.py src/finproof/data/artifact_manifest.py src/finproof/storage src/finproof/cli/build_data.py src/finproof/cli/main.py tests/integration/data artifacts/manifest.json artifacts/reports docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: build reproducible FinProof data artifacts"
 ```
 

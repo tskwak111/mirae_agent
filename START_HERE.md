@@ -5,37 +5,44 @@
 Read, in order:
 
 1. `AGENTS.md`
-2. `docs/00_PROJECT_CHARTER.md`
-3. `docs/01_OFFICIAL_REQUIREMENTS_TRACEABILITY.md`
-4. `docs/02_FINAL_FROZEN_DESIGN.md`
-5. `docs/03_DATA_AUDIT_BASELINE.md`
-6. `docs/04_DATA_AND_DOMAIN_CONTRACTS.md`
-7. `docs/05_QUERYPLAN_AND_API_CONTRACT.md`
-8. `docs/06_METRIC_REGISTRY_POLICY.md`
-9. `docs/07_TESTING_AND_EVALUATION.md`
-10. `docs/implementation/STATUS.md`
-11. the first incomplete phase plan under `docs/superpowers/plans/`
+2. `docs/implementation/QUALITY_LOOP.md`
+3. `docs/00_PROJECT_CHARTER.md`
+4. `docs/01_OFFICIAL_REQUIREMENTS_TRACEABILITY.md`
+5. `docs/02_FINAL_FROZEN_DESIGN.md`
+6. `docs/03_DATA_AUDIT_BASELINE.md`
+7. `docs/04_DATA_AND_DOMAIN_CONTRACTS.md`
+8. `docs/05_QUERYPLAN_AND_API_CONTRACT.md`
+9. `docs/06_METRIC_REGISTRY_POLICY.md`
+10. `docs/07_TESTING_AND_EVALUATION.md`
+11. `docs/implementation/STATUS.md`
+12. the complete plan section for the one task selected by `STATUS.md`
 
 ## 2. Verify the package
 
 ```bash
+python tools/check_repo_root.py --expected-root .
 python tools/verify_handoff.py
 python tools/audit_source_data.py --check
 ```
 
 Both must pass before source-derived implementation work begins. A checksum or audit mismatch is a stop condition, not an invitation to update expected numbers.
 
-## 3. Initialize Git safely
+## 3. Verify the repository boundary
 
-If this directory is not already the organizer’s private repository:
+This package must already be an exact project repository before an agent works in it:
 
-```bash
-git init
-git add .
-git commit -m "chore: add FinProof implementation handoff"
+```powershell
+python tools/check_repo_root.py --expected-root .
+git status --short
+git branch --show-current
+git log -3 --oneline
 ```
 
-When using Codex for implementation, create an isolated branch/worktree per phase when practical. Do not make submission-freeze changes on `main` without review.
+If the guard reports a missing repository, an ancestor repository, another worktree, or a
+repository-selection environment variable, stop. Do not run `git init` or stage from that state.
+A human/coordinator must establish the private project repository at the exact directory, import
+only the paths listed in `HANDOFF_PACKAGE_MANIFEST.md`, and then rerun the guard. Never perform a
+broad initial import. Use an isolated `codex/` branch or linked worktree for each selected task.
 
 ## 4. Bootstrap dependencies
 
@@ -59,7 +66,9 @@ For later sessions, use `CODEX_RESUME_PROMPT.md`. For an independent final audit
 3. HyperCLOVA X planner and evaluation API
 4. Evaluation, hardening, and release freeze
 
-Do not start UI, GraphDB, multi-agent orchestration, live external data, portfolio optimization, or personalized recommendations before all P0 phase gates pass.
+Do not start UI, GraphDB, runtime/product multi-agent architecture, live external data, portfolio
+optimization, or personalized recommendations before all P0 phase gates pass. Safe development
+fan-out is governed separately by `QUALITY_LOOP.md`.
 
 ## 7. Human review gates
 
@@ -74,6 +83,7 @@ A human should inspect after every phase:
 - exact API schema
 - competition compliance and LLM dependencies
 
-## 8. First task
+## 8. Current task
 
-The first incomplete item in `docs/implementation/STATUS.md` is authoritative. At package creation, it is Phase 1, Task 1: bootstrap the repository under TDD and make the handoff/source checks part of CI.
+The single task named under `Current next task` in `docs/implementation/STATUS.md` is authoritative.
+Do not infer a phase-local task from a prompt, plan filename, or remaining context.

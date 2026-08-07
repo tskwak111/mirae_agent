@@ -1,9 +1,14 @@
-# Codex Prompt 02 — Deterministic Query and Evidence Engine
+# Codex Prompt 02 — Deterministic Query and Evidence Router
 
-Implement the first incomplete task in `docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md` only. Phase 1 must already have passed its gate.
+Use this prompt only when `docs/implementation/STATUS.md` selects a Phase 2 task and the Phase 1
+gate is recorded green. Otherwise stop and follow the selected task's plan.
 
-Read `AGENTS.md`, the frozen design, domain contracts, QueryPlan/API contract, metric registry policy, testing strategy, current status, and the full Phase 2 plan. Run repository verification before editing.
+Read `AGENTS.md`, `docs/implementation/QUALITY_LOOP.md`, `STATUS.md`, the complete selected task,
+and its QueryPlan, metric, evidence, and testing contracts. Run repository verification, freeze one
+task brief, and follow the repository-owned TDD, fan-out, review, retry, Git, status, and reporting
+gates.
 
-Use strict TDD. Keep all domain logic independent of FastAPI and HCX. Validate QueryPlans semantically; require `top_k_scope`; decompose heterogeneous `result_grain=product` plans into native `ExecutionBundle` segments; compile only allowlisted fields/operators to parameterized SQL per segment. Preserve ETF/ETN separation, fund grain, snapshot time, state rules, metric-specific zero/tie policies, currency/period comparability, exact identity links, evidence lineage, and deterministic rendering. Every numeric/comparative claim must be verifiable. Never add free-form Text-to-SQL or fuzzy automatic merge.
-
-End after one independently reviewable task. Run focused and relevant suites, update status with observed results, commit, and report the exact next task.
+Keep query execution deterministic and independent of FastAPI/HCX. Preserve `top_k_scope`, native
+cross-product segments, allowlisted parameterized SQL, identity boundaries, state/time/metric/
+currency policy, evidence, claim verification, and deterministic rendering from `AGENTS.md`. End
+after the selected task.

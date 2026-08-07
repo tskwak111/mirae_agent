@@ -11,12 +11,15 @@ This repository is an implementation handoff package. It contains the official t
 ```bash
 cat START_HERE.md
 cat AGENTS.md
+cat docs/implementation/QUALITY_LOOP.md
 cat CODEX_MASTER_PROMPT.md
+python tools/check_repo_root.py --expected-root .
 python tools/verify_handoff.py
 python tools/audit_source_data.py --check
 ```
 
-Then give `CODEX_MASTER_PROMPT.md` to Codex and execute the first incomplete phase in `docs/implementation/STATUS.md`.
+Then give `CODEX_MASTER_PROMPT.md` to Codex and execute only the task selected in
+`docs/implementation/STATUS.md`.
 
 ## Core constraints
 
@@ -50,7 +53,10 @@ src/finproof/                   production package scaffold
 
 ## Delivery philosophy
 
-Do not build the whole system in a single uncontrolled run. Complete one phase, run its gate, review the diff, commit, and update status. The phase plans are written so a new agent can resume without relying on chat memory.
+Do not build the whole system in a single uncontrolled run. Follow
+`docs/implementation/QUALITY_LOOP.md`: freeze one `STATUS.md` task, prove RED/GREEN, run independent
+review and fresh verification, commit only allowlisted paths, and update the durable handoff. Phase
+gates remain additional boundaries after every task in that phase is complete.
 
 ## Handoff verification status
 

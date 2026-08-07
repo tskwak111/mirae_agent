@@ -1,6 +1,9 @@
 # HyperCLOVA X Planner and Evaluation API Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED REPOSITORY CONTRACT: follow
+> `docs/implementation/QUALITY_LOOP.md` for the one task selected by `STATUS.md`. Skills are
+> optional aids and may not expand scope, writable paths, ownership, or review gates. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a robust HyperCLOVA X planning boundary and expose the verified deterministic engine through the organizer-compatible evaluation API.
 
@@ -119,7 +122,9 @@ uv run mypy src/finproof/planner tests/unit/planner tests/integration/planner
 ```
 
 ```bash
-git add src/finproof/planner src/finproof/core/settings.py tests/unit/planner tests/integration/planner tests/fixtures/hcx docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/planner src/finproof/core/settings.py tests/unit/planner tests/integration/planner tests/fixtures/hcx docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: add typed HyperCLOVA X transport"
 ```
 
@@ -247,7 +252,9 @@ uv run mypy src/finproof/planner tests/unit/planner tests/integration/planner te
 ```
 
 ```bash
-git add src/finproof/planner tests/unit/planner tests/integration/planner tests/golden docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/planner tests/unit/planner tests/integration/planner tests/golden/test_seed_plans.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: plan financial queries with bounded HCX fallbacks"
 ```
 
@@ -347,7 +354,9 @@ uv run mypy src/finproof/api tests/unit/api tests/integration/api
 ```
 
 ```bash
-git add src/finproof/api tests/unit/api tests/integration/api docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/api tests/unit/api tests/integration/api docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: expose organizer-compatible evaluation API"
 ```
 
@@ -445,7 +454,9 @@ uv run mypy src/finproof/core src/finproof/service tests/unit/service tests/inte
 ```
 
 ```bash
-git add src/finproof/core src/finproof/service src/finproof/api/dependencies.py tests docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/finproof/core/logging.py src/finproof/core/correlation.py src/finproof/service src/finproof/api/dependencies.py tests/unit/service tests/integration/service tests/security/test_runtime_provider_policy.py docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: harden orchestration caching and observability"
 ```
 
@@ -527,6 +538,8 @@ Run an external shell call to the started container and validate `schemas/api_re
 - [ ] **Step 7: Update status and commit**
 
 ```bash
-git add Dockerfile .dockerignore docker-compose.yml scripts tests/e2e docs/API_SPEC.md README.md .github/workflows/ci.yml docs/implementation/STATUS.md
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- Dockerfile .dockerignore docker-compose.yml scripts/container-entrypoint.sh tests/e2e docs/API_SPEC.md README.md .github/workflows/ci.yml docs/implementation/STATUS.md
+git diff --cached --name-status --
 git commit -m "feat: package the FinProof evaluation service"
 ```
