@@ -51,17 +51,20 @@ Executable Markdown uses a closed, case-sensitive Git grammar. The complete read
 `git diff --cached --name-status --`. The only index mutation is
 `git add -- <one-or-more literal task-owned paths>`; quoted operands, comment markers, pathspecs,
 variables, broad directories, and shell metacharacters are rejected. The only history mutation is
-`git commit -m <one non-empty parsed message>`, after the clean-index guard, canonical staging, and
-staged name/status review. Every other Git or Git-like executable shape fails closed. Tagging is
-deferred until a separately tested release gate proves the final commit, manifest identity, and a
-clean worktree together.
+`git commit -m <one non-empty non-expanding literal or quoted ASCII message>`, after the clean-index
+guard, canonical staging, and staged name/status review. Variables, globs, brace/array/splat syntax,
+command substitution, and control operators are rejected in the message expression. Every other
+Git or Git-like executable shape fails closed. Tagging is deferred until a separately tested
+release gate proves the final commit, manifest identity, and a clean worktree together.
 
-Within one executable fence, the exact-root guard establishes either read-only or clean-index
-state. After it, only blank/comment lines and commands from the closed grammar may execute. Any
-other executable line moves the fence to an absorbing invalid state; a later relative root guard
-cannot re-arm it, and every later Git command is unguarded. Validation and setup commands therefore
-belong in separate fences from the guard. `cmd`, `bat`, and `batch` fences are executable and are
-checked by the same rule.
+Within one executable fence, the exact-root guard's raw line must be exactly the registered command;
+inline comments, operators, quotes, duplicate flags, or suffixes do not arm it. A valid guard
+establishes either read-only or clean-index state. After it, only blank/comment lines and commands
+from the closed grammar may execute. Any other executable line moves the fence to an absorbing
+invalid state; a later relative root guard cannot re-arm it, and every later Git command is
+unguarded. Validation and setup commands therefore belong in separate fences from the guard.
+`cmd`, `bat`, and `batch` fences, including interleaved CommonMark list/blockquote containers, are
+executable and are checked by the same rule.
 
 The coordinator also verifies that no staged path traverses a symlink or Windows junction. Static
 Markdown validation cannot prove future filesystem topology, so a trusted, coordinator-inspected

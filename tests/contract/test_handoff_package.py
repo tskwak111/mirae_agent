@@ -922,3 +922,55 @@ python tools/check_repo_root.py --expected-root .
 """
 
     assert unsafe_git_context_lines(text) == ((3, "& Set-Location .."),)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "- > ```powershell\n  > git status --short\n  > ```\n",
+        "1. > ```powershell\n   > git status --short\n   > ```\n",
+    ],
+)
+def test_commonmark_list_blockquote_shell_fence_reports_unguarded_git(
+    text: str,
+) -> None:
+    assert unguarded_git_block_lines(text) == ((2, "git status --short"),)
+
+
+def test_cmd_hash_does_not_make_chained_context_change_a_guard_comment() -> None:
+    text = """```cmd
+python tools/check_repo_root.py --expected-root . # & cd ..
+git status --short
+```
+"""
+
+    assert unguarded_git_block_lines(text) == ((3, "git status --short"),)
+
+
+def test_bash_brace_expanded_commit_is_rejected_by_public_diagnostics() -> None:
+    command = "git commit -m {safe,--all}"
+    text = f"""```bash
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unguarded_git_block_lines(text) == ((5, command),)
+    assert unsafe_git_commit_lines(text) == ((5, command),)
+
+
+def test_read_only_guard_mutation_invalidates_following_git() -> None:
+    text = """```powershell
+python tools/check_repo_root.py --expected-root .
+git add -- README.md
+git status --short
+```
+"""
+
+    assert unguarded_git_block_lines(text) == (
+        (3, "git add -- README.md"),
+        (4, "git status --short"),
+    )

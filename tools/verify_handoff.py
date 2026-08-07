@@ -211,6 +211,19 @@ def _strip_commonmark_list_prefix(line: str) -> tuple[str, int]:
     return normalized, indentation
 
 
+def _strip_commonmark_opening_containers(line: str) -> tuple[str, int]:
+    """Strip interleaved blockquote/list containers from a possible fence opener."""
+    normalized = line
+    list_indentation = 0
+    while True:
+        before = normalized
+        normalized = _strip_commonmark_blockquote_prefix(normalized)
+        normalized, indentation = _strip_commonmark_list_prefix(normalized)
+        list_indentation += indentation
+        if normalized == before:
+            return normalized, list_indentation
+
+
 def _remove_container_indentation(line: str, indentation: int) -> str:
     index = 0
     while index < len(line) and index < indentation and line[index] in " \t":
@@ -226,9 +239,8 @@ def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
     label = ""
     list_indentation = 0
     for line_number, source_line in enumerate(text.splitlines(), start=1):
-        container_line = _strip_commonmark_blockquote_prefix(source_line)
         if not in_fence:
-            line, candidate_list_indentation = _strip_commonmark_list_prefix(container_line)
+            line, candidate_list_indentation = _strip_commonmark_opening_containers(source_line)
             match = re.fullmatch(
                 r" {0,3}(?P<fence>`{3,}|~{3,})(?P<info>[^\r\n]*)",
                 line,
@@ -241,7 +253,9 @@ def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
                 list_indentation = candidate_list_indentation
                 block = []
             continue
+        container_line = _strip_commonmark_blockquote_prefix(source_line)
         line = _remove_container_indentation(container_line, list_indentation)
+        line = _strip_commonmark_blockquote_prefix(line)
         if re.fullmatch(
             rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
             line,
@@ -372,7 +386,12 @@ def classify_git_command(line: str) -> GitCommandKind:
             if all(_literal_stage_path(path) for path in arguments[2:])
             else GitCommandKind.UNSUPPORTED
         )
-    if len(arguments) == 3 and arguments[:2] == ("commit", "-m") and arguments[2]:
+    if (
+        len(arguments) == 3
+        and arguments[:2] == ("commit", "-m")
+        and arguments[2]
+        and _literal_commit_message_expression(stripped)
+    ):
         return GitCommandKind.HISTORY_MUTATION
     return GitCommandKind.UNSUPPORTED
 
@@ -415,23 +434,29 @@ def _literal_stage_path(path: str) -> bool:
     return all(part not in {"", ".", ".."} for part in parts)
 
 
+def _literal_commit_message_expression(line: str) -> bool:
+    prefix = "git commit -m "
+    if not line.startswith(prefix):
+        return False
+    expression = line.removeprefix(prefix)
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", expression):
+        return True
+    if len(expression) < 2 or expression[0] not in {"'", '"'}:
+        return False
+    if expression[-1] != expression[0]:
+        return False
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 ._:/-]*", expression[1:-1]))
+
+
 def _is_canonical_stage(line: str) -> bool:
     return classify_git_command(line) is GitCommandKind.INDEX_MUTATION
 
 
 def _is_root_guard(line: str, *, require_clean_index: bool = False) -> bool:
-    tokens = _shell_tokens(line)
-    if not tokens or tokens[:4] != (
-        "python",
-        "tools/check_repo_root.py",
-        "--expected-root",
-        ".",
-    ):
-        return False
-    extras = tokens[4:]
-    if any(argument != "--require-clean-index" for argument in extras):
-        return False
-    return not require_clean_index or "--require-clean-index" in extras
+    read_guard = "python tools/check_repo_root.py --expected-root ."
+    clean_guard = f"{read_guard} --require-clean-index"
+    stripped = line.strip()
+    return stripped == clean_guard if require_clean_index else stripped in {read_guard, clean_guard}
 
 
 def _is_unsafe_git_invocation(line: str) -> bool:
@@ -522,6 +547,7 @@ def _analyze_git_block(
             and state is not _GitWorkflowState.GUARDED_CLEAN
         ):
             unguarded[(line_number, stripped)] = None
+            state = _GitWorkflowState.INVALID
 
     return (
         tuple(sorted(unguarded)),

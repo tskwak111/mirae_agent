@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 Retry Candidate 1 verified locally; independent
-reviews and candidate disposition pending.
+**Last updated:** 2026-08-07 — Preflight Task 1 Retry Candidate 2 locally corrected; final
+verification and independent reviews pending.
 
 ## Frozen baseline
 
@@ -16,8 +16,8 @@ reviews and candidate disposition pending.
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Retry Candidate 1
-  locally verified; independent spec and fresh-execution reviews pending
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Retry Candidate 2
+  locally corrected; final spec and fresh-execution reviews pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,9 +71,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Commit and independently review Preflight Task 1 Retry Candidate 1.** Run the bounded Candidate
-1–3 lifecycle from `docs/superpowers/plans/2026-08-07-preflight-task1-retry.md`; do not begin
-Preflight Task 2 unless a candidate earns zero BLOCKER/HIGH from both final verifiers and the
+**Verify, commit, and independently review Preflight Task 1 Retry Candidate 2.** Run the bounded
+Candidate 1–3 lifecycle from `docs/superpowers/plans/2026-08-07-preflight-task1-retry.md`; do not
+begin Preflight Task 2 unless a candidate earns zero BLOCKER/HIGH from both final verifiers and the
 durable disposition is committed.
 
 ## Handoff validation record — not production implementation
@@ -281,5 +281,32 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   audit contention reached its 60.7-second command limit. No PASS is claimed from that wrapper.
   Fresh split commands all exited zero; the isolated source audit completed in 45.5 seconds. This
   did not create another behavior candidate.
-- Candidate commit: pending. Final spec and fresh-execution reviews have not yet run, so Task 1 is
-  not accepted and Task 2 remains unauthorized.
+- Candidate commit: `a90db20173724215c1d514ef5764bbe5f8cbf18b`.
+- Fresh-execution review: APPROVE, 0 BLOCKER / 0 HIGH / 0 MEDIUM / 0 LOW. The detached commit
+  reproduced 155 passing contracts, every frozen handoff/source/schema invariant, Ruff, focused
+  mypy, compileall, 94-file LF/binary state, exact root, and clean candidate/detached worktrees.
+- Independent spec/security review: FAIL, 0 BLOCKER / 3 HIGH / 1 MEDIUM. Valid list-to-blockquote
+  CommonMark fences bypassed scanning; CMD `# & cd ..` armed a false exact guard; Bash brace
+  expansion injected `--all` through an accepted commit message. A read-only guard mutation also
+  failed to make `INVALID` absorbing. All four were reproduced; no waiver was accepted.
+- Disposition: Candidate 1 failed the zero-HIGH gate. Candidate 2 is authorized only for these four
+  corrections; Task 2 remains unauthorized.
+
+### 2026-08-07 — Preflight Task 1 Retry Candidate 2 implementation
+
+- Oracle RED: two valid list-to-blockquote CommonMark variants, the CMD hash/control-operator
+  guard, the brace-expanded commit, and the post-mutation absorbing-state case produced 5 failed,
+  123 deselected. The oracle modified only `tests/contract/test_handoff_package.py`.
+- Coordinator reproduction: all three HIGH inputs returned empty public diagnostics against
+  Candidate 1. `cmd.exe` executed both sides of `# &`; Git Bash expanded `{safe,--all}` to
+  `safe --all`. These were behavior findings, not review-style preferences.
+- Corrections: root guards now match one of two exact raw lines; commit messages must be
+  non-expanding literal/quoted ASCII expressions; CommonMark opener/container removal is stable
+  across list/blockquote order; a mutation under the read-only guard now enters absorbing
+  `INVALID`. No Git command was added to the supported grammar.
+- Focused GREEN: each correction passed alone; the combined Candidate 2 selection passed 5/5.
+  Existing Git/CommonMark regressions passed 106 tests with 22 deselections.
+- Full local contract: Python 3.12.8 ran both Task 1 contract files with the approved
+  checkout-local basetemp — final rerun 160 passed in 13.06s.
+- Candidate 2 commit and final independent reviews: pending. Task 1 is not accepted and Task 2
+  remains unauthorized.
