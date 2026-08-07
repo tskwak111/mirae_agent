@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 BLOCKED after Candidate 3 final verification.
+**Last updated:** 2026-08-07 — Preflight Task 1 retry design frozen; written-spec review pending.
 
 ## Frozen baseline
 
@@ -15,8 +15,8 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — **BLOCKED after
-  Candidate 3**; 0 BLOCKER / 2 HIGH classes remain, with no waiver
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — owner-authorized
+  bounded retry opened; behavior work waits for written-spec review
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -70,10 +70,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 1 is BLOCKED after Candidate 3.** Do not begin Preflight Task 2. The exact next
-action is owner approval of a new bounded Task 1 brief/retry cycle for explicit Git-command
-allowlisting and post-guard execution-context invalidation; without that reset, no further behavior
-change is authorized.
+**Review the written Preflight Task 1 retry spec.** Do not change behavior or begin Preflight Task 2
+until the owner accepts
+`docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md`. After acceptance, write and
+commit its implementation plan, then start the independent oracle RED.
 
 ## Handoff validation record — not production implementation
 
@@ -216,3 +216,27 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Final disposition: Candidate 3 does not meet the zero-BLOCKER/HIGH gate. No waiver is accepted.
   Under the frozen Candidate 1–3 budget, Task 1 is BLOCKED and Task 2 remains unauthorized until
   the owner explicitly approves a new bounded brief/retry cycle.
+
+### 2026-08-07 — Preflight Task 1 bounded retry design
+
+- Authorization: the owner explicitly approved a Task 1 redesign and a new Candidate 1–3 retry
+  budget limited to Git command allowlisting and post-guard execution-context invalidation, then
+  approved the presented closed-grammar/state-machine design.
+- Canonical brief: `docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md` at SHA-256
+  `0d271aa90df317ee470848aa603d8c61391d123c7bd7d3dac4d00f19f08a34d6`.
+- Base: commit `94f0bfbbfd6034113c7f6dcb5927331f67f37675`, branch
+  `codex/preflight-safety`, exact linked worktree
+  `C:\Users\ss020\바탕 화면\mirae_agent\.worktrees\preflight-safety`.
+- Scope: exact closed Git grammar, absorbing post-guard context state, CMD fence recognition,
+  strict guarded-workflow fence routing, removal of the premature release-tag instruction, and
+  only the documentation/test surfaces enumerated by the canonical brief.
+- Ownership: coordinator `/root` owns every listed file except
+  `tests/contract/test_handoff_package.py`, which is reserved for oracle writer
+  `/root/retry_cycle_oracle`. All other agents are read-only; only the coordinator may stage,
+  commit, or edit this status file.
+- Frozen baseline observed before design edits: 121 Task 1 contracts passed in 12.79s; handoff
+  reported 67 required files, nine official inputs, and 41,384,928 source bytes; source audit
+  reported 145,393 rows at snapshot 2026-07-11; schema catalog reported 207 columns.
+- Retry lifecycle: Retry Candidate 1–3 with one separately recorded infrastructure retry; zero
+  BLOCKER/HIGH is mandatory and no automatic scope expansion is authorized.
+- Current gate: written-spec review. No production or test behavior has changed in this retry.
