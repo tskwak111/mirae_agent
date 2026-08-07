@@ -347,5 +347,10 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Local gates: handoff PASS with 69 required files, nine official inputs, and 41,384,928 source
   bytes; source audit PASS with 145,393 rows at snapshot 2026-07-11; schema catalog PASS with 207
   columns; Ruff format/check, focused mypy, compileall, and exact brief-hash checks passed.
-- Candidate 3 implementation commit and both final independent reviews: pending. Task 1 is not
+- Behavior checkpoint: `68b6d9ed979c5364132fc713dd34117c2b589971`.
+- Pre-review normative audit: the coordinator found that `QUALITY_LOOP.md` still said
+  `blank/comment lines` while the revised canonical brief, plan, implementation, and oracle test
+  required blank lines only. Both reviews of the stale checkpoint were interrupted; no verdict is
+  claimed from them. The policy wording is aligned without another behavior change.
+- Final Candidate 3 documentation checkpoint and both independent reviews: pending. Task 1 is not
   accepted and Task 2 remains unauthorized.

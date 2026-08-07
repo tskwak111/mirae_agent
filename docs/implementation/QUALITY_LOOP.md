@@ -59,10 +59,12 @@ release gate proves the final commit, manifest identity, and a clean worktree to
 
 Within one executable fence, the exact-root guard's raw line must be exactly the registered command;
 inline comments, operators, quotes, duplicate flags, or suffixes do not arm it. A valid guard
-establishes either read-only or clean-index state. After it, only blank/comment lines and commands
-from the closed grammar may execute. Any other executable line moves the fence to an absorbing
-invalid state; a later relative root guard cannot re-arm it, and every later Git command is
-unguarded. Validation and setup commands therefore belong in separate fences from the guard.
+establishes either read-only or clean-index state. After it, only blank lines and commands from the
+closed grammar may execute. For this cross-dialect verifier, apparent comment syntax is a
+non-empty context line because the same spelling may execute in another supported shell. Any other
+non-empty line moves the fence to an absorbing invalid state; a later relative root guard cannot
+re-arm it, and every later Git command is unguarded. Comments, validation, and setup commands
+therefore belong in separate fences from the guard.
 `cmd`, `bat`, and `batch` fences, including interleaved CommonMark list/blockquote containers, are
 executable and are checked by the same rule.
 
