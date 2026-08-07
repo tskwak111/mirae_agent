@@ -17,7 +17,9 @@ PowerShell-oriented repository instructions, Git.
 
 - Canonical brief:
   `docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md`, SHA-256
-  `0d271aa90df317ee470848aa603d8c61391d123c7bd7d3dac4d00f19f08a34d6`.
+  `8e018109d130af5428d657ebbc1f8fa06ff09ea6a97ffb710eec89bcf97ac3f5` for the Candidate 3
+  amendment (predecessor Candidate 1–2 hash:
+  `0d271aa90df317ee470848aa603d8c61391d123c7bd7d3dac4d00f19f08a34d6`).
 - Base commit: `94f0bfbbfd6034113c7f6dcb5927331f67f37675`; design commit:
   `00b9c86b6bcded627c7043b2c53c0f2f94d65a07`.
 - Exact worktree:
@@ -29,6 +31,9 @@ PowerShell-oriented repository instructions, Git.
   only production/document/status writer and the only Git actor; `/root/retry_cycle_oracle` owns
   only `tests/contract/test_handoff_package.py`.
 - Retry Candidate 1–3 and one infrastructure retry are the complete budget.
+- Candidate 3 is additionally bound by the frozen amendment in canonical brief section 10: base
+  `2dd7da5a23227918124abd4748baf921c93d8860`, no new supported Git command, non-expanding
+  literal ASCII commit messages, and every non-empty post-guard line invalidating context.
 - No dependency, product behavior, data, schema, prompt, API, HCX, remote, push, tag, or release
   action is allowed.
 - TDD is strict: observe behavior RED before production edits, then make one minimal production
@@ -223,7 +228,11 @@ def classify_git_command(line: str) -> GitCommandKind:
             if all(_literal_stage_path(path) for path in tokens[3:])
             else GitCommandKind.UNSUPPORTED
         )
-    if len(tokens) == 4 and tokens[:3] == ("git", "commit", "-m") and tokens[3]:
+    if (
+        len(tokens) == 4
+        and tokens[:3] == ("git", "commit", "-m")
+        and _literal_commit_message_expression(stripped)
+    ):
         return GitCommandKind.HISTORY_MUTATION
     return GitCommandKind.UNSUPPORTED
 ```
@@ -262,7 +271,7 @@ def _analyze_git_block(
 
     for line_number, line in block:
         stripped = line.strip()
-        if not _is_executable_line(stripped):
+        if not stripped:
             continue
         if state is _GitWorkflowState.START:
             if _is_root_guard(stripped, require_clean_index=True):
@@ -295,6 +304,8 @@ def _analyze_git_block(
 
 The final implementation must also report direct Git after invalidation, preserve existing
 continuation/non-bare Git regressions, and ensure a later root guard cannot leave `INVALID`.
+It treats every non-empty line as context-bearing, including apparent comment syntax, because the
+same spelling is not a comment in every supported fence dialect. Only blank lines are exempt.
 `unsafe_git_context_lines` aggregates the first return value;
 `unguarded_git_block_lines` aggregates the second. Add unsafe-context results to
 `git_workflow_violations`.

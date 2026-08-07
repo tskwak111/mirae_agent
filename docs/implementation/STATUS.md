@@ -308,5 +308,31 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   Existing Git/CommonMark regressions passed 106 tests with 22 deselections.
 - Full local contract: Python 3.12.8 ran both Task 1 contract files with the approved
   checkout-local basetemp — final rerun 160 passed in 13.06s.
-- Candidate 2 commit and final independent reviews: pending. Task 1 is not accepted and Task 2
-  remains unauthorized.
+- Candidate 2 commit: `2dd7da5a23227918124abd4748baf921c93d8860`.
+- Fresh-execution review: APPROVE, 0 BLOCKER / 0 HIGH / 0 MEDIUM / 0 LOW. The detached checkout
+  reproduced 160 passing Task 1 contracts, all frozen handoff/source/schema invariants, Ruff,
+  focused mypy, compileall, LF/diff checks, exact roots, and clean candidate/verifier worktrees.
+- Independent specification review: REJECT, 0 BLOCKER / 2 HIGH / 0 MEDIUM / 0 LOW. A standalone
+  `# & cd ..` after the guard in a CMD fence changed the real process directory while both public
+  diagnostics returned empty. Separately, Candidate 2's non-expanding literal ASCII commit-message
+  grammar safely narrowed the approved one-token sketch without first recording the changed
+  acceptance contract.
+- Disposition: Candidate 2 fails the zero-HIGH gate. No waiver is accepted. The final Candidate 3
+  is limited to the standalone non-empty-line context correction and recording the already-tested
+  literal message grammar; Task 2 remains unauthorized.
+
+### 2026-08-07 — Preflight Task 1 Retry Candidate 3 frozen amendment
+
+- Base: `2dd7da5a23227918124abd4748baf921c93d8860`; same branch, externally selected worktree,
+  writers, writable paths, non-goals, gates, and single remaining candidate budget.
+- Revised canonical brief:
+  `docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md` at SHA-256
+  `8e018109d130af5428d657ebbc1f8fa06ff09ea6a97ffb710eec89bcf97ac3f5`.
+- Behavior contract: only a blank line is context-neutral after the exact root guard. Every
+  non-empty line, including apparent comment syntax whose meaning differs by shell dialect,
+  invalidates the guarded context unless it is an approved Git command.
+- Clarified interface: commit messages use the Candidate 2 non-expanding literal ASCII grammar;
+  no new Git command, wrapper, option, expansion form, or shell interpretation is authorized.
+- Required RED: a CMD fenced block containing exact guard, standalone `# & cd ..`, and direct Git
+  must initially escape both public diagnostics. The oracle alone owns the test edit; the
+  coordinator alone owns production/docs/status and Git actions.

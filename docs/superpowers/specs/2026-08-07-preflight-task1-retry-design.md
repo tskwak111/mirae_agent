@@ -90,8 +90,11 @@ Exact mutation grammars:
 
 - `git add -- PATH+`, where every operand passes the existing literal ASCII repository-relative
   path validator;
-- `git commit -m MESSAGE`, with exactly one non-empty parsed message token and the existing clean
-  guard → canonical add → staged name/status review contract.
+- `git commit -m MESSAGE`, with exactly one non-expanding literal ASCII message expression and the
+  existing clean guard → canonical add → staged name/status review contract. The expression is
+  either unquoted `[A-Za-z0-9][A-Za-z0-9._:-]*` or matching single/double quotes around
+  `[A-Za-z0-9][A-Za-z0-9 ._:/-]*`. Variables, globbing, brace/array/splat expansion,
+  substitution, operators, empty messages, and leading option-like punctuation are unsupported.
 
 Every other subcommand, argument order, missing terminator, global option, alias, external
 `git-foo` extension, path-qualified executable, wrapper, quote-obfuscated executable, chain, or
@@ -114,7 +117,9 @@ Transitions:
 
 1. The first executable logical line must be the exact root guard. It enters `GUARDED_READ`, or
    `GUARDED_CLEAN` when `--require-clean-index` is present.
-2. Blank lines and whole-line `#` comments do not change state.
+2. Blank lines do not change state. Every non-empty line, including a line that resembles a
+   shell comment, is evaluated as execution context. The verifier deliberately does not infer
+   cross-dialect comment semantics; comments belong outside a guarded fence.
 3. An approved read-only Git command remains in the guarded state.
 4. An approved mutation is valid only in `GUARDED_CLEAN`.
 5. Any other executable logical line enters `INVALID` and is reported as an unsafe execution
@@ -154,6 +159,8 @@ The oracle writes focused behavior tests before production edits. Required RED c
 - post-guard `$env:GIT_DIR=...`, `& Set-Location ..`, and `Set-Alias git ...`;
 - invalid state followed by a second root guard and direct Git;
 - CMD `g^it` after an exact guard;
+- standalone CMD `# & cd ..` after an exact guard, followed by direct Git;
+- expanding or option-like commit-message expressions, with literal ASCII positive controls;
 - existing repository routing surfaces remain valid after the documented fence splits.
 
 Pass criteria:
@@ -182,7 +189,19 @@ Run from the exact worktree with Python 3.12:
 .venv\Scripts\python.exe -m compileall -q tools/verify_handoff.py tests/contract/test_handoff_package.py
 ```
 
-## 10. Retry lifecycle
+## 10. Candidate 3 frozen amendment
+
+Retry Candidate 3 starts from commit `2dd7da5a23227918124abd4748baf921c93d8860`. It keeps the
+same branch, externally selected worktree, ownership table, writable paths, non-goals, command
+allowlist, required gates, and remaining single-candidate budget. Its only behavior change is to
+make every non-empty post-guard line invalidate the guarded context, closing the independently
+reproduced CMD `# & cd ..` directory-change case. Its only contract clarification is the
+non-expanding literal ASCII commit-message grammar above, which records the safe Candidate 2
+behavior in the canonical brief. The oracle must first demonstrate the standalone CMD case RED;
+the coordinator may then make the smallest production correction. Both independent verifiers
+must report zero BLOCKER/HIGH against the resulting Candidate 3 commit.
+
+## 11. Retry lifecycle
 
 Retry Candidate 1 receives one independent spec review and one fresh-checkout execution review.
 Technically valid findings may produce Retry Candidate 2 and one final Retry Candidate 3. If a
