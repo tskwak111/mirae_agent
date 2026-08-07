@@ -532,7 +532,7 @@ Task ID: `Preflight Task 2` — separate official instruction authority from off
 
 GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
 <!-- TASK2_CANONICAL_BRIEF_END -->
-Task 2 canonical brief SHA-256: `5972dedc1cb70e954cc0eb5d57a05f8d13cb9aa5da3b0747d5de5601e61e7788`
+Task 2 canonical brief SHA-256: 5972dedc1cb70e954cc0eb5d57a05f8d13cb9aa5da3b0747d5de5601e61e7788
 
 The three repository-wide diagnostics below all exited `1`. These are observed Preflight Task 5
 debt, not PASS results. Ruff emitted 31 raw lint findings which normalize to 21 unique
