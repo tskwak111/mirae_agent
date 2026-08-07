@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 1 single-quote candidate is locally GREEN; full gates
-and candidate checkpoint are next.
+**Last updated:** 2026-08-08 — Preflight Task 1 accepted after the bounded single-quote retry and
+two independent final reviews. Preflight Task 2 is selected but has not begun.
 
 ## Frozen baseline
 
@@ -16,8 +16,8 @@ and candidate checkpoint are next.
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — single-quote
-  one-candidate retry locally GREEN; full gates and final reviews pending
+- [x] Task 1: exact Git-root/index guard and repository-owned quality loop — bounded single-quote
+  retry accepted at candidate `36c5d73bf4b2770d88e7e92df468eb5d414d07bf`
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,9 +71,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Finish Task 2 of the frozen single-quote retry plan:** run every regression/invariant gate,
-verify the six-path candidate diff and LF state, commit the one candidate, then dispatch exactly
-the two independent final verifiers. Do not begin Preflight Task 2.
+**Preflight Task 2, Step 1:** write the RED input-manifest trust-plane tests that separate
+`official_instruction` from `official_data`. This task is selected but was not begun in the Task 1
+retry session.
 
 ## Handoff validation record — not production implementation
 
@@ -421,13 +421,36 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   its quoted branch. The unchanged focused selection passed `11 passed, 129 deselected in 0.36s`.
   No classifier signature, command allowlist, fence label, workflow state, or staging contract
   changed.
-- Durable alignment in progress: `QUALITY_LOOP.md` names unquoted/double-quoted ASCII only;
-  `REQUIRED_FILES` and both identical initial-import blocks register the new spec and plan. Full
-  regression/invariant gates and the candidate commit remain pending.
+- Durable alignment complete: `QUALITY_LOOP.md` names unquoted/double-quoted ASCII only;
+  `REQUIRED_FILES` and both identical initial-import blocks register the new spec and plan.
 - Full local candidate gates: 172 Task 1 contracts passed in 15.66s; handoff PASS with 71 required
   files, nine official inputs, and 41,384,928 source bytes; source audit PASS with 145,393 rows at
   snapshot 2026-07-11; schema catalog PASS with 207 columns; Ruff format/check, focused mypy, and
   compileall all exited zero. The exact verifier-created pytest/bytecode/mypy/Ruff cache paths were
   inspected and removed.
-- Candidate checkpoint and both independent final reviews remain pending. Task 1 is not yet
-  accepted and Task 2 remains unauthorized.
+- Candidate checkpoint: `36c5d73bf4b2770d88e7e92df468eb5d414d07bf` (`security: reject
+  single-quoted commit messages`). Its parent-to-candidate diff contains exactly the six declared
+  paths, passes `git diff --check`, and contains no unrelated command grammar or workflow change.
+- Task 2 implementation review: `/root/quote_candidate_task_review` approved with
+  Critical/Important/Minor 0/0/0. Its initial concern about the pre-disposition `STATUS.md` wording
+  was reclassified as the expected self-reference boundary owned by plan Task 3; this disposition
+  replaces every stale candidate-pending instruction.
+- Independent specification verifier `/root/r3_spec_conformance`: PASS with 0 BLOCKER / 0 HIGH /
+  0 MEDIUM / 0 LOW. It matched the frozen brief and plan hashes; confirmed all eleven oracle cases,
+  the one-line quoted-branch correction, policy/required-file/import-block alignment, exact six-file
+  scope, blank neutrality, and the unchanged positive grammar.
+- Independent fresh-checkout execution verifier `/root/r1_execution_verifier`: APPROVE with
+  0 BLOCKER / 0 HIGH / 0 MEDIUM / 0 LOW on Python 3.12.8. The detached checkout reproduced
+  `172 passed in 19.73s`; handoff `71/9/41,384,928`; source audit 145,393 rows at `2026-07-11`;
+  schema catalog 207 columns; Ruff format/check, focused mypy, and compileall exit zero. Its tracked
+  EOL audit found 96 files: 86 LF text, nine binary, one empty, and zero CRLF/mixed files.
+- Harmless real `cmd.exe` argv inspection observed `'safe'` as one quote-bearing argument,
+  `'safe message'` as three split arguments, and `"safe message"` as one argument. Independent
+  classifier/public-diagnostic controls rejected both single-quoted forms for CMD/BAT/batch while
+  preserving unquoted and matching double-quoted messages and blank-line neutrality.
+- The execution verifier resolved and removed only its checkout-local pytest, Python, mypy, and
+  Ruff caches. The coordinator re-proved the detached checkout clean, removed it without force,
+  and confirmed the path absent. The candidate worktree/index remained exact-root and clean.
+- Accepted final findings: none. Remaining Task 1-specific BLOCKER/HIGH/MEDIUM/LOW counts are
+  0/0/0/0. The overall Preflight gate remains open because Tasks 2-5 are still incomplete; no
+  Task 2 code, private GitHub repository, remote, push, tag, or release action occurred here.
