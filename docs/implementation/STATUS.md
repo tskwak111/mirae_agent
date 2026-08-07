@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 Retry Candidate 2 locally corrected; final
-verification and independent reviews pending.
+**Last updated:** 2026-08-08 — Preflight Task 1 BLOCKED after final Retry Candidate 3 retained one
+independently reproduced HIGH finding.
 
 ## Frozen baseline
 
@@ -16,8 +16,8 @@ verification and independent reviews pending.
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Retry Candidate 2
-  locally corrected; final spec and fresh-execution reviews pending
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — BLOCKED after the
+  approved Candidate 1–3 budget; a new bounded brief requires explicit owner authorization
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,10 +71,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Verify, commit, and independently review Preflight Task 1 Retry Candidate 2.** Run the bounded
-Candidate 1–3 lifecycle from `docs/superpowers/plans/2026-08-07-preflight-task1-retry.md`; do not
-begin Preflight Task 2 unless a candidate earns zero BLOCKER/HIGH from both final verifiers and the
-durable disposition is committed.
+**STOP: Preflight Task 1 is BLOCKED.** Do not begin Task 2. The owner must explicitly authorize a
+new bounded Task 1 brief before any further behavior or test change. The unresolved scope is CMD/BAT
+single-quote argument semantics; the next brief should also pin blank-line neutrality with a
+positive regression and re-run two independent final verifiers.
 
 ## Handoff validation record — not production implementation
 
@@ -352,5 +352,24 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   `blank/comment lines` while the revised canonical brief, plan, implementation, and oracle test
   required blank lines only. Both reviews of the stale checkpoint were interrupted; no verdict is
   claimed from them. The policy wording is aligned without another behavior change.
-- Final Candidate 3 documentation checkpoint and both independent reviews: pending. Task 1 is not
-  accepted and Task 2 remains unauthorized.
+- Final Candidate 3 composite checkpoint:
+  `61ea58ea698896000de75918e2db40102237cdc8`.
+- Fresh-execution review: FAIL, 0 BLOCKER / 1 HIGH / 0 MEDIUM / 0 LOW. In a harmless CMD argv
+  inspection, `'security: review pass'` became three arguments while the verifier classified the
+  corresponding `git commit -m` line as `HISTORY_MUTATION` and all three public diagnostics were
+  empty. The extra positional arguments can become commit pathspecs. The same detached review
+  reproduced 161 passing contracts, handoff 69/9/41,384,928, source audit 145,393 rows at
+  2026-07-11, schema 207 columns, Ruff, focused mypy, compileall, diff/EOL, exact roots, and clean
+  candidate/verifier worktrees.
+- Independent specification review: REJECT, 0 BLOCKER / 1 HIGH / 1 MEDIUM / 1 LOW. It independently
+  reproduced the CMD/BAT single-quote split and the missing diagnostics. Its MEDIUM was this file's
+  stale Candidate 2 routing, corrected by this disposition-only update. Its LOW was the absence of
+  a committed positive regression for blank-line neutrality; the behavior passed an in-memory
+  control but is not pinned by a test.
+- Accepted final HIGH: the canonical brief permits single-quoted spaced ASCII messages, while
+  supported CMD/BAT fences do not group single quotes. POSIX `shlex` therefore proves a different
+  argv from the real shell, violating the closed cross-dialect one-message and task-owned staging
+  contracts. No waiver is accepted.
+- Final disposition: Candidate 3 does not meet the zero-BLOCKER/HIGH gate. The approved three
+  candidates are exhausted, so Task 1 returns to `BLOCKED`; Task 2 remains unauthorized. No further
+  implementation or oracle edit may occur until the owner explicitly approves a new bounded brief.
