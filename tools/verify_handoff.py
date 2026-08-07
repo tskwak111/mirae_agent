@@ -98,6 +98,43 @@ GIT_EXECUTABLE_PATTERN: Final = re.compile(
     r"(?i)(?<![A-Za-z0-9_.-])git(?:\.exe)?(?=$|[^A-Za-z0-9_.-])"
 )
 
+INPUT_MANIFEST_ROOT_KEYS: Final = {
+    "manifest_version",
+    "competition",
+    "snapshot_date",
+    "files",
+}
+INPUT_MANIFEST_COMMON_KEYS: Final = {
+    "path",
+    "kind",
+    "trust_plane",
+    "size_bytes",
+    "sha256",
+}
+INPUT_MANIFEST_KEYS_BY_KIND: Final = {
+    "official_task_pdf": INPUT_MANIFEST_COMMON_KEYS,
+    "data": INPUT_MANIFEST_COMMON_KEYS
+    | {"table_id", "sheet_name", "expected_rows", "expected_columns"},
+    "schema": INPUT_MANIFEST_COMMON_KEYS | {"table_id", "sheet_names", "expected_columns"},
+}
+OFFICIAL_INSTRUCTION_PATH: Final = "competition_task_financial_product_agent.pdf"
+OFFICIAL_INSTRUCTION_SHA256: Final = (
+    "3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de"
+)
+EXPECTED_INPUT_KINDS: Final = {
+    OFFICIAL_INSTRUCTION_PATH: "official_task_pdf",
+    "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx": "data",
+    "data/PRBD01N001_schema.xlsx": "schema",
+    "data/PREF01N001_domestic_etf_20260711_datarows.xlsx": "data",
+    "data/PREF01N001_schema.xlsx": "schema",
+    "data/PREF02N001_overseas_etf_20260711_datarows.xlsx": "data",
+    "data/PREF02N001_schema.xlsx": "schema",
+    "data/PRFD01N001_public_funds_20260711_datarows.xlsx": "data",
+    "data/PRFD01N001_schema.xlsx": "schema",
+}
+INPUT_SHA256_PATTERN: Final = re.compile(r"^[0-9a-f]{64}$")
+WINDOWS_DRIVE_PREFIX: Final = re.compile(r"^[A-Za-z]:")
+
 REQUIRED_FILES: Final = (
     ".gitattributes",
     "AGENTS.md",
@@ -126,6 +163,8 @@ REQUIRED_FILES: Final = (
     "docs/superpowers/specs/2026-08-07-preflight-safety-remediation-design.md",
     "docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md",
     "docs/superpowers/specs/2026-08-08-preflight-task1-quote-retry-design.md",
+    "docs/superpowers/specs/2026-08-08-preflight-task2-trust-plane-design.md",
+    "docs/superpowers/specs/2026-08-08-pre-task5-gate-amendment-design.md",
     "docs/superpowers/plans/2026-08-07-00-roadmap.md",
     "docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md",
     "docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md",
@@ -134,6 +173,7 @@ REQUIRED_FILES: Final = (
     "docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md",
     "docs/superpowers/plans/2026-08-07-preflight-task1-retry.md",
     "docs/superpowers/plans/2026-08-08-preflight-task1-quote-retry.md",
+    "docs/superpowers/plans/2026-08-08-preflight-task2-trust-plane.md",
     "config/datasets.yaml",
     "config/metric_registry.yaml",
     "config/field_registry.yaml",
@@ -150,6 +190,7 @@ REQUIRED_FILES: Final = (
     "schemas/quality_issue.schema.json",
     "schemas/artifact_manifest.schema.json",
     "schemas/golden_case.schema.json",
+    "schemas/input_manifest.schema.json",
     "source_material/competition_task_financial_product_agent.pdf",
     "source_material/input_manifest.json",
     "source_material/schema_catalog.json",
@@ -159,9 +200,11 @@ REQUIRED_FILES: Final = (
     "tests/golden/seed_cases.jsonl",
     "tests/contract/test_handoff_package.py",
     "tests/contract/test_repo_root_guard.py",
+    "tests/contract/test_instruction_authority.py",
     "tools/__init__.py",
     "tools/audit_source_data.py",
     "tools/check_repo_root.py",
+    "tools/create_input_manifest.py",
     "tools/extract_schema_catalog.py",
     "tools/xlsx_stream.py",
     "prompts/00_INITIAL_KICKOFF.md",
@@ -779,6 +822,146 @@ def load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _is_positive_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _is_canonical_source_path(value: object) -> bool:
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith("/") or WINDOWS_DRIVE_PREFIX.match(value) or "\\" in value:
+        return False
+    return all(part not in {"", ".", ".."} for part in value.split("/"))
+
+
+def input_manifest_structure_errors(manifest: object) -> tuple[str, ...]:
+    if not isinstance(manifest, dict):
+        return ("input manifest root must be an object",)
+
+    errors: list[str] = []
+    if set(manifest) != INPUT_MANIFEST_ROOT_KEYS:
+        errors.append(
+            "input manifest root keys must be exactly: competition, files, "
+            "manifest_version, snapshot_date"
+        )
+    if manifest.get("manifest_version") != "1.1.0":
+        errors.append("input manifest manifest_version must be 1.1.0")
+    competition = manifest.get("competition")
+    if not isinstance(competition, str) or not competition:
+        errors.append("input manifest competition must be a non-empty string")
+    if manifest.get("snapshot_date") != "2026-07-11":
+        errors.append("input manifest snapshot_date must be 2026-07-11")
+
+    files = manifest.get("files")
+    if not isinstance(files, list):
+        errors.append("input manifest files must be a list")
+        return tuple(errors)
+    if len(files) != 9:
+        errors.append("input manifest files must contain exactly 9 entries")
+
+    seen_paths: set[str] = set()
+    allowed_planes = {"official_instruction", "official_data"}
+    for index, raw_entry in enumerate(files):
+        label = f"input manifest files[{index}]"
+        if not isinstance(raw_entry, dict):
+            errors.append(f"{label} must be an object")
+            continue
+
+        kind = raw_entry.get("kind")
+        if not isinstance(kind, str) or kind not in INPUT_MANIFEST_KEYS_BY_KIND:
+            errors.append(f"{label}.kind must be one of data, official_task_pdf, schema")
+            continue
+        if set(raw_entry) != INPUT_MANIFEST_KEYS_BY_KIND[kind]:
+            errors.append(f"{label} keys do not match kind {kind}")
+
+        path = raw_entry.get("path")
+        if kind == "official_task_pdf" and path != OFFICIAL_INSTRUCTION_PATH:
+            errors.append(f"{label}.path must be the allowlisted official task PDF")
+        if not isinstance(path, str) or not _is_canonical_source_path(path):
+            errors.append(
+                f"input manifest path must be canonical POSIX relative to source_material: {path}"
+            )
+        elif path in seen_paths:
+            errors.append(f"duplicate input manifest path: {path}")
+        else:
+            seen_paths.add(path)
+
+        trust_plane = raw_entry.get("trust_plane")
+        if not isinstance(trust_plane, str) or trust_plane not in allowed_planes:
+            errors.append(f"{label}.trust_plane is invalid")
+        if not _is_positive_int(raw_entry.get("size_bytes")):
+            errors.append(f"{label}.size_bytes must be a positive integer")
+        file_sha256 = raw_entry.get("sha256")
+        if not isinstance(file_sha256, str) or not INPUT_SHA256_PATTERN.fullmatch(file_sha256):
+            errors.append(f"{label}.sha256 must be lowercase hexadecimal length 64")
+
+        if kind == "official_task_pdf":
+            continue
+        table_id = raw_entry.get("table_id")
+        if not isinstance(table_id, str) or not table_id:
+            errors.append(f"{label}.table_id must be a non-empty string")
+        if not _is_positive_int(raw_entry.get("expected_columns")):
+            errors.append(f"{label}.expected_columns must be a positive integer")
+
+        if kind == "data":
+            sheet_name = raw_entry.get("sheet_name")
+            if not isinstance(sheet_name, str) or not sheet_name:
+                errors.append(f"{label}.sheet_name must be a non-empty string")
+            if not _is_positive_int(raw_entry.get("expected_rows")):
+                errors.append(f"{label}.expected_rows must be a positive integer")
+        else:
+            sheet_names = raw_entry.get("sheet_names")
+            if not isinstance(sheet_names, list) or not sheet_names:
+                errors.append(f"{label}.sheet_names must be a non-empty list")
+            elif not all(isinstance(item, str) and item for item in sheet_names):
+                errors.append(f"{label}.sheet_names must contain only non-empty strings")
+            elif len(set(sheet_names)) != len(sheet_names):
+                errors.append(f"{label}.sheet_names must be unique")
+
+    return tuple(errors)
+
+
+def input_manifest_policy_errors(manifest: object) -> tuple[str, ...]:
+    if not isinstance(manifest, dict):
+        return ()
+    files = manifest.get("files")
+    if not isinstance(files, list):
+        return ()
+
+    errors: list[str] = []
+    paths: list[str] = []
+    for raw_entry in files:
+        if not isinstance(raw_entry, dict):
+            continue
+        path = raw_entry.get("path")
+        if not isinstance(path, str):
+            continue
+        paths.append(path)
+
+        expected_kind = EXPECTED_INPUT_KINDS.get(path)
+        if expected_kind is not None and raw_entry.get("kind") != expected_kind:
+            errors.append(f"input manifest kind must be {expected_kind}: {path}")
+
+        trust_plane = raw_entry.get("trust_plane")
+        if path.endswith(".xlsx") and trust_plane != "official_data":
+            errors.append(f"workbook entry must declare official_data trust plane: {path}")
+        elif trust_plane == "official_instruction" and path != OFFICIAL_INSTRUCTION_PATH:
+            errors.append(f"unexpected official instruction authority: {path}")
+
+        if path == OFFICIAL_INSTRUCTION_PATH and (
+            trust_plane != "official_instruction"
+            or raw_entry.get("sha256") != OFFICIAL_INSTRUCTION_SHA256
+        ):
+            errors.append(
+                "official instruction authority must match the allowlisted PDF "
+                f"path and SHA-256: {OFFICIAL_INSTRUCTION_PATH}"
+            )
+
+    if len(paths) != len(EXPECTED_INPUT_KINDS) or set(paths) != set(EXPECTED_INPUT_KINDS):
+        errors.append("input manifest path set must match the frozen nine-input allowlist")
+    return tuple(errors)
+
+
 def unsupported_hcx_schema_keywords(document: Any) -> set[str]:
     unsupported: set[str] = set()
 
@@ -818,42 +1001,63 @@ def verify_manifest(errors: list[str]) -> None:
     manifest_path = ROOT / "source_material/input_manifest.json"
     if not manifest_path.is_file():
         return
-    manifest = load_json(manifest_path)
-    if manifest.get("snapshot_date") != "2026-07-11":
-        errors.append("input manifest snapshot_date must be 2026-07-11")
-    entries = manifest.get("files", [])
-    if len(entries) != 9:
-        errors.append(f"input manifest must contain 9 files, found {len(entries)}")
-    seen: set[str] = set()
-    for entry in entries:
-        relative = entry.get("path")
-        if not isinstance(relative, str):
-            errors.append("manifest entry has invalid path")
+    try:
+        manifest: object = load_json(manifest_path)
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        errors.append(f"invalid input manifest JSON: {exc}")
+        return
+
+    errors.extend(input_manifest_structure_errors(manifest))
+    errors.extend(input_manifest_policy_errors(manifest))
+    if not isinstance(manifest, dict):
+        return
+    entries = manifest.get("files")
+    if not isinstance(entries, list):
+        return
+
+    source_root = (ROOT / "source_material").resolve()
+    for raw_entry in entries:
+        if not isinstance(raw_entry, dict):
             continue
-        if relative in seen:
-            errors.append(f"duplicate manifest path: {relative}")
-        seen.add(relative)
-        path = (ROOT / "source_material" / relative).resolve()
-        source_root = (ROOT / "source_material").resolve()
+        relative = raw_entry.get("path")
+        if not isinstance(relative, str) or not _is_canonical_source_path(relative):
+            continue
+        expected_kind = EXPECTED_INPUT_KINDS.get(relative)
+        if expected_kind is None:
+            continue
+        path = (source_root / relative).resolve()
         if source_root not in path.parents and path != source_root:
             errors.append(f"manifest path escapes source_material: {relative}")
             continue
         if not path.is_file():
             errors.append(f"manifest file missing: {relative}")
             continue
-        if path.stat().st_size != entry.get("size_bytes"):
+        expected_size = raw_entry.get("size_bytes")
+        if _is_positive_int(expected_size) and path.stat().st_size != expected_size:
             errors.append(f"size mismatch: {relative}")
-        if sha256(path) != entry.get("sha256"):
+        expected_sha256 = raw_entry.get("sha256")
+        if not isinstance(expected_sha256, str) or not INPUT_SHA256_PATTERN.fullmatch(
+            expected_sha256
+        ):
+            continue
+        if sha256(path) != expected_sha256:
             errors.append(f"sha256 mismatch: {relative}")
-        if entry.get("kind") == "data":
-            expected_sheet = entry.get("sheet_name")
-            if expected_sheet not in list_sheet_names(path):
+            continue
+
+        kind = raw_entry.get("kind")
+        if kind != expected_kind:
+            continue
+        if kind == "data" and path.suffix.lower() == ".xlsx":
+            expected_sheet = raw_entry.get("sheet_name")
+            if isinstance(expected_sheet, str) and expected_sheet not in list_sheet_names(path):
                 errors.append(f"missing expected sheet {expected_sheet!r}: {relative}")
-        if entry.get("kind") == "schema":
-            expected_sheets = tuple(entry.get("sheet_names", []))
-            actual_sheets = list_sheet_names(path)
-            if actual_sheets != expected_sheets:
-                errors.append(f"schema sheet mismatch {relative}: {actual_sheets!r}")
+        elif kind == "schema" and path.suffix.lower() == ".xlsx":
+            sheet_names = raw_entry.get("sheet_names")
+            if isinstance(sheet_names, list) and all(isinstance(item, str) for item in sheet_names):
+                expected_sheets = tuple(sheet_names)
+                actual_sheets = list_sheet_names(path)
+                if actual_sheets != expected_sheets:
+                    errors.append(f"schema sheet mismatch {relative}: {actual_sheets!r}")
 
 
 def verify_json_and_schema_contracts(errors: list[str]) -> None:
