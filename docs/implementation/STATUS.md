@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 1 single-quote one-candidate retry written spec
-frozen; owner review pending.
+**Last updated:** 2026-08-08 — Preflight Task 1 single-quote one-candidate implementation plan
+frozen; oracle RED is the exact next step.
 
 ## Frozen baseline
 
@@ -17,7 +17,7 @@ frozen; owner review pending.
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
 - [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — single-quote
-  one-candidate retry written spec frozen; owner review pending
+  one-candidate retry plan frozen; oracle RED pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,10 +71,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Review the frozen Preflight Task 1 single-quote retry spec.** The canonical file is
-`docs/superpowers/specs/2026-08-08-preflight-task1-quote-retry-design.md`. Do not write its
-implementation plan or change tests/production behavior until the owner approves the committed
-written spec. Do not begin Preflight Task 2.
+**Execute Task 1 of the frozen single-quote retry plan:** oracle
+`/root/candidate3_oracle` changes only `tests/contract/test_handoff_package.py`, adds the exact
+single-quote/CMD-family/blank-line/double-quote cases, and records the expected mixed RED. Do not
+edit production behavior before that RED and do not begin Preflight Task 2.
 
 ## Handoff validation record — not production implementation
 
@@ -395,3 +395,16 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   source audit PASS with 145,393 rows at snapshot 2026-07-11.
 - No test or production behavior changed. The next gate is owner review of the committed written
   spec; implementation planning remains unauthorized until that review is approved.
+- Written-spec review: the owner explicitly replied `written spec 승인` after design checkpoint
+  `80b192a4d54720b3cb339b2f7b32ccf6a979a3f2`.
+- Frozen implementation plan:
+  `docs/superpowers/plans/2026-08-08-preflight-task1-quote-retry.md` at SHA-256
+  `bea4670cfd5bbf46f88e839c07e0d395f0940b2754876a0cb5e5b0aaedfe53dd`.
+- Plan self-review: every brief requirement maps to an explicit task; placeholder scan passed;
+  function names and expected diagnostics match the current interfaces; handoff verification
+  passed with 69 required files before durable registration of the new spec/plan.
+- Execution method: the owner's existing fan-out requirement selects subagent-driven execution.
+  Writers remain sequential; the two read-only final verifiers run in parallel only after the one
+  candidate is committed.
+- No test or production behavior changed while writing the plan. The next authorized action is the
+  independent oracle RED in plan Task 1.
