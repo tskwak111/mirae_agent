@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InputManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_version", "competition", "snapshot_date", "files"],
+  "properties": {
+    "manifest_version": {"const": "1.1.0"},
+    "competition": {"type": "string", "minLength": 1},
+    "snapshot_date": {"const": "2026-07-11"},
+    "files": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "kind", "trust_plane", "size_bytes", "sha256"],
+            "properties": {
+              "path": {
+                "const": "competition_task_financial_product_agent.pdf"
+              },
+              "kind": {"const": "official_task_pdf"},
+              "trust_plane": {
+                "enum": ["official_instruction", "official_data"]
+              },
+              "size_bytes": {"type": "integer", "minimum": 1},
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "kind",
+              "trust_plane",
+              "table_id",
+              "sheet_name",
+              "expected_rows",
+              "expected_columns",
+              "size_bytes",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^/\\\\]+(?:/[^/\\\\]+)*$"
+              },
+              "kind": {"const": "data"},
+              "trust_plane": {
+                "enum": ["official_instruction", "official_data"]
+              },
+              "table_id": {"type": "string", "minLength": 1},
+              "sheet_name": {"type": "string", "minLength": 1},
+              "expected_rows": {"type": "integer", "minimum": 1},
+              "expected_columns": {"type": "integer", "minimum": 1},
+              "size_bytes": {"type": "integer", "minimum": 1},
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "kind",
+              "trust_plane",
+              "table_id",
+              "sheet_names",
+              "expected_columns",
+              "size_bytes",
+              "sha256"
+            ],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^[^/\\\\]+(?:/[^/\\\\]+)*$"
+              },
+              "kind": {"const": "schema"},
+              "trust_plane": {
+                "enum": ["official_instruction", "official_data"]
+              },
+              "table_id": {"type": "string", "minLength": 1},
+              "sheet_names": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {"type": "string", "minLength": 1}
+              },
+              "expected_columns": {"type": "integer", "minimum": 1},
+              "size_bytes": {"type": "integer", "minimum": 1},
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

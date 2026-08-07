@@ -1,17 +1,19 @@
 {
-  "manifest_version": "1.0.0",
+  "manifest_version": "1.1.0",
   "competition": "제10회 2026 미래에셋증권 AI Festival — 금융상품 Agent",
   "snapshot_date": "2026-07-11",
   "files": [
     {
       "path": "competition_task_financial_product_agent.pdf",
       "kind": "official_task_pdf",
+      "trust_plane": "official_instruction",
       "size_bytes": 924413,
       "sha256": "3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de"
     },
     {
       "path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
       "kind": "data",
+      "trust_plane": "official_data",
       "table_id": "PRBD01N001",
       "sheet_name": "datarows",
       "expected_rows": 42394,
@@ -22,6 +24,7 @@
     {
       "path": "data/PRBD01N001_schema.xlsx",
       "kind": "schema",
+      "trust_plane": "official_data",
       "table_id": "PRBD01N001",
       "sheet_names": [
         "Sheet1_Schema",
@@ -34,6 +37,7 @@
     {
       "path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx",
       "kind": "data",
+      "trust_plane": "official_data",
       "table_id": "PREF01N001",
       "sheet_name": "datarows",
       "expected_rows": 1734,
@@ -44,6 +48,7 @@
     {
       "path": "data/PREF01N001_schema.xlsx",
       "kind": "schema",
+      "trust_plane": "official_data",
       "table_id": "PREF01N001",
       "sheet_names": [
         "Sheet1_Schema",
@@ -56,6 +61,7 @@
     {
       "path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx",
       "kind": "data",
+      "trust_plane": "official_data",
       "table_id": "PREF02N001",
       "sheet_name": "datarows",
       "expected_rows": 5646,
@@ -66,6 +72,7 @@
     {
       "path": "data/PREF02N001_schema.xlsx",
       "kind": "schema",
+      "trust_plane": "official_data",
       "table_id": "PREF02N001",
       "sheet_names": [
         "Sheet1_Schema",
@@ -78,6 +85,7 @@
     {
       "path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
       "kind": "data",
+      "trust_plane": "official_data",
       "table_id": "PRFD01N001",
       "sheet_name": "datarows",
       "expected_rows": 95619,
@@ -88,6 +96,7 @@
     {
       "path": "data/PRFD01N001_schema.xlsx",
       "kind": "schema",
+      "trust_plane": "official_data",
       "table_id": "PRFD01N001",
       "sheet_names": [
         "Sheet1_Schema",

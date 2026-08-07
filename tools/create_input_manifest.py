@@ -11,22 +11,98 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal, NotRequired, TypedDict
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 SOURCE: Final = ROOT / "source_material"
 DEFAULT_OUTPUT: Final = SOURCE / "input_manifest.json"
 
-FILE_SPECS: Final = (
-    {"path": "competition_task_financial_product_agent.pdf", "kind": "official_task_pdf"},
-    {"path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx", "kind": "data", "table_id": "PRBD01N001", "sheet_name": "datarows", "expected_rows": 42394, "expected_columns": 40},
-    {"path": "data/PRBD01N001_schema.xlsx", "kind": "schema", "table_id": "PRBD01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 40},
-    {"path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx", "kind": "data", "table_id": "PREF01N001", "sheet_name": "datarows", "expected_rows": 1734, "expected_columns": 73},
-    {"path": "data/PREF01N001_schema.xlsx", "kind": "schema", "table_id": "PREF01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 73},
-    {"path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx", "kind": "data", "table_id": "PREF02N001", "sheet_name": "datarows", "expected_rows": 5646, "expected_columns": 49},
-    {"path": "data/PREF02N001_schema.xlsx", "kind": "schema", "table_id": "PREF02N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 49},
-    {"path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx", "kind": "data", "table_id": "PRFD01N001", "sheet_name": "datarows", "expected_rows": 95619, "expected_columns": 45},
-    {"path": "data/PRFD01N001_schema.xlsx", "kind": "schema", "table_id": "PRFD01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 45},
+
+class FileSpec(TypedDict):
+    path: str
+    kind: Literal["official_task_pdf", "data", "schema"]
+    trust_plane: Literal["official_instruction", "official_data"]
+    table_id: NotRequired[str]
+    sheet_name: NotRequired[str]
+    sheet_names: NotRequired[list[str]]
+    expected_rows: NotRequired[int]
+    expected_columns: NotRequired[int]
+
+
+FILE_SPECS: Final[tuple[FileSpec, ...]] = (
+    {
+        "path": "competition_task_financial_product_agent.pdf",
+        "kind": "official_task_pdf",
+        "trust_plane": "official_instruction",
+    },
+    {
+        "path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
+        "kind": "data",
+        "trust_plane": "official_data",
+        "table_id": "PRBD01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 42394,
+        "expected_columns": 40,
+    },
+    {
+        "path": "data/PRBD01N001_schema.xlsx",
+        "kind": "schema",
+        "trust_plane": "official_data",
+        "table_id": "PRBD01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 40,
+    },
+    {
+        "path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx",
+        "kind": "data",
+        "trust_plane": "official_data",
+        "table_id": "PREF01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 1734,
+        "expected_columns": 73,
+    },
+    {
+        "path": "data/PREF01N001_schema.xlsx",
+        "kind": "schema",
+        "trust_plane": "official_data",
+        "table_id": "PREF01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 73,
+    },
+    {
+        "path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx",
+        "kind": "data",
+        "trust_plane": "official_data",
+        "table_id": "PREF02N001",
+        "sheet_name": "datarows",
+        "expected_rows": 5646,
+        "expected_columns": 49,
+    },
+    {
+        "path": "data/PREF02N001_schema.xlsx",
+        "kind": "schema",
+        "trust_plane": "official_data",
+        "table_id": "PREF02N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 49,
+    },
+    {
+        "path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
+        "kind": "data",
+        "trust_plane": "official_data",
+        "table_id": "PRFD01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 95619,
+        "expected_columns": 45,
+    },
+    {
+        "path": "data/PRFD01N001_schema.xlsx",
+        "kind": "schema",
+        "trust_plane": "official_data",
+        "table_id": "PRFD01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 45,
+    },
 )
 
 
@@ -39,15 +115,15 @@ def sha256(path: Path) -> str:
 
 
 def build_manifest() -> dict[str, Any]:
-    files = []
+    files: list[dict[str, object]] = []
     for spec in FILE_SPECS:
         path = SOURCE / spec["path"]
-        entry = dict(spec)
+        entry: dict[str, object] = dict(spec)
         entry["size_bytes"] = path.stat().st_size
         entry["sha256"] = sha256(path)
         files.append(entry)
     return {
-        "manifest_version": "1.0.0",
+        "manifest_version": "1.1.0",
         "competition": "제10회 2026 미래에셋증권 AI Festival — 금융상품 Agent",
         "snapshot_date": "2026-07-11",
         "files": files,
@@ -59,7 +135,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
     manifest = build_manifest()
-    args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     print(f"Wrote {args.output}")
     return 0
 
