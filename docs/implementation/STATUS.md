@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 1 BLOCKED after final Retry Candidate 3 retained one
-independently reproduced HIGH finding.
+**Last updated:** 2026-08-08 — Preflight Task 1 single-quote one-candidate retry written spec
+frozen; owner review pending.
 
 ## Frozen baseline
 
@@ -16,8 +16,8 @@ independently reproduced HIGH finding.
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — BLOCKED after the
-  approved Candidate 1–3 budget; a new bounded brief requires explicit owner authorization
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — single-quote
+  one-candidate retry written spec frozen; owner review pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,10 +71,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**STOP: Preflight Task 1 is BLOCKED.** Do not begin Task 2. The owner must explicitly authorize a
-new bounded Task 1 brief before any further behavior or test change. The unresolved scope is CMD/BAT
-single-quote argument semantics; the next brief should also pin blank-line neutrality with a
-positive regression and re-run two independent final verifiers.
+**Review the frozen Preflight Task 1 single-quote retry spec.** The canonical file is
+`docs/superpowers/specs/2026-08-08-preflight-task1-quote-retry-design.md`. Do not write its
+implementation plan or change tests/production behavior until the owner approves the committed
+written spec. Do not begin Preflight Task 2.
 
 ## Handoff validation record — not production implementation
 
@@ -373,3 +373,25 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Final disposition: Candidate 3 does not meet the zero-BLOCKER/HIGH gate. The approved three
   candidates are exhausted, so Task 1 returns to `BLOCKED`; Task 2 remains unauthorized. No further
   implementation or oracle edit may occur until the owner explicitly approves a new bounded brief.
+
+### 2026-08-08 — Preflight Task 1 single-quote retry written design
+
+- Authorization: the owner explicitly approved one new bounded retry limited to globally banning
+  single-quoted commit messages, adding CMD/BAT regressions and a blank-line positive regression,
+  and requiring two independent final verifiers.
+- Base: `525312c78ae19e13ea5482b635f66f535f2dd8cc`, branch `codex/preflight-safety`, exact linked
+  worktree `C:\Users\ss020\바탕 화면\mirae_agent\.worktrees\preflight-safety`.
+- Canonical brief:
+  `docs/superpowers/specs/2026-08-08-preflight-task1-quote-retry-design.md` at SHA-256
+  `26eab093d601a82837e5e38661430d37c59c8b183d7ce6ae470fb655ef0cfb1b`.
+- Selected design: accept only unquoted or double-quoted literal ASCII commit messages. A
+  dialect-specific parser was rejected as unnecessary new complexity; forbidding all quoted
+  messages was rejected because it would remove safe multi-word checkpoints.
+- Frozen ownership: oracle `/root/candidate3_oracle` alone owns
+  `tests/contract/test_handoff_package.py`; coordinator `/root` owns the brief, forthcoming plan,
+  verifier/policy/routing/status files, and every Git action. Both final verifiers are read-only.
+- Baseline evidence before the written design: exact root and clean index PASS on the expected
+  branch; handoff PASS with 69 required files, nine official inputs, and 41,384,928 source bytes;
+  source audit PASS with 145,393 rows at snapshot 2026-07-11.
+- No test or production behavior changed. The next gate is owner review of the committed written
+  spec; implementation planning remains unauthorized until that review is approved.
