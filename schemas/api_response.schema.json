@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvaluationResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "question_id",
+    "question",
+    "retrieved_context",
+    "think_trace",
+    "answer"
+  ],
+  "properties": {
+    "question_id": {
+      "type": "string"
+    },
+    "question": {
+      "type": "string"
+    },
+    "retrieved_context": {
+      "type": "string"
+    },
+    "think_trace": {
+      "type": "string"
+    },
+    "answer": {
+      "type": "string"
+    }
+  }
+}

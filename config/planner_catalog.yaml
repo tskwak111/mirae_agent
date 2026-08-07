@@ -1,0 +1,33 @@
+version: "1.0.0"
+product_type_aliases:
+  domestic_bond: ["국내채권", "채권", "원화채권"]
+  domestic_etf: ["국내 ETF", "한국 ETF", "국내 상장 ETF"]
+  domestic_etn: ["국내 ETN", "한국 ETN"]
+  overseas_etf: ["해외 ETF", "미국 ETF", "해외 상장 ETF"]
+  overseas_etn: ["해외 ETN"]
+  public_fund: ["공모펀드", "펀드"]
+field_aliases:
+  total_fee: ["총보수", "보수", "운용보수"]
+  aum: ["AUM", "운용규모", "순자산", "순자산총액"]
+  credit_rating: ["신용등급", "등급"]
+  risk_grade: ["위험등급", "투자위험등급"]
+  tracking_error: ["추적오차"]
+  maturity_date: ["만기", "만기일"]
+  remaining_days_at_as_of: ["잔존만기", "잔존기간"]
+  buy_yield: ["매수수익률", "채권수익률"]
+  saleable: ["판매중", "가입 가능"]
+  mirae_saleable: ["미래에셋 판매", "당사 판매"]
+period_aliases:
+  1d: ["1일", "하루"]
+  1w: ["1주", "일주일"]
+  1m: ["1개월", "한 달"]
+  3m: ["3개월"]
+  6m: ["6개월", "반년"]
+  1y: ["1년", "연간"]
+  2y: ["2년"]
+  3y: ["3년"]
+  5y: ["5년"]
+  ytd: ["YTD", "연초 이후", "연초이후"]
+ranking_aliases:
+  desc: ["높은", "큰", "많은", "내림차순", "상위"]
+  asc: ["낮은", "작은", "적은", "오름차순"]

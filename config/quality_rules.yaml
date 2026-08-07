@@ -1,0 +1,69 @@
+version: "1.0.0"
+quality_statuses:
+  - "valid"
+  - "missing_blank"
+  - "missing_literal_null"
+  - "sentinel_zero"
+  - "sentinel_max_date"
+  - "recorded_zero"
+  - "recorded_zero_unverified"
+  - "invalid_format"
+  - "out_of_domain"
+  - "constant_metric"
+  - "stale"
+  - "mixed_source_values"
+  - "malformed_source_row"
+rules:
+  date.blank:
+    version: "1.0.0"
+    match: {kind: "blank"}
+    status: "missing_blank"
+  date.zero:
+    version: "1.0.0"
+    match: {values: ["0", "00000000"]}
+    status: "sentinel_zero"
+  date.max:
+    version: "1.0.0"
+    match: {values: ["99991231"]}
+    status: "sentinel_max_date"
+  literal.null:
+    version: "1.0.0"
+    match: {case_sensitive_values: ["NULL"]}
+    status: "missing_literal_null"
+  overseas_etf.total_fee.zero:
+    version: "1.0.0"
+    product_types: ["overseas_etf", "overseas_etn"]
+    field: "cu_charge_rt"
+    match: {numeric_eq: 0}
+    status: "recorded_zero_unverified"
+  domestic_etf.tracking_error.constant:
+    version: "1.0.0"
+    product_types: ["domestic_etf", "domestic_etn"]
+    field: "du_chas_errt"
+    dataset_assertion: {all_nonblank_numeric_eq: 0}
+    status: "constant_metric"
+  overseas_etf.return_1d.constant:
+    version: "1.0.0"
+    product_types: ["overseas_etf", "overseas_etn"]
+    field: "du_er_1d"
+    dataset_assertion: {all_nonblank_numeric_eq: 0}
+    status: "constant_metric"
+  public_fund.return_below_minus_100:
+    version: "1.0.0"
+    product_types: ["public_fund"]
+    fields: ["fd_mm18_ern_r", "fd_yr2_ern_r", "fd_yr3_ern_r", "fd_yr5_ern_r"]
+    match: {numeric_lt: -100}
+    status: "out_of_domain"
+  public_fund.fund_type_unmapped_code:
+    version: "1.0.0"
+    product_types: ["public_fund"]
+    field: "or_attr_desc"
+    match: {values: ["06"]}
+    status: "mixed_source_values"
+  public_fund.malformed_item:
+    version: "1.0.0"
+    product_types: ["public_fund"]
+    field: "itm_no"
+    match: {invalid_product_identifier: true}
+    status: "malformed_source_row"
+    quarantine: true

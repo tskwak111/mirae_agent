@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+pytest-cache-files-*/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environments and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Runtime/build artifacts
+artifacts/
+build/
+dist/
+logs/
+.cache/
+.worktrees/
+tmp/
+*.duckdb
+*.duckdb.wal
+
+# IDE/OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local performance output
+benchmark-results/
+load-results/

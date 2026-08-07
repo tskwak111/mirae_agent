@@ -1,0 +1,38 @@
+version: "1.0.0"
+language: "ko"
+limits:
+  default_top_k: 5
+  max_top_k: 50
+  max_table_rows: 20
+  max_context_bytes: 24000
+  max_answer_chars: 12000
+safe_defaults:
+  as_of_date: "2026-07-11"
+  public_fund_result_grain: "fund_item"
+  heterogeneous_result_grain: "product"
+  single_partition_top_k_scope: "global"
+  explicit_each_top_k_scope: "per_product_type"
+  plain_etf_excludes_etn: true
+  cross_currency_aum: "separate_by_currency"
+  missing_rank_return_period: "clarify"
+wording:
+  snapshot_assumption: "2026-07-11 제공 스냅샷 기준"
+  matched_candidates: "조건에 부합하는 후보"
+  recorded_view_label: "제공 데이터 기록값"
+  comparison_view_label: "비교 가능 기준"
+  unsupported: "제공 데이터로 확인할 수 없습니다."
+  no_result: "지정한 조건을 충족하는 상품을 찾지 못했습니다."
+  joint_rank: "해당 지표 값이 동일해 공동순위입니다."
+  source_footer_prefix: "근거"
+forbidden_claim_patterns:
+  - "무조건 사야"
+  - "반드시 매수"
+  - "수익이 보장"
+  - "확실히 오를"
+  - "최고의 투자"
+recommendation_rewrite:
+  enabled: true
+  replace_with: "사용자가 제시한 조건에 부합하는 후보"
+dual_lens:
+  enabled: true
+  expose_only_when_material: true

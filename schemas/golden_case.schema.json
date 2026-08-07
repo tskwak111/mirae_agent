@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GoldenCase",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "category",
+    "question",
+    "expected_plan",
+    "expected_result",
+    "expected_answer",
+    "review"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "lookup",
+        "screen",
+        "rank",
+        "compare",
+        "aggregate",
+        "cross_product",
+        "clarification",
+        "quality",
+        "adversarial"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expected_plan": {
+      "type": "object"
+    },
+    "expected_result": {
+      "type": "object"
+    },
+    "expected_answer": {
+      "type": "object"
+    },
+    "review": {
+      "type": "object",
+      "required": [
+        "reviewer",
+        "reviewed_at",
+        "source"
+      ],
+      "properties": {
+        "reviewer": {
+          "type": "string"
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

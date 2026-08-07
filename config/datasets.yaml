@@ -1,0 +1,52 @@
+version: "1.0.0"
+snapshot_date: "2026-07-11"
+datasets:
+  PRBD01N001:
+    name_ko: "국내채권마스터"
+    product_types: ["domestic_bond"]
+    data_file: "PRBD01N001_domestic_bonds_20260711_datarows.xlsx"
+    schema_file: "PRBD01N001_schema.xlsx"
+    sheet_name: "datarows"
+    expected_rows: 42394
+    expected_columns: 40
+    source_primary_key: ["PD_NO"]
+    default_result_grain: "instrument"
+    currency_column: "CURR_CD"
+  PREF01N001:
+    name_ko: "국내ETF마스터"
+    product_types: ["domestic_etf", "domestic_etn"]
+    data_file: "PREF01N001_domestic_etf_20260711_datarows.xlsx"
+    schema_file: "PREF01N001_schema.xlsx"
+    sheet_name: "datarows"
+    expected_rows: 1734
+    expected_columns: 73
+    source_primary_key: ["pd_itm_no"]
+    type_column: "pd_grp_no"
+    default_result_grain: "listed_product"
+    currency_column: "pd_curr_cd"
+  PREF02N001:
+    name_ko: "해외ETF마스터"
+    product_types: ["overseas_etf", "overseas_etn"]
+    data_file: "PREF02N001_overseas_etf_20260711_datarows.xlsx"
+    schema_file: "PREF02N001_schema.xlsx"
+    sheet_name: "datarows"
+    expected_rows: 5646
+    expected_columns: 49
+    source_primary_key: ["pd_itm_no"]
+    type_column: "pd_grp_no"
+    default_result_grain: "listed_product"
+    currency_column: "pd_trd_ccy"
+  PRFD01N001:
+    name_ko: "공모펀드마스터"
+    product_types: ["public_fund"]
+    data_file: "PRFD01N001_public_funds_20260711_datarows.xlsx"
+    schema_file: "PRFD01N001_schema.xlsx"
+    sheet_name: "datarows"
+    expected_rows: 95619
+    expected_columns: 45
+    source_primary_key: ["itm_no", "prfd_attr_cd"]
+    item_key: ["itm_no"]
+    attribute_column: "prfd_attr_cd"
+    optional_family_candidate_column: "rptt_ksd_itm_no"
+    default_result_grain: "fund_item"
+    currency_column: "curr_cd"

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DataQualityIssue",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "issue_id",
+    "rule_id",
+    "rule_version",
+    "severity",
+    "quality_status",
+    "source",
+    "reason"
+  ],
+  "properties": {
+    "issue_id": {
+      "type": "string"
+    },
+    "rule_id": {
+      "type": "string"
+    },
+    "rule_version": {
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "info",
+        "warning",
+        "high",
+        "blocker"
+      ]
+    },
+    "quality_status": {
+      "type": "string"
+    },
+    "source": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "file_name",
+        "sheet_name",
+        "excel_row_number"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "sheet_name": {
+          "type": "string"
+        },
+        "excel_row_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column_name": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "reason": {
+      "type": "string"
+    },
+    "quarantined": {
+      "type": "boolean"
+    }
+  }
+}

@@ -1,0 +1,1831 @@
+{
+  "catalog_version": "1.0.0",
+  "snapshot_date": "2026-07-11",
+  "tables": {
+    "PRBD01N001": {
+      "axis_warning": "Sample axis_* fields are reference hints, not mandatory official ground-truth labels.",
+      "column_count": 40,
+      "columns": [
+        {
+          "column_name": "PD_NO",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 3
+        },
+        {
+          "column_name": "PD_EXG_MKT",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 4
+        },
+        {
+          "column_name": "PD_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 5
+        },
+        {
+          "column_name": "PD_ABRV_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 6
+        },
+        {
+          "column_name": "PD_ENG_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 7
+        },
+        {
+          "column_name": "PD_ABRV_ENG_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 8
+        },
+        {
+          "column_name": "PD_CTRY_CD",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 9
+        },
+        {
+          "column_name": "PD_PBCM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 10
+        },
+        {
+          "column_name": "STD_PD_MCLS_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 11
+        },
+        {
+          "column_name": "STD_PD_SCLS_NM",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 12
+        },
+        {
+          "column_name": "BD_KND",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 13
+        },
+        {
+          "column_name": "CURR_CD",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 14
+        },
+        {
+          "column_name": "ISU_BAL_AMT",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 15
+        },
+        {
+          "column_name": "ISU_DT",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 16
+        },
+        {
+          "column_name": "MAT_DT",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 17
+        },
+        {
+          "column_name": "SRFC_IRT",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 18
+        },
+        {
+          "column_name": "PD_EVCO_CRD_GRD",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 19
+        },
+        {
+          "column_name": "PD_RISK_GCD",
+          "column_type": "bigint",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 20
+        },
+        {
+          "column_name": "PD_STD_INFO_UPDATE",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 21
+        },
+        {
+          "column_name": "BUY_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 22
+        },
+        {
+          "column_name": "CORP_PRETAX_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 23
+        },
+        {
+          "column_name": "CORP_AFTER_TAX_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 24
+        },
+        {
+          "column_name": "AFTER_TAX_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 25
+        },
+        {
+          "column_name": "PREF_TAX_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 26
+        },
+        {
+          "column_name": "AVG_ANNUAL_TAX_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 27
+        },
+        {
+          "column_name": "DEPO_EQUIV_YIELD_154",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 28
+        },
+        {
+          "column_name": "BUYABLE_QUANTITY",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 29
+        },
+        {
+          "column_name": "REMAINING_DAYS",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 30
+        },
+        {
+          "column_name": "DUR",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 31
+        },
+        {
+          "column_name": "COV",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 32
+        },
+        {
+          "column_name": "NDY_DUR",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 33
+        },
+        {
+          "column_name": "NDY_COV",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 34
+        },
+        {
+          "column_name": "EVAL_PRICE",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 35
+        },
+        {
+          "column_name": "APPLIED_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 36
+        },
+        {
+          "column_name": "DIRTY",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 37
+        },
+        {
+          "column_name": "NDY_EVAL_PRICE",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 38
+        },
+        {
+          "column_name": "NDY_APPLIED_YIELD",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 39
+        },
+        {
+          "column_name": "NDY_DIRTY",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 40
+        },
+        {
+          "column_name": "CRD_GRD",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 41
+        },
+        {
+          "column_name": "CRD_GRD_DT",
+          "column_type": "double precision",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 42
+        }
+      ],
+      "sample": {
+        "axis_collateralType": "Unsecured",
+        "axis_couponType": "FixedCoupon",
+        "axis_creditRating": "NotRated",
+        "axis_currency": "KRW",
+        "axis_issuanceMarket": "DomesticMarket",
+        "axis_issuerCategory": "NonFinancialCorporateIssuer",
+        "axis_issuerType": "GovernmentBond",
+        "axis_maturityClass": "LongTerm",
+        "bd_knd": "국고채권",
+        "issuerCountry": "KR",
+        "isu_bal_amt": "46971000000000.0",
+        "listingCountry": "KR",
+        "pd_abrv_nm": "국고01875-5103(21-2)",
+        "pd_ctry_cd": "KR",
+        "pd_nm": "국고채권 01875-5103(21-2)",
+        "pd_no": "KR103502GB33",
+        "pd_pbcm": "대한민국",
+        "source_table": "PRBD01N001",
+        "std_pd_mcls_nm": "국공채",
+        "std_pd_scls_nm": "국고채"
+      },
+      "sample_axis_columns": [
+        "axis_collateralType",
+        "axis_couponType",
+        "axis_creditRating",
+        "axis_currency",
+        "axis_issuanceMarket",
+        "axis_issuerCategory",
+        "axis_issuerType",
+        "axis_maturityClass"
+      ],
+      "schema_file": "PRBD01N001_schema.xlsx",
+      "source_snapshot_label": "[ 데이터 최종 추출일자 ] 2026-07-11",
+      "table_id": "PRBD01N001",
+      "total_row_label": "Total Row: 42,394"
+    },
+    "PREF01N001": {
+      "axis_warning": "Sample axis_* fields are reference hints, not mandatory official ground-truth labels.",
+      "column_count": 73,
+      "columns": [
+        {
+          "column_name": "cu_base_index",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "기초지수",
+          "schema_excel_row": 3
+        },
+        {
+          "column_name": "cu_charge_etc_rt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "기타비용요율",
+          "schema_excel_row": 4
+        },
+        {
+          "column_name": "cu_charge_rt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "총보수요율",
+          "schema_excel_row": 5
+        },
+        {
+          "column_name": "cu_fund_mgmt_co",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "운용사",
+          "schema_excel_row": 6
+        },
+        {
+          "column_name": "cu_lev_fector",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "배수",
+          "schema_excel_row": 7
+        },
+        {
+          "column_name": "cu_strtegy",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "운용전략",
+          "schema_excel_row": 8
+        },
+        {
+          "column_name": "cu_upt_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "변동갱신일자",
+          "schema_excel_row": 9
+        },
+        {
+          "column_name": "du_bpr",
+          "column_type": "numeric",
+          "example": "9915.00",
+          "key": "",
+          "name_ko": "기준가",
+          "schema_excel_row": 10
+        },
+        {
+          "column_name": "du_chas_errt",
+          "column_type": "numeric",
+          "example": "0.26",
+          "key": "",
+          "name_ko": "추적오차율",
+          "schema_excel_row": 11
+        },
+        {
+          "column_name": "du_clpr",
+          "column_type": "numeric",
+          "example": "9915.00",
+          "key": "",
+          "name_ko": "종가",
+          "schema_excel_row": 12
+        },
+        {
+          "column_name": "du_diff_rt",
+          "column_type": "numeric",
+          "example": "1.44",
+          "key": "",
+          "name_ko": "괴리율",
+          "schema_excel_row": 13
+        },
+        {
+          "column_name": "du_er_1d",
+          "column_type": "numeric",
+          "example": "-0.44",
+          "key": "",
+          "name_ko": "수익률_1D",
+          "schema_excel_row": 14
+        },
+        {
+          "column_name": "du_er_1m",
+          "column_type": "numeric",
+          "example": "0.58",
+          "key": "",
+          "name_ko": "수익률_1M",
+          "schema_excel_row": 15
+        },
+        {
+          "column_name": "du_er_1y",
+          "column_type": "numeric",
+          "example": "17.10",
+          "key": "",
+          "name_ko": "수익률_1Y",
+          "schema_excel_row": 16
+        },
+        {
+          "column_name": "du_er_3m",
+          "column_type": "numeric",
+          "example": "-0.03",
+          "key": "",
+          "name_ko": "수익률_3M",
+          "schema_excel_row": 17
+        },
+        {
+          "column_name": "du_er_6m",
+          "column_type": "numeric",
+          "example": "9.41",
+          "key": "",
+          "name_ko": "수익률_6M",
+          "schema_excel_row": 18
+        },
+        {
+          "column_name": "du_er_ytd",
+          "column_type": "numeric",
+          "example": "2.88",
+          "key": "",
+          "name_ko": "수익률_YTD",
+          "schema_excel_row": 19
+        },
+        {
+          "column_name": "du_hpr",
+          "column_type": "numeric",
+          "example": "9979.00",
+          "key": "",
+          "name_ko": "고가",
+          "schema_excel_row": 20
+        },
+        {
+          "column_name": "du_last_aum",
+          "column_type": "numeric",
+          "example": "60720672000.00",
+          "key": "",
+          "name_ko": "최종AUM",
+          "schema_excel_row": 21
+        },
+        {
+          "column_name": "du_last_nav",
+          "column_type": "numeric",
+          "example": "9873.28",
+          "key": "",
+          "name_ko": "최종NAV",
+          "schema_excel_row": 22
+        },
+        {
+          "column_name": "du_lpr",
+          "column_type": "numeric",
+          "example": "9905.00",
+          "key": "",
+          "name_ko": "시가",
+          "schema_excel_row": 23
+        },
+        {
+          "column_name": "du_nav_rnf_amt",
+          "column_type": "numeric",
+          "example": "-161.91",
+          "key": "",
+          "name_ko": "전일NAV등락금액",
+          "schema_excel_row": 24
+        },
+        {
+          "column_name": "du_nav_yday",
+          "column_type": "numeric",
+          "example": "10035.19",
+          "key": "",
+          "name_ko": "전일NAV",
+          "schema_excel_row": 25
+        },
+        {
+          "column_name": "du_upt_dt",
+          "column_type": "timestamp without time zone",
+          "example": "20260225",
+          "key": "",
+          "name_ko": "일간갱신일자",
+          "schema_excel_row": 26
+        },
+        {
+          "column_name": "du_val_1d",
+          "column_type": "numeric",
+          "example": "810630570.00",
+          "key": "",
+          "name_ko": "일거래대금",
+          "schema_excel_row": 27
+        },
+        {
+          "column_name": "du_val_1m",
+          "column_type": "numeric",
+          "example": "847009967.75",
+          "key": "",
+          "name_ko": "일거래대금평균_1M",
+          "schema_excel_row": 28
+        },
+        {
+          "column_name": "du_val_5d",
+          "column_type": "numeric",
+          "example": "683306859.40",
+          "key": "",
+          "name_ko": "일거래대금평균_5D",
+          "schema_excel_row": 29
+        },
+        {
+          "column_name": "du_vol_1d",
+          "column_type": "numeric",
+          "example": "81758.00",
+          "key": "",
+          "name_ko": "일거래량",
+          "schema_excel_row": 30
+        },
+        {
+          "column_name": "du_vol_avg_1m",
+          "column_type": "numeric",
+          "example": "87324.85",
+          "key": "",
+          "name_ko": "거래량평균_1M",
+          "schema_excel_row": 31
+        },
+        {
+          "column_name": "du_vol_avg_5d",
+          "column_type": "numeric",
+          "example": "69132.40",
+          "key": "",
+          "name_ko": "거래량평균_5D",
+          "schema_excel_row": 32
+        },
+        {
+          "column_name": "nru_mkt_diff_rt",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "괴리율",
+          "schema_excel_row": 33
+        },
+        {
+          "column_name": "nru_mkt_inav",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "장중 iNAV",
+          "schema_excel_row": 34
+        },
+        {
+          "column_name": "pd_abrv_nm",
+          "column_type": "text",
+          "example": "TIGER 엔비디아미국채커버드콜밸런스(합성)",
+          "key": "",
+          "name_ko": "상품약어명",
+          "schema_excel_row": 35
+        },
+        {
+          "column_name": "pd_circ_net_tamt",
+          "column_type": "numeric",
+          "example": "61869000000.00",
+          "key": "",
+          "name_ko": "유통순자산총액",
+          "schema_excel_row": 36
+        },
+        {
+          "column_name": "pd_circ_stk_cnt",
+          "column_type": "numeric",
+          "example": "6150000.00",
+          "key": "",
+          "name_ko": "유통주식수",
+          "schema_excel_row": 37
+        },
+        {
+          "column_name": "pd_curr_cd",
+          "column_type": "text",
+          "example": "CURR_CD_KRW",
+          "key": "",
+          "name_ko": "상품통화코드",
+          "schema_excel_row": 38
+        },
+        {
+          "column_name": "pd_curr_nm",
+          "column_type": "text",
+          "example": "한국원화",
+          "key": "",
+          "name_ko": "상품통화명",
+          "schema_excel_row": 39
+        },
+        {
+          "column_name": "pd_divd_amt_pshr",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "주당 배당금",
+          "schema_excel_row": 40
+        },
+        {
+          "column_name": "pd_dvid_cycl",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "당주기",
+          "schema_excel_row": 41
+        },
+        {
+          "column_name": "pd_dvid_yield",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "배당수익률",
+          "schema_excel_row": 42
+        },
+        {
+          "column_name": "pd_exg_mkt_cd",
+          "column_type": "text",
+          "example": "EXG_MKT_NO_001",
+          "key": "PK",
+          "name_ko": "거래소코드",
+          "schema_excel_row": 43
+        },
+        {
+          "column_name": "pd_exg_mkt_nm",
+          "column_type": "text",
+          "example": "유가증권",
+          "key": "",
+          "name_ko": "거래소명",
+          "schema_excel_row": 44
+        },
+        {
+          "column_name": "pd_grp_no",
+          "column_type": "text",
+          "example": "ETF",
+          "key": "",
+          "name_ko": "상품군종류",
+          "schema_excel_row": 45
+        },
+        {
+          "column_name": "pd_itm_no",
+          "column_type": "text",
+          "example": "KR70000D0009",
+          "key": "PK",
+          "name_ko": "상품번호",
+          "schema_excel_row": 46
+        },
+        {
+          "column_name": "pd_itm_no_ma",
+          "column_type": "text",
+          "example": "A0000D0",
+          "key": "PK",
+          "name_ko": "상품번호_미래에셋",
+          "schema_excel_row": 47
+        },
+        {
+          "column_name": "pd_lst_price",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "상품액면가",
+          "schema_excel_row": 48
+        },
+        {
+          "column_name": "pd_lst_stk_cnt",
+          "column_type": "numeric",
+          "example": "6200000.00",
+          "key": "",
+          "name_ko": "상품상장주식수",
+          "schema_excel_row": 49
+        },
+        {
+          "column_name": "pd_lste_dt",
+          "column_type": "text",
+          "example": "99991231",
+          "key": "",
+          "name_ko": "상품거래종료일자",
+          "schema_excel_row": 50
+        },
+        {
+          "column_name": "pd_lstg_dt",
+          "column_type": "text",
+          "example": "20241217",
+          "key": "",
+          "name_ko": "상품거래가능일자",
+          "schema_excel_row": 51
+        },
+        {
+          "column_name": "pd_mkt_id",
+          "column_type": "text",
+          "example": "STK",
+          "key": "",
+          "name_ko": "상품거래시장코드",
+          "schema_excel_row": 52
+        },
+        {
+          "column_name": "pd_mkt_nm",
+          "column_type": "text",
+          "example": "유가증권",
+          "key": "",
+          "name_ko": "상품거래시장",
+          "schema_excel_row": 53
+        },
+        {
+          "column_name": "pd_nav_pshr",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "주당 순자산가치",
+          "schema_excel_row": 54
+        },
+        {
+          "column_name": "pd_net_ast_pshr",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "주당 순자산",
+          "schema_excel_row": 55
+        },
+        {
+          "column_name": "pd_net_prft_pshr",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "주당 순이익",
+          "schema_excel_row": 56
+        },
+        {
+          "column_name": "pd_net_rt_ast_pshr",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "주당 순자산비율",
+          "schema_excel_row": 57
+        },
+        {
+          "column_name": "pd_net_tamt",
+          "column_type": "numeric",
+          "example": "61716390155.00",
+          "key": "",
+          "name_ko": "순자산총액",
+          "schema_excel_row": 58
+        },
+        {
+          "column_name": "pd_nm",
+          "column_type": "text",
+          "example": "미래에셋 TIGER NVDA-UST커버드콜증권상장지수투자신탁(채권혼합-파생재간접형)(합성)",
+          "key": "",
+          "name_ko": "상품명",
+          "schema_excel_row": 59
+        },
+        {
+          "column_name": "pd_pen_risk_nm",
+          "column_type": "text",
+          "example": "안전자산",
+          "key": "",
+          "name_ko": "연금거래위험구분",
+          "schema_excel_row": 60
+        },
+        {
+          "column_name": "pd_pen_tr_yn",
+          "column_type": "text",
+          "example": "Y",
+          "key": "",
+          "name_ko": "연금거래가능여부",
+          "schema_excel_row": 61
+        },
+        {
+          "column_name": "pd_risk_cd",
+          "column_type": "text",
+          "example": "PD_RISK_GCD_13",
+          "key": "",
+          "name_ko": "상품등급코드",
+          "schema_excel_row": 62
+        },
+        {
+          "column_name": "pd_risk_nm",
+          "column_type": "text",
+          "example": "다소높은위험(3등급)",
+          "key": "",
+          "name_ko": "상품등급명",
+          "schema_excel_row": 63
+        },
+        {
+          "column_name": "pd_sale_yn",
+          "column_type": "text",
+          "example": "1",
+          "key": "",
+          "name_ko": "상품판매여부",
+          "schema_excel_row": 64
+        },
+        {
+          "column_name": "pd_sect_cd",
+          "column_type": "text",
+          "example": "2",
+          "key": "",
+          "name_ko": "ETF 섹터코드",
+          "schema_excel_row": 65
+        },
+        {
+          "column_name": "pd_sect_nm",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "ETF 섹터명",
+          "schema_excel_row": 66
+        },
+        {
+          "column_name": "pd_spac_yn",
+          "column_type": "text",
+          "example": "N",
+          "key": "",
+          "name_ko": "SPAC 여부",
+          "schema_excel_row": 67
+        },
+        {
+          "column_name": "pd_stk_cnt",
+          "column_type": "numeric",
+          "example": "6150000.00",
+          "key": "",
+          "name_ko": "상장주식수",
+          "schema_excel_row": 68
+        },
+        {
+          "column_name": "pd_tr_yn",
+          "column_type": "text",
+          "example": "0",
+          "key": "",
+          "name_ko": "상품거래정지혀부",
+          "schema_excel_row": 69
+        },
+        {
+          "column_name": "ru_mkt_price",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "현재가",
+          "schema_excel_row": 70
+        },
+        {
+          "column_name": "ru_mkt_volume",
+          "column_type": "numeric",
+          "example": "0.00",
+          "key": "",
+          "name_ko": "거래량",
+          "schema_excel_row": 71
+        },
+        {
+          "column_name": "wu_core_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "핵심ETF여부",
+          "schema_excel_row": 72
+        },
+        {
+          "column_name": "wu_inv_ast_type",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "투자자산군",
+          "schema_excel_row": 73
+        },
+        {
+          "column_name": "wu_inv_rgn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "투자지역",
+          "schema_excel_row": 74
+        },
+        {
+          "column_name": "wu_upt_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "주간갱신일자",
+          "schema_excel_row": 75
+        }
+      ],
+      "sample": {
+        "axis_assetType": "Equity",
+        "axis_distributionType": "Distributing",
+        "axis_leverageType": "Standard",
+        "axis_region": "Domestic",
+        "axis_replicationMethod": "Physical",
+        "axis_strategy": "Passive",
+        "axis_underlyingScope": "MarketRepresentative",
+        "legacy_leaf": "패시브 ETF > 정방향 1배형 > 주식형 > 시장대표",
+        "pd_abrv_nm": "KODEX 200",
+        "pd_itm_no": "KR7069500007",
+        "pd_itm_no_ma": "A069500",
+        "pd_net_tamt": "28359162282520.00",
+        "pd_nm": "삼성 KODEX200 증권상장지수투자신탁[주식]"
+      },
+      "sample_axis_columns": [
+        "axis_assetType",
+        "axis_distributionType",
+        "axis_leverageType",
+        "axis_region",
+        "axis_replicationMethod",
+        "axis_strategy",
+        "axis_underlyingScope"
+      ],
+      "schema_file": "PREF01N001_schema.xlsx",
+      "source_snapshot_label": "[ 데이터 최종 추출일자 ] 2026-07-11",
+      "table_id": "PREF01N001",
+      "total_row_label": "Total Row: 1,734"
+    },
+    "PREF02N001": {
+      "axis_warning": "Sample axis_* fields are reference hints, not mandatory official ground-truth labels.",
+      "column_count": 49,
+      "columns": [
+        {
+          "column_name": "cu_base_index",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 3
+        },
+        {
+          "column_name": "cu_charge_rt",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 4
+        },
+        {
+          "column_name": "cu_etn_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 5
+        },
+        {
+          "column_name": "cu_fund_mgmt_co",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 6
+        },
+        {
+          "column_name": "cu_index_repl_mthd",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 7
+        },
+        {
+          "column_name": "cu_index_tracking_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 8
+        },
+        {
+          "column_name": "cu_inverse_short_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 9
+        },
+        {
+          "column_name": "cu_lev_fector",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 10
+        },
+        {
+          "column_name": "cu_strtegy",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 11
+        },
+        {
+          "column_name": "cu_upt_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 12
+        },
+        {
+          "column_name": "du_base_dt_match_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 13
+        },
+        {
+          "column_name": "du_bpr",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 14
+        },
+        {
+          "column_name": "du_clpr",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 15
+        },
+        {
+          "column_name": "du_clpr_base_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 16
+        },
+        {
+          "column_name": "du_clpr_src",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 17
+        },
+        {
+          "column_name": "du_diff_rt",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 18
+        },
+        {
+          "column_name": "du_er_1d",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 19
+        },
+        {
+          "column_name": "du_hpr",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 20
+        },
+        {
+          "column_name": "du_last_aum",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 21
+        },
+        {
+          "column_name": "du_last_nav",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 22
+        },
+        {
+          "column_name": "du_lpr",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 23
+        },
+        {
+          "column_name": "du_nav_base_dt",
+          "column_type": "timestamp without time zone",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 24
+        },
+        {
+          "column_name": "du_opr",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 25
+        },
+        {
+          "column_name": "du_upt_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 26
+        },
+        {
+          "column_name": "du_val_1d",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 27
+        },
+        {
+          "column_name": "du_vol_1d",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 28
+        },
+        {
+          "column_name": "pd_abrv_nm",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 29
+        },
+        {
+          "column_name": "pd_curr_cd",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 30
+        },
+        {
+          "column_name": "pd_exg_mkt_cd",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 31
+        },
+        {
+          "column_name": "pd_grp_no",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 32
+        },
+        {
+          "column_name": "pd_isin_cd",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 33
+        },
+        {
+          "column_name": "pd_itm_no",
+          "column_type": "text",
+          "example": "",
+          "key": "PK",
+          "name_ko": "",
+          "schema_excel_row": 34
+        },
+        {
+          "column_name": "pd_itm_no_ma",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 35
+        },
+        {
+          "column_name": "pd_lipper_id",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 36
+        },
+        {
+          "column_name": "pd_lstg_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 37
+        },
+        {
+          "column_name": "pd_lst_price",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 38
+        },
+        {
+          "column_name": "pd_lst_stk_cnt",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 39
+        },
+        {
+          "column_name": "pd_mkt_id",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 40
+        },
+        {
+          "column_name": "pd_nm",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 41
+        },
+        {
+          "column_name": "pd_sale_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 42
+        },
+        {
+          "column_name": "pd_trd_ccy",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 43
+        },
+        {
+          "column_name": "pd_tr_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 44
+        },
+        {
+          "column_name": "pd_us_cik",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 45
+        },
+        {
+          "column_name": "ru_mkt_price",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 46
+        },
+        {
+          "column_name": "ru_mkt_volume",
+          "column_type": "numeric",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 47
+        },
+        {
+          "column_name": "wu_core_yn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 48
+        },
+        {
+          "column_name": "wu_inv_ast_type",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 49
+        },
+        {
+          "column_name": "wu_inv_rgn",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 50
+        },
+        {
+          "column_name": "wu_upt_dt",
+          "column_type": "text",
+          "example": "",
+          "key": "",
+          "name_ko": "",
+          "schema_excel_row": 51
+        }
+      ],
+      "sample": {
+        "cu_base_index": "Bloomberg US Agg Float Adjusted TR",
+        "cu_charge_rt": "0.020000",
+        "cu_etn_yn": "",
+        "cu_fund_mgmt_co": "Vanguard Capital Management, LLC",
+        "cu_index_repl_mthd": "Optimized",
+        "cu_index_tracking_yn": "Y",
+        "cu_inverse_short_yn": "",
+        "cu_lev_fector": "",
+        "cu_strtegy": "The Fund seeks to track the performance of a broad, market-weighted bond index. The index is the Bloomberg U.S. Aggregate Float Adjusted Index. This Index measures the performance of a wide spectrum of public, investment-grade, taxable, fixed income securities in the United States, all with maturities of more than 1 year.",
+        "cu_upt_dt": "20260614",
+        "du_base_dt_match_yn": "N",
+        "du_bpr": "73.24000000",
+        "du_clpr": "73.30000000",
+        "du_clpr_base_dt": "20260616",
+        "du_clpr_src": "pd65n101.tday_clpr",
+        "du_diff_rt": "",
+        "du_er_1d": "0.000000",
+        "du_hpr": "73.43000000",
+        "du_last_aum": "157396600000.00",
+        "du_last_nav": "",
+        "du_lpr": "73.29000000",
+        "du_nav_base_dt": "2026-06-14 00:00:00",
+        "du_opr": "73.38000000",
+        "du_upt_dt": "20260616",
+        "du_val_1d": "567265517.00000000",
+        "du_vol_1d": "7735405.00000000",
+        "pd_abrv_nm": "BND",
+        "pd_curr_cd": "USD",
+        "pd_exg_mkt_cd": "NAS",
+        "pd_grp_no": "ETF",
+        "pd_isin_cd": "US9219378356",
+        "pd_itm_no": "BND.O",
+        "pd_itm_no_ma": "BND.O",
+        "pd_lipper_id": "40113815",
+        "pd_lst_price": "0E-8",
+        "pd_lst_stk_cnt": "2156723018.00",
+        "pd_lstg_dt": "20070403",
+        "pd_mkt_id": "US",
+        "pd_nm": "Vanguard Total Bond Market Index Fund;ETF",
+        "pd_sale_yn": "1",
+        "pd_tr_yn": "0",
+        "pd_trd_ccy": "USD",
+        "pd_us_cik": "794105",
+        "ru_mkt_price": "73.30000000",
+        "ru_mkt_volume": "7735405.00000000",
+        "wu_core_yn": "",
+        "wu_inv_ast_type": "Bond",
+        "wu_inv_rgn": "United States of America",
+        "wu_upt_dt": "20260614"
+      },
+      "sample_axis_columns": [],
+      "schema_file": "PREF02N001_schema.xlsx",
+      "source_snapshot_label": "[ 데이터 최종 추출일자 ] 2026-07-11",
+      "table_id": "PREF02N001",
+      "total_row_label": "Total Row: 5,646"
+    },
+    "PRFD01N001": {
+      "axis_warning": "Sample axis_* fields are reference hints, not mandatory official ground-truth labels.",
+      "column_count": 45,
+      "columns": [
+        {
+          "column_name": "bmrk_eng_nm",
+          "column_type": "text",
+          "example": "CALL",
+          "key": "",
+          "name_ko": "벤치마크영문명",
+          "schema_excel_row": 3
+        },
+        {
+          "column_name": "bmrk_nm",
+          "column_type": "text",
+          "example": "CALL",
+          "key": "",
+          "name_ko": "벤치마크명",
+          "schema_excel_row": 4
+        },
+        {
+          "column_name": "curr_cd",
+          "column_type": "text",
+          "example": "KRW",
+          "key": "",
+          "name_ko": "통화코드",
+          "schema_excel_row": 5
+        },
+        {
+          "column_name": "exchdg_yn",
+          "column_type": "text",
+          "example": "N",
+          "key": "",
+          "name_ko": "환헤지여부",
+          "schema_excel_row": 6
+        },
+        {
+          "column_name": "fd_estb_ctry_cd",
+          "column_type": "text",
+          "example": "000",
+          "key": "",
+          "name_ko": "펀드설립국가코드",
+          "schema_excel_row": 7
+        },
+        {
+          "column_name": "fd_ivst_rgn_desc",
+          "column_type": "text",
+          "example": "국내",
+          "key": "",
+          "name_ko": "펀드투자지역구분코드 설명",
+          "schema_excel_row": 8
+        },
+        {
+          "column_name": "fd_mm18_ern_r",
+          "column_type": "numeric",
+          "example": "4.85",
+          "key": "",
+          "name_ko": "펀드 18개월수익률",
+          "schema_excel_row": 9
+        },
+        {
+          "column_name": "fd_mm1_ern_r",
+          "column_type": "numeric",
+          "example": "0.26",
+          "key": "",
+          "name_ko": "펀드 1개월수익률",
+          "schema_excel_row": 10
+        },
+        {
+          "column_name": "fd_mm3_ern_r",
+          "column_type": "numeric",
+          "example": "0.78",
+          "key": "",
+          "name_ko": "펀드 3개월수익률",
+          "schema_excel_row": 11
+        },
+        {
+          "column_name": "fd_mm6_ern_r",
+          "column_type": "numeric",
+          "example": "1.46",
+          "key": "",
+          "name_ko": "펀드 6개월수익률",
+          "schema_excel_row": 12
+        },
+        {
+          "column_name": "fd_nast_suma",
+          "column_type": "numeric",
+          "example": "2390679722503.0000",
+          "key": "",
+          "name_ko": "펀드 순자산",
+          "schema_excel_row": 13
+        },
+        {
+          "column_name": "fd_set_pcd",
+          "column_type": "text",
+          "example": "10",
+          "key": "",
+          "name_ko": "펀드설정유형코드",
+          "schema_excel_row": 14
+        },
+        {
+          "column_name": "fd_wk1_ern_r",
+          "column_type": "numeric",
+          "example": "0.09",
+          "key": "",
+          "name_ko": "펀드 1주일수익률",
+          "schema_excel_row": 15
+        },
+        {
+          "column_name": "fd_yr1_ern_r",
+          "column_type": "numeric",
+          "example": "2.93",
+          "key": "",
+          "name_ko": "펀드 1년수익률",
+          "schema_excel_row": 16
+        },
+        {
+          "column_name": "fd_yr2_ern_r",
+          "column_type": "numeric",
+          "example": "6.93",
+          "key": "",
+          "name_ko": "펀드 2년수익률",
+          "schema_excel_row": 17
+        },
+        {
+          "column_name": "fd_yr3_ern_r",
+          "column_type": "numeric",
+          "example": "13.57",
+          "key": "",
+          "name_ko": "펀드 3년수익률",
+          "schema_excel_row": 18
+        },
+        {
+          "column_name": "fd_yr5_ern_r",
+          "column_type": "numeric",
+          "example": "18.87",
+          "key": "",
+          "name_ko": "펀드 5년수익률",
+          "schema_excel_row": 19
+        },
+        {
+          "column_name": "frc_bpr_itm_yn",
+          "column_type": "text",
+          "example": "0",
+          "key": "",
+          "name_ko": "외화기준가종목여부",
+          "schema_excel_row": 20
+        },
+        {
+          "column_name": "fss_itm_no",
+          "column_type": "text",
+          "example": "0010173C4558",
+          "key": "",
+          "name_ko": "금융감독원종목번호",
+          "schema_excel_row": 21
+        },
+        {
+          "column_name": "hdge_fd_yn",
+          "column_type": "text",
+          "example": "0",
+          "key": "",
+          "name_ko": "헤지펀드여부",
+          "schema_excel_row": 22
+        },
+        {
+          "column_name": "int_dvd_desc",
+          "column_type": "text",
+          "example": "배당",
+          "key": "",
+          "name_ko": "이자배당구분코드 설명",
+          "schema_excel_row": 23
+        },
+        {
+          "column_name": "itm_abrv_nm",
+          "column_type": "text",
+          "example": "삼성 베스트 MMF 법인 제1호",
+          "key": "",
+          "name_ko": "종목약어명",
+          "schema_excel_row": 24
+        },
+        {
+          "column_name": "itm_eabrv_nm",
+          "column_type": "text",
+          "example": "KB China A-share Sec",
+          "key": "",
+          "name_ko": "종목영문약어명",
+          "schema_excel_row": 25
+        },
+        {
+          "column_name": "itm_eng_nm",
+          "column_type": "text",
+          "example": "삼성 베스트 MMF 법인 제1호",
+          "key": "",
+          "name_ko": "종목영문명",
+          "schema_excel_row": 26
+        },
+        {
+          "column_name": "itm_nm",
+          "column_type": "text",
+          "example": "삼성 베스트 MMF 법인 제1호",
+          "key": "",
+          "name_ko": "종목명",
+          "schema_excel_row": 27
+        },
+        {
+          "column_name": "itm_no",
+          "column_type": "text",
+          "example": "KR5014410050",
+          "key": "PK",
+          "name_ko": "종목번호",
+          "schema_excel_row": 28
+        },
+        {
+          "column_name": "kofia_fd_ccd",
+          "column_type": "text",
+          "example": "1EE11Z1200101ZZZZZZ6",
+          "key": "",
+          "name_ko": "금융투자협회펀드분류코드",
+          "schema_excel_row": 29
+        },
+        {
+          "column_name": "ksd_itm_no",
+          "column_type": "text",
+          "example": "KRZ500626190",
+          "key": "",
+          "name_ko": "예탁원종목번호",
+          "schema_excel_row": 30
+        },
+        {
+          "column_name": "mtco_itm_no",
+          "column_type": "text",
+          "example": "0109913",
+          "key": "",
+          "name_ko": "운용사종목번호",
+          "schema_excel_row": 31
+        },
+        {
+          "column_name": "ofsfd_yn",
+          "column_type": "text",
+          "example": "0",
+          "key": "",
+          "name_ko": "역외펀드여부",
+          "schema_excel_row": 32
+        },
+        {
+          "column_name": "or_attr_desc",
+          "column_type": "text",
+          "example": "MMF",
+          "key": "",
+          "name_ko": "운용속성구분코드 설명",
+          "schema_excel_row": 33
+        },
+        {
+          "column_name": "or_co_xtn_itt_cd",
+          "column_type": "text",
+          "example": "00040010",
+          "key": "",
+          "name_ko": "운용회사대외기관코드",
+          "schema_excel_row": 34
+        },
+        {
+          "column_name": "ovrs_fd_desc",
+          "column_type": "text",
+          "example": "국내",
+          "key": "",
+          "name_ko": "해외펀드구분코드 설명",
+          "schema_excel_row": 35
+        },
+        {
+          "column_name": "pers_corp_desc",
+          "column_type": "text",
+          "example": "법인",
+          "key": "",
+          "name_ko": "개인법인구분코드 설명",
+          "schema_excel_row": 36
+        },
+        {
+          "column_name": "pfiv_sale_cntl_tcd",
+          "column_type": "text",
+          "example": "00",
+          "key": "",
+          "name_ko": "전문투자자판매제어구분코드",
+          "schema_excel_row": 37
+        },
+        {
+          "column_name": "prfd_attr_cd",
+          "column_type": "text",
+          "example": "V101",
+          "key": "PK",
+          "name_ko": "펀드별속성코드",
+          "schema_excel_row": 38
+        },
+        {
+          "column_name": "prvo_fd_desc",
+          "column_type": "text",
+          "example": "해당없음",
+          "key": "",
+          "name_ko": "사모펀드구분코드 설명",
+          "schema_excel_row": 39
+        },
+        {
+          "column_name": "prvo_pbff_desc",
+          "column_type": "text",
+          "example": "공모",
+          "key": "",
+          "name_ko": "사모/공모구분코드 설명",
+          "schema_excel_row": 40
+        },
+        {
+          "column_name": "rptt_ksd_itm_no",
+          "column_type": "text",
+          "example": "030200109913",
+          "key": "",
+          "name_ko": "대표예탁원종목번호",
+          "schema_excel_row": 41
+        },
+        {
+          "column_name": "sale_yn",
+          "column_type": "text",
+          "example": "판매중",
+          "key": "",
+          "name_ko": "판매여부",
+          "schema_excel_row": 42
+        },
+        {
+          "column_name": "std_itm_no",
+          "column_type": "text",
+          "example": "KR5214272621",
+          "key": "",
+          "name_ko": "표준종목번호",
+          "schema_excel_row": 43
+        },
+        {
+          "column_name": "thco_sale_yn",
+          "column_type": "text",
+          "example": "Y",
+          "key": "",
+          "name_ko": "당사판매여부",
+          "schema_excel_row": 44
+        },
+        {
+          "column_name": "trusc_xtn_itt_cd",
+          "column_type": "text",
+          "example": "00050004",
+          "key": "",
+          "name_ko": "수탁회사대외기관코드",
+          "schema_excel_row": 45
+        },
+        {
+          "column_name": "zrin_fd_ivst_risk_gcd",
+          "column_type": "text",
+          "example": "6",
+          "key": "PK",
+          "name_ko": "제로인펀드투자위험등급코드",
+          "schema_excel_row": 46
+        },
+        {
+          "column_name": "zrin_fd_ivst_risk_grd_nm",
+          "column_type": "text",
+          "example": "매우 낮은 위험",
+          "key": "",
+          "name_ko": "제로인펀드투자위험등급명",
+          "schema_excel_row": 47
+        }
+      ],
+      "sample": {
+        "axis_classDifferentiation": "SingleClass",
+        "axis_fundType": "SecuritiesFund",
+        "axis_investorEligibility": "PublicOffering",
+        "axis_issuanceType": "AdditionalType",
+        "axis_listingType": "Listed",
+        "axis_redemptionType": "OpenEnded",
+        "fd_nast_suma": "28359162282520.0000",
+        "itm_abrv_nm": "KODEX200",
+        "itm_nm": "삼성KODEX200증권상장지수투자신탁[주식]",
+        "itm_no": "KR5114601001",
+        "or_attr_desc": "주식형"
+      },
+      "sample_axis_columns": [
+        "axis_classDifferentiation",
+        "axis_fundType",
+        "axis_investorEligibility",
+        "axis_issuanceType",
+        "axis_listingType",
+        "axis_redemptionType"
+      ],
+      "schema_file": "PRFD01N001_schema.xlsx",
+      "source_snapshot_label": "[ 데이터 최종 추출일자 ] 2026-07-11",
+      "table_id": "PRFD01N001",
+      "total_row_label": "Total Row: 95,619"
+    }
+  }
+}

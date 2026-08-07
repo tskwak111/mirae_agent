@@ -1,0 +1,105 @@
+version: "1.0.0"
+fields:
+  product_name:
+    product_types: ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "string"
+    operators: ["eq", "contains", "starts_with"]
+    sortable: true
+    aggregations: []
+  product_id:
+    product_types: ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "string"
+    operators: ["eq", "in"]
+    sortable: true
+    aggregations: ["count"]
+  asset_type:
+    product_types: ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn"]
+    value_type: "string"
+    operators: ["eq", "in", "contains"]
+    sortable: true
+    aggregations: ["count"]
+  region:
+    product_types: ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "string"
+    operators: ["eq", "in", "contains"]
+    sortable: true
+    aggregations: ["count"]
+  currency:
+    product_types: ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "string"
+    operators: ["eq", "in"]
+    sortable: true
+    aggregations: ["count"]
+  buyable_quantity:
+    metric_id: "bond.buyable_quantity"
+    operators: ["eq", "ne", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["count", "sum"]
+  maturity_date:
+    product_types: ["domestic_bond"]
+    value_type: "date"
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["count"]
+  remaining_days_at_as_of:
+    metric_id: "bond.remaining_days_at_as_of"
+    operators: ["eq", "gt", "gte", "lt", "lte", "between"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  credit_rating:
+    metric_id: "bond.credit_rating"
+    operators: ["eq", "gte", "lte", "in", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["count"]
+  buy_yield:
+    metric_id: "bond.buy_yield"
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  total_fee:
+    metric_ids: ["domestic_etf.total_fee", "overseas_etf.total_fee"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  aum:
+    metric_ids: ["domestic_etf.aum", "overseas_etf.aum", "public_fund.aum"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg", "sum"]
+  tracking_error:
+    metric_id: "domestic_etf.tracking_error"
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  return_1m:
+    metric_ids: ["domestic_etf.return_1m", "public_fund.return_1m"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  return_3m:
+    metric_ids: ["domestic_etf.return_3m", "public_fund.return_3m"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  return_6m:
+    metric_ids: ["domestic_etf.return_6m", "public_fund.return_6m"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  return_1y:
+    metric_ids: ["domestic_etf.return_1y", "public_fund.return_1y"]
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+    sortable: true
+    aggregations: ["min", "max", "avg"]
+  saleable:
+    product_types: ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "boolean"
+    operators: ["eq"]
+    sortable: false
+    aggregations: ["count"]
+  mirae_saleable:
+    product_types: ["public_fund"]
+    value_type: "boolean"
+    operators: ["eq"]
+    sortable: false
+    aggregations: ["count"]
