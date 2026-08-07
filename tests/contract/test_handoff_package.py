@@ -986,3 +986,61 @@ git status --short
         (3, "git add -- README.md"),
         (4, "git status --short"),
     )
+
+
+@pytest.mark.parametrize(
+    "command",
+    ["git commit -m 'safe'", "git commit -m 'safe message'"],
+)
+def test_closed_git_classifier_rejects_single_quoted_commit_messages(
+    command: str,
+) -> None:
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+
+
+@pytest.mark.parametrize("label", ["cmd", "bat", "batch"])
+def test_cmd_family_single_quoted_commit_is_reported_by_every_public_diagnostic(
+    label: str,
+) -> None:
+    command = "git commit -m 'safe message'"
+    text = f"""```{label}
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert unsafe_git_context_lines(text) == ((5, command),)
+    assert unguarded_git_block_lines(text) == ((5, command),)
+    assert unsafe_git_commit_lines(text) == ((5, command),)
+
+
+@pytest.mark.parametrize("label", ["cmd", "bat", "batch"])
+def test_cmd_family_blank_line_remains_neutral(label: str) -> None:
+    text = f"""```{label}
+python tools/check_repo_root.py --expected-root .
+
+git status --short
+```
+"""
+
+    assert unsafe_git_context_lines(text) == ()
+    assert unguarded_git_block_lines(text) == ()
+
+
+@pytest.mark.parametrize("label", ["cmd", "bat", "batch"])
+def test_cmd_family_double_quoted_commit_workflow_remains_supported(label: str) -> None:
+    command = 'git commit -m "safe message"'
+    text = f"""```{label}
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert classify_git_command(command) is GitCommandKind.HISTORY_MUTATION
+    assert unsafe_git_context_lines(text) == ()
+    assert unguarded_git_block_lines(text) == ()
+    assert unsafe_git_commit_lines(text) == ()

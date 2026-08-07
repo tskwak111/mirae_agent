@@ -51,10 +51,11 @@ Executable Markdown uses a closed, case-sensitive Git grammar. The complete read
 `git diff --cached --name-status --`. The only index mutation is
 `git add -- <one-or-more literal task-owned paths>`; quoted operands, comment markers, pathspecs,
 variables, broad directories, and shell metacharacters are rejected. The only history mutation is
-`git commit -m <one non-empty non-expanding literal or quoted ASCII message>`, after the clean-index
-guard, canonical staging, and staged name/status review. Variables, globs, brace/array/splat syntax,
-command substitution, and control operators are rejected in the message expression. Every other
-Git or Git-like executable shape fails closed. Tagging is deferred until a separately tested
+`git commit -m <one non-empty non-expanding unquoted or double-quoted literal ASCII message>`,
+after the clean-index guard, canonical staging, and staged name/status review. Every single quote,
+variable, glob, brace/array/splat syntax, command substitution, or control operator is rejected in
+the message expression. Every other Git or Git-like executable shape fails closed. Tagging is
+deferred until a separately tested
 release gate proves the final commit, manifest identity, and a clean worktree together.
 
 Within one executable fence, the exact-root guard's raw line must be exactly the registered command;

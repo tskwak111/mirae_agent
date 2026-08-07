@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 1 single-quote one-candidate implementation plan
-frozen; oracle RED is the exact next step.
+**Last updated:** 2026-08-08 — Preflight Task 1 single-quote candidate is locally GREEN; full gates
+and candidate checkpoint are next.
 
 ## Frozen baseline
 
@@ -17,7 +17,7 @@ frozen; oracle RED is the exact next step.
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
 - [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — single-quote
-  one-candidate retry plan frozen; oracle RED pending
+  one-candidate retry locally GREEN; full gates and final reviews pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -71,10 +71,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Execute Task 1 of the frozen single-quote retry plan:** oracle
-`/root/candidate3_oracle` changes only `tests/contract/test_handoff_package.py`, adds the exact
-single-quote/CMD-family/blank-line/double-quote cases, and records the expected mixed RED. Do not
-edit production behavior before that RED and do not begin Preflight Task 2.
+**Finish Task 2 of the frozen single-quote retry plan:** run every regression/invariant gate,
+verify the six-path candidate diff and LF state, commit the one candidate, then dispatch exactly
+the two independent final verifiers. Do not begin Preflight Task 2.
 
 ## Handoff validation record — not production implementation
 
@@ -408,3 +407,27 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   candidate is committed.
 - No test or production behavior changed while writing the plan. The next authorized action is the
   independent oracle RED in plan Task 1.
+- Plan checkpoint: `24f79ed7554c3328438e736dabce5d7b733ef258`.
+- Oracle Task 1: `/root/candidate3_oracle` changed only
+  `tests/contract/test_handoff_package.py` and added eleven real-behavior cases. The focused run
+  produced the required `5 failed, 6 passed, 129 deselected in 0.38s`: both classifier negatives
+  still returned `HISTORY_MUTATION`, and all three CMD-family unsafe-context assertions received
+  empty results; all blank-line and double-quote positives remained green. Ruff format/check
+  passed. Task reviewer `/root/quote_oracle_review` reported Spec ✅, task quality Approved, and
+  Critical/Important/Minor 0/0/0.
+- Coordinator RED reproduction: the identical command produced `5 failed, 6 passed, 129
+  deselected in 0.63s` for the same missing behavior.
+- Minimal GREEN: `_literal_commit_message_expression` now permits only a matching double quote in
+  its quoted branch. The unchanged focused selection passed `11 passed, 129 deselected in 0.36s`.
+  No classifier signature, command allowlist, fence label, workflow state, or staging contract
+  changed.
+- Durable alignment in progress: `QUALITY_LOOP.md` names unquoted/double-quoted ASCII only;
+  `REQUIRED_FILES` and both identical initial-import blocks register the new spec and plan. Full
+  regression/invariant gates and the candidate commit remain pending.
+- Full local candidate gates: 172 Task 1 contracts passed in 15.66s; handoff PASS with 71 required
+  files, nine official inputs, and 41,384,928 source bytes; source audit PASS with 145,393 rows at
+  snapshot 2026-07-11; schema catalog PASS with 207 columns; Ruff format/check, focused mypy, and
+  compileall all exited zero. The exact verifier-created pytest/bytecode/mypy/Ruff cache paths were
+  inspected and removed.
+- Candidate checkpoint and both independent final reviews remain pending. Task 1 is not yet
+  accepted and Task 2 remains unauthorized.

@@ -125,6 +125,7 @@ REQUIRED_FILES: Final = (
     "docs/superpowers/specs/2026-08-07-finproof-design.md",
     "docs/superpowers/specs/2026-08-07-preflight-safety-remediation-design.md",
     "docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md",
+    "docs/superpowers/specs/2026-08-08-preflight-task1-quote-retry-design.md",
     "docs/superpowers/plans/2026-08-07-00-roadmap.md",
     "docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md",
     "docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md",
@@ -132,6 +133,7 @@ REQUIRED_FILES: Final = (
     "docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md",
     "docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md",
     "docs/superpowers/plans/2026-08-07-preflight-task1-retry.md",
+    "docs/superpowers/plans/2026-08-08-preflight-task1-quote-retry.md",
     "config/datasets.yaml",
     "config/metric_registry.yaml",
     "config/field_registry.yaml",
@@ -441,7 +443,7 @@ def _literal_commit_message_expression(line: str) -> bool:
     expression = line.removeprefix(prefix)
     if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]*", expression):
         return True
-    if len(expression) < 2 or expression[0] not in {"'", '"'}:
+    if len(expression) < 2 or expression[0] != '"':
         return False
     if expression[-1] != expression[0]:
         return False
