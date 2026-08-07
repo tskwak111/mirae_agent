@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 2 execution brief, role separation, approved Python
-identity, and pre-candidate global diagnostic baseline frozen; independent oracle RED is next.
+**Last updated:** 2026-08-08 — Preflight Task 2 Candidate 1 local hard gates and source invariants
+observed; Candidate 1 evidence commit and two independent final reviews are next.
 
 ## Frozen baseline
 
@@ -71,9 +71,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 2, Task 2 Step 1:** create the independent RED input-manifest trust-plane oracle
-that separates `official_instruction` from `official_data`. Task 2 remains selected; Task 3 has not
-begun.
+**Preflight Task 2, Task 7 Step 5:** commit the Candidate 1 evidence record. Task 8 independent
+specification and fresh-detached execution verdicts follow; Task 2 remains selected and Task 3 has
+not begun.
 
 ## Handoff validation record — not production implementation
 
@@ -785,3 +785,234 @@ debt, not PASS results. Ruff emitted 31 raw lint findings which normalize to 21 
 }
 ```
 <!-- TASK2_GLOBAL_DIAGNOSTIC_BASELINE_END -->
+
+### 2026-08-08 — Preflight Task 2 Candidate 1 local evidence
+
+Candidate 1 state: **pending independent specification and execution review**. This record contains
+only locally observed evidence; it does not mark Task 2 accepted and does not start Task 3.
+
+#### RED, incremental GREEN, and review evidence
+
+- Frozen authority oracle command: `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q`.
+- Full oracle RED: exit `1`, exactly `21 failed, 3 passed in 2.18s`. The 21 intended failures covered
+  missing manifest version/trust planes/schema, generator drift, structural and policy validation,
+  malformed-input handling, durable handoff registration, and authority/provenance prose. The three
+  source-integrity/bootstrap controls passed. Collection/import/infrastructure failures were not
+  counted as RED.
+- Oracle inventory: `24 tests collected`, 24 unique names, comprising 21 behavioral REDs and three
+  positive controls. Focused Ruff format/lint and mypy all exited `0`.
+- Oracle review: independent review found `0 BLOCKER / 0 HIGH / 0 MEDIUM`; approved without a
+  production edit.
+- Manifest/schema/generator GREEN command `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q -k "real_input_manifest or real_manifest_has or
+  generator_emits or original_file_sizes"`: exit `0`, `4 passed, 20 deselected in 0.28s`.
+  Generated manifest object equals the committed manifest and all nine frozen size/hash tuples are
+  unchanged.
+- Verifier structural GREEN used the committed plan Task 4 Step 5 exact four-node-id command:
+  exit `0`, `4 passed in 0.39s`. Policy GREEN used Task 4 Step 7's exact five-node-id command:
+  exit `0`, `5 passed in 0.26s`. Malformed-input GREEN used Task 4 Step 9's exact three-node-id
+  command: exit `0`, `3 passed in 0.27s`.
+- Complete verifier regression command `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q -k "structure or policy or durable or
+  handoff_verifier or verify_manifest"`: exit `0`, `14 passed, 10 deselected in 2.11s`. Durable
+  registration command with `-k "durable or handoff_verifier"`: exit `0`, `2 passed, 22 deselected
+  in 2.20s`. Dependency-free and normal handoff commands both exited `0`.
+- Source-authority README RED/GREEN command `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q -k "source_readme_declares"`: initial exit `1`,
+  `1 failed, 23 deselected in 0.51s`; corrected exit `0`, `1 passed, 23 deselected in 0.23s`. One
+  independent `HIGH` wording finding about external authority versus a stored copy was accepted and
+  corrected; re-review found `0 BLOCKER / 0 HIGH / 0 MEDIUM`.
+- Canonical authority-document command `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q -k "agents_and_router or handoff_declares or
+  complete_initial_import or official_schedule or decision_log"`: exit `0`, `5 passed, 19
+  deselected in 0.33s`. Frozen import/Git-workflow command `.venv\Scripts\python.exe -m pytest -p
+  no:cacheprovider tests\contract\test_handoff_package.py -q -k "initial_import or
+  repository_git_workflow_markdown"`: exit `0`, `2 passed, 138 deselected in 1.16s`. Independent
+  document review, including visual PDF p.3/p.7 comparison, found `0 BLOCKER / 0 HIGH / 0 MEDIUM`.
+- All substantive review findings were accepted and corrected. No finding was rejected and no
+  waiver was requested or granted.
+
+#### Candidate 1 local hard gates
+
+- Focused contract command `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py tests\contract\test_handoff_package.py -q`:
+  exit `0`, `164 passed in 3.51s`.
+- Full repository hard gate `.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q`:
+  exit `0`, `196 passed in 23.60s`.
+- Candidate 1 pytest infrastructure chronology: the normal external Windows temp root first
+  produced `162 passed, 2 failed`; both failures were pre-existing `Path.relative_to(ROOT)` fixture
+  assumptions, and the elapsed value was not retained. The owner then explicitly authorized one
+  additional Candidate 1 infrastructure retry. Its first sandboxed checkout-local TEMP run reached
+  `159 passed, 5 setup errors` before Windows temp-lock ACL failures; the elapsed value was not
+  retained. The required escalated long-prefix rerun produced focused `164 passed in 3.51s`, then
+  full-suite `187 passed, 9 failed in 11.99s`; all nine were temporary Git-fixture setup failures.
+  Direct reproduction showed a 262-character nested path failing with `WinError 3` and the identical
+  fixture passing at 177 characters. The same authorized retry was corrected to the short
+  checkout-local `.p` root: a preliminary command-equivalent run without the cache-provider flag
+  observed `196 passed in 23.04s`, and the exact hard-gate command above then observed `196 passed in
+  23.60s`. No candidate or test behavior changed, and all four exact coordinator-created temporary
+  roots were removed afterward.
+- `.venv\Scripts\python.exe -S -B tools\verify_handoff.py` and normal `-B` invocation: exit `0`,
+  `77 required files / 9 official inputs / 41,384,928 source bytes`.
+- `.venv\Scripts\python.exe -B tools\audit_source_data.py --check`: exit `0`, `145,393 rows`,
+  snapshot `2026-07-11`.
+- `.venv\Scripts\python.exe -B tools\extract_schema_catalog.py --check`: exit `0`, `207 columns`.
+- Task-owned Ruff format command `.venv\Scripts\python.exe -m ruff format --check
+  tools\create_input_manifest.py tools\verify_handoff.py
+  tests\contract\test_instruction_authority.py`: exit `0`.
+- Task-owned Ruff lint command `.venv\Scripts\python.exe -m ruff check
+  tools\create_input_manifest.py tools\verify_handoff.py
+  tests\contract\test_instruction_authority.py`: exit `0`.
+- Focused mypy command `.venv\Scripts\python.exe -m mypy tools\create_input_manifest.py
+  tools\verify_handoff.py --follow-imports=skip --ignore-missing-imports`: exit `0`.
+- Compile command `.venv\Scripts\python.exe -m compileall -q tools\create_input_manifest.py
+  tools\verify_handoff.py tests\contract\test_instruction_authority.py`: exit `0`.
+- The `INITIAL_IMPORT` blocks in `START_HERE.md` and `HANDOFF_PACKAGE_MANIFEST.md` remain
+  byte-identical with SHA-256
+  `e62baffc59b3f5cbc772be3642bf518ef87469b5daeab3170fce23aa8f6be2de`.
+- Six shared authority/handoff prose files, the source README, and the committed manifest are
+  UTF-8, no-BOM, LF-only. Neither `START_HERE.md` nor `pyproject.toml` changed.
+
+#### Immutable official-source facts
+
+The manifest still contains exactly these nine `(path, size_bytes, sha256)` facts; the positive
+oracle and source audit verified them against the source bytes:
+
+- `competition_task_financial_product_agent.pdf` — `924413` —
+  `3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de`.
+- `data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx` — `6836772` —
+  `728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8`.
+- `data/PRBD01N001_schema.xlsx` — `18021` —
+  `f0647ce274f94e0474960b98832b98d87838d812b4772f15bdeda2dceff3676b`.
+- `data/PREF01N001_domestic_etf_20260711_datarows.xlsx` — `706081` —
+  `0f5706d45f93284bcaac2fa8eaed04db920a7043abaa859e455f06e246d54723`.
+- `data/PREF01N001_schema.xlsx` — `18970` —
+  `17ae6befa4f0f5b60481882ff24de1f7729386cef9d9b56f32187e41f1cb00e6`.
+- `data/PREF02N001_overseas_etf_20260711_datarows.xlsx` — `2114967` —
+  `3cec19043f742771e0016d56fe806f19ad78f4295d1ae59192740a78feb2253b`.
+- `data/PREF02N001_schema.xlsx` — `40216` —
+  `c6a022dd8a349363c405e7bf47b44f8cc099a92bfafb276b985a5c89d1881162`.
+- `data/PRFD01N001_public_funds_20260711_datarows.xlsx` — `30709892` —
+  `140d1ef0cec918d0b3f7c52c107cb123395594eb089b0cd70bb305709b0f44eb`.
+- `data/PRFD01N001_schema.xlsx` — `15596` —
+  `eedb7e517312234b2825a6752adb2b5f11053f0f4fb93b70e83e87b56ee134e9`.
+
+#### Current pre-Task-5 global diagnostics — observed non-PASS
+
+All three commands exited `1`. They are recorded diagnostics and are not PASS gates for Task 2.
+For every tool, `new_finding_keys=[]`, `new_failing_paths=[]`, and disposition is
+`NO_NEW_GLOBAL_DIAGNOSTIC` relative to the frozen baseline.
+
+```json
+{
+  "ruff_format": {
+    "command": ".venv\\Scripts\\python.exe -m ruff format --check .",
+    "exit_code": 1,
+    "raw_count": 7,
+    "count": 7,
+    "findings": [
+      ["src/finproof/__init__.py", "FORMAT", "would be reformatted"],
+      ["tests/__init__.py", "FORMAT", "would be reformatted"],
+      ["tests/contract/__init__.py", "FORMAT", "would be reformatted"],
+      ["tools/__init__.py", "FORMAT", "would be reformatted"],
+      ["tools/audit_source_data.py", "FORMAT", "would be reformatted"],
+      ["tools/extract_schema_catalog.py", "FORMAT", "would be reformatted"],
+      ["tools/xlsx_stream.py", "FORMAT", "would be reformatted"]
+    ],
+    "failing_paths": [
+      "src/finproof/__init__.py",
+      "tests/__init__.py",
+      "tests/contract/__init__.py",
+      "tools/__init__.py",
+      "tools/audit_source_data.py",
+      "tools/extract_schema_catalog.py",
+      "tools/xlsx_stream.py"
+    ],
+    "new_finding_keys": [],
+    "new_failing_paths": [],
+    "disposition": "NO_NEW_GLOBAL_DIAGNOSTIC"
+  },
+  "ruff_lint": {
+    "command": ".venv\\Scripts\\python.exe -m ruff check .",
+    "exit_code": 1,
+    "raw_count": 22,
+    "count": 16,
+    "findings": [
+      ["tools/audit_source_data.py", "E501", "Line too long (103 > 100)"],
+      ["tools/audit_source_data.py", "E501", "Line too long (105 > 100)"],
+      ["tools/audit_source_data.py", "E501", "Line too long (110 > 100)"],
+      ["tools/audit_source_data.py", "E501", "Line too long (111 > 100)"],
+      ["tools/audit_source_data.py", "E501", "Line too long (118 > 100)"],
+      ["tools/audit_source_data.py", "I001", "Import block is un-sorted or un-formatted"],
+      ["tools/audit_source_data.py", "SIM102", "Use a single `if` statement instead of nested `if` statements"],
+      ["tools/audit_source_data.py", "SIM103", "Return the negated condition directly"],
+      ["tools/extract_schema_catalog.py", "C416", "Unnecessary dict comprehension (rewrite using `dict()`)"],
+      ["tools/extract_schema_catalog.py", "E501", "Line too long (106 > 100)"],
+      ["tools/extract_schema_catalog.py", "E501", "Line too long (107 > 100)"],
+      ["tools/extract_schema_catalog.py", "E501", "Line too long (112 > 100)"],
+      ["tools/extract_schema_catalog.py", "E501", "Line too long (122 > 100)"],
+      ["tools/xlsx_stream.py", "E501", "Line too long (103 > 100)"],
+      ["tools/xlsx_stream.py", "I001", "Import block is un-sorted or un-formatted"],
+      ["tools/xlsx_stream.py", "S314", "Using `xml` to parse untrusted data is known to be vulnerable to XML attacks; use `defusedxml` equivalents"]
+    ],
+    "failing_paths": [
+      "tools/audit_source_data.py",
+      "tools/extract_schema_catalog.py",
+      "tools/xlsx_stream.py"
+    ],
+    "new_finding_keys": [],
+    "new_failing_paths": [],
+    "disposition": "NO_NEW_GLOBAL_DIAGNOSTIC"
+  },
+  "mypy": {
+    "command": ".venv\\Scripts\\python.exe -m mypy src tests tools --no-incremental",
+    "exit_code": 1,
+    "raw_count": 9,
+    "count": 9,
+    "findings": [
+      ["tools/audit_source_data.py", "import-not-found", "Cannot find implementation or library stub for module named \"xlsx_stream\" "],
+      ["tools/audit_source_data.py", "no-redef", "Name \"iter_table_dicts\" already defined (possibly by an import) "],
+      ["tools/extract_schema_catalog.py", "dict-item", "Dict entry 5 has incompatible type \"str\": \"int\"; expected \"str\": \"str\" "],
+      ["tools/extract_schema_catalog.py", "import-not-found", "Cannot find implementation or library stub for module named \"xlsx_stream\" "],
+      ["tools/extract_schema_catalog.py", "no-redef", "Name \"iter_sheet_rows\" already defined (possibly by an import) "],
+      ["tools/verify_handoff.py", "import-not-found", "Cannot find implementation or library stub for module named \"extract_schema_catalog\" "],
+      ["tools/verify_handoff.py", "import-not-found", "Cannot find implementation or library stub for module named \"xlsx_stream\" "],
+      ["tools/verify_handoff.py", "no-redef", "Name \"build_catalog\" already defined (possibly by an import) "],
+      ["tools/verify_handoff.py", "no-redef", "Name \"list_sheet_names\" already defined (possibly by an import) "]
+    ],
+    "failing_paths": [
+      "tools/audit_source_data.py",
+      "tools/extract_schema_catalog.py",
+      "tools/verify_handoff.py"
+    ],
+    "new_finding_keys": [],
+    "new_failing_paths": [],
+    "disposition": "NO_NEW_GLOBAL_DIAGNOSTIC"
+  }
+}
+```
+
+GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
+
+#### Candidate scope before the evidence commit
+
+- Immutable lower bound `P`: `19d912fad38ab007e4ccf804e0fbf0f72e9b79aa`.
+- Completed checkpoints: `fb3f156853202b921b6ca77ffa2012549cd4fafa`,
+  `62ca2dddeab440370b88950df61653f550bc3418`,
+  `54e48147c600e1bfa6794ffd54a7d6d2960202c7`,
+  `59683acf736dca63de11457c05b08a4535cad6a2`,
+  `b4c856251f9e3a9e86e8b393271219e661496b98`,
+  `6bbe6af7ad3720bcd28913919421858152222ec0`, and
+  `3e968b6fd77e556d704194d5501a07a91254bd31`.
+- The observed implementation range contains exactly these thirteen approved paths:
+  `AGENTS.md`, `CODEX_MASTER_PROMPT.md`, `HANDOFF_PACKAGE_MANIFEST.md`,
+  `docs/01_OFFICIAL_REQUIREMENTS_TRACEABILITY.md`,
+  `docs/08_SECURITY_OPERATIONS_AND_RELEASE.md`, `docs/10_DECISION_LOG.md`,
+  `docs/implementation/STATUS.md`, `schemas/input_manifest.schema.json`,
+  `source_material/README.md`, `source_material/input_manifest.json`,
+  `tests/contract/test_instruction_authority.py`, `tools/create_input_manifest.py`, and
+  `tools/verify_handoff.py`.
+- Exact-root, branch, clean-index, worktree, staged-path, `git diff --check`, no-XLSX-change,
+  no-junction/symlink traversal, and candidate-scope checks were clean before this STATUS edit.
+- Task 2 remains selected. Preflight Task 3 is unstarted.
