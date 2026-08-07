@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 2 Candidate 1 local hard gates and source invariants
-observed; Candidate 1 evidence commit and two independent final reviews are next.
+**Last updated:** 2026-08-08 — Preflight Task 2 Candidate 1 accepted after independent
+specification and fresh-detached execution reviews; Task 3 remains unstarted.
 
 ## Frozen baseline
 
@@ -18,7 +18,8 @@ Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
 - [x] Task 1: exact Git-root/index guard and repository-owned quality loop — bounded single-quote
   retry accepted at candidate `36c5d73bf4b2770d88e7e92df468eb5d414d07bf`
-- [ ] Task 2: separate official instruction authority from official data trust
+- [x] Task 2: separate official instruction authority from official data trust — accepted
+  Candidate 1 `65dacedd74053adc10f54d8fa67620d533e4a901`
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
 - [ ] Task 5: Python 3.12 lock, CI/quality gates, HCX capability probe, and final Preflight audit
@@ -71,9 +72,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 2, Task 7 Step 5:** commit the Candidate 1 evidence record. Task 8 independent
-specification and fresh-detached execution verdicts follow; Task 2 remains selected and Task 3 has
-not begun.
+**Preflight Task 3, Step 1 — Write RED typed-contract tests.** Task 3 has not begun.
 
 ## Handoff validation record — not production implementation
 
@@ -1016,3 +1015,64 @@ GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
 - Exact-root, branch, clean-index, worktree, staged-path, `git diff --check`, no-XLSX-change,
   no-junction/symlink traversal, and candidate-scope checks were clean before this STATUS edit.
 - Task 2 remains selected. Preflight Task 3 is unstarted.
+
+### 2026-08-08 — Preflight Task 2 final review disposition
+
+**Accepted candidate:** Candidate 1
+`65dacedd74053adc10f54d8fa67620d533e4a901`.
+
+- Immutable lower bound `P`: `19d912fad38ab007e4ccf804e0fbf0f72e9b79aa`.
+- The independently reviewed closed range
+  `19d912fad38ab007e4ccf804e0fbf0f72e9b79aa..65dacedd74053adc10f54d8fa67620d533e4a901`
+  contains exactly the thirteen approved paths listed in the Candidate 1 evidence section and no
+  XLSX, `START_HERE.md`, `pyproject.toml`, or other forbidden path.
+- Committed Task 2 plan-file SHA-256:
+  `38a71cc5ec6322cbd54dd26e2476557ac6fec897100f6259b90dee7147a55fbc`.
+- Canonical Task 2 brief SHA-256:
+  `5972dedc1cb70e954cc0eb5d57a05f8d13cb9aa5da3b0747d5de5601e61e7788`.
+  No Candidate 2/3 finding-specific correction brief exists.
+- Approved primary specification SHA-256:
+  `86bfa8475a36ec4e782d9e4d2fd9b3b58f7e112d0d34e2d57dc953c6e230d37d`;
+  approved gate-amendment SHA-256:
+  `1f7c31bd723552dcb1e3a58ae5eb0c1460f9802bb9ff57d5066d687a45d9d0ec`.
+- Approved interpreter:
+  `C:\Users\ss020\바탕 화면\mirae_agent\.worktrees\preflight-safety\.venv\Scripts\python.exe`,
+  Python `3.12.8`; no dependency or lock-file change occurred.
+- Independent specification verifier `/root/task2_spec_verifier`: **APPROVE**,
+  `0 BLOCKER / 0 HIGH / 0 MEDIUM / 0 LOW`. It matched every supplied hash, the exact thirteen-path
+  range, schema/manual-validator and generator contracts, durable registration, frozen import
+  equality, PDF p.3/p.7 attribution, forbidden-path absence, and non-PASS diagnostic semantics.
+- Independent execution verifier `/root/task2_execution_verifier`: **APPROVE**,
+  `0 BLOCKER / 0 HIGH / 0 MEDIUM / 0 LOW`, from fresh detached Candidate 1. It observed authority
+  `24 passed`, combined contracts `164 passed in 6.32s`, and full repository `196 passed in 24.12s`.
+  Both handoff modes returned `77/9/41,384,928`; source audit returned `145,393` rows at
+  `2026-07-11`; schema catalog returned `207`; task-owned Ruff format/lint, focused mypy, and
+  compileall exited `0`; all required malformed/alias/duplicate/promotion/PDF/kind/path/generator/
+  immutable-source/`-S` adversarial cases passed.
+- The detached verifier's repository-wide diagnostics remained observed **non-PASS**: Ruff format
+  exit `1` with three normalized findings/paths, Ruff lint exit `1` with `22` raw / `16` normalized
+  findings across three paths, and mypy exit `1` with nine findings across three paths. Each had
+  `new_finding_keys=[]`, `new_failing_paths=[]`, and `NO_NEW_GLOBAL_DIAGNOSTIC`. The different Ruff
+  format count from the seven-path candidate working-copy snapshot above is recorded as detached
+  checkout evidence; neither result is called PASS.
+- The execution verifier's first sandboxed focused run hit the explained Windows `.p` ACL condition
+  (`21 passed / 3 setup errors`). The unchanged escalated run supplied the accepted evidence; no
+  candidate or test behavior changed.
+- After writing this disposition, the exact status-only completion gates were observed again in the
+  candidate branch worktree: combined contracts `164 passed in 4.55s`, full repository `196 passed
+  in 27.43s`, and dependency-free handoff `77/9/41,384,928`; all exited `0`. The exact
+  coordinator-created `.p` root was removed afterward.
+- Coordinator verified both indexes clean, removed only the verifier-listed `.p`, `.mypy_cache`,
+  `.ruff_cache`, and two bytecode-cache directories, then removed the clean detached `t2c1`
+  worktree. The Candidate 1 branch worktree remained clean.
+- No additional organizer notice was supplied beyond the provenance already recorded. There were
+  no BLOCKER/HIGH findings, rejected findings, or human waivers in the final reviews.
+
+**Disposition:** Preflight Task 2 passed its approved task-local gates. Preflight Task 3 is the
+selected next task but has not begun.
+
+GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
+
+This disposition does **not** claim that repository-wide Ruff/mypy, `uv`/lock reproducibility, the
+complete Preflight, production readiness, competition readiness, AAA quality, or global cleanliness
+has passed.
