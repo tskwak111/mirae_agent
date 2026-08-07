@@ -46,6 +46,23 @@ compares each plan checkpoint with that declared allowlist. Only the bare `git` 
 supported; aliases, wrappers, path-qualified executables, shell continuations, and repository or
 index mutations between staged-diff review and commit are stop conditions.
 
+Executable Markdown uses a closed, case-sensitive Git grammar. The complete read-only set is
+`git status --short`, `git branch --show-current`, `git log -3 --oneline`, `git diff --check`, and
+`git diff --cached --name-status --`. The only index mutation is
+`git add -- <one-or-more literal task-owned paths>`; quoted operands, comment markers, pathspecs,
+variables, broad directories, and shell metacharacters are rejected. The only history mutation is
+`git commit -m <one non-empty parsed message>`, after the clean-index guard, canonical staging, and
+staged name/status review. Every other Git or Git-like executable shape fails closed. Tagging is
+deferred until a separately tested release gate proves the final commit, manifest identity, and a
+clean worktree together.
+
+Within one executable fence, the exact-root guard establishes either read-only or clean-index
+state. After it, only blank/comment lines and commands from the closed grammar may execute. Any
+other executable line moves the fence to an absorbing invalid state; a later relative root guard
+cannot re-arm it, and every later Git command is unguarded. Validation and setup commands therefore
+belong in separate fences from the guard. `cmd`, `bat`, and `batch` fences are executable and are
+checked by the same rule.
+
 The coordinator also verifies that no staged path traverses a symlink or Windows junction. Static
 Markdown validation cannot prove future filesystem topology, so a trusted, coordinator-inspected
 worktree is an explicit prerequisite.

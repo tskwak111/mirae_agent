@@ -329,6 +329,9 @@ Run:
 
 ```powershell
 python tools/check_repo_root.py --expected-root .
+```
+
+```powershell
 python -m pytest -p no:cacheprovider tests/contract/test_repo_root_guard.py tests/contract/test_handoff_package.py -q
 python -B tools/verify_handoff.py
 python -B tools/audit_source_data.py --check
@@ -421,6 +424,9 @@ dates to traceability with source/page attribution.
 
 ```powershell
 python tools/check_repo_root.py --expected-root .
+```
+
+```powershell
 python -m pytest -p no:cacheprovider tests/contract/test_instruction_authority.py tests/contract/test_handoff_package.py -q
 python -B tools/verify_handoff.py
 python -B tools/audit_source_data.py --check
@@ -720,6 +726,9 @@ submission freeze.
 
 ```powershell
 python tools/check_repo_root.py --expected-root .
+```
+
+```powershell
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy src tests tools

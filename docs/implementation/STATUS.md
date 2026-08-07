@@ -1,6 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 retry design frozen; written-spec review pending.
+**Last updated:** 2026-08-07 — Preflight Task 1 Retry Candidate 1 verified locally; independent
+reviews and candidate disposition pending.
 
 ## Frozen baseline
 
@@ -15,8 +16,8 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — owner-authorized
-  bounded retry opened; behavior work waits for written-spec review
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Retry Candidate 1
+  locally verified; independent spec and fresh-execution reviews pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -70,10 +71,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Review the written Preflight Task 1 retry spec.** Do not change behavior or begin Preflight Task 2
-until the owner accepts
-`docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md`. After acceptance, write and
-commit its implementation plan, then start the independent oracle RED.
+**Commit and independently review Preflight Task 1 Retry Candidate 1.** Run the bounded Candidate
+1–3 lifecycle from `docs/superpowers/plans/2026-08-07-preflight-task1-retry.md`; do not begin
+Preflight Task 2 unless a candidate earns zero BLOCKER/HIGH from both final verifiers and the
+durable disposition is committed.
 
 ## Handoff validation record — not production implementation
 
@@ -239,4 +240,46 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   reported 145,393 rows at snapshot 2026-07-11; schema catalog reported 207 columns.
 - Retry lifecycle: Retry Candidate 1–3 with one separately recorded infrastructure retry; zero
   BLOCKER/HIGH is mandatory and no automatic scope expansion is authorized.
-- Current gate: written-spec review. No production or test behavior has changed in this retry.
+- Written-spec approval: the owner directed `진행`; implementation plan commit `91ba9d3` followed
+  approved design commit `00b9c86`. Behavior work then began with the independent oracle.
+
+### 2026-08-07 — Preflight Task 1 Retry Candidate 1 implementation
+
+- Scope and writers: coordinator `/root` alone changed production, routing, manifest, policy, and
+  this status record. Oracle `/root/retry_cycle_oracle` changed only
+  `tests/contract/test_handoff_package.py`. All other agents were read-only; only the coordinator
+  may stage or commit.
+- Interface RED: the focused oracle selection stopped at collection with
+  `ImportError: cannot import name 'GitCommandKind'`. Minimal public enum/function stubs then
+  exposed the intended behavior RED: 30 failed, 11 passed, 78 deselected. Failures covered every
+  registered/unknown command classification, wrappers, raw stage operands, post-guard context,
+  absorbing invalid state, and CMD caret obfuscation.
+- Accepted adversarial corrections: raw quoted stage operands stay unsupported while a quoted
+  commit message remains supported; a Bash `#` suffix cannot be erased by tokenization; direct
+  `git-foo`/`git.*` executables fail closed. These are within the approved closed-grammar scope and
+  intentionally tighten the implementation-plan sketch.
+- Focused GREEN: classifier cases reached 19 passed; the complete new allowlist/context selection
+  reached 41 passed; the legacy Git/CommonMark/commit selection reached 100 passed and then 101
+  passed after the final classifier refactor. The two final-routing contracts passed 2/2.
+- Category-surface RED/GREEN: `git-stage -- README.md` and `git.cmd commit -m unsafe` were centrally
+  classified unsupported but initially escaped their stage/commit-specific reports (`2 failed,
+  121 deselected`). Shared Git-like executable recognition closed both; the focused rerun passed
+  2/2 without adding another supported command.
+- Infrastructure record: default and sandbox-local pytest temporary directories hit the known
+  Windows ACL failure. Those attempts are infrastructure diagnostics, not RED/GREEN evidence. The
+  single authorized infrastructure retry used an approved checkout-local basetemp outside the
+  sandbox and is now consumed.
+- Full Candidate 1 local contract: Python 3.12.8 ran both Task 1 contract files with the approved
+  checkout-local basetemp — 155 passed in 15.80s.
+- Routing/policy: guard-plus-validation fences were split; the release-tag command was removed and
+  deferred to a future tested clean-worktree gate; the retry design/plan were added to the required
+  handoff and frozen literal import.
+- Local gates: exact root PASS; handoff PASS with 69 required files, nine official inputs, and
+  41,384,928 source bytes; source audit PASS with 145,393 rows at snapshot 2026-07-11; schema
+  catalog PASS with 207 columns; Ruff format/check PASS; focused mypy PASS; compileall PASS.
+- Verification orchestration note: one parallel wrapper returned no component results when source
+  audit contention reached its 60.7-second command limit. No PASS is claimed from that wrapper.
+  Fresh split commands all exited zero; the isolated source audit completed in 45.5 seconds. This
+  did not create another behavior candidate.
+- Candidate commit: pending. Final spec and fresh-execution reviews have not yet run, so Task 1 is
+  not accepted and Task 2 remains unauthorized.

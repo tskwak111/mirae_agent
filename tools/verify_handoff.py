@@ -9,6 +9,7 @@ import re
 import shlex
 import sys
 from collections.abc import Iterator
+from enum import Enum
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Final
@@ -30,8 +31,29 @@ else:
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 
+
+class GitCommandKind(Enum):
+    """Closed classification for Git commands allowed in executable Markdown."""
+
+    NOT_GIT = "not_git"
+    UNSUPPORTED = "unsupported"
+    READ_ONLY = "read_only"
+    INDEX_MUTATION = "index_mutation"
+    HISTORY_MUTATION = "history_mutation"
+
+
+class _GitWorkflowState(Enum):
+    START = "start"
+    GUARDED_READ = "guarded_read"
+    GUARDED_CLEAN = "guarded_clean"
+    INVALID = "invalid"
+
+
 EXECUTABLE_FENCE_LABELS: Final = {
+    "bat",
+    "batch",
     "bash",
+    "cmd",
     "ps1",
     "powershell",
     "pwsh",
@@ -63,67 +85,15 @@ BROAD_STAGE_TARGETS: Final = {
     "tests",
     "tools",
 }
-MUTATING_GIT_SUBCOMMANDS: Final = {
-    "add",
-    "am",
-    "apply",
-    "branch",
-    "checkout",
-    "checkout-index",
-    "cherry-pick",
-    "clean",
-    "clone",
-    "commit",
-    "config",
-    "init",
-    "merge",
-    "mv",
-    "pull",
-    "push",
-    "read-tree",
-    "rebase",
-    "reset",
-    "restore",
-    "revert",
-    "rm",
-    "sparse-checkout",
-    "stage",
-    "stash",
-    "switch",
-    "tag",
-    "update-index",
-    "update-ref",
-    "worktree",
-}
-INDEX_MUTATING_GIT_SUBCOMMANDS: Final = {
-    "add",
-    "am",
-    "apply",
-    "checkout",
-    "checkout-index",
-    "cherry-pick",
-    "merge",
-    "mv",
-    "read-tree",
-    "rebase",
-    "reset",
-    "restore",
-    "revert",
-    "rm",
-    "sparse-checkout",
-    "stage",
-    "stash",
-    "switch",
-    "update-index",
-}
-FORBIDDEN_GIT_SUBCOMMANDS: Final = {
-    "config",
-    "notes",
-    "remote",
-    "replace",
-    "symbolic-ref",
-    "update-ref",
-}
+READ_ONLY_GIT_ARGUMENTS: Final = frozenset(
+    {
+        ("status", "--short"),
+        ("branch", "--show-current"),
+        ("log", "-3", "--oneline"),
+        ("diff", "--check"),
+        ("diff", "--cached", "--name-status", "--"),
+    }
+)
 GIT_EXECUTABLE_PATTERN: Final = re.compile(
     r"(?i)(?<![A-Za-z0-9_.-])git(?:\.exe)?(?=$|[^A-Za-z0-9_.-])"
 )
@@ -154,12 +124,14 @@ REQUIRED_FILES: Final = (
     "docs/implementation/PHASE_GATES.md",
     "docs/superpowers/specs/2026-08-07-finproof-design.md",
     "docs/superpowers/specs/2026-08-07-preflight-safety-remediation-design.md",
+    "docs/superpowers/specs/2026-08-07-preflight-task1-retry-design.md",
     "docs/superpowers/plans/2026-08-07-00-roadmap.md",
     "docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md",
     "docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md",
     "docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md",
     "docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md",
     "docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md",
+    "docs/superpowers/plans/2026-08-07-preflight-task1-retry.md",
     "config/datasets.yaml",
     "config/metric_registry.yaml",
     "config/field_registry.yaml",
@@ -214,9 +186,10 @@ def _should_scan_fence(label: str, block: list[tuple[int, str]]) -> bool:
         return True
     if label in INERT_FENCE_LABELS:
         return False
-    return any(_contains_git_command(line) for _, line in block) or bool(
-        _continued_git_lines(block)
-    )
+    return any(
+        _is_root_guard(line.strip()) or classify_git_command(line) is not GitCommandKind.NOT_GIT
+        for _, line in block
+    ) or bool(_continued_git_lines(block))
 
 
 def _strip_commonmark_blockquote_prefix(line: str) -> str:
@@ -299,10 +272,14 @@ def _detection_line(line: str) -> str:
     return re.sub(r"`(?=[A-Za-z])", "", line)
 
 
-def _is_git_executable_token(token: str) -> bool:
+def _git_executable_basename(token: str) -> str:
     normalized = token.replace("\\", "/").rstrip("/")
-    basename = normalized.rsplit("/", maxsplit=1)[-1].casefold()
-    return basename in {"git", "git.exe"}
+    return normalized.rsplit("/", maxsplit=1)[-1].casefold()
+
+
+def _is_git_executable_token(token: str) -> bool:
+    basename = _git_executable_basename(token)
+    return basename == "git" or basename.startswith(("git-", "git."))
 
 
 def _git_token_indexes(line: str) -> tuple[int, ...]:
@@ -354,6 +331,52 @@ def _contains_git_command(line: str) -> bool:
     return bool(GIT_EXECUTABLE_PATTERN.search(normalized))
 
 
+def _looks_like_direct_git_executable(line: str) -> bool:
+    """Recognize Git executables and extension-style wrappers at command position."""
+    normalized = _detection_line(line.strip()).replace("^", "")
+    tokens = _shell_tokens(normalized)
+    if not tokens:
+        return False
+    token_index = 1 if tokens[0].casefold() in {"&", "call"} and len(tokens) > 1 else 0
+    return _is_git_executable_token(tokens[token_index])
+
+
+def classify_git_command(line: str) -> GitCommandKind:
+    """Classify one executable line against the closed Git command grammar."""
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return GitCommandKind.NOT_GIT
+
+    git_related = _looks_like_direct_git_executable(stripped) or _contains_git_command(stripped)
+    if not git_related:
+        return GitCommandKind.NOT_GIT
+    if not re.match(r"^git[ \t]+", stripped):
+        return GitCommandKind.UNSUPPORTED
+
+    if any(
+        marker in stripped for marker in (";", "|", "&", "`", "$(", "<", ">", "\\", "(", ")", "#")
+    ):
+        return GitCommandKind.UNSUPPORTED
+    tokens = _shell_tokens(stripped)
+    if not tokens or tokens[0] != "git":
+        return GitCommandKind.UNSUPPORTED
+
+    arguments = tokens[1:]
+    if arguments in READ_ONLY_GIT_ARGUMENTS and not any(quote in stripped for quote in ("'", '"')):
+        return GitCommandKind.READ_ONLY
+    if len(arguments) >= 3 and arguments[:2] == ("add", "--"):
+        if any(quote in stripped for quote in ("'", '"')):
+            return GitCommandKind.UNSUPPORTED
+        return (
+            GitCommandKind.INDEX_MUTATION
+            if all(_literal_stage_path(path) for path in arguments[2:])
+            else GitCommandKind.UNSUPPORTED
+        )
+    if len(arguments) == 3 and arguments[:2] == ("commit", "-m") and arguments[2]:
+        return GitCommandKind.HISTORY_MUTATION
+    return GitCommandKind.UNSUPPORTED
+
+
 def _contains_git_subcommand(line: str, subcommand: str) -> bool:
     normalized = _detection_line(line)
     tokens = _shell_tokens(normalized)
@@ -361,6 +384,9 @@ def _contains_git_subcommand(line: str, subcommand: str) -> bool:
     if tokens and indexes:
         wanted = subcommand.casefold()
         for index in indexes:
+            executable = _git_executable_basename(tokens[index])
+            if executable == f"git-{wanted}":
+                return True
             tail = tokens[index + 1 :]
             if not tail:
                 continue
@@ -390,14 +416,7 @@ def _literal_stage_path(path: str) -> bool:
 
 
 def _is_canonical_stage(line: str) -> bool:
-    if any(marker in line for marker in (";", "|", "&", "`", "'", '"')):
-        return False
-    if line.rstrip().endswith("\\") or "\\" in line:
-        return False
-    tokens = _shell_tokens(line)
-    if tokens is None or len(tokens) < 4 or tokens[:3] != ("git", "add", "--"):
-        return False
-    return all(_literal_stage_path(path) for path in tokens[3:])
+    return classify_git_command(line) is GitCommandKind.INDEX_MUTATION
 
 
 def _is_root_guard(line: str, *, require_clean_index: bool = False) -> bool:
@@ -416,36 +435,15 @@ def _is_root_guard(line: str, *, require_clean_index: bool = False) -> bool:
 
 
 def _is_unsafe_git_invocation(line: str) -> bool:
-    if not re.match(r"^git[ \t]+", line):
-        return _contains_git_command(line)
-    normalized = _detection_line(line)
-    tokens = _shell_tokens(normalized)
-    if not tokens:
-        return _contains_git_command(line)
-    git_indexes = _git_token_indexes(normalized)
-    if not git_indexes:
-        return _contains_git_command(line)
-    if git_indexes[0] != 0 or tokens[0].casefold() != "git":
-        return True
-    if re.search(r"(?i)\bGIT_[A-Z0-9_]+\s*=", line):
-        return True
-    if any(marker in line for marker in (";", "|", "&", "`", "$(", "<", ">", "\\", "(", ")")):
-        return True
-    if len(tokens) < 2 or tokens[1].startswith("-"):
-        return True
-    if tokens[1].casefold() in FORBIDDEN_GIT_SUBCOMMANDS:
-        return True
-    return any(
-        argument.casefold().startswith(("--git-dir", "--work-tree", "--namespace", "--config-env"))
-        for argument in tokens[1:]
-    )
+    return classify_git_command(line) is GitCommandKind.UNSUPPORTED
 
 
 def _is_mutating_git_line(line: str) -> bool:
-    tokens = _shell_tokens(line)
-    if tokens == ("git", "branch", "--show-current"):
-        return False
-    return any(_contains_git_subcommand(line, command) for command in MUTATING_GIT_SUBCOMMANDS)
+    return classify_git_command(line) in {
+        GitCommandKind.UNSUPPORTED,
+        GitCommandKind.INDEX_MUTATION,
+        GitCommandKind.HISTORY_MUTATION,
+    }
 
 
 def _is_executable_line(line: str) -> bool:
@@ -458,51 +456,103 @@ def unsafe_git_stage_lines(text: str) -> tuple[tuple[int, str], ...]:
     violations: list[tuple[int, str]] = []
     for block in _shell_blocks(text):
         for line_number, line in block:
-            index_mutation = any(
-                _contains_git_subcommand(line, command)
-                for command in INDEX_MUTATING_GIT_SUBCOMMANDS
+            kind = classify_git_command(line)
+            stage_attempt = _contains_git_subcommand(line, "add") or _contains_git_subcommand(
+                line, "stage"
             )
             if (
-                index_mutation or ("alias." in line.casefold() and _contains_git_command(line))
-            ) and not _is_canonical_stage(line):
+                stage_attempt or ("alias." in line.casefold() and _contains_git_command(line))
+            ) and kind is not GitCommandKind.INDEX_MUTATION:
                 violations.append((line_number, line.strip()))
     return tuple(violations)
+
+
+def _analyze_git_block(
+    block: tuple[tuple[int, str], ...],
+) -> tuple[tuple[tuple[int, str], ...], tuple[tuple[int, str], ...]]:
+    """Apply the absorbing guarded-context state machine to one shell block."""
+    unguarded: dict[tuple[int, str], None] = dict.fromkeys(_continued_git_lines(block))
+    context: dict[tuple[int, str], None] = {}
+    state = _GitWorkflowState.START
+
+    for line_number, line in block:
+        stripped = line.strip()
+        if not _is_executable_line(stripped):
+            continue
+
+        is_guard = _is_root_guard(stripped)
+        kind = classify_git_command(stripped)
+
+        if state is _GitWorkflowState.START:
+            if is_guard:
+                state = (
+                    _GitWorkflowState.GUARDED_CLEAN
+                    if _is_root_guard(stripped, require_clean_index=True)
+                    else _GitWorkflowState.GUARDED_READ
+                )
+                continue
+            if kind is not GitCommandKind.NOT_GIT:
+                unguarded[(line_number, stripped)] = None
+            state = _GitWorkflowState.INVALID
+            continue
+
+        if state is _GitWorkflowState.INVALID:
+            if kind is not GitCommandKind.NOT_GIT:
+                unguarded[(line_number, stripped)] = None
+            continue
+
+        if is_guard:
+            context[(line_number, stripped)] = None
+            state = _GitWorkflowState.INVALID
+            continue
+
+        if kind is GitCommandKind.NOT_GIT:
+            context[(line_number, stripped)] = None
+            state = _GitWorkflowState.INVALID
+            continue
+
+        if kind is GitCommandKind.UNSUPPORTED:
+            context[(line_number, stripped)] = None
+            unguarded[(line_number, stripped)] = None
+            state = _GitWorkflowState.INVALID
+            continue
+
+        if (
+            kind in {GitCommandKind.INDEX_MUTATION, GitCommandKind.HISTORY_MUTATION}
+            and state is not _GitWorkflowState.GUARDED_CLEAN
+        ):
+            unguarded[(line_number, stripped)] = None
+
+    return (
+        tuple(sorted(unguarded)),
+        tuple(sorted(context)),
+    )
 
 
 def unguarded_git_block_lines(text: str) -> tuple[tuple[int, str], ...]:
     """Return Git commands whose shell block lacks a still-valid exact-root guard."""
     violations: list[tuple[int, str]] = []
-    directory_change = re.compile(
-        r"(?i)^(?:cd|chdir|pushd|popd|set-location|push-location|pop-location)\b"
-    )
     for block in _shell_blocks(text):
-        git_lines = [item for item in block if _contains_git_command(item[1])]
-        continued_git_lines = _continued_git_lines(block)
-        if not git_lines and not continued_git_lines:
-            continue
-        executable = [item for item in block if _is_executable_line(item[1])]
-        mutation = any(_is_mutating_git_line(line) for _, line in git_lines)
-        first_is_guard = bool(executable and _is_root_guard(executable[0][1].strip()))
-        clean_guard = bool(
-            executable and _is_root_guard(executable[0][1].strip(), require_clean_index=True)
-        )
-        context_valid = first_is_guard and (not mutation or clean_guard)
-        violations.extend(continued_git_lines)
-        for line_number, line in block:
-            stripped = line.strip()
-            if directory_change.search(stripped):
-                context_valid = False
-                continue
-            if not _contains_git_command(stripped):
-                continue
-            if not context_valid or _is_unsafe_git_invocation(stripped):
-                violations.append((line_number, stripped))
+        unguarded, _ = _analyze_git_block(block)
+        violations.extend(unguarded)
+    return tuple(violations)
+
+
+def unsafe_git_context_lines(text: str) -> tuple[tuple[int, str], ...]:
+    """Return post-guard commands that invalidate the guarded shell context."""
+    violations: list[tuple[int, str]] = []
+    for block in _shell_blocks(text):
+        _, context = _analyze_git_block(block)
+        violations.extend(context)
     return tuple(violations)
 
 
 def _is_staged_diff_review(line: str) -> bool:
     tokens = _shell_tokens(line)
-    return tokens == ("git", "diff", "--cached", "--name-status", "--")
+    return bool(
+        classify_git_command(line) is GitCommandKind.READ_ONLY
+        and tokens == ("git", "diff", "--cached", "--name-status", "--")
+    )
 
 
 def _has_auto_stage_option(tokens: tuple[str, ...]) -> bool:
@@ -517,14 +567,7 @@ def _has_auto_stage_option(tokens: tuple[str, ...]) -> bool:
 
 
 def _is_canonical_commit(line: str) -> bool:
-    tokens = _shell_tokens(line)
-    return bool(
-        tokens
-        and len(tokens) == 4
-        and tokens[:3] == ("git", "commit", "-m")
-        and tokens[3]
-        and not _is_unsafe_git_invocation(line)
-    )
+    return classify_git_command(line) is GitCommandKind.HISTORY_MUTATION
 
 
 def unsafe_git_commit_lines(text: str) -> tuple[tuple[int, str], ...]:
@@ -536,6 +579,7 @@ def unsafe_git_commit_lines(text: str) -> tuple[tuple[int, str], ...]:
         staged_diff_reviewed = False
         for line_number, line in block:
             stripped = line.strip()
+            kind = classify_git_command(stripped)
             if _is_root_guard(stripped, require_clean_index=True):
                 clean_guard_seen = True
                 safe_stage_after_guard = False
@@ -550,26 +594,21 @@ def unsafe_git_commit_lines(text: str) -> tuple[tuple[int, str], ...]:
             if safe_stage_after_guard and _is_staged_diff_review(stripped):
                 staged_diff_reviewed = True
                 continue
-            if any(
-                _contains_git_subcommand(stripped, command)
-                for command in INDEX_MUTATING_GIT_SUBCOMMANDS
-            ):
+            if _contains_git_subcommand(stripped, "commit"):
+                tokens = _shell_tokens(stripped)
+                unsafe_option = bool(tokens and _has_auto_stage_option(tokens))
+                if (
+                    not clean_guard_seen
+                    or not safe_stage_after_guard
+                    or not staged_diff_reviewed
+                    or kind is not GitCommandKind.HISTORY_MUTATION
+                    or unsafe_option
+                ):
+                    violations.append((line_number, stripped))
+                continue
+            if kind in {GitCommandKind.INDEX_MUTATION, GitCommandKind.UNSUPPORTED}:
                 safe_stage_after_guard = False
                 staged_diff_reviewed = False
-                continue
-            if not _contains_git_subcommand(stripped, "commit"):
-                continue
-            tokens = _shell_tokens(stripped)
-            canonical_commit = _is_canonical_commit(stripped)
-            unsafe_option = bool(tokens and _has_auto_stage_option(tokens))
-            if (
-                not clean_guard_seen
-                or not safe_stage_after_guard
-                or not staged_diff_reviewed
-                or not canonical_commit
-                or unsafe_option
-            ):
-                violations.append((line_number, stripped))
     return tuple(violations)
 
 
@@ -583,6 +622,7 @@ def git_workflow_violations(path: Path) -> tuple[str, ...]:
     violations: list[str] = []
     for kind, lines in (
         ("unsafe stage", unsafe_git_stage_lines(text)),
+        ("unsafe context", unsafe_git_context_lines(text)),
         ("unguarded Git", unguarded_git_block_lines(text)),
         ("unsafe commit", unsafe_git_commit_lines(text)),
     ):

@@ -512,7 +512,9 @@ python tools/check_repo_root.py --expected-root . --require-clean-index
 git add -- tools/create_release_manifest.py tools/verify_release_manifest.py scripts/clean_room_reproduce.sh docs/submission/SUBMISSION_CHECKLIST.md docs/submission/API_SCHEMA.md docs/submission/PROPOSAL_EVIDENCE_INDEX.md docs/submission/RELEASE_RECORD.md release/.gitkeep tests/contract/test_release_manifest.py artifacts/evaluation/final-canonical.json release/manifest.json README.md docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "chore: freeze FinProof competition release"
-git tag -a finproof-submission -m "FinProof competition submission"
 ```
+
+Annotated tagging remains deferred until a separately tested release gate proves the final commit,
+manifest identity, and clean worktree together. This task does not authorize a tag operation.
 
 After freeze, do not modify behavior. Monitor and use only organizer-approved identical-image operations.

@@ -10,10 +10,13 @@ from typing import Any
 import pytest
 from jsonschema import Draft202012Validator
 from tools.verify_handoff import (
+    GitCommandKind,
+    classify_git_command,
     git_workflow_violations,
     plan_task_staging_violations,
     unguarded_git_block_lines,
     unsafe_git_commit_lines,
+    unsafe_git_context_lines,
     unsafe_git_stage_lines,
 )
 
@@ -281,6 +284,173 @@ git status --short
         (2, "git status --short"),
         (11, "git status --short"),
     )
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        ("git status --short", GitCommandKind.READ_ONLY),
+        ("git branch --show-current", GitCommandKind.READ_ONLY),
+        ("git log -3 --oneline", GitCommandKind.READ_ONLY),
+        ("git diff --check", GitCommandKind.READ_ONLY),
+        ("git diff --cached --name-status --", GitCommandKind.READ_ONLY),
+        ("git add -- README.md", GitCommandKind.INDEX_MUTATION),
+        ("git commit -m safe", GitCommandKind.HISTORY_MUTATION),
+        (
+            'git commit -m "security: close guarded Git workflow grammar"',
+            GitCommandKind.HISTORY_MUTATION,
+        ),
+    ],
+)
+def test_closed_git_classifier_accepts_only_registered_shapes(
+    command: str, expected: GitCommandKind
+) -> None:
+    assert classify_git_command(command) is expected
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git publish",
+        "git publish origin main",
+        "git fetch origin",
+        "git status",
+        "git log --oneline -3",
+        "git diff --cached --name-status",
+        "git tag -a finproof-submission -m release",
+    ],
+)
+def test_closed_git_classifier_rejects_unknown_commands_and_near_misses(
+    command: str,
+) -> None:
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        'git add -- "README.md"',
+        "git add -- 'README.md'",
+        'git add -- READ"ME".md',
+    ],
+)
+def test_closed_git_classifier_rejects_quoted_stage_operands(
+    command: str,
+) -> None:
+    text = f"```powershell\n{command}\n```\n"
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unsafe_git_stage_lines(text) == ((2, command),)
+
+
+def test_closed_git_classifier_rejects_bash_comment_attached_stage_operand() -> None:
+    command = "git add -- README.md#outside"
+    text = f"```bash\n{command}\n```\n"
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unsafe_git_stage_lines(text) == ((2, command),)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git-publish origin main",
+        "git-status --short",
+        "git.cmd status --short",
+    ],
+)
+def test_closed_git_classifier_rejects_guarded_direct_executable_wrappers(
+    command: str,
+) -> None:
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root .
+{command}
+```
+"""
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unguarded_git_block_lines(text) == ((3, command),)
+
+
+def test_closed_git_classifier_rejects_unguarded_direct_executable_wrapper() -> None:
+    command = "git-publish origin main"
+    text = f"```bash\n{command}\n```\n"
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unguarded_git_block_lines(text) == ((2, command),)
+
+
+def test_stage_category_reports_direct_executable_wrapper() -> None:
+    command = "git-stage -- README.md"
+    text = f"```powershell\n{command}\n```\n"
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unsafe_git_stage_lines(text) == ((2, command),)
+
+
+def test_commit_category_reports_direct_executable_wrapper() -> None:
+    command = "git.cmd commit -m unsafe"
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert classify_git_command(command) is GitCommandKind.UNSUPPORTED
+    assert unsafe_git_commit_lines(text) == ((5, command),)
+
+
+@pytest.mark.parametrize("command", ["git publish", "git fetch origin"])
+def test_guarded_blocks_reject_unallowlisted_git_commands(command: str) -> None:
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root . --require-clean-index
+{command}
+```
+"""
+    assert unguarded_git_block_lines(text) == ((3, command),)
+
+
+@pytest.mark.parametrize(
+    "invalidation",
+    [
+        "$env:GIT_DIR='../other/.git'",
+        "& Set-Location ..",
+        "Set-Alias git Invoke-Evil",
+    ],
+)
+def test_post_guard_execution_invalidates_context(invalidation: str) -> None:
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root .
+{invalidation}
+git status --short
+```
+"""
+    assert unsafe_git_context_lines(text)
+    assert unsafe_git_context_lines(text)[0][0] == 3
+    assert unguarded_git_block_lines(text)[-1] == (4, "git status --short")
+
+
+def test_invalid_context_cannot_be_rearmed_by_relative_guard() -> None:
+    text = """```powershell
+python tools/check_repo_root.py --expected-root .
+& Set-Location ..
+python tools/check_repo_root.py --expected-root .
+git status --short
+```
+"""
+    assert unsafe_git_context_lines(text)[0][0] == 3
+    assert unguarded_git_block_lines(text)[-1] == (5, "git status --short")
+
+
+def test_cmd_caret_obfuscated_git_is_rejected_after_guard() -> None:
+    text = """```cmd
+python tools/check_repo_root.py --expected-root .
+g^it status --short
+```
+"""
+    assert unsafe_git_context_lines(text) == ((3, "g^it status --short"),)
 
 
 @pytest.mark.parametrize(
@@ -724,3 +894,31 @@ def test_git_workflow_violations_reports_file_and_line(tmp_path: Path) -> None:
     assert any(f"{label}:2: unsafe stage: git add ." == item for item in violations)
     assert any(f"{label}:2: unguarded Git: git add ." == item for item in violations)
     assert any(f"{label}:3: unsafe commit: git commit -am unsafe" == item for item in violations)
+
+
+def test_git_workflow_violations_reports_unsafe_context_line(tmp_path: Path) -> None:
+    path = tmp_path / "unsafe-context.md"
+    path.write_text(
+        """```powershell
+python tools/check_repo_root.py --expected-root .
+& Set-Location ..
+git status --short
+```
+""",
+        encoding="utf-8",
+    )
+
+    violations = git_workflow_violations(path)
+    label = path.relative_to(ROOT)
+
+    assert f"{label}:3: unsafe context: & Set-Location .." in violations
+
+
+def test_unknown_non_inert_guard_fence_scans_context_without_git_tokens() -> None:
+    text = """```unknown
+python tools/check_repo_root.py --expected-root .
+& Set-Location ..
+```
+"""
+
+    assert unsafe_git_context_lines(text) == ((3, "& Set-Location .."),)
