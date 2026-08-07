@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 3 implemented; independent final verification pending.
+**Last updated:** 2026-08-07 — Preflight Task 1 BLOCKED after Candidate 3 final verification.
 
 ## Frozen baseline
 
@@ -15,8 +15,8 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 3; final
-  spec/execution reviews pending
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — **BLOCKED after
+  Candidate 3**; 0 BLOCKER / 2 HIGH classes remain, with no waiver
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
 - [ ] Task 4: non-self-referential release provenance and presentation claim evidence
@@ -70,9 +70,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 1, Candidate 3 verification.** Do not begin Preflight Task 2 until both independent
-verifiers approve the current candidate with zero BLOCKER/HIGH findings and the Task 1 gate is
-recorded.
+**Preflight Task 1 is BLOCKED after Candidate 3.** Do not begin Preflight Task 2. The exact next
+action is owner approval of a new bounded Task 1 brief/retry cycle for explicit Git-command
+allowlisting and post-guard execution-context invalidation; without that reset, no further behavior
+change is authorized.
 
 ## Handoff validation record — not production implementation
 
@@ -198,5 +199,20 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Focused quality: Ruff reformatted only `tools/verify_handoff.py`; format check and lint then
   passed for both changed Python files. Focused mypy passed for `tools/verify_handoff.py` with the
   same explicit dependency traversal settings recorded for Candidate 2.
-- Candidate 3 commit: pending final local verification.
-- Final independent spec and fresh-execution reviews: pending. No BLOCKER/HIGH waiver is permitted.
+- Candidate 3 commit: `891f2af07dcf252bb706c1931d7abf319ae68e76`.
+- Fresh-execution review: PASS, 0 BLOCKER / 0 HIGH / 0 MEDIUM. Detached commit `891f2af` on
+  Python 3.12.8 observed 121 passing Task 1 contracts in 20.72s after its one recorded temporary-
+  directory infrastructure retry; handoff/source/schema, Ruff, focused mypy, compileall, LF,
+  `git diff --check`, exact-root/clean-index, and clean-worktree checks passed.
+- Independent final spec review: FAIL, 0 BLOCKER / 1 HIGH / 0 MEDIUM. The denylist-based Git
+  classifier accepted both `git publish` (an unsupported configured alias that may perform arbitrary
+  mutations) and `git fetch origin` (an unclassified repository mutation) under the weak guard.
+  This violates the bare-Git/alias prohibition and the clean-index requirement for every mutation.
+- Coordinator adversarial confirmation found a second HIGH trust-boundary class. After a valid
+  guard, `$env:GIT_DIR=...` and `& Set-Location ..` change repository or working-directory context,
+  yet `unguarded_git_block_lines` returned no violation for the following direct Git command.
+  PowerShell execution confirmed that `& Set-Location ..` changes the process location. The same
+  classifier also misses CMD caret-obfuscated `g^it` in a `cmd` fence.
+- Final disposition: Candidate 3 does not meet the zero-BLOCKER/HIGH gate. No waiver is accepted.
+  Under the frozen Candidate 1–3 budget, Task 1 is BLOCKED and Task 2 remains unauthorized until
+  the owner explicitly approves a new bounded brief/retry cycle.
