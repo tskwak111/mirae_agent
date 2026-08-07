@@ -123,7 +123,7 @@ uv run mypy src/finproof/planner tests/unit/planner tests/integration/planner
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/planner src/finproof/core/settings.py tests/unit/planner tests/integration/planner tests/fixtures/hcx docs/implementation/STATUS.md
+git add -- src/finproof/planner/__init__.py src/finproof/planner/models.py src/finproof/planner/hcx_client.py src/finproof/planner/rate_limits.py tests/unit/planner/test_hcx_models.py tests/integration/planner/test_hcx_client.py tests/fixtures/hcx/structured_success.json tests/fixtures/hcx/error_429.json tests/fixtures/hcx/malformed_success.json src/finproof/core/settings.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: add typed HyperCLOVA X transport"
 ```
@@ -253,7 +253,7 @@ uv run mypy src/finproof/planner tests/unit/planner tests/integration/planner te
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/planner tests/unit/planner tests/integration/planner tests/golden/test_seed_plans.py docs/implementation/STATUS.md
+git add -- src/finproof/planner/prompts.py src/finproof/planner/provider_schema.py src/finproof/planner/structured_planner.py src/finproof/planner/json_planner.py src/finproof/planner/rule_fallback.py src/finproof/planner/service.py tests/unit/planner/test_provider_schema.py tests/unit/planner/test_rule_fallback.py tests/integration/planner/test_planner_service.py tests/golden/test_seed_plans.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: plan financial queries with bounded HCX fallbacks"
 ```
@@ -355,7 +355,7 @@ uv run mypy src/finproof/api tests/unit/api tests/integration/api
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/api tests/unit/api tests/integration/api docs/implementation/STATUS.md
+git add -- src/finproof/api/__init__.py src/finproof/api/app.py src/finproof/api/dependencies.py src/finproof/api/models.py src/finproof/api/errors.py src/finproof/api/routes/__init__.py src/finproof/api/routes/answer.py src/finproof/api/routes/health.py tests/unit/api/test_response_model.py tests/integration/api/test_answer_endpoint.py tests/integration/api/test_health_endpoints.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: expose organizer-compatible evaluation API"
 ```
@@ -455,7 +455,7 @@ uv run mypy src/finproof/core src/finproof/service tests/unit/service tests/inte
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/core/logging.py src/finproof/core/correlation.py src/finproof/service src/finproof/api/dependencies.py tests/unit/service tests/integration/service tests/security/test_runtime_provider_policy.py docs/implementation/STATUS.md
+git add -- src/finproof/core/logging.py src/finproof/core/correlation.py src/finproof/service/orchestrator.py src/finproof/service/cache.py src/finproof/service/limits.py src/finproof/service/verbalizer.py tests/unit/service/test_cache_key.py tests/unit/service/test_limits.py tests/integration/service/test_orchestrator_fallbacks.py tests/security/test_runtime_provider_policy.py src/finproof/api/dependencies.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: harden orchestration caching and observability"
 ```
@@ -539,7 +539,7 @@ Run an external shell call to the started container and validate `schemas/api_re
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- Dockerfile .dockerignore docker-compose.yml scripts/container-entrypoint.sh tests/e2e docs/API_SPEC.md README.md .github/workflows/ci.yml docs/implementation/STATUS.md
+git add -- Dockerfile .dockerignore docker-compose.yml scripts/container-entrypoint.sh tests/e2e/test_evaluation_api.py tests/e2e/test_container_smoke.py docs/API_SPEC.md README.md .github/workflows/ci.yml docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: package the FinProof evaluation service"
 ```

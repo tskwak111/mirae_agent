@@ -40,6 +40,7 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 
 **Files:**
 
+- Create: `.gitattributes`
 - Create: `tools/check_repo_root.py`
 - Create: `tests/contract/test_repo_root_guard.py`
 - Create: `docs/implementation/QUALITY_LOOP.md`
@@ -64,6 +65,7 @@ GitHub Actions, Markdown, JSON Schema 2020-12, YAML.
 - Modify: `docs/superpowers/plans/2026-08-07-00-roadmap.md`
 - Modify: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 - Modify: `HANDOFF_PACKAGE_MANIFEST.md`
+- Modify: `.gitignore`
 - Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
@@ -307,7 +309,7 @@ Replace duplicated orchestration prose in the three top-level Codex prompts and 
 the exact-root command. Keep product/domain invariants in `AGENTS.md`; do not duplicate them.
 
 Replace every broad staging command in the roadmap, all phase plans, and this Preflight plan with
-literal files or a task-owned subdirectory. Each mutating Git block begins with clean-index mode,
+literal files only. Each mutating Git block begins with clean-index mode,
 uses canonical staging, and reviews the staged name/status list before commit.
 
 ```powershell
@@ -345,7 +347,7 @@ Stage only the paths listed in Task 1:
 
 ```powershell
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- tools/check_repo_root.py tools/verify_handoff.py tests/contract/test_repo_root_guard.py tests/contract/test_handoff_package.py docs/implementation/QUALITY_LOOP.md docs/implementation/STATUS.md AGENTS.md START_HERE.md README.md CODEX_MASTER_PROMPT.md CODEX_RESUME_PROMPT.md CODEX_REVIEW_PROMPT.md prompts/00_INITIAL_KICKOFF.md prompts/01_DATA_FOUNDATION.md prompts/02_QUERY_ENGINE.md prompts/03_HCX_AND_API.md prompts/04_EVALUATION_AND_RELEASE.md prompts/99_CODE_REVIEW.md docs/superpowers/plans/2026-08-07-00-roadmap.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md HANDOFF_PACKAGE_MANIFEST.md
+git add -- .gitattributes .gitignore tools/check_repo_root.py tools/verify_handoff.py tests/contract/test_repo_root_guard.py tests/contract/test_handoff_package.py docs/implementation/QUALITY_LOOP.md docs/implementation/STATUS.md AGENTS.md START_HERE.md README.md CODEX_MASTER_PROMPT.md CODEX_RESUME_PROMPT.md CODEX_REVIEW_PROMPT.md prompts/00_INITIAL_KICKOFF.md prompts/01_DATA_FOUNDATION.md prompts/02_QUERY_ENGINE.md prompts/03_HCX_AND_API.md prompts/04_EVALUATION_AND_RELEASE.md prompts/99_CODE_REVIEW.md docs/superpowers/plans/2026-08-07-00-roadmap.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md HANDOFF_PACKAGE_MANIFEST.md
 git diff --cached --name-status --
 git commit -m "chore: enforce exact-root quality workflow"
 ```

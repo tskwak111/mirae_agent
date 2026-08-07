@@ -36,6 +36,7 @@
 - Create: `tests/integration/evaluation/test_runner.py`
 - Create: `evaluation/canonical/.gitkeep`
 - Create: `evaluation/README.md`
+- Create: `artifacts/evaluation/canonical.json`
 - Modify: `src/finproof/cli/main.py`
 - Modify: `docs/implementation/STATUS.md`
 
@@ -124,7 +125,7 @@ uv run finproof evaluate --suite canonical --output artifacts/evaluation/canonic
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/evaluation src/finproof/cli/evaluate.py src/finproof/cli/main.py tests/unit/evaluation tests/integration/evaluation evaluation/canonical/.gitkeep evaluation/README.md artifacts/evaluation/canonical.json docs/implementation/STATUS.md
+git add -- src/finproof/evaluation/__init__.py src/finproof/evaluation/models.py src/finproof/evaluation/loader.py src/finproof/evaluation/scoring.py src/finproof/evaluation/runner.py src/finproof/cli/evaluate.py tests/unit/evaluation/test_case_schema.py tests/unit/evaluation/test_scoring.py tests/integration/evaluation/test_runner.py evaluation/canonical/.gitkeep evaluation/README.md artifacts/evaluation/canonical.json src/finproof/cli/main.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "test: add reviewed canonical FinProof evaluation"
 ```
@@ -143,6 +144,7 @@ git commit -m "test: add reviewed canonical FinProof evaluation"
 - Create: `tests/evaluation/test_metamorphic_relations.py`
 - Create: `tests/evaluation/test_quality_cases.py`
 - Create: `tests/evaluation/test_adversarial_cases.py`
+- Create: `artifacts/evaluation/robustness.json`
 - Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
@@ -218,7 +220,7 @@ uv run finproof evaluate --suite robustness --output artifacts/evaluation/robust
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/evaluation/paraphrases.py src/finproof/evaluation/metamorphic.py src/finproof/evaluation/adversarial.py evaluation/paraphrase_rules.yaml evaluation/adversarial_cases.jsonl tests/evaluation artifacts/evaluation/robustness.json docs/implementation/STATUS.md
+git add -- src/finproof/evaluation/paraphrases.py src/finproof/evaluation/metamorphic.py src/finproof/evaluation/adversarial.py evaluation/paraphrase_rules.yaml evaluation/adversarial_cases.jsonl tests/evaluation/test_paraphrase_invariance.py tests/evaluation/test_metamorphic_relations.py tests/evaluation/test_quality_cases.py tests/evaluation/test_adversarial_cases.py artifacts/evaluation/robustness.json docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "test: harden FinProof language and policy behavior"
 ```
@@ -238,6 +240,9 @@ git commit -m "test: harden FinProof language and policy behavior"
 - Create: `scripts/run_load.sh`
 - Create: `scripts/run_soak.sh`
 - Create: `docs/benchmark/README.md`
+- Create: `artifacts/evaluation/ablation.json`
+- Create: `artifacts/evaluation/load.json`
+- Create: `artifacts/evaluation/soak.json`
 - Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
@@ -300,23 +305,24 @@ The soak tool periodically checks health/readiness/version, sends representative
 - [ ] **Step 6: Run measured experiments**
 
 ```bash
-bash scripts/run_ablation.sh
-bash scripts/run_load.sh
-bash scripts/run_soak.sh --hours 24
+bash scripts/run_ablation.sh --output artifacts/evaluation/ablation.json
+bash scripts/run_load.sh --output artifacts/evaluation/load.json
+bash scripts/run_soak.sh --hours 24 --output artifacts/evaluation/soak.json
 ```
 
 Prefer a 48-hour final soak. If organizer timeout/concurrency is disclosed, set pass thresholds in committed config and rerun.
 
-- [ ] **Step 7: Commit code and immutable raw reports**
+- [ ] **Step 7: Commit code and immutable measured summaries**
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/evaluation/ablation.py src/finproof/evaluation/latency.py src/finproof/evaluation/load.py src/finproof/evaluation/soak.py tests/unit/evaluation/test_latency_stats.py tests/integration/evaluation/test_fault_injection.py scripts/run_ablation.sh scripts/run_load.sh scripts/run_soak.sh docs/benchmark artifacts/evaluation docs/implementation/STATUS.md
+git add -- src/finproof/evaluation/ablation.py src/finproof/evaluation/latency.py src/finproof/evaluation/load.py src/finproof/evaluation/soak.py tests/unit/evaluation/test_latency_stats.py tests/integration/evaluation/test_fault_injection.py scripts/run_ablation.sh scripts/run_load.sh scripts/run_soak.sh docs/benchmark/README.md artifacts/evaluation/ablation.json artifacts/evaluation/load.json artifacts/evaluation/soak.json docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "perf: measure FinProof quality latency and resilience"
 ```
 
-Do not commit secrets or giant uncompressed request logs. Commit summary and checksummed compressed raw results as repository policy permits.
+Do not commit secrets or giant uncompressed request logs. Commit the three exact summary files above;
+each summary records hashes and immutable storage references for excluded raw request logs.
 
 ---
 
@@ -382,7 +388,7 @@ No BLOCKER/HIGH release risk remains unresolved unless the organizer explicitly 
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- tools/check_competition_compliance.py tools/check_claim_evidence_report.py tests/contract/test_competition_compliance.py docs/review docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md docs/implementation/STATUS.md
+git add -- tools/check_competition_compliance.py tools/check_claim_evidence_report.py tests/contract/test_competition_compliance.py docs/review/INDEPENDENT_REVIEW.md docs/review/FINDING_CLOSURE.md docs/09_RISK_REGISTER.md docs/10_DECISION_LOG.md docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "chore: close FinProof competition review findings"
 ```
@@ -401,6 +407,8 @@ git commit -m "chore: close FinProof competition review findings"
 - Create: `docs/submission/RELEASE_RECORD.md`
 - Create: `release/.gitkeep`
 - Create: `tests/contract/test_release_manifest.py`
+- Create: `artifacts/evaluation/final-canonical.json`
+- Create: `release/manifest.json`
 - Modify: `README.md`
 - Modify: `docs/implementation/STATUS.md`
 
@@ -501,7 +509,7 @@ organizer-approved failover procedure
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- tools/create_release_manifest.py tools/verify_release_manifest.py scripts/clean_room_reproduce.sh docs/submission release/.gitkeep tests/contract/test_release_manifest.py README.md docs/implementation/STATUS.md
+git add -- tools/create_release_manifest.py tools/verify_release_manifest.py scripts/clean_room_reproduce.sh docs/submission/SUBMISSION_CHECKLIST.md docs/submission/API_SCHEMA.md docs/submission/PROPOSAL_EVIDENCE_INDEX.md docs/submission/RELEASE_RECORD.md release/.gitkeep tests/contract/test_release_manifest.py artifacts/evaluation/final-canonical.json release/manifest.json README.md docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "chore: freeze FinProof competition release"
 git tag -a finproof-submission -m "FinProof competition submission"

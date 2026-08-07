@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 1 implemented; independent verification pending.
+**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 2 implemented; independent verification pending.
 
 ## Frozen baseline
 
@@ -15,7 +15,7 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 1; final
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 2; final
   spec/execution reviews pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
@@ -134,5 +134,38 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
   `AGENTS.md`, README/startup/Codex/phase/review prompts and every plan through one `STATUS.md` task;
   root-guard all Git blocks; add canonical staging to all 21 phase commit blocks; repair this
   Preflight plan's own commit blocks.
-- Candidate 1 final spec and fresh-execution reviews: pending.
-- Candidate 1 commit: pending.
+- Candidate 1 commit: `6dc86056bcc28429800bbc68af254b3a6067ec73`.
+- Candidate 1 final spec review: FAIL, 0 BLOCKER / 4 HIGH / 1 MEDIUM. Findings covered
+  explicit-CWD equality, config/discovery overrides, noncanonical index mutations, commit-time
+  staging, CommonMark/container and executable-path bypasses, non-task-owned phase staging, and
+  unresolved initial import.
+- Candidate 1 fresh-execution review: FAIL, 0 BLOCKER / 5 HIGH. A detached checkout reproduced
+  73 passing contracts, source/schema/handoff invariants, Ruff lint, and focused mypy, but failed
+  Ruff format on all four Python files and reproduced explicit-CWD, intent-to-add, commit-path,
+  interactive/patch, `git -C..`, and PowerShell-escape bypasses.
+
+### 2026-08-07 — Preflight Task 1 Candidate 2
+
+- Oracle writer changed only the two contract-test files; coordinator changed implementation,
+  repository policy, routing docs, and plans. Mapping/reviewer agents remained read-only.
+- RED: the fresh Candidate 2 contract run produced 24 behavioral failures and 71 passes. The
+  failures covered exact explicit CWD, seven config/discovery variables, missing-repository
+  isolation, intent-to-add, raw/path-qualified/escaped Git commands, directory-stack changes,
+  blockquoted fences, strict commit grammar, post-review index mutation, and LF checkout policy.
+- RED: the new plan/evidence/import contract first failed at import because
+  `plan_task_staging_violations` did not exist, then exposed 21 phase checkpoint mismatches, the
+  ignored JSON evidence path, and absent frozen initial-import blocks.
+- GREEN: `tests/contract/test_repo_root_guard.py` — 32 passed; root and clean-index behavior now
+  rejects every selected override and intent-to-add state.
+- GREEN: `tests/contract/test_handoff_package.py` reached 63 passed after Git/CommonMark/commit/LF
+  repair. Subsequent semantic-plan and parser-hardening tests expanded the combined Task 1 suite.
+- GREEN: combined supported-Python command — 102 passed in 12.20s with a unique checkout-local
+  `--basetemp` under the approved Windows ACL retry.
+- Plan repair: all 21 Phase 1-4 checkpoints now stage exactly the task's declared literal files;
+  generated JSON evidence has frozen names and narrow `.gitignore` exceptions. Phase 1 now names
+  both source-audit and quality-summary reports; Phase 4 names canonical, robustness, ablation,
+  load, soak, final-canonical, and release-manifest evidence.
+- Import repair: `START_HERE.md` and `HANDOFF_PACKAGE_MANIFEST.md` carry identical literal baseline
+  import commands. Missing/ancestor repositories remain stop conditions; no agent receives
+  authority to improvise the import.
+- Candidate 2 commit: pending final local verification.

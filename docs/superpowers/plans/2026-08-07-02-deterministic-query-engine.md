@@ -165,7 +165,7 @@ uv run pytest tests/unit/domain tests/unit/registry -q
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/domain src/finproof/registry tests/unit/domain tests/unit/registry docs/implementation/STATUS.md
+git add -- src/finproof/domain/query_plan.py src/finproof/domain/evidence.py src/finproof/domain/execution.py src/finproof/domain/answers.py src/finproof/registry/models.py src/finproof/registry/loader.py src/finproof/registry/metric.py src/finproof/registry/state.py src/finproof/registry/quality.py src/finproof/registry/answer.py tests/unit/domain/test_query_plan_models.py tests/unit/domain/test_evidence_models.py tests/unit/registry/test_registry_loader.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: define FinProof plans evidence and registries"
 ```
@@ -270,7 +270,7 @@ uv run mypy src/finproof/entity tests/unit/entity tests/integration/entity
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/entity tests/unit/entity tests/integration/entity docs/implementation/STATUS.md
+git add -- src/finproof/entity/__init__.py src/finproof/entity/normalization.py src/finproof/entity/models.py src/finproof/entity/index.py src/finproof/entity/resolver.py src/finproof/entity/cross_source.py tests/unit/entity/test_normalization.py tests/unit/entity/test_resolver.py tests/integration/entity/test_official_resolution.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: add controlled financial product resolution"
 ```
@@ -392,7 +392,7 @@ uv run mypy src/finproof/query tests/unit/query tests/security
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/query tests/unit/query tests/security/test_query_injection.py docs/implementation/STATUS.md
+git add -- src/finproof/query/__init__.py src/finproof/query/fields.py src/finproof/query/semantic_validator.py src/finproof/query/segmenter.py src/finproof/query/ast.py src/finproof/query/compiler.py tests/unit/query/test_field_registry.py tests/unit/query/test_semantic_validator.py tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: validate plans and compile allowlisted SQL"
 ```
@@ -474,7 +474,7 @@ uv run mypy src/finproof/query src/finproof/storage/repositories tests/integrati
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/query/executor.py src/finproof/query/reference.py src/finproof/storage/repositories tests/integration/query tests/differential tests/property docs/implementation/STATUS.md
+git add -- src/finproof/storage/repositories/__init__.py src/finproof/storage/repositories/products.py src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/differential/test_query_differential.py tests/property/test_query_metamorphic.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: execute deterministic financial queries"
 ```
@@ -580,7 +580,7 @@ Official integration cases must assert the frozen counts/tie groups for 325/254 
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/quality tests/unit/quality tests/integration/quality docs/implementation/STATUS.md
+git add -- src/finproof/quality/__init__.py src/finproof/quality/state.py src/finproof/quality/metric_policy.py src/finproof/quality/comparability.py src/finproof/quality/ties.py src/finproof/quality/dual_lens.py tests/unit/quality/test_state_policy.py tests/unit/quality/test_metric_operation_policy.py tests/unit/quality/test_comparability.py tests/unit/quality/test_ties.py tests/integration/quality/test_official_quality_cases.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: enforce financial state and comparability policies"
 ```
@@ -708,7 +708,7 @@ uv run python tools/verify_handoff.py
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/evidence src/finproof/answer src/finproof/service tests/unit/evidence tests/unit/answer tests/integration/service tests/golden/test_seed_answer_semantics.py docs/implementation/STATUS.md
+git add -- src/finproof/evidence/__init__.py src/finproof/evidence/builder.py src/finproof/evidence/serializer.py src/finproof/evidence/verifier.py src/finproof/answer/__init__.py src/finproof/answer/templates.py src/finproof/answer/renderer.py src/finproof/answer/safety.py src/finproof/service/__init__.py src/finproof/service/answer_service.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_claim_verifier.py tests/unit/answer/test_renderer.py tests/integration/service/test_answer_service.py tests/golden/test_seed_answer_semantics.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: render and verify evidence-backed answers"
 ```

@@ -182,7 +182,7 @@ Expected: all PASS.
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/core src/finproof/cli tests/unit/core tests/contract/test_handoff_commands.py docs/implementation/STATUS.md
+git add -- src/finproof/core/__init__.py src/finproof/core/settings.py src/finproof/core/versions.py src/finproof/core/errors.py src/finproof/cli/__init__.py src/finproof/cli/main.py tests/unit/core/test_settings.py tests/unit/core/test_versions.py tests/contract/test_handoff_commands.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: bootstrap typed FinProof core and CLI"
 ```
@@ -297,7 +297,7 @@ Expected: PASS and frozen audit unchanged.
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/data src/finproof/domain/source.py tests/source_contract docs/implementation/STATUS.md
+git add -- src/finproof/data/__init__.py src/finproof/data/source_manifest.py src/finproof/data/xlsx_stream.py src/finproof/domain/__init__.py src/finproof/domain/source.py tests/source_contract/test_source_manifest.py tests/source_contract/test_xlsx_stream.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: add verified streaming source ingestion"
 ```
@@ -423,7 +423,7 @@ uv run mypy src/finproof/data/normalization src/finproof/domain src/finproof/reg
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/data/normalization src/finproof/domain/quality.py src/finproof/domain/products.py src/finproof/registry tests/unit/data tests/unit/registry docs/implementation/STATUS.md
+git add -- src/finproof/domain/quality.py src/finproof/domain/products.py src/finproof/data/normalization/__init__.py src/finproof/data/normalization/common.py src/finproof/data/normalization/bonds.py src/finproof/data/normalization/domestic_listed.py src/finproof/registry/__init__.py src/finproof/registry/rating.py tests/unit/data/test_bond_normalization.py tests/unit/data/test_domestic_listed_normalization.py tests/unit/registry/test_rating_registry.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: normalize bonds and domestic listed products"
 ```
@@ -538,7 +538,7 @@ uv run python tools/audit_source_data.py --check
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/data/normalization/overseas_listed.py src/finproof/data/normalization/public_funds.py src/finproof/data/quarantine.py tests/unit/data tests/source_contract/test_public_fund_grain.py docs/implementation/STATUS.md
+git add -- src/finproof/data/normalization/overseas_listed.py src/finproof/data/normalization/public_funds.py src/finproof/data/quarantine.py tests/unit/data/test_overseas_listed_normalization.py tests/unit/data/test_public_fund_normalization.py tests/source_contract/test_public_fund_grain.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: normalize overseas products and public fund grain"
 ```
@@ -557,6 +557,9 @@ git commit -m "feat: normalize overseas products and public fund grain"
 - Create: `tests/integration/data/test_artifact_build.py`
 - Create: `tests/integration/data/test_exact_cross_source_links.py`
 - Create: `tests/integration/data/test_build_reproducibility.py`
+- Create: `artifacts/manifest.json`
+- Create: `artifacts/reports/source_audit.json`
+- Create: `artifacts/reports/quality_summary.json`
 - Modify: `src/finproof/cli/main.py`
 - Modify: `docs/implementation/STATUS.md`
 
@@ -577,6 +580,7 @@ def test_build_writes_manifest_parquet_database_and_quality_report(fixture_setti
     assert manifest.database_path.name == "finproof.duckdb"
     assert "silver_fund_item" in manifest.tables
     assert manifest.tables["silver_fund_item"].row_count == 1
+    assert (fixture_settings.artifact_dir / "reports/source_audit.json").is_file()
     assert (fixture_settings.artifact_dir / "reports/quality_summary.json").is_file()
 ```
 
@@ -649,7 +653,7 @@ Inspect DuckDB counts against `tests/contracts/expected_source_audit.json`.
 
 ```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
-git add -- src/finproof/data/build.py src/finproof/data/artifact_manifest.py src/finproof/storage src/finproof/cli/build_data.py src/finproof/cli/main.py tests/integration/data artifacts/manifest.json artifacts/reports docs/implementation/STATUS.md
+git add -- src/finproof/data/build.py src/finproof/data/artifact_manifest.py src/finproof/storage/__init__.py src/finproof/storage/schema.sql src/finproof/storage/database.py src/finproof/cli/build_data.py tests/integration/data/test_artifact_build.py tests/integration/data/test_exact_cross_source_links.py tests/integration/data/test_build_reproducibility.py artifacts/manifest.json artifacts/reports/source_audit.json artifacts/reports/quality_summary.json src/finproof/cli/main.py docs/implementation/STATUS.md
 git diff --cached --name-status --
 git commit -m "feat: build reproducible FinProof data artifacts"
 ```

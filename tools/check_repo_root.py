@@ -22,8 +22,19 @@ REPOSITORY_SELECTION_ENV: Final = (
     "GIT_WORK_TREE",
     "GIT_COMMON_DIR",
     "GIT_INDEX_FILE",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_NAMESPACE",
+    "GIT_SHALLOW_FILE",
+    "GIT_REPLACE_REF_BASE",
+    "GIT_EXEC_PATH",
+    "GIT_CONFIG_GLOBAL",
+    "GIT_CONFIG_SYSTEM",
+    "GIT_CONFIG_NOSYSTEM",
     "GIT_CONFIG_COUNT",
     "GIT_CONFIG_PARAMETERS",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
 )
 GIT_TIMEOUT_SECONDS: Final = 10
 GIT_EXECUTABLE: Final = shutil.which("git") or "git"
@@ -54,6 +65,10 @@ def git_top_level(cwd: Path) -> Path:
     """Return Git's resolved top-level directory or fail with a domain error."""
     _reject_repository_selection_env()
     working_directory = _existing_directory(cwd, label="working directory")
+    local_marker = working_directory / ".git"
+    immediate_parent_marker = working_directory.parent / ".git"
+    if not local_marker.exists() and not immediate_parent_marker.exists():
+        raise RepoRootError(f"{GIT_NOT_FOUND}: {working_directory}")
     try:
         result = subprocess.run(
             [GIT_EXECUTABLE, "rev-parse", "--show-toplevel"],
@@ -80,7 +95,7 @@ def ensure_exact_repo_root(expected_root: Path, cwd: Path | None = None) -> Path
     """Require Git's top-level path to equal the explicitly expected root."""
     expected = _existing_directory(expected_root, label="expected root")
     invoking = _existing_directory(cwd or Path.cwd(), label="invoking working directory")
-    if cwd is None and not invoking.samefile(expected):
+    if not invoking.samefile(expected):
         raise RepoRootError(
             f"invoking working directory {invoking} does not match expected root {expected}"
         )
@@ -95,7 +110,15 @@ def ensure_clean_index(root: Path) -> None:
     exact_root = ensure_exact_repo_root(root, cwd=root)
     try:
         result = subprocess.run(
-            [GIT_EXECUTABLE, "diff", "--cached", "--quiet", "--no-ext-diff", "--"],
+            [
+                GIT_EXECUTABLE,
+                "diff",
+                "--cached",
+                "--quiet",
+                "--no-ext-diff",
+                "--ita-visible-in-index",
+                "--",
+            ],
             cwd=exact_root,
             check=False,
             capture_output=True,
@@ -110,7 +133,15 @@ def ensure_clean_index(root: Path) -> None:
         raise RepoRootError(f"Git index inspection failed: {result.stderr.rstrip('\r\n')}")
     try:
         diagnostic = subprocess.run(
-            [GIT_EXECUTABLE, "diff", "--cached", "--name-only", "-z", "--"],
+            [
+                GIT_EXECUTABLE,
+                "diff",
+                "--cached",
+                "--name-only",
+                "-z",
+                "--ita-visible-in-index",
+                "--",
+            ],
             cwd=exact_root,
             check=False,
             capture_output=True,

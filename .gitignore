@@ -16,8 +16,15 @@ htmlcov/
 .env.*
 !.env.example
 
-# Runtime/build artifacts
-artifacts/
+# Runtime/build artifacts. Only reviewed JSON evidence is trackable.
+artifacts/*
+!artifacts/manifest.json
+!artifacts/evaluation/
+artifacts/evaluation/*
+!artifacts/evaluation/*.json
+!artifacts/reports/
+artifacts/reports/*
+!artifacts/reports/*.json
 build/
 dist/
 logs/

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -8,12 +11,14 @@ import pytest
 from jsonschema import Draft202012Validator
 from tools.verify_handoff import (
     git_workflow_violations,
+    plan_task_staging_violations,
     unguarded_git_block_lines,
     unsafe_git_commit_lines,
     unsafe_git_stage_lines,
 )
 
 ROOT = Path(__file__).resolve().parents[2]
+GIT_EXECUTABLE = shutil.which("git") or "git"
 HCX_ALLOWED_SCHEMA_KEYWORDS = {
     "type",
     "properties",
@@ -309,6 +314,50 @@ def test_git_blocks_reject_context_switches_and_weak_mutation_guards(
     )
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git -C.. status --short",
+        "g`it status --short",
+        '& "C:/Program Files/Git/cmd/git.exe" status --short',
+        "git -c alias.publish=push publish origin main",
+        "git config alias.publish push",
+        "git update-ref refs/heads/main deadbeef",
+    ],
+)
+def test_git_blocks_reject_raw_git_detection_bypasses(command: str) -> None:
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root .
+{command}
+```
+"""
+
+    assert unguarded_git_block_lines(text) == ((3, command),)
+
+
+@pytest.mark.parametrize("directory_command", ["pushd ..", "popd"])
+def test_git_guard_is_invalidated_by_shell_directory_stack_changes(
+    directory_command: str,
+) -> None:
+    text = f"""```powershell
+python tools/check_repo_root.py --expected-root .
+{directory_command}
+git status --short
+```
+"""
+
+    assert unguarded_git_block_lines(text) == ((4, "git status --short"),)
+
+
+def test_commonmark_blockquote_shell_fence_is_scanned() -> None:
+    text = "> ```bash\n> git status --short\n> ```\n"
+
+    violations = unguarded_git_block_lines(text)
+
+    assert tuple(line_number for line_number, _ in violations) == (2,)
+    assert "git status --short" in violations[0][1]
+
+
 def test_unsafe_git_commit_lines_requires_clean_index_and_exact_stage() -> None:
     text = """```powershell
 python tools/check_repo_root.py --expected-root .
@@ -351,6 +400,49 @@ git commit {option} -m unsafe
     assert unsafe_git_commit_lines(text) == ((5, f"git commit {option} -m unsafe"),)
 
 
+@pytest.mark.parametrize(
+    "command",
+    [
+        "git commit README.md -m unsafe",
+        "git commit -m unsafe -- README.md",
+        "git commit --interactive -m unsafe",
+        "git commit --patch -m unsafe",
+        "git commit -p -m unsafe",
+        "git commit -m add -- outside.txt",
+    ],
+)
+def test_unsafe_git_commit_lines_rejects_noncanonical_commit_modes(command: str) -> None:
+    text = f"""```bash
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert unsafe_git_commit_lines(text) == ((5, command),)
+
+
+@pytest.mark.parametrize(
+    "index_mutation",
+    [
+        "git update-index --chmod=+x -- README.md",
+        "git rm --cached -- README.md",
+    ],
+)
+def test_index_mutation_after_review_invalidates_commit_gate(index_mutation: str) -> None:
+    text = f"""```bash
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{index_mutation}
+git commit -m stale-review
+```
+"""
+
+    assert unsafe_git_commit_lines(text) == ((6, "git commit -m stale-review"),)
+
+
 def test_unsafe_git_commit_lines_requires_observed_staged_diff() -> None:
     text = """```bash
 python tools/check_repo_root.py --expected-root . --require-clean-index
@@ -360,6 +452,99 @@ git commit -m unreviewed-index
 """
 
     assert unsafe_git_commit_lines(text) == ((4, "git commit -m unreviewed-index"),)
+
+
+def test_repository_attributes_force_lf_for_python_files() -> None:
+    env = os.environ.copy()
+    env["GIT_ATTR_NOSYSTEM"] = "1"
+    result = subprocess.run(  # noqa: S603 - fixed Git attribute inspection
+        [
+            GIT_EXECUTABLE,
+            "-c",
+            f"core.attributesFile={os.devnull}",
+            "check-attr",
+            "eol",
+            "--",
+            "tools/check_repo_root.py",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        encoding="utf-8",
+        env=env,
+    )
+
+    assert result.stdout.strip() == "tools/check_repo_root.py: eol: lf"
+
+
+def test_plan_task_staging_must_equal_the_declared_file_allowlist() -> None:
+    text = """### Task 1: Exact checkpoint
+
+**Files:**
+- Create: `src/example/owned.py`
+- Modify: `docs/implementation/STATUS.md`
+
+```bash
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- src/example docs/implementation/STATUS.md extra.txt
+git diff --cached --name-status --
+git commit -m "unsafe checkpoint"
+```
+"""
+
+    violations = plan_task_staging_violations(text)
+
+    assert len(violations) == 1
+    line_number, detail = violations[0]
+    assert line_number == 9
+    assert "missing: src/example/owned.py" in detail
+    assert "unexpected: extra.txt, src/example" in detail
+
+
+def test_repository_phase_plan_staging_matches_each_task_file_allowlist() -> None:
+    errors: list[str] = []
+    for path in sorted((ROOT / "docs/superpowers/plans").glob("2026-08-07-0[1-4]-*.md")):
+        for line_number, detail in plan_task_staging_violations(path.read_text(encoding="utf-8")):
+            errors.append(f"{path.relative_to(ROOT)}:{line_number}: {detail}")
+
+    assert errors == []
+
+
+def test_only_reviewed_json_evidence_is_unignored_under_artifacts() -> None:
+    evidence = subprocess.run(  # noqa: S603 - fixed Git ignore inspection
+        [GIT_EXECUTABLE, "check-ignore", "-q", "--no-index", "artifacts/evaluation/canonical.json"],
+        cwd=ROOT,
+        check=False,
+    )
+    database = subprocess.run(  # noqa: S603 - fixed Git ignore inspection
+        [GIT_EXECUTABLE, "check-ignore", "-q", "--no-index", "artifacts/finproof.duckdb"],
+        cwd=ROOT,
+        check=False,
+    )
+
+    assert evidence.returncode == 1
+    assert database.returncode == 0
+
+
+def test_initial_import_commands_are_literal_and_identical() -> None:
+    def import_commands(path: Path) -> tuple[str, ...]:
+        text = path.read_text(encoding="utf-8")
+        section = text.split("<!-- INITIAL_IMPORT_START -->", maxsplit=1)[1].split(
+            "<!-- INITIAL_IMPORT_END -->", maxsplit=1
+        )[0]
+        return tuple(line for line in section.splitlines() if line.startswith("git add -- "))
+
+    start_commands = import_commands(ROOT / "START_HERE.md")
+    manifest_commands = import_commands(ROOT / "HANDOFF_PACKAGE_MANIFEST.md")
+
+    assert start_commands
+    assert start_commands == manifest_commands
+    shell = "```bash\n" + "\n".join(start_commands) + "\n```\n"
+    assert unsafe_git_stage_lines(shell) == ()
+    imported_paths = tuple(path for command in start_commands for path in command.split()[3:])
+    assert len(imported_paths) == len(set(imported_paths))
+    assert ".gitattributes" in imported_paths
+    assert "source_material/data/PRFD01N001_schema.xlsx" in imported_paths
 
 
 def test_repository_git_workflow_markdown_is_safe() -> None:

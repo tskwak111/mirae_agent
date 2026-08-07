@@ -65,28 +65,71 @@ BROAD_STAGE_TARGETS: Final = {
 }
 MUTATING_GIT_SUBCOMMANDS: Final = {
     "add",
+    "am",
+    "apply",
     "branch",
     "checkout",
+    "checkout-index",
+    "cherry-pick",
     "clean",
     "clone",
     "commit",
+    "config",
     "init",
     "merge",
     "mv",
     "pull",
     "push",
+    "read-tree",
     "rebase",
     "reset",
     "restore",
+    "revert",
     "rm",
+    "sparse-checkout",
     "stage",
     "stash",
     "switch",
     "tag",
+    "update-index",
+    "update-ref",
     "worktree",
 }
+INDEX_MUTATING_GIT_SUBCOMMANDS: Final = {
+    "add",
+    "am",
+    "apply",
+    "checkout",
+    "checkout-index",
+    "cherry-pick",
+    "merge",
+    "mv",
+    "read-tree",
+    "rebase",
+    "reset",
+    "restore",
+    "revert",
+    "rm",
+    "sparse-checkout",
+    "stage",
+    "stash",
+    "switch",
+    "update-index",
+}
+FORBIDDEN_GIT_SUBCOMMANDS: Final = {
+    "config",
+    "notes",
+    "remote",
+    "replace",
+    "symbolic-ref",
+    "update-ref",
+}
+GIT_EXECUTABLE_PATTERN: Final = re.compile(
+    r"(?i)(?<![A-Za-z0-9_.-])git(?:\.exe)?(?=$|[^A-Za-z0-9_.-])"
+)
 
 REQUIRED_FILES: Final = (
+    ".gitattributes",
     "AGENTS.md",
     "START_HERE.md",
     "README.md",
@@ -174,13 +217,22 @@ def _should_scan_fence(label: str, block: list[tuple[int, str]]) -> bool:
     return any(_contains_git_command(line) for _, line in block)
 
 
+def _strip_commonmark_blockquote_prefix(line: str) -> str:
+    """Remove blockquote containers so fenced code is scanned at its logical indentation."""
+    normalized = line
+    while match := re.match(r" {0,3}>[ \t]?", normalized):
+        normalized = normalized[match.end() :]
+    return normalized
+
+
 def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
     block: list[tuple[int, str]] = []
     in_fence = False
     fence_length = 0
     fence_character = ""
     label = ""
-    for line_number, line in enumerate(text.splitlines(), start=1):
+    for line_number, source_line in enumerate(text.splitlines(), start=1):
+        line = _strip_commonmark_blockquote_prefix(source_line)
         if not in_fence:
             match = re.fullmatch(
                 r" {0,3}(?P<fence>`{3,}|~{3,})(?P<info>[^\r\n]*)",
@@ -217,24 +269,54 @@ def _shell_tokens(line: str) -> tuple[str, ...] | None:
         return None
 
 
-def _contains_git_command(line: str) -> bool:
-    tokens = _shell_tokens(line)
-    if tokens is None:
-        return bool(re.search(r"(?i)(?:^|[\s;&|])git(?:\.exe)?(?=\s|$)", line))
+def _detection_line(line: str) -> str:
+    """Normalize shell escapes only for conservative Git-command detection."""
+    return re.sub(r"`(?=[A-Za-z])", "", line)
+
+
+def _is_git_executable_token(token: str) -> bool:
+    normalized = token.replace("\\", "/").rstrip("/")
+    basename = normalized.rsplit("/", maxsplit=1)[-1].casefold()
+    return basename in {"git", "git.exe"}
+
+
+def _git_token_indexes(line: str) -> tuple[int, ...]:
+    tokens = _shell_tokens(_detection_line(line))
     if not tokens:
+        return ()
+    return tuple(index for index, token in enumerate(tokens) if _is_git_executable_token(token))
+
+
+def _contains_git_command(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
         return False
-    return any(token.lower() in {"git", "git.exe"} for token in tokens)
+    normalized = _detection_line(line)
+    if _git_token_indexes(normalized):
+        return True
+    return bool(GIT_EXECUTABLE_PATTERN.search(normalized))
 
 
 def _contains_git_subcommand(line: str, subcommand: str) -> bool:
-    tokens = _shell_tokens(line)
-    if not tokens:
-        return bool(re.search(rf"(?i)(?:^|\s)git(?:\.exe)?\b.*\b{re.escape(subcommand)}\b", line))
-    for index, token in enumerate(tokens):
-        if token.lower() not in {"git", "git.exe"}:
-            continue
-        return any(item.lower() == subcommand for item in tokens[index + 1 :])
-    return False
+    normalized = _detection_line(line)
+    tokens = _shell_tokens(normalized)
+    indexes = _git_token_indexes(normalized)
+    if tokens and indexes:
+        wanted = subcommand.casefold()
+        for index in indexes:
+            tail = tokens[index + 1 :]
+            if not tail:
+                continue
+            if not tail[0].startswith("-"):
+                if tail[0].casefold() == wanted:
+                    return True
+                continue
+            if any(item.casefold() == wanted for item in tail):
+                return True
+        return False
+    if not _contains_git_command(normalized):
+        return False
+    return bool(re.search(rf"(?i)\b{re.escape(subcommand)}\b", normalized))
 
 
 def _literal_stage_path(path: str) -> bool:
@@ -277,22 +359,27 @@ def _is_root_guard(line: str, *, require_clean_index: bool = False) -> bool:
 
 
 def _is_unsafe_git_invocation(line: str) -> bool:
-    tokens = _shell_tokens(line)
+    normalized = _detection_line(line)
+    tokens = _shell_tokens(normalized)
     if not tokens:
         return _contains_git_command(line)
-    git_indexes = [
-        index for index, token in enumerate(tokens) if token.lower() in {"git", "git.exe"}
-    ]
+    git_indexes = _git_token_indexes(normalized)
     if not git_indexes:
-        return False
-    if git_indexes[0] != 0 or tokens[0] != "git":
+        return _contains_git_command(line)
+    if git_indexes[0] != 0 or tokens[0].casefold() != "git":
         return True
     if re.search(r"(?i)\bGIT_[A-Z0-9_]+\s*=", line):
         return True
-    if any(marker in line for marker in (";", "&&", "||", "`")):
+    if any(marker in line for marker in (";", "&&", "||", "`", "$(", "<", ">")):
+        return True
+    if line.rstrip().endswith("\\"):
+        return True
+    if len(tokens) < 2 or tokens[1].startswith("-"):
+        return True
+    if tokens[1].casefold() in FORBIDDEN_GIT_SUBCOMMANDS:
         return True
     return any(
-        argument == "-C" or argument.startswith("--git-dir") or argument.startswith("--work-tree")
+        argument.casefold().startswith(("--git-dir", "--work-tree", "--namespace", "--config-env"))
         for argument in tokens[1:]
     )
 
@@ -314,10 +401,12 @@ def unsafe_git_stage_lines(text: str) -> tuple[tuple[int, str], ...]:
     violations: list[tuple[int, str]] = []
     for block in _shell_blocks(text):
         for line_number, line in block:
+            index_mutation = any(
+                _contains_git_subcommand(line, command)
+                for command in INDEX_MUTATING_GIT_SUBCOMMANDS
+            )
             if (
-                _contains_git_subcommand(line, "add")
-                or _contains_git_subcommand(line, "stage")
-                or ("alias." in line and _contains_git_command(line))
+                index_mutation or ("alias." in line.casefold() and _contains_git_command(line))
             ) and not _is_canonical_stage(line):
                 violations.append((line_number, line.strip()))
     return tuple(violations)
@@ -326,7 +415,9 @@ def unsafe_git_stage_lines(text: str) -> tuple[tuple[int, str], ...]:
 def unguarded_git_block_lines(text: str) -> tuple[tuple[int, str], ...]:
     """Return Git commands whose shell block lacks a still-valid exact-root guard."""
     violations: list[tuple[int, str]] = []
-    directory_change = re.compile(r"(?i)^(?:cd|chdir|set-location|push-location|pop-location)\b")
+    directory_change = re.compile(
+        r"(?i)^(?:cd|chdir|pushd|popd|set-location|push-location|pop-location)\b"
+    )
     for block in _shell_blocks(text):
         git_lines = [item for item in block if _contains_git_command(item[1])]
         if not git_lines:
@@ -366,6 +457,17 @@ def _has_auto_stage_option(tokens: tuple[str, ...]) -> bool:
     return False
 
 
+def _is_canonical_commit(line: str) -> bool:
+    tokens = _shell_tokens(line)
+    return bool(
+        tokens
+        and len(tokens) == 4
+        and tokens[:3] == ("git", "commit", "-m")
+        and tokens[3]
+        and not _is_unsafe_git_invocation(line)
+    )
+
+
 def unsafe_git_commit_lines(text: str) -> tuple[tuple[int, str], ...]:
     """Return commits that can absorb paths outside the declared staging command."""
     violations: list[tuple[int, str]] = []
@@ -389,10 +491,17 @@ def unsafe_git_commit_lines(text: str) -> tuple[tuple[int, str], ...]:
             if safe_stage_after_guard and _is_staged_diff_review(stripped):
                 staged_diff_reviewed = True
                 continue
+            if any(
+                _contains_git_subcommand(stripped, command)
+                for command in INDEX_MUTATING_GIT_SUBCOMMANDS
+            ):
+                safe_stage_after_guard = False
+                staged_diff_reviewed = False
+                continue
             if not _contains_git_subcommand(stripped, "commit"):
                 continue
             tokens = _shell_tokens(stripped)
-            canonical_commit = bool(tokens and tokens[:2] == ("git", "commit"))
+            canonical_commit = _is_canonical_commit(stripped)
             unsafe_option = bool(tokens and _has_auto_stage_option(tokens))
             if (
                 not clean_guard_seen
@@ -422,6 +531,57 @@ def git_workflow_violations(path: Path) -> tuple[str, ...]:
     return tuple(violations)
 
 
+def plan_task_staging_violations(text: str) -> tuple[tuple[int, str], ...]:
+    """Require each implementation task checkpoint to stage exactly its declared files."""
+    task_pattern = re.compile(r"(?m)^### Task (?P<number>\d+):[^\r\n]*$")
+    matches = tuple(task_pattern.finditer(text))
+    violations: list[tuple[int, str]] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+        section = text[match.start() : end]
+        line_offset = text.count("\n", 0, match.start())
+        declared = tuple(
+            path
+            for _, path in re.findall(
+                r"(?m)^- (Create|Modify): `([^`]+)`[ \t]*$",
+                section,
+            )
+        )
+        if not declared:
+            continue
+
+        stage_lines: list[tuple[int, str]] = []
+        staged: list[str] = []
+        for block in _shell_blocks(section):
+            for relative_line, line in block:
+                stripped = line.strip()
+                if not _is_canonical_stage(stripped):
+                    continue
+                stage_lines.append((line_offset + relative_line, stripped))
+                tokens = _shell_tokens(stripped)
+                assert tokens is not None
+                staged.extend(tokens[3:])
+
+        missing = sorted(set(declared) - set(staged))
+        unexpected = sorted(set(staged) - set(declared))
+        duplicates = sorted(path for path in set(staged) if staged.count(path) > 1)
+        if not missing and not unexpected and not duplicates:
+            continue
+        details: list[str] = []
+        if missing:
+            details.append(f"missing: {', '.join(missing)}")
+        if unexpected:
+            details.append(f"unexpected: {', '.join(unexpected)}")
+        if duplicates:
+            details.append(f"duplicate: {', '.join(duplicates)}")
+        line_number = stage_lines[0][0] if stage_lines else line_offset + 1
+        task_number = match.group("number")
+        violations.append(
+            (line_number, f"Task {task_number} staging mismatch; {'; '.join(details)}")
+        )
+    return tuple(violations)
+
+
 def verify_git_workflow_markdown(errors: list[str]) -> None:
     """Verify every repository routing surface and implementation plan."""
     paths = [
@@ -439,6 +599,13 @@ def verify_git_workflow_markdown(errors: list[str]) -> None:
     for path in paths:
         if path.is_file():
             errors.extend(git_workflow_violations(path))
+            if path.parent == ROOT / "docs/superpowers/plans":
+                errors.extend(
+                    f"{path.relative_to(ROOT)}:{line_number}: unsafe task staging: {detail}"
+                    for line_number, detail in plan_task_staging_violations(
+                        path.read_text(encoding="utf-8")
+                    )
+                )
 
 
 PLAN_FORBIDDEN_PATTERNS: Final = (

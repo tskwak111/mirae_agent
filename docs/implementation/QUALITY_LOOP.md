@@ -40,10 +40,15 @@ absolute/parent paths, continuation lines, shell chaining, and bare broad direct
 list and prove every path is allowlisted before committing. Never tag, push, or release with a dirty
 worktree or unexplained staged state.
 
-Directory staging is permitted only when the task brief owns the complete named subdirectory and
-the coordinator has reviewed every path in its diff. Repository root, `src`, `tests`, `tools`,
-`docs`, `config`, `schemas`, `prompts`, `source_material`, and `release` are never accepted as bare
-staging targets.
+Every staging operand is a literal file declared under the selected task's `Files` allowlist.
+Directory operands are prohibited even when a task appears to own the directory. The verifier
+compares each plan checkpoint with that declared allowlist. Only the bare `git` executable form is
+supported; aliases, wrappers, path-qualified executables, shell continuations, and repository or
+index mutations between staged-diff review and commit are stop conditions.
+
+The coordinator also verifies that no staged path traverses a symlink or Windows junction. Static
+Markdown validation cannot prove future filesystem topology, so a trusted, coordinator-inspected
+worktree is an explicit prerequisite.
 
 ## 3. Fan-out and ownership
 

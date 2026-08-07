@@ -21,10 +21,15 @@ REPOSITORY_SELECTION_ENV = (
     "GIT_WORK_TREE",
     "GIT_COMMON_DIR",
     "GIT_INDEX_FILE",
+    "GIT_CONFIG_GLOBAL",
+    "GIT_CONFIG_SYSTEM",
+    "GIT_CONFIG_NOSYSTEM",
     "GIT_CONFIG_COUNT",
     "GIT_CONFIG_KEY_0",
     "GIT_CONFIG_VALUE_0",
     "GIT_CONFIG_PARAMETERS",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
 )
 GIT_EXECUTABLE = shutil.which("git") or "git"
 
@@ -33,6 +38,11 @@ def clean_git_env() -> dict[str, str]:
     env = os.environ.copy()
     for name in REPOSITORY_SELECTION_ENV:
         env.pop(name, None)
+    return env
+
+
+def fixture_git_env() -> dict[str, str]:
+    env = clean_git_env()
     env["GIT_CONFIG_NOSYSTEM"] = "1"
     env["GIT_CONFIG_GLOBAL"] = os.devnull
     return env
@@ -51,7 +61,7 @@ def run_git(path: Path, *args: str) -> None:
         check=True,
         capture_output=True,
         encoding="utf-8",
-        env=clean_git_env(),
+        env=fixture_git_env(),
     )
 
 
@@ -114,10 +124,9 @@ def test_ancestor_repository_is_rejected(tmp_path: Path) -> None:
         ensure_exact_repo_root(child, cwd=child)
 
 
-def test_missing_repository_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_repository_is_rejected(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
     with pytest.raises(RepoRootError, match="not inside a Git repository"):
         ensure_exact_repo_root(project, cwd=project)
@@ -136,6 +145,16 @@ def test_default_cwd_cannot_be_replaced_by_expected_root(
         ensure_exact_repo_root(expected)
 
 
+def test_explicit_cwd_must_be_the_exact_expected_root(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    nested = repo / "nested"
+    init_repo(repo)
+    nested.mkdir()
+
+    with pytest.raises(RepoRootError, match="invoking working directory"):
+        ensure_exact_repo_root(repo, cwd=nested)
+
+
 @pytest.mark.parametrize("variable", REPOSITORY_SELECTION_ENV)
 def test_repository_selection_environment_is_rejected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, variable: str
@@ -144,8 +163,9 @@ def test_repository_selection_environment_is_rejected(
     init_repo(repo)
     monkeypatch.setenv(variable, str(tmp_path / "external"))
 
-    with pytest.raises(RepoRootError, match=variable):
+    with pytest.raises(RepoRootError) as caught:
         ensure_exact_repo_root(repo, cwd=repo)
+    assert str(caught.value) == f"repository-selection environment variable is set: {variable}"
 
 
 def test_linked_worktree_root_and_cross_mismatches(tmp_path: Path) -> None:
@@ -164,7 +184,7 @@ def test_linked_worktree_root_and_cross_mismatches(tmp_path: Path) -> None:
         check=True,
         capture_output=True,
         encoding="utf-8",
-        env=clean_git_env(),
+        env=fixture_git_env(),
     ).stdout.strip()
     assert Path(common).resolve() != linked.resolve()
 
@@ -189,10 +209,8 @@ def test_cli_rejects_ancestor_repository_without_traceback(tmp_path: Path) -> No
 def test_cli_rejects_missing_repository_without_traceback(tmp_path: Path) -> None:
     project = tmp_path / "project"
     project.mkdir()
-    env = clean_git_env()
-    env["GIT_CEILING_DIRECTORIES"] = str(tmp_path)
 
-    result = run_cli(project, env=env)
+    result = run_cli(project)
 
     assert result.returncode == 2
     assert "not inside a Git repository" in result.stderr
@@ -282,6 +300,17 @@ def test_clean_index_gate_accepts_unstaged_worktree_changes(tmp_path: Path) -> N
     assert result.returncode == 0
 
 
+def test_clean_index_gate_rejects_intent_to_add_entries(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    init_repo(repo)
+    pending = repo / "pending.txt"
+    pending.write_text("not yet staged\n", encoding="utf-8")
+    run_git(repo, "add", "--intent-to-add", "--", "pending.txt")
+
+    with pytest.raises(RepoRootError, match=r"index is not clean.*pending\.txt"):
+        ensure_clean_index(repo)
+
+
 @pytest.mark.parametrize("staged_change", ["modify", "delete", "rename"])
 def test_clean_index_gate_rejects_every_staged_change_type(
     tmp_path: Path, staged_change: str
@@ -329,7 +358,7 @@ def test_clean_index_gate_rejects_merge_conflict(tmp_path: Path) -> None:
         check=False,
         capture_output=True,
         encoding="utf-8",
-        env=clean_git_env(),
+        env=fixture_git_env(),
     )
     assert merge.returncode != 0
     with pytest.raises(RepoRootError, match="index is not clean"):
