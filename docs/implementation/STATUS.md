@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 2 implemented; independent verification pending.
+**Last updated:** 2026-08-07 — Preflight Task 1 Candidate 3 implemented; independent final verification pending.
 
 ## Frozen baseline
 
@@ -15,7 +15,7 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-preflight-safety-remediation.md`
 
-- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 2; final
+- [ ] Task 1: exact Git-root/index guard and repository-owned quality loop — Candidate 3; final
   spec/execution reviews pending
 - [ ] Task 2: separate official instruction authority from official data trust
 - [ ] Task 3: independent typed evaluation, sealed holdout, coverage, and aggregate evidence
@@ -70,7 +70,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 1, Candidate 1 verification.** Do not begin Preflight Task 2 until both independent
+**Preflight Task 1, Candidate 3 verification.** Do not begin Preflight Task 2 until both independent
 verifiers approve the current candidate with zero BLOCKER/HIGH findings and the Task 1 gate is
 recorded.
 
@@ -168,4 +168,35 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Import repair: `START_HERE.md` and `HANDOFF_PACKAGE_MANIFEST.md` carry identical literal baseline
   import commands. Missing/ancestor repositories remain stop conditions; no agent receives
   authority to improvise the import.
-- Candidate 2 commit: pending final local verification.
+- Candidate 2 commit: `76f5ec42471e49c0b3f7c81a6e3bad91acf31b20`.
+- Candidate 2 fresh-execution review: PASS within the Task 1 execution scope, 0 BLOCKER / 0 HIGH.
+  From a detached checkout it observed 102 passing contracts, LF checkout state, handoff/source/
+  schema invariants, focused Ruff and mypy, compileall, a clean diff, and a clean worktree after the
+  single recorded Windows ACL retry.
+- Candidate 2 independent security/spec review rejected the candidate with two confirmed HIGH
+  trust-boundary classes: non-bare or continuation-split Git commands and chained mutations were
+  not fail-closed, and valid CommonMark list-contained shell fences were not scanned. No waiver was
+  accepted.
+
+### 2026-08-07 — Preflight Task 1 Candidate 3
+
+- Oracle ownership: the independent oracle changed only `tests/contract/test_handoff_package.py`;
+  the coordinator alone changed `tools/verify_handoff.py` and this status record.
+- RED 1: the focused oracle command produced 12 failures, 5 passes, and 70 deselections. Failures
+  covered Bash `g\\it`, adjacent quoted `git`, uppercase PowerShell `GIT`, a pipe before a second
+  Git mutation, Bash/PowerShell continuation splits, bullet/ordered/blockquote-list fences, a list
+  fence close boundary, and non-bare commit spellings.
+- GREEN 1: after fail-closed executable, chaining, continuation, and CommonMark-container handling,
+  all 17 oracle cases passed with 70 deselections.
+- RED 2: a coordinator-authored adversarial extension split `git` over three physical lines; both
+  Bash and PowerShell cases failed as expected (`2 failed, 87 deselected`).
+- GREEN 2: continuation folding was generalized across the entire chain. The expanded targeted run
+  passed all 19 cases with 70 deselections.
+- Regression: the combined root/handoff Task 1 command passed 121 tests in 12.38s on Python 3.12.8
+  after the one recorded Windows sandbox ACL retry. The first run's `WinError 5` occurred only in
+  pytest temporary-directory setup/cleanup and is not claimed as behavioral evidence.
+- Focused quality: Ruff reformatted only `tools/verify_handoff.py`; format check and lint then
+  passed for both changed Python files. Focused mypy passed for `tools/verify_handoff.py` with the
+  same explicit dependency traversal settings recorded for Candidate 2.
+- Candidate 3 commit: pending final local verification.
+- Final independent spec and fresh-execution reviews: pending. No BLOCKER/HIGH waiver is permitted.

@@ -214,7 +214,9 @@ def _should_scan_fence(label: str, block: list[tuple[int, str]]) -> bool:
         return True
     if label in INERT_FENCE_LABELS:
         return False
-    return any(_contains_git_command(line) for _, line in block)
+    return any(_contains_git_command(line) for _, line in block) or bool(
+        _continued_git_lines(block)
+    )
 
 
 def _strip_commonmark_blockquote_prefix(line: str) -> str:
@@ -225,15 +227,35 @@ def _strip_commonmark_blockquote_prefix(line: str) -> str:
     return normalized
 
 
+def _strip_commonmark_list_prefix(line: str) -> tuple[str, int]:
+    """Return list-item content and the indentation used by its fenced-code continuation."""
+    normalized = line
+    indentation = 0
+    marker = re.compile(r"^(?P<prefix> {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+)(?P<content>.*)$")
+    while match := marker.match(normalized):
+        indentation += len(match.group("prefix"))
+        normalized = match.group("content")
+    return normalized, indentation
+
+
+def _remove_container_indentation(line: str, indentation: int) -> str:
+    index = 0
+    while index < len(line) and index < indentation and line[index] in " \t":
+        index += 1
+    return line[index:]
+
+
 def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
     block: list[tuple[int, str]] = []
     in_fence = False
     fence_length = 0
     fence_character = ""
     label = ""
+    list_indentation = 0
     for line_number, source_line in enumerate(text.splitlines(), start=1):
-        line = _strip_commonmark_blockquote_prefix(source_line)
+        container_line = _strip_commonmark_blockquote_prefix(source_line)
         if not in_fence:
+            line, candidate_list_indentation = _strip_commonmark_list_prefix(container_line)
             match = re.fullmatch(
                 r" {0,3}(?P<fence>`{3,}|~{3,})(?P<info>[^\r\n]*)",
                 line,
@@ -243,8 +265,10 @@ def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
                 fence_length = len(match.group("fence"))
                 fence_character = match.group("fence")[0]
                 label = _fence_label(match.group("info"))
+                list_indentation = candidate_list_indentation
                 block = []
             continue
+        line = _remove_container_indentation(container_line, list_indentation)
         if re.fullmatch(
             rf" {{0,3}}{re.escape(fence_character)}{{{fence_length},}}[ \t]*",
             line,
@@ -255,6 +279,7 @@ def _shell_blocks(text: str) -> Iterator[tuple[tuple[int, str], ...]]:
             fence_length = 0
             fence_character = ""
             label = ""
+            list_indentation = 0
             block = []
             continue
         block.append((line_number, line))
@@ -285,6 +310,38 @@ def _git_token_indexes(line: str) -> tuple[int, ...]:
     if not tokens:
         return ()
     return tuple(index for index, token in enumerate(tokens) if _is_git_executable_token(token))
+
+
+def _continued_git_lines(
+    block: list[tuple[int, str]] | tuple[tuple[int, str], ...],
+) -> tuple[tuple[int, str], ...]:
+    continued: list[tuple[int, str]] = []
+    index = 0
+    while index < len(block) - 1:
+        line_number, line = block[index]
+        stripped = line.rstrip()
+        if not stripped.endswith(("\\", "`")):
+            index += 1
+            continue
+        combined = stripped[:-1]
+        chain_end = index
+        while chain_end + 1 < len(block):
+            chain_end += 1
+            next_line = block[chain_end][1].lstrip()
+            next_stripped = next_line.rstrip()
+            if next_stripped.endswith(("\\", "`")):
+                combined += next_stripped[:-1]
+                continue
+            combined += next_line
+            break
+        physical_git = any(
+            _contains_git_command(block[item_index][1])
+            for item_index in range(index, chain_end + 1)
+        )
+        if _contains_git_command(combined) and not physical_git:
+            continued.append((line_number, line.strip()))
+        index = chain_end + 1
+    return tuple(continued)
 
 
 def _contains_git_command(line: str) -> bool:
@@ -359,6 +416,8 @@ def _is_root_guard(line: str, *, require_clean_index: bool = False) -> bool:
 
 
 def _is_unsafe_git_invocation(line: str) -> bool:
+    if not re.match(r"^git[ \t]+", line):
+        return _contains_git_command(line)
     normalized = _detection_line(line)
     tokens = _shell_tokens(normalized)
     if not tokens:
@@ -370,9 +429,7 @@ def _is_unsafe_git_invocation(line: str) -> bool:
         return True
     if re.search(r"(?i)\bGIT_[A-Z0-9_]+\s*=", line):
         return True
-    if any(marker in line for marker in (";", "&&", "||", "`", "$(", "<", ">")):
-        return True
-    if line.rstrip().endswith("\\"):
+    if any(marker in line for marker in (";", "|", "&", "`", "$(", "<", ">", "\\", "(", ")")):
         return True
     if len(tokens) < 2 or tokens[1].startswith("-"):
         return True
@@ -420,7 +477,8 @@ def unguarded_git_block_lines(text: str) -> tuple[tuple[int, str], ...]:
     )
     for block in _shell_blocks(text):
         git_lines = [item for item in block if _contains_git_command(item[1])]
-        if not git_lines:
+        continued_git_lines = _continued_git_lines(block)
+        if not git_lines and not continued_git_lines:
             continue
         executable = [item for item in block if _is_executable_line(item[1])]
         mutation = any(_is_mutating_git_line(line) for _, line in git_lines)
@@ -429,6 +487,7 @@ def unguarded_git_block_lines(text: str) -> tuple[tuple[int, str], ...]:
             executable and _is_root_guard(executable[0][1].strip(), require_clean_index=True)
         )
         context_valid = first_is_guard and (not mutation or clean_guard)
+        violations.extend(continued_git_lines)
         for line_number, line in block:
             stripped = line.strip()
             if directory_change.search(stripped):

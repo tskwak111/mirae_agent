@@ -335,6 +335,90 @@ python tools/check_repo_root.py --expected-root .
     assert unguarded_git_block_lines(text) == ((3, command),)
 
 
+@pytest.mark.parametrize(
+    ("shell", "command"),
+    [
+        ("bash", r"g\it status --short"),
+        ("bash", "'g''it' status --short"),
+        ("powershell", "GIT status --short"),
+        ("powershell", "git.exe status --short"),
+    ],
+)
+def test_guarded_blocks_reject_nonbare_platform_git_spellings(shell: str, command: str) -> None:
+    text = f"""```{shell}
+python tools/check_repo_root.py --expected-root .
+{command}
+```
+"""
+
+    assert unguarded_git_block_lines(text) == ((3, command),)
+
+
+@pytest.mark.parametrize(
+    ("shell", "command"),
+    [
+        ("powershell", "git status | git update-ref refs/heads/main deadbeef"),
+        ("powershell", "git status; git update-ref refs/heads/main deadbeef"),
+        ("bash", "git status && git update-ref refs/heads/main deadbeef"),
+    ],
+)
+def test_guarded_blocks_reject_chained_second_git_mutations(shell: str, command: str) -> None:
+    text = f"""```{shell}
+python tools/check_repo_root.py --expected-root . --require-clean-index
+{command}
+```
+"""
+
+    assert unguarded_git_block_lines(text) == ((3, command),)
+
+
+@pytest.mark.parametrize(
+    ("shell", "first_line", "second_line"),
+    [
+        ("bash", "g\\", "it update-ref refs/heads/main deadbeef"),
+        ("powershell", "g`", "it update-ref refs/heads/main deadbeef"),
+    ],
+)
+def test_guarded_blocks_reject_git_split_across_shell_continuations(
+    shell: str, first_line: str, second_line: str
+) -> None:
+    text = f"""```{shell}
+python tools/check_repo_root.py --expected-root . --require-clean-index
+{first_line}
+{second_line}
+```
+"""
+
+    violations = unguarded_git_block_lines(text)
+
+    assert violations
+    assert violations[0][0] == 3
+
+
+@pytest.mark.parametrize(
+    ("shell", "continuation"),
+    [
+        ("bash", "\\"),
+        ("powershell", "`"),
+    ],
+)
+def test_guarded_blocks_reject_git_split_across_multiple_continuations(
+    shell: str, continuation: str
+) -> None:
+    text = f"""```{shell}
+python tools/check_repo_root.py --expected-root . --require-clean-index
+g{continuation}
+i{continuation}
+t update-ref refs/heads/main deadbeef
+```
+"""
+
+    violations = unguarded_git_block_lines(text)
+
+    assert violations
+    assert violations[0][0] == 3
+
+
 @pytest.mark.parametrize("directory_command", ["pushd ..", "popd"])
 def test_git_guard_is_invalidated_by_shell_directory_stack_changes(
     directory_command: str,
@@ -356,6 +440,36 @@ def test_commonmark_blockquote_shell_fence_is_scanned() -> None:
 
     assert tuple(line_number for line_number, _ in violations) == (2,)
     assert "git status --short" in violations[0][1]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "- ```bash\n  git status --short\n  ```\n",
+        "1. ```bash\n   git status --short\n   ```\n",
+        "> - ```bash\n>   git status --short\n>   ```\n",
+    ],
+)
+def test_commonmark_list_contained_shell_fences_are_scanned(text: str) -> None:
+    violations = unguarded_git_block_lines(text)
+
+    assert tuple(line_number for line_number, _ in violations) == (2,)
+    assert "git status --short" in violations[0][1]
+
+
+def test_commonmark_list_fence_closes_before_inert_root_fence() -> None:
+    text = """- ```bash
+  git status --short
+  ```
+
+```python
+git update-ref refs/heads/main deadbeef
+```
+"""
+
+    violations = unguarded_git_block_lines(text)
+
+    assert tuple(line_number for line_number, _ in violations) == (2,)
 
 
 def test_unsafe_git_commit_lines_requires_clean_index_and_exact_stage() -> None:
@@ -413,6 +527,27 @@ git commit {option} -m unsafe
 )
 def test_unsafe_git_commit_lines_rejects_noncanonical_commit_modes(command: str) -> None:
     text = f"""```bash
+python tools/check_repo_root.py --expected-root . --require-clean-index
+git add -- README.md
+git diff --cached --name-status --
+{command}
+```
+"""
+
+    assert unsafe_git_commit_lines(text) == ((5, command),)
+
+
+@pytest.mark.parametrize(
+    ("shell", "command"),
+    [
+        ("bash", r"g\it commit -m unsafe"),
+        ("bash", "'g''it' commit -m unsafe"),
+        ("powershell", "GIT commit -m unsafe"),
+        ("powershell", "git.exe commit -m unsafe"),
+    ],
+)
+def test_commit_gate_rejects_nonbare_platform_git_spellings(shell: str, command: str) -> None:
+    text = f"""```{shell}
 python tools/check_repo_root.py --expected-root . --require-clean-index
 git add -- README.md
 git diff --cached --name-status --
