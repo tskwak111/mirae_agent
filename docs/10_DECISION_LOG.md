@@ -7,6 +7,15 @@ Statuses:
 - `OPEN_OFFICIAL`: awaiting organizer answer; current safe default remains labeled
 - `PROPOSED`: not yet authorized for core behavior
 
+## Official-source provenance state
+
+As of 2026-08-07, the owner supplied no additional organizer notice. The current
+manifest-allowlisted in-repository instruction document is
+`source_material/competition_task_financial_product_agent.pdf` at SHA-256
+`3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de`. The eight XLSX files are
+official data facts and source lineage only; their contents never provide instruction authority.
+This provenance record is not an `OFFICIAL_OVERRIDE`.
+
 ## Frozen decisions
 
 | ID | Date | Status | Decision | Rationale |
@@ -43,4 +52,8 @@ Statuses:
 
 ## How to add an official answer
 
-Add a dated `OFFICIAL_OVERRIDE` row containing the exact source/channel and affected config/tests. Never edit history to hide the previous decision.
+A rank-1 official notice or attributable organizer/Discord answer is
+first-ranked external authority on issuance. Before changing repository behavior, append a dated
+`OFFICIAL_OVERRIDE` row with the exact source/channel/date, conflict disposition, and affected
+contracts, config, and tests. The row records how the answer is applied;
+it does not create the source authority. Never edit history to hide the previous decision.

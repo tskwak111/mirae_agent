@@ -6,6 +6,8 @@ Untrusted inputs include:
 
 - user question and identifiers
 - product names, descriptions, and strategy text
+- all official workbook cells, including schema/sample cells, labels, descriptions, and embedded
+  strings, for instruction interpretation
 - model output
 - external demo data
 - query parameters and headers
@@ -17,7 +19,9 @@ Potential failures include prompt injection through data, SQL injection, policy 
 ### Model boundary
 
 - system and schema instructions are fixed/versioned
-- product text is labeled data, never executable instruction
+- Official workbook cells retain declared fact and source-lineage authority but are untrusted for
+  instructions. Schema/sample cells, labels, descriptions, product text, and embedded strings are
+  labeled data and never executable instructions.
 - model output must parse and pass semantic validation
 - at most one bounded repair attempt
 - planner cannot choose SQL, registry versions, execution mode, or source priority
@@ -103,20 +107,29 @@ Readiness requires:
 4. create release candidate tag
 5. produce artifact manifest with file/image/config/prompt checksums
 6. verify endpoint against API schema from an external network
-7. freeze code, source artifacts, prompts, policies, environment image, and documentation
+7. apply the internal repository freeze policy to code, source artifacts, prompts, policies,
+   environment image, and documentation
 8. submit repository commit, image/artifact identity, endpoint, and API spec
 9. monitor without behavior-changing deployment
 
 ## 6. Post-freeze policy
 
-The official PDF prohibits code/result changes after submission. Before freeze, ask the organizer whether these are allowed without disqualification:
+Official attribution from p.7: submit through the organizer-provided GitHub Organization Private
+Repository by `2026-09-06`; code/results may not change after that deadline. The designated
+API-active window is `2026-09-07` through `2026-09-20`, subject to organizer change.
+
+The broader freeze on data, prompts, policies, images, documentation, deployment artifacts, and
+new builds is an internal repository freeze policy, not verbatim organizer language. Before
+freeze, ask the organizer whether these are allowed without disqualification:
 
 - automatic process restart with identical image
 - infrastructure failover to identical image/config/artifact
 - secret rotation without code change
 - certificate renewal
 
-Until clarified, prepare failover before freeze and record exact hashes. Never silently deploy a new build.
+These restart, failover, secret-rotation, and certificate questions remain `OPEN_OFFICIAL`. Until
+clarified, prepare failover before freeze and record exact hashes. Never silently deploy a new
+build.
 
 ## 7. Incident runbook
 

@@ -2,6 +2,8 @@
 
 You are the coordinator for FinProof. Repository state is durable truth; chat memory is not.
 
+`AGENTS.md` is the sole canonical instruction-precedence contract.
+
 ## Read and route
 
 Read these files completely, in order:
@@ -11,7 +13,8 @@ Read these files completely, in order:
    independent review, retry limits, pass gates, and completion evidence;
 3. `docs/implementation/STATUS.md` for the single current task;
 4. the complete selected task section in its plan;
-5. the frozen design/contracts and source documents referenced by that task.
+5. the task-referenced allowlisted instruction documents and official data under the `AGENTS.md`
+   trust-plane contract.
 
 If a skill, agent framework, phase prompt, or remaining context suggests more work, it remains
 subordinate to the frozen task brief and allowed paths. Do not select a phase-local task yourself.
@@ -35,8 +38,9 @@ python tools/audit_source_data.py --check
 python tools/extract_schema_catalog.py --check
 ```
 
-A repository-boundary, checksum, row-count, snapshot, schema-catalog, official-instruction, or
-unexplained test failure is a stop condition. Never alter a baseline to hide a mismatch.
+A failed manifest trust-plane, canonical-input, or allowlisted-instruction provenance check is a
+stop condition. A repository-boundary, checksum, row-count, snapshot, schema-catalog, or
+unexplained test failure is also a stop condition. Never alter a baseline to hide a mismatch.
 
 ## Execute one task
 

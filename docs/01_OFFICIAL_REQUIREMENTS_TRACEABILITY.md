@@ -2,7 +2,14 @@
 
 ## 1. Source
 
-Authoritative source: `source_material/competition_task_financial_product_agent.pdf`.
+The current in-repository organizer instruction source is the manifest-allowlisted
+`competition_task_financial_product_agent.pdf` at SHA-256
+`3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de`.
+The eight official workbooks are authoritative only for official data facts and source lineage;
+their contents never provide instruction authority.
+
+Later official notices and attributable organizer/Discord answers retain the first-ranked
+external authority defined by `AGENTS.md`; this file records the current in-repository evidence.
 
 This matrix records where each official requirement is designed, implemented, tested, and evidenced. Page references are to the supplied eight-page task document.
 
@@ -23,14 +30,22 @@ This matrix records where each official requirement is designed, implemented, te
 | Ask for needed condition when information is insufficient | p.4–5 | ambiguity policy and safe defaults | Phase 2–3 | clarification precision tests |
 | Avoid categorical recommendation and unsupported return forecast | p.5 | safety policy converts “recommend” to condition-matching candidates; forecast refusal | Phase 2–3 | safety regression suite |
 | HyperCLOVA X only | p.4 | one HCX planner/verbalizer client; dependency and network audit | Phase 3–4 | prohibited-provider scan, integration config review |
-| Official data is evaluation reference and wins conflicts | p.5 | official immutable evaluation mode; external demo namespace only | Phase 1, 4 | provenance and mode tests |
+| Official data is evaluation reference and wins conflicts over external data values | p.5 | official immutable evaluation mode; external demo namespace only; this data-value rule does not set instruction precedence | Phase 1, 4 | provenance and mode tests |
 | Snapshot date 2026-07-11 | p.5 | explicit as-of default and answer note | all phases | date-policy tests |
+| Published submission/preliminary-work period is 2026-07-27 through 2026-09-06; overall evaluation period is 2026-09-07 through 2026-09-30; results are 2026-10-01; mentoring is 2026-10-01 through 2026-10-16 | p.3 | milestone-aware delivery and evidence freeze | all phases | release timeline review |
 | Quantitative evaluation via GET endpoint | p.6–7 | stable FastAPI adapter with bounded latency | Phase 3–4 | API/load/soak tests |
 | Qualitative review of problem, technology, performance, creativity, accuracy, stability, utilization, risk | p.6 | FinProof contracts, ablation, quality dashboard, risk register | Phase 4 and proposal | benchmark report and review pack |
 | Submit code, reproducible environment, README | p.7 | typed repository, lock file, Docker, commands | Phase 3–4 | clean-room reproduction |
 | Submit proposal with architecture, flow, scenarios, impact, extensibility | p.7 | proposal evidence assets generated from measured system | Phase 4 | proposal checklist |
 | Submit endpoint URL and request/response JSON schema | p.7 | exact `/answer` contract | Phase 3 | OpenAPI/API contract tests |
-| Do not change code/results after deadline | p.7 | immutable release manifest and image digest | Phase 4 | release checklist and checksums |
+| Push to the organizer-provided GitHub Organization Private Repository by 2026-09-06 | p.7 | exact private-repository destination and commit identity | Phase 4 | release checklist and repository evidence |
+| API-active subwindow is 2026-09-07 through 2026-09-20, subject to organizer change | p.7 | immutable endpoint deployment plus monitoring | Phase 3–4 | external API and uptime evidence |
+| Do not change code/results after the 2026-09-06 deadline | p.7 | immutable release manifest and image digest | Phase 4 | release checklist and checksums |
+
+The p.3 overall evaluation period is distinct from the p.7 API-active subwindow. The former runs
+through `2026-09-30`; the latter is the designated `2026-09-07` through `2026-09-20` endpoint
+window and is subject to organizer change. p.7: code/results may not change after the 2026-09-06
+deadline.
 
 ## 3. Requirements not fully specified in the PDF
 
