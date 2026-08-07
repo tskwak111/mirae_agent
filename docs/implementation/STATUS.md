@@ -336,3 +336,16 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Required RED: a CMD fenced block containing exact guard, standalone `# & cd ..`, and direct Git
   must initially escape both public diagnostics. The oracle alone owns the test edit; the
   coordinator alone owns production/docs/status and Git actions.
+- Frozen-brief checkpoint: `1f28305e1c188c1b399a46d7accff6b209dc6c5f`.
+- Oracle RED: the one new focused test failed as intended (`1 failed, 128 deselected in 0.44s`)
+  because `unsafe_git_context_lines` returned empty instead of line 3; the later unguarded-Git
+  assertion for line 4 was also frozen in the test. The oracle changed only
+  `tests/contract/test_handoff_package.py`; its Ruff format/check and diff check passed.
+- Minimal GREEN: `_is_executable_line` now exempts only blank lines. The focused rerun passed
+  (`1 passed, 128 deselected in 0.17s`) and the complete Task 1 contract rerun passed
+  (`161 passed in 12.90s`).
+- Local gates: handoff PASS with 69 required files, nine official inputs, and 41,384,928 source
+  bytes; source audit PASS with 145,393 rows at snapshot 2026-07-11; schema catalog PASS with 207
+  columns; Ruff format/check, focused mypy, compileall, and exact brief-hash checks passed.
+- Candidate 3 implementation commit and both final independent reviews: pending. Task 1 is not
+  accepted and Task 2 remains unauthorized.

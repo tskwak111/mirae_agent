@@ -947,6 +947,18 @@ git status --short
     assert unguarded_git_block_lines(text) == ((3, "git status --short"),)
 
 
+def test_cmd_standalone_hash_line_invalidates_guarded_context() -> None:
+    text = """```cmd
+python tools/check_repo_root.py --expected-root .
+# & cd ..
+git status --short
+```
+"""
+
+    assert unsafe_git_context_lines(text) == ((3, "# & cd .."),)
+    assert unguarded_git_block_lines(text) == ((4, "git status --short"),)
+
+
 def test_bash_brace_expanded_commit_is_rejected_by_public_diagnostics() -> None:
     command = "git commit -m {safe,--all}"
     text = f"""```bash

@@ -473,7 +473,7 @@ def _is_mutating_git_line(line: str) -> bool:
 
 def _is_executable_line(line: str) -> bool:
     stripped = line.strip()
-    return bool(stripped and not stripped.startswith("#"))
+    return bool(stripped)
 
 
 def unsafe_git_stage_lines(text: str) -> tuple[tuple[int, str], ...]:
