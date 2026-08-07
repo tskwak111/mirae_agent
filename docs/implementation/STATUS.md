@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-08 — Preflight Task 1 accepted after the bounded single-quote retry and
-two independent final reviews. Preflight Task 2 is selected but has not begun.
+**Last updated:** 2026-08-08 — Preflight Task 2 execution brief, role separation, approved Python
+identity, and pre-candidate global diagnostic baseline frozen; independent oracle RED is next.
 
 ## Frozen baseline
 
@@ -71,9 +71,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 2, Step 1:** write the RED input-manifest trust-plane tests that separate
-`official_instruction` from `official_data`. This task is selected but was not begun in the Task 1
-retry session.
+**Preflight Task 2, Task 2 Step 1:** create the independent RED input-manifest trust-plane oracle
+that separates `official_instruction` from `official_data`. Task 2 remains selected; Task 3 has not
+begun.
 
 ## Handoff validation record — not production implementation
 
@@ -454,3 +454,334 @@ See `docs/13_HANDOFF_VALIDATION_REPORT.md`. These checks validate the handoff pa
 - Accepted final findings: none. Remaining Task 1-specific BLOCKER/HIGH/MEDIUM/LOW counts are
   0/0/0/0. The overall Preflight gate remains open because Tasks 2-5 are still incomplete; no
   Task 2 code, private GitHub repository, remote, push, tag, or release action occurred here.
+
+### 2026-08-08 — Preflight Task 2 frozen execution brief
+
+<!-- TASK2_CANONICAL_BRIEF_START -->
+Task ID: `Preflight Task 2` — separate official instruction authority from official data trust.
+
+- Plan: `docs/superpowers/plans/2026-08-08-preflight-task2-trust-plane.md`.
+- Approved primary specification: commit
+  `42f67c3aafae7866a80b98c81bcddf93752599ae`, SHA-256
+  `86bfa8475a36ec4e782d9e4d2fd9b3b58f7e112d0d34e2d57dc953c6e230d37d`; owner reply:
+  `written spec 승인`.
+- Approved gate amendment: commit `476b56b6568a3b5fdd4196fc05ae9108896e9ad2`, SHA-256
+  `1f7c31bd723552dcb1e3a58ae5eb0c1460f9802bb9ff57d5066d687a45d9d0ec`; owner reply:
+  `amendment written spec 승인`.
+- Immutable candidate lower-bound plan checkpoint `P`:
+  `19d912fad38ab007e4ccf804e0fbf0f72e9b79aa`; committed plan-file SHA-256:
+  `38a71cc5ec6322cbd54dd26e2476557ac6fec897100f6259b90dee7147a55fbc`.
+- Branch: `codex/preflight-safety`; absolute worktree:
+  `C:\Users\ss020\바탕 화면\mirae_agent\.worktrees\preflight-safety`.
+- Approved interpreter:
+  `C:\Users\ss020\바탕 화면\mirae_agent\.worktrees\preflight-safety\.venv\Scripts\python.exe`,
+  Python `3.12.8`. Task 2 installs no package and changes no dependency or lock file.
+- Risk: `HIGH — instruction authority and source integrity`.
+- Candidate-owned paths, exactly thirteen:
+  `schemas/input_manifest.schema.json`, `tests/contract/test_instruction_authority.py`,
+  `source_material/input_manifest.json`, `source_material/README.md`, `AGENTS.md`,
+  `CODEX_MASTER_PROMPT.md`, `docs/08_SECURITY_OPERATIONS_AND_RELEASE.md`,
+  `docs/01_OFFICIAL_REQUIREMENTS_TRACEABILITY.md`, `docs/10_DECISION_LOG.md`,
+  `tools/create_input_manifest.py`, `tools/verify_handoff.py`, `HANDOFF_PACKAGE_MANIFEST.md`, and
+  `docs/implementation/STATUS.md`.
+- Roles: oracle `/root/task2_oracle` writes only the authority test; implementer
+  `/root/task2_implementer` writes only schema, manifest, generator, verifier, and source README;
+  coordinator `/root` alone writes shared authority documents, handoff, status, stages, and
+  commits; specification verifier `/root/task2_spec_verifier` and execution verifier
+  `/root/task2_execution_verifier` are read-only, with execution verification in a fresh detached
+  worktree.
+- Non-goals: no workbook byte, source hash, size, row count, snapshot, or schema-catalog change;
+  no financial normalization, metric, product, planner, answer, API, HCX, or runtime behavior; no
+  instruction invented from workbook content; no personal or organizer GitHub remote,
+  repository, push, PR, tag, release, or deployment; no `pyproject.toml`, dependency-order,
+  `START_HERE.md`, or Preflight Task 3 change.
+- RED command: `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q`; the frozen oracle target is 21 behavioral
+  failures and three positive controls, with no collection/import/infrastructure failure counted
+  as RED.
+- Focused GREEN commands: `.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+  tests\contract\test_instruction_authority.py -q` and `.venv\Scripts\python.exe -m pytest -p
+  no:cacheprovider tests\contract\test_instruction_authority.py
+  tests\contract\test_handoff_package.py -q`.
+- Full-repository Task 2 hard gate: `.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q`.
+- Adversarial contract gate: the complete authority and handoff contract command above, including
+  malformed structure, path alias, kind swap, PDF hash/plane, workbook promotion, bootstrap, and
+  provenance cases.
+- Handoff commands: `.venv\Scripts\python.exe -S -B tools\verify_handoff.py` and
+  `.venv\Scripts\python.exe -B tools\verify_handoff.py`; source command:
+  `.venv\Scripts\python.exe -B tools\audit_source_data.py --check`; schema-catalog command:
+  `.venv\Scripts\python.exe -B tools\extract_schema_catalog.py --check`.
+- Task-owned quality commands: `.venv\Scripts\python.exe -m ruff format --check
+  tools\create_input_manifest.py tools\verify_handoff.py
+  tests\contract\test_instruction_authority.py`; `.venv\Scripts\python.exe -m ruff check
+  tools\create_input_manifest.py tools\verify_handoff.py
+  tests\contract\test_instruction_authority.py`; `.venv\Scripts\python.exe -m mypy
+  tools\create_input_manifest.py tools\verify_handoff.py --follow-imports=skip
+  --ignore-missing-imports`; and `.venv\Scripts\python.exe -m compileall -q
+  tools\create_input_manifest.py tools\verify_handoff.py
+  tests\contract\test_instruction_authority.py`.
+- Pre-Task-5 diagnostics, recorded but never called PASS: `.venv\Scripts\python.exe -m ruff
+  format --check .`, `.venv\Scripts\python.exe -m ruff check .`, and
+  `.venv\Scripts\python.exe -m mypy src tests tools --no-incremental`.
+- Retry budget: Candidate 1, at most one technically justified Candidate 2 and one final targeted
+  Candidate 3; only one infrastructure retry. Any remaining BLOCKER/HIGH after Candidate 3 blocks
+  Task 2.
+- Acceptance: exact thirteen-path scope, all task-local hard gates and source invariants observed,
+  and zero BLOCKER/HIGH from both independent final verifiers. Keep Task 2 selected until that
+  evidence exists; do not begin Task 3.
+
+GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
+<!-- TASK2_CANONICAL_BRIEF_END -->
+Task 2 canonical brief SHA-256: `5972dedc1cb70e954cc0eb5d57a05f8d13cb9aa5da3b0747d5de5601e61e7788`
+
+The three repository-wide diagnostics below all exited `1`. These are observed Preflight Task 5
+debt, not PASS results. Ruff emitted 31 raw lint findings which normalize to 21 unique
+`(path, code, message)` tuples; line-only duplicates are intentionally collapsed.
+
+<!-- TASK2_GLOBAL_DIAGNOSTIC_BASELINE_START -->
+```json
+{
+    "ruff_format":  {
+                        "command":  ".venv\\Scripts\\python.exe -m ruff format --check .",
+                        "exit_code":  1,
+                        "findings":  [
+                                         [
+                                             "src/finproof/__init__.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tests/__init__.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tests/contract/__init__.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tools/__init__.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tools/audit_source_data.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tools/create_input_manifest.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tools/extract_schema_catalog.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ],
+                                         [
+                                             "tools/xlsx_stream.py",
+                                             "FORMAT",
+                                             "would be reformatted"
+                                         ]
+                                     ],
+                        "raw_count":  8,
+                        "count":  8,
+                        "failing_paths":  [
+                                              "src/finproof/__init__.py",
+                                              "tests/__init__.py",
+                                              "tests/contract/__init__.py",
+                                              "tools/__init__.py",
+                                              "tools/audit_source_data.py",
+                                              "tools/create_input_manifest.py",
+                                              "tools/extract_schema_catalog.py",
+                                              "tools/xlsx_stream.py"
+                                          ]
+                    },
+    "ruff_lint":  {
+                      "command":  ".venv\\Scripts\\python.exe -m ruff check .",
+                      "exit_code":  1,
+                      "findings":  [
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "E501",
+                                           "Line too long (103 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "E501",
+                                           "Line too long (105 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "E501",
+                                           "Line too long (110 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "E501",
+                                           "Line too long (111 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "E501",
+                                           "Line too long (118 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "I001",
+                                           "Import block is un-sorted or un-formatted"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "SIM102",
+                                           "Use a single `if` statement instead of nested `if` statements"
+                                       ],
+                                       [
+                                           "tools/audit_source_data.py",
+                                           "SIM103",
+                                           "Return the negated condition directly"
+                                       ],
+                                       [
+                                           "tools/create_input_manifest.py",
+                                           "E501",
+                                           "Line too long (103 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/create_input_manifest.py",
+                                           "E501",
+                                           "Line too long (163 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/create_input_manifest.py",
+                                           "E501",
+                                           "Line too long (183 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/create_input_manifest.py",
+                                           "E501",
+                                           "Line too long (184 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/create_input_manifest.py",
+                                           "E501",
+                                           "Line too long (186 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/extract_schema_catalog.py",
+                                           "C416",
+                                           "Unnecessary dict comprehension (rewrite using `dict()`)"
+                                       ],
+                                       [
+                                           "tools/extract_schema_catalog.py",
+                                           "E501",
+                                           "Line too long (106 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/extract_schema_catalog.py",
+                                           "E501",
+                                           "Line too long (107 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/extract_schema_catalog.py",
+                                           "E501",
+                                           "Line too long (112 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/extract_schema_catalog.py",
+                                           "E501",
+                                           "Line too long (122 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/xlsx_stream.py",
+                                           "E501",
+                                           "Line too long (103 \u003e 100)"
+                                       ],
+                                       [
+                                           "tools/xlsx_stream.py",
+                                           "I001",
+                                           "Import block is un-sorted or un-formatted"
+                                       ],
+                                       [
+                                           "tools/xlsx_stream.py",
+                                           "S314",
+                                           "Using `xml` to parse untrusted data is known to be vulnerable to XML attacks; use `defusedxml` equivalents"
+                                       ]
+                                   ],
+                      "raw_count":  31,
+                      "count":  21,
+                      "failing_paths":  [
+                                            "tools/audit_source_data.py",
+                                            "tools/create_input_manifest.py",
+                                            "tools/extract_schema_catalog.py",
+                                            "tools/xlsx_stream.py"
+                                        ]
+                  },
+    "mypy":  {
+                 "command":  ".venv\\Scripts\\python.exe -m mypy src tests tools --no-incremental",
+                 "exit_code":  1,
+                 "findings":  [
+                                  [
+                                      "tools/audit_source_data.py",
+                                      "import-not-found",
+                                      "Cannot find implementation or library stub for module named \"xlsx_stream\" "
+                                  ],
+                                  [
+                                      "tools/audit_source_data.py",
+                                      "no-redef",
+                                      "Name \"iter_table_dicts\" already defined (possibly by an import) "
+                                  ],
+                                  [
+                                      "tools/create_input_manifest.py",
+                                      "operator",
+                                      "Unsupported operand types for / (\"Path\" and \"object\") "
+                                  ],
+                                  [
+                                      "tools/extract_schema_catalog.py",
+                                      "dict-item",
+                                      "Dict entry 5 has incompatible type \"str\": \"int\"; expected \"str\": \"str\" "
+                                  ],
+                                  [
+                                      "tools/extract_schema_catalog.py",
+                                      "import-not-found",
+                                      "Cannot find implementation or library stub for module named \"xlsx_stream\" "
+                                  ],
+                                  [
+                                      "tools/extract_schema_catalog.py",
+                                      "no-redef",
+                                      "Name \"iter_sheet_rows\" already defined (possibly by an import) "
+                                  ],
+                                  [
+                                      "tools/verify_handoff.py",
+                                      "import-not-found",
+                                      "Cannot find implementation or library stub for module named \"extract_schema_catalog\" "
+                                  ],
+                                  [
+                                      "tools/verify_handoff.py",
+                                      "import-not-found",
+                                      "Cannot find implementation or library stub for module named \"xlsx_stream\" "
+                                  ],
+                                  [
+                                      "tools/verify_handoff.py",
+                                      "no-redef",
+                                      "Name \"build_catalog\" already defined (possibly by an import) "
+                                  ],
+                                  [
+                                      "tools/verify_handoff.py",
+                                      "no-redef",
+                                      "Name \"list_sheet_names\" already defined (possibly by an import) "
+                                  ]
+                              ],
+                 "raw_count":  10,
+                 "count":  10,
+                 "failing_paths":  [
+                                       "tools/audit_source_data.py",
+                                       "tools/create_input_manifest.py",
+                                       "tools/extract_schema_catalog.py",
+                                       "tools/verify_handoff.py"
+                                   ]
+             }
+}
+```
+<!-- TASK2_GLOBAL_DIAGNOSTIC_BASELINE_END -->
