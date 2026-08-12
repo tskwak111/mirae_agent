@@ -72,7 +72,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Preflight Task 3, Step 1 — Write RED typed-contract tests.** Task 3 has not begun.
+**Preflight Task 3 planning checkpoint — review and commit the dated execution plan after owner
+approval.** The written design is frozen; production/model implementation and RED-oracle work have
+not begun.
 
 ## Handoff validation record — not production implementation
 
@@ -1076,3 +1078,45 @@ GLOBAL QUALITY GATE PENDING — PREFLIGHT TASK 5
 This disposition does **not** claim that repository-wide Ruff/mypy, `uv`/lock reproducibility, the
 complete Preflight, production readiness, competition readiness, AAA quality, or global cleanliness
 has passed.
+
+### 2026-08-09 — Preflight Task 3 written-design freeze and implementation plan
+
+- Frozen written design:
+  `docs/superpowers/specs/2026-08-08-preflight-task3-evaluation-control-plane-design.md`.
+- Frozen design SHA-256:
+  `99aba03d8d5d44705af87159908963296bcc13baee4453bb8dc7b8dfb2fbb44c`.
+- Candidate base remains `2cdf70bbeb55ee7b7175ca48fe9637c027d7e61f` on
+  `codex/preflight-safety`.
+- The repository owner selected D-017 delayed historical Phase-4 replay: Phase-2/Phase-3
+  checkpoints pin candidate bytes and provenance, Phase-2 output neither guides nor gates Phase 3,
+  and Phase 4 replays both pinned candidates in order before release readiness.
+- Three independent reviewers verified the same frozen design hash. Governance/scope,
+  crypto/privacy, and adversarial/schema reviews each returned `BLOCKER=0` and `HIGH=0`.
+- Dated implementation plan:
+  `docs/superpowers/plans/2026-08-08-preflight-task3-evaluation-control-plane.md`.
+- Plan SHA-256:
+  `b4a7c02f6dc1ba3a2dddd080a999fa8bbe9b627cda8664d52769094ad84fc2d3`.
+- The plan divides work into independently reviewable P0/P1/S/M0/M1/C/G/K0-K5/X/H
+  checkpoints and requires focused RED, observed intended failure, minimal GREEN, regression, and
+  exact-path commit at each checkpoint.
+- The same three reviewers independently verified plan SHA-256
+  `b4a7c02f6dc1ba3a2dddd080a999fa8bbe9b627cda8664d52769094ad84fc2d3` after its
+  RED-ordering/ownership corrections; each returned `BLOCKER=0` and `HIGH=0`.
+- Observed plan/repository checks: `git diff --check` exited `0` with only the existing
+  `PHASE_GATES.md` CRLF-to-LF warning; the plan-specific Git-workflow routing test passed `1/1`;
+  the final repository-local-basetemp run passed all `196` tests in `15.41s`; source audit passed
+  `145,393` rows at snapshot `2026-07-11`; normal and dependency-free handoff checks both passed
+  `77` required files, `9` official inputs, and `41,384,928` source bytes. The first default-temp
+  full-suite run was `194 passed / 2 failed` because those two tests require `tmp_path` below the
+  repository root; rerunning with the repository-local `.p` basetemp exercised the intended path
+  contract and passed. Both exact test-created temporary directories were removed afterward.
+- Fresh repository-wide diagnostics remain observed non-PASS and were not changed in this
+  documentation-only checkpoint: Ruff format would reformat seven baseline files; Ruff lint reports
+  22 baseline findings; mypy reports nine baseline findings across three tools.
+- No schema, model, seed, coverage, control-plane, source, dependency, runtime, or production code
+  was implemented. No staging or commit was performed; all preserved design/reconciliation edits
+  remain in the working tree.
+
+**Exact next task:** after explicit owner approval, review and commit only the P0 plan/STATUS
+checkpoint, then execute P1 handoff registration. Do not begin P1 or any implementation before that
+approval.

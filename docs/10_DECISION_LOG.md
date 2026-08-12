@@ -36,6 +36,7 @@ This provenance record is not an `OFFICIAL_OVERRIDE`.
 | D-014 | 2026-08-07 | FROZEN | DuckDB + Parquet default runtime data architecture | small read-heavy snapshot and reproducibility |
 | D-015 | 2026-08-07 | FROZEN | evaluation mode has no live external data | stable official-reference answers |
 | D-016 | 2026-08-07 | FROZEN | `think_trace` is execution/tool summary | reproducible, bounded, safe output |
+| D-017 | 2026-08-09 | FROZEN | Phase-2/Phase-3 named checkpoints pin candidate bytes and provenance; locked results are produced only by ordered historical replay in Phase 4 and never guide or gate Phase 3 | preserves checkpoint identity and evaluation independence without silently introducing pre-Phase-4 runner/custody; official instructions still override |
 
 ## Open official questions
 

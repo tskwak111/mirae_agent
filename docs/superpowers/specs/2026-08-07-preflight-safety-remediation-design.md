@@ -160,7 +160,9 @@ The decision log records that no additional organizer notice was supplied as of 
 Evaluation assets are separated into:
 
 - **open regression:** visible during implementation and rerun continuously;
-- **locked validation:** visible results only at named checkpoints;
+- **locked validation:** the named Phase-2/Phase-3 checkpoints pin candidate bytes and provenance;
+  under frozen decision `D-017`, locked results are produced only by ordered historical replay in
+  Phase 4, remain unavailable during Phase 2/3, and never guide or gate Phase 3;
 - **sealed holdout:** human-curated truth unavailable to implementers until the release candidate
   freezes prompt, model, config, schema, and code hashes.
 

@@ -75,6 +75,12 @@ All must pass:
 
 All must pass:
 
+- frozen decision `D-017`: Phase-2/Phase-3 checkpoint candidate bytes and provenance were pinned
+  without exposing locked results, and Phase 4 replayed those exact candidates in policy order with
+  proof that no Phase-2 result guided or gated Phase 3
+- after both locked reports, immutable `phase4_evaluation_complete_candidate` commit `G0` and both
+  final repository-order witnesses exist; submission readiness consumes `G0`/those witnesses, and the
+  successful gate evidence is recorded only afterward in descendant `G1`
 - 250–300 reviewed canonical golden cases or an explicitly approved lower number with full category coverage
 - actual planner/product/order/numeric/evidence/stability metrics reported
 - all critical regressions pass

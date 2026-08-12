@@ -19,6 +19,8 @@
 - No benchmark result is invented or manually edited.
 - No post-freeze behavior change.
 - Strict TDD applies to harness and release tooling.
+- Frozen decision `D-017` applies: Phase-2/Phase-3 checkpoints pin bytes/provenance only; Phase 4
+  replays both exact candidates in policy order, and no Phase-2 locked result may guide or gate Phase 3.
 
 ---
 
@@ -473,6 +475,12 @@ No manually typed benchmark number without a reproducible source path.
 
 - [ ] **Step 5: Run the final release gate**
 
+After both ordered locked replays and reports, create immutable
+`phase4_evaluation_complete_candidate` commit `G0`, construct both final repository-order witnesses
+through `G0`, and run submission readiness against exactly those inputs. Do not feed a future gate
+commit into its own validation. Only after the gate succeeds may its evidence be recorded in descendant
+`G1`.
+
 ```bash
 uv run ruff format --check .
 uv run ruff check .
@@ -494,6 +502,9 @@ Run the final load and soak reports against the submitted endpoint candidate.
 Create the release commit/tag only with a clean worktree. Record:
 
 ```text
+phase4 evaluation-complete candidate commit G0
+final repository-order witness hashes
+phase4 gate-evidence descendant commit G1
 submission commit
 tag
 Docker image digest
