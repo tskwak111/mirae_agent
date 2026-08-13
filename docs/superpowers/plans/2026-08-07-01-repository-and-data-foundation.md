@@ -195,6 +195,11 @@ git commit -m "feat: bootstrap typed FinProof core and CLI"
 > **Approved detailed plan:** `docs/superpowers/plans/2026-08-13-phase1-task2-source-ingestion.md`
 >
 > D-017 supersedes the legacy path-based reader examples below. Production ingestion must use `VerifiedSourceFile`, and the complete raw lineage includes manifest-relative file, table, sheet, Excel row/column, verified checksum, dataset snapshot, raw payload/value, and an explicit optional cell applicable date. Execute and track the approved detailed plan; do not implement `iter_xlsx_rows(path, table_id, sheet_name)`.
+>
+> D-020 records the final-review hardening: catalog mappings are deeply immutable;
+> malformed metadata/path failures are safely typed; every parsed XML part rejects
+> declarations and ambiguous roots/direct metadata; and D-019 target validation applies
+> before and after decoding with canonical round-tripping before ZIP access.
 
 **Files:**
 - Create: `src/finproof/data/__init__.py`

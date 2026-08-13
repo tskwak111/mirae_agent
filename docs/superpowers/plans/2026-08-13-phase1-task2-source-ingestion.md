@@ -461,7 +461,7 @@ def test_manifest_rejects_unknown_fields(tmp_path: Path) -> None:
     assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
 ```
 
-Add one focused mutation test each for catalog unknown fields, manifest snapshot mismatch, catalog snapshot mismatch, duplicate/missing data table, duplicate/missing schema table, PDF count other than one, manifest/catalog column-count disagreement, and duplicate/blank catalog headers.
+Add one focused mutation test each for catalog unknown fields, manifest snapshot mismatch, catalog snapshot mismatch, duplicate/missing data table, duplicate/missing schema table, PDF count other than one, manifest/catalog column-count disagreement, and duplicate/blank catalog headers. Also prove that invalid UTF-8 in either JSON file maps to the correct safe error code/text; validated catalog table replacement and nested sample-map item assignment raise `TypeError`; verified header tuples cannot be changed; and `model_dump(mode="json")` emits an ordered ordinary mapping that revalidates into the immutable representation.
 
 - [x] **Step 3: Run strict-load tests and confirm RED**
 
@@ -532,12 +532,35 @@ class CatalogTable(StrictModel):
     axis_warning: str
     column_count: int = Field(gt=0)
     columns: tuple[CatalogColumn, ...]
+    sample: Mapping[str, str] = Field(default_factory=dict, validate_default=True)
+
+    @field_validator("sample", mode="after")
+    @classmethod
+    def freeze_sample(cls, value: Mapping[str, str]) -> Mapping[str, str]:
+        return MappingProxyType(dict(value))
+
+    @field_serializer("sample")
+    def serialize_sample(self, value: Mapping[str, str]) -> dict[str, str]:
+        return dict(value)
 
 
 class SourceSchemaCatalog(StrictModel):
     catalog_version: str
     snapshot_date: date
-    tables: dict[str, CatalogTable]
+    tables: Mapping[str, CatalogTable]
+
+    @field_validator("tables", mode="after")
+    @classmethod
+    def freeze_tables(
+        cls, value: Mapping[str, CatalogTable]
+    ) -> Mapping[str, CatalogTable]:
+        return MappingProxyType(dict(value))
+
+    @field_serializer("tables")
+    def serialize_tables(
+        self, value: Mapping[str, CatalogTable]
+    ) -> dict[str, CatalogTable]:
+        return dict(value)
 
 
 ManifestEntry = Annotated[
@@ -568,7 +591,16 @@ class SourceFileManifest(StrictModel):
         return tuple(column.column_name for column in table.columns)
 ```
 
-Import `Annotated` and `Literal` from `typing`. `load()` parses the two JSON files independently, validates `SourceSchemaCatalog`, and validates `SourceFileManifest` from `manifest_payload | {"schema_catalog": catalog.model_dump()}`. Wrap `JSONDecodeError`, `OSError`, and `ValidationError` in safe `SourceContractError` categories without copying exception text that contains a local path. The model validator compares the exact ordered set of data/schema table IDs with `OFFICIAL_TABLE_IDS`, requires one PDF, requires snapshot agreement, and compares each catalog header count with both manifest entries.
+Import `Mapping` from `collections.abc`, `MappingProxyType` from `types`, and the
+Pydantic field validator/serializer decorators. `load()` parses the two JSON files
+independently, validates `SourceSchemaCatalog`, and validates `SourceFileManifest` from
+`manifest_payload | {"schema_catalog": catalog.model_dump()}`. Wrap `JSONDecodeError`,
+`UnicodeDecodeError`, `OSError`, and `ValidationError` in safe `SourceContractError`
+categories without copying exception text that contains a local path or raw payload.
+The explicit serializers must emit ordinary ordered JSON mappings; revalidation must
+restore mapping proxies. The model validator compares the exact ordered set of
+data/schema table IDs with `OFFICIAL_TABLE_IDS`, requires one PDF, requires snapshot
+agreement, and compares each catalog header count with both manifest entries.
 
 - [x] **Step 5: Run strict-load tests to GREEN and refactor**
 
@@ -646,6 +678,11 @@ Repeat the same arrange/act/assert shape for a byte append (`SIZE_MISMATCH`), sa
 
 Add a `../outside.xlsx` manifest path test that fails with `PATH_ESCAPE` before hashing. Assert `str(error)` contains only the relative manifest path and never `str(tmp_path)`.
 
+Add an embedded-NUL manifest path test. It must fail as `PATH_ESCAPE` with the exact
+safe lexical-path message and must expose neither the NUL-bearing payload nor an
+absolute path. Expected `ValueError`/pathlib lexical failures must never escape the
+source-contract boundary.
+
 Add an all-or-nothing test: corrupt the final schema file, call `verify`, assert it raises and no `VerifiedSourceSet` was returned or cached on the manifest.
 
 - [x] **Step 3: Run verification tests and confirm RED**
@@ -692,6 +729,11 @@ Then add private helpers:
 
 ```python
 def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
+    if "\x00" in relative.as_posix():
+        raise SourceContractError(
+            SourceErrorCode.PATH_ESCAPE,
+            "manifest path must be a safe relative filesystem path",
+        )
     if relative.is_absolute() or ".." in relative.parts:
         raise SourceContractError(
             SourceErrorCode.PATH_ESCAPE,
@@ -712,6 +754,11 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
             SourceErrorCode.FILE_MISSING,
             "official input is missing",
             source_file=relative,
+        ) from error
+    except ValueError as error:
+        raise SourceContractError(
+            SourceErrorCode.PATH_ESCAPE,
+            "manifest path must be a safe relative filesystem path",
         ) from error
     if not resolved.is_relative_to(base_dir.resolve()):
         raise SourceContractError(
@@ -735,6 +782,10 @@ def _sha256(path: Path) -> str:
             digest.update(chunk)
     return digest.hexdigest()
 ```
+
+Apply the same safe `ValueError` translation to later containment/type path operations.
+When an absolute or lexically unsafe manifest path is involved, omit it from public
+error context rather than rendering attacker-controlled or local path text.
 
 Check `stat().st_size` before hashing. Build verified descriptors in a local list and instantiate `VerifiedSourceSet` only after every entry succeeds. Populate data descriptors with ordered catalog headers. Do not store the set back onto a mutable module global or manifest cache.
 
@@ -833,6 +884,15 @@ Add one test each for:
 - duplicate cell address -> `DUPLICATE_CELL`;
 - formula in header or data -> `UNSUPPORTED_FORMULA`;
 - malformed workbook relationship/XML/ZIP -> `MALFORMED_WORKBOOK`;
+- DTD/entity declarations in workbook, relationships, shared strings, and worksheet,
+  including entity-backed metadata attributes -> `MALFORMED_WORKBOOK`;
+- wrong XML roots and missing/duplicate/nested workbook sheet containers, sheet
+  metadata, relationships, shared-string items, or worksheet `sheetData` ->
+  `MALFORMED_WORKBOOK`;
+- raw and percent-decoded target backslash/NUL/ASCII controls, raw tab/newline XML
+  normalization, URI/external/traversal forms, and noncanonical percent encodings ->
+  `MALFORMED_WORKBOOK` before a target ZIP member is opened;
+- canonical relative and package-absolute `/xl/...` worksheet targets remain accepted;
 - emitted data-row count different from `expected_rows` after exhaustion -> `ROW_COUNT_MISMATCH`.
 
 Assert a consumer that takes only the first row does not receive a false full-count success signal; the mismatch is raised only when the iterator is exhausted.
@@ -853,10 +913,23 @@ In `src/finproof/data/xlsx_stream.py`:
 
 - define namespace constants for spreadsheet, relationships, and package relationships;
 - open only `source.verified_absolute_path`;
-- parse `xl/workbook.xml` and `xl/_rels/workbook.xml.rels` with `etree.XMLParser(resolve_entities=False, no_network=True, recover=False, huge_tree=False)`;
-- resolve the exact declared sheet name and normalize its relationship target with `PurePosixPath`;
-- reject targets that are absolute, contain `..`, or resolve outside `xl/`;
-- read shared strings once using `iterparse(resolve_entities=False, no_network=True, recover=False, huge_tree=False)`;
+- preflight every parsed XML member with a bounded chunk scanner that rejects
+  `DOCTYPE`/`ENTITY` declarations before parsing or consuming attributes/values;
+- scan raw workbook-relationship attribute text for every ASCII control before XML
+  attribute normalization can transform tab/newline/carriage return;
+- parse `xl/workbook.xml` and `xl/_rels/workbook.xml.rels` with
+  `etree.XMLParser(resolve_entities=False, no_network=True, recover=False,
+  huge_tree=False)` and require the exact expected roots;
+- require one direct `sheets` container, direct nonempty unique sheet metadata, and
+  direct nonempty unique relationship metadata; reject wrong/nested/duplicate forms;
+- validate relationship target text both before and after strict percent decoding for
+  backslash, NUL/every ASCII control, URI/external semantics, traversal, empty/dot
+  segments, and canonical URI percent-encoding round-trip;
+- accept package-absolute paths only when the decoded canonical path begins `/xl/`;
+  resolve canonical relative paths against the workbook's `xl/` directory and open a
+  ZIP member only after this validation;
+- read shared strings once using bounded `iterparse` and require an exact `sst` root
+  with direct `si` children;
 - convert `BadZipFile`, missing ZIP members, invalid relationship IDs, `XMLSyntaxError`, invalid cell references, and invalid shared-string indexes into `MALFORMED_WORKBOOK`.
 
 Keep these helpers private: `_sheet_target`, `_shared_strings`, `_column_number`, `_column_letter`, and `_cell_raw_value`.
@@ -879,18 +952,23 @@ context = etree.iterparse(
 
 For each row:
 
-1. require a positive integer `r` attribute;
-2. build a dictionary keyed by one-based column number;
-3. reject a duplicate key before assignment;
-4. reject any `<f>` descendant before reading a cached value;
-5. obtain inline/shared/plain/boolean raw strings without trimming;
-6. treat the first emitted row as header row 1 and compare exact ordered values with `source.expected_headers`;
-7. reject a nonblank value beyond the header width;
-8. pad every data row to the exact header width;
-9. create ordered `SourceCell` values and a `SourceRow`;
-10. clear the row and delete preceding siblings so parsed XML cannot accumulate.
+1. require the row to be a direct child of one `sheetData` element;
+2. require a positive integer `r` attribute;
+3. build a dictionary keyed by one-based column number;
+4. reject a duplicate key before assignment;
+5. reject any `<f>` descendant before reading a cached value;
+6. obtain inline/shared/plain/boolean raw strings without trimming;
+7. treat the first emitted row as header row 1 and compare exact ordered values with `source.expected_headers`;
+8. reject a nonblank value beyond the header width;
+9. pad every data row to the exact header width;
+10. create ordered `SourceCell` values and a `SourceRow`;
+11. clear the row and delete preceding siblings so parsed XML cannot accumulate.
 
-Count emitted data rows. After normal iterator exhaustion, compare the count with `source.expected_rows` and raise `ROW_COUNT_MISMATCH` if unequal. Do not catch `GeneratorExit` and do not claim full validation on early close.
+Count emitted data rows. After normal iterator exhaustion, require the exact worksheet
+root with no wrapper and exactly one direct/non-nested `sheetData`, then compare the
+count with `source.expected_rows` and raise `ROW_COUNT_MISMATCH` if unequal. Do not
+catch `GeneratorExit` and do not claim full row-count validation on early close. The
+declaration preflight still completes before the first yielded value.
 
 - [x] **Step 7: Run reader tests to GREEN and verify public API shape**
 
@@ -1122,3 +1200,51 @@ test -z "$(git status --porcelain)"
 ```
 
 Expected: all gates pass and the feature worktree is clean. Then use `superpowers:finishing-a-development-branch` and let the user choose local merge, PR, or branch preservation.
+
+---
+
+### Task 7: Close the final-review Important findings
+
+**Files:**
+- Modify: `src/finproof/data/source_manifest.py`
+- Modify: `src/finproof/data/xlsx_stream.py`
+- Modify: `tests/source_contract/test_source_manifest.py`
+- Modify: `tests/source_contract/test_xlsx_stream.py`
+- Modify: Task 2 design, decision log, status, Task 6 report, and this plan
+- Create: `.superpowers/sdd/2026-08-13-phase1-task2-source-ingestion/final-fix-report.md`
+
+**Interfaces:**
+- Preserves D-018 load/verify ownership and D-019 canonical `/xl/...` acceptance.
+- Freezes deeper source metadata and XML/OPC validation under D-020.
+- Does not introduce any Phase 1 Task 3 normalization behavior.
+
+- [x] **Step 1: Prove validated metadata mutability RED, then make it deeply immutable**
+
+Observe focused failures for table replacement, nested catalog-map mutation, and
+serialized/reloaded catalog mutation. Convert catalog mappings to typed mapping proxies
+with explicit ordered-dict serializers; prove verified header tuples remain immutable.
+
+- [x] **Step 2: Prove malformed metadata/path exception leaks RED, then type them safely**
+
+Observe raw `UnicodeDecodeError` for both metadata files and raw `ValueError` for an
+embedded-NUL manifest path. Translate them to exact stable safe `SourceContractError`
+values without path/payload leakage.
+
+- [x] **Step 3: Prove XML declaration/structure gaps RED, then harden every parsed part**
+
+Cover all four XML parts, entity-backed metadata attributes, exact roots, direct and
+unique workbook sheet/relationship metadata, shared-string structure, and worksheet
+root/`sheetData`. Preserve bounded worksheet streaming and generic safe
+`MALFORMED_WORKBOOK` behavior.
+
+- [x] **Step 4: Prove raw/post-decoding OPC bypasses RED, then enforce canonical round-trip**
+
+Cover `%5C`, percent-decoded NUL/tab/newline, raw tab/newline/control text, encoded URI
+semantics, and noncanonical percent encodings, including attacker-named ZIP members.
+Keep canonical relative and package-absolute `/xl/...` targets green.
+
+- [ ] **Step 5: Run the complete final gate once and record exact evidence**
+
+Run the Task 6 Step 1 command set once on the complete correction tree. Record exact
+outputs, commit hashes, self-review, residual concerns, and Phase 1 Task 3 as the exact
+next task in status, the Task 6 report, and the final-fix report. Leave the tree clean.

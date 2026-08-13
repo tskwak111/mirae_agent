@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-13
 
-**Status:** Approved for implementation planning
+**Status:** Implemented and final-review hardened
 
 ## 1. Goal
 
@@ -51,10 +51,22 @@ bond_source = verified_sources.data_file("PRBD01N001")
 - agreement between manifest column counts and catalog column counts;
 - no missing, duplicated, or unexpected official table identities.
 
+The validated catalog is deeply immutable. `SourceSchemaCatalog.tables` and nested
+catalog mappings use typed read-only mappings after validation; individual catalog
+models and ordered columns remain frozen/tuple-backed. Serialization emits ordinary
+ordered JSON objects and revalidation restores the read-only representation, so a
+caller cannot replace a validated table before verification while metadata remains
+predictably serializable.
+
+Malformed JSON text, including invalid UTF-8, is translated to a stable safe
+`SourceContractError`. Parser, decoder, filesystem, and validation exception details
+are never copied into the public error text.
+
 `verify(base_dir)` then validates every manifest file before returning any verified set:
 
 - manifest-relative paths only;
 - resolved paths remain under the resolved `base_dir`;
+- lexically invalid paths such as embedded NUL are rejected before filesystem access;
 - regular files only, with no symlink target accepted for an official input;
 - exact byte size;
 - chunked SHA-256 equality.
@@ -114,6 +126,14 @@ SourceRow
 It uses `zipfile.ZipFile` and hardened `lxml.etree.iterparse` to:
 
 - resolve the manifest-declared sheet through workbook relationships;
+- reject DTD/entity declarations in every parsed XML part with a bounded preflight
+  scan before any XML value or attribute is consumed;
+- require exact workbook, relationship, shared-string, and worksheet roots;
+- require one direct workbook `sheets` container, direct unique `sheet` metadata,
+  and direct unique workbook relationships;
+- validate relationship targets before and after percent decoding for URI/external
+  semantics, traversal, backslash, NUL, every ASCII control, and canonical
+  round-tripping before a ZIP member is opened;
 - load shared strings once per workbook;
 - reject XML entity/network resolution;
 - parse the first worksheet row as the header;
@@ -182,11 +202,21 @@ Every production behavior follows strict red-green-refactor TDD.
 - all four data files are retrieved by exact table ID;
 - checksum, byte-size, snapshot, path-escape, symlink, missing-file, duplicate-table, missing-table, extra-field, and manifest/catalog disagreement cases fail with the expected category;
 - verification returns no usable set if any file fails.
+- validated catalog tables/nested mappings cannot be replaced or item-mutated, dumps
+  remain ordered JSON mappings, and verified header tuples cannot be changed;
+- invalid UTF-8 metadata and NUL-bearing manifest paths produce stable safe typed
+  errors without local paths or raw payloads.
 
 ### Small XLSX fixture tests
 
 - the reader requires `VerifiedSourceFile` rather than a path-based public interface;
 - missing sheet, blank/duplicate/mismatched header, wrong column count, duplicate cell reference, nonblank cell wider than the header, formula cell, and malformed XML fail closed;
+- DTD/entity declarations in workbook, relationships, shared strings, and worksheet
+  parts fail before parsing, including entity-backed metadata attributes;
+- wrong/nested/duplicate workbook metadata roots/containers/relationships fail closed;
+- raw or percent-decoded relationship backslashes, NUL/control characters,
+  traversal/URI forms, and noncanonical encodings fail before ZIP-member access while
+  canonical relative and package-absolute `/xl/...` targets remain accepted;
 - intermediate and trailing omissions become `""` without shifting later columns;
 - raw strings such as `"00123"`, padded text, `"NULL"`, and `"0"` remain unchanged;
 - Excel row numbers, column numbers, and column letters are exact;
@@ -229,13 +259,22 @@ The standard-library `tools/xlsx_stream.py` remains an independent pre-install v
 
 This design resolves A-002 by making checksum, dataset snapshot, exact row/cell location, raw payload/value, and an explicit optional applicable-date slot part of the frozen raw-lineage contract.
 
+D-020 freezes the final-review hardening boundary: validated catalog metadata remains
+deeply immutable, every parsed XLSX XML part rejects declarations before consumption
+and uses exact root/direct metadata structure, and D-019 target rules apply to both raw
+and decoded text with canonical round-tripping before ZIP access.
+
 A-011 is only partially resolved. Task 2 freezes the producer-side raw lineage required here. Quality-issue and evidence-record schemas remain open until their first producers and consumers in Phase 1 Task 4 and Phase 2 Task 6.
 
 ## 10. Acceptance criteria
 
 - Official files cannot enter the production reader without manifest/catalog verification.
 - Modified, misplaced, structurally different, or incomplete official inputs fail closed.
+- Validated metadata cannot be mutated into different verification headers, and every
+  expected malformed metadata/path failure remains a safe typed source error.
 - All four official data workbooks stream without loading the worksheet into memory.
+- DTD/entities, ambiguous XML metadata structure, and post-decoding OPC target bypasses
+  fail as `MALFORMED_WORKBOOK` without weakening the approved `/xl/...` policy.
 - Every emitted raw value is traceable to manifest-relative file, table, sheet, Excel row, Excel column, verified checksum, snapshot, exact raw string, and explicit applicable-date state.
 - The official total remains `145,393` rows at snapshot `2026-07-11`.
 - Existing Task 1 behavior and bootstrap verification remain green.
