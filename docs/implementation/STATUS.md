@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-13 — macOS handoff audited and workstation bootstrapped; production implementation has not started.
+**Last updated:** 2026-08-13 — Phase 1 Task 1 implemented and verified; Phase 1 Task 2 is next.
 
 ## Frozen baseline
 
@@ -15,7 +15,7 @@
 
 Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 
-- [ ] Task 1: bootstrap settings, version bundle, CLI, and handoff/source checks in tests/CI
+- [x] Task 1: bootstrap settings, version bundle, CLI, and handoff/source checks in tests/CI
 - [ ] Task 2: implement source manifest and streaming workbook reader with row lineage
 - [ ] Task 3: normalize domestic bonds and domestic listed products
 - [ ] Task 4: normalize overseas listed products and public funds with quarantine
@@ -58,7 +58,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1, Task 1.** Follow the phase plan under strict TDD. Do not start later tasks in the same uncontrolled change.
+**Phase 1, Task 2.** Resolve decision-log item A-002 for the complete lineage shape, then implement the source manifest and streaming workbook reader under strict TDD.
 
 ## Handoff validation record — not production implementation
 
@@ -138,7 +138,7 @@ Intermediate commits created before this final audit record:
 
 Risks and unresolved decisions:
 
-- The original handoff claimed CI/environment templates were included, but `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, and `.env.example` are absent. Active bootstrap docs now state this accurately; creating them remains Phase 1 Task 1.
+- The original handoff claimed CI/environment templates were included, but they were absent at migration time. Phase 1 Task 1 added `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, and `.env.example` as recorded below.
 - The full audit found unresolved aggregate-plan, lineage, state, cache-key, partitioned top-k, and release-manifest contracts. They are registered in `docs/10_DECISION_LOG.md` and must be reconciled before each listed affected task, not before unrelated Phase 1 Task 1 work.
 - All 13 golden seeds are AI-handoff seeds rather than human-reviewed evaluation cases.
 - Docker is not installed; it is not needed for Phase 1 and becomes necessary for the Phase 3 container gate.
@@ -147,3 +147,60 @@ Risks and unresolved decisions:
 Exact next task:
 
 **Phase 1, Task 1**, under strict TDD. First amend its planned file scope to include CI, `.pre-commit-config.yaml`, and `.env.example`; then add the failing settings/version/CLI/bootstrap tests specified by the plan. The other logged conflicts block only their listed affected tasks.
+
+### 2026-08-13 — Phase 1 Task 1: typed core, CLI, and CI bootstrap
+
+Scope implemented:
+
+- Added environment-backed typed `Settings` with evaluation defaults, frozen `2026-07-11` snapshot, typed paths, and bounded top-k validation.
+- Added transport-independent `FinProofError`/`SourceContractError` and immutable `VersionBundle` defaults matching checked-in version `1.0.0` policies.
+- Added `finproof` commands `show-versions`, `verify-handoff`, and `audit-source`. Source commands call the existing Python tools in-process from a verified FinProof checkout.
+- Added `.env.example` with safe non-secret values, Ruff pre-commit hooks pinned to `v0.15.22`, and a read-only-permission GitHub Actions workflow on Python 3.12 with uv `0.12.3` frozen installation.
+- Installed the local pre-commit hook and amended the original Phase 1 Task 1 file/check scope to cover the previously missing automation files.
+
+RED evidence observed before implementation:
+
+- Settings test collection failed with `ModuleNotFoundError: No module named 'finproof.core'`.
+- Version test collection failed with `ModuleNotFoundError: No module named 'finproof.core.versions'`.
+- CLI test collection failed with `ModuleNotFoundError: No module named 'finproof.cli'`.
+- The installed `finproof` entry point then failed all three commands because pytest exposed top-level `tools` while the real console did not. A parameterized console regression reproduced that boundary before repository-tool loading was corrected.
+- Automation contract tests failed three times with missing `.env.example`, `.pre-commit-config.yaml`, and `.github/workflows/ci.yml`.
+
+Incidental verification findings and resolution:
+
+- Pydantic's runtime-only `_env_file` argument is absent from its static synthesized signature. Tests now isolate `.env` through `tmp_path`/working directory and use the public constructor.
+- Strict mypy identified one unnecessary suppression comment, which was removed.
+- The first pre-commit invocation could not write the sandboxed home cache and could not fetch GitHub over sandbox DNS. A task-specific `/private/tmp` cache and approved one-time network fetch were used; the pinned hook subsequently ran offline.
+- The first full format gate reported one automation test file; it was mechanically formatted and the complete gate was rerun.
+
+Final observed verification before this status update:
+
+- `uv sync --frozen --all-groups` — PASS: 67 packages checked.
+- `uv run ruff format --check .` — PASS: 22 files already formatted.
+- `uv run ruff check .` — PASS.
+- `uv run mypy src tests tools` — PASS: no issues in 22 source files.
+- `uv run pytest -q` — PASS: 22 tests.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs, 41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- All three `uv run finproof ...` commands — PASS with deterministic versions and the same handoff/source results.
+- `uv run pre-commit run --all-files` — PASS: Ruff check and format hooks.
+- `git diff --check` — PASS.
+
+Implementation checkpoints:
+
+- `7d2888f` — typed settings and errors.
+- `3c339f8` — immutable version bundle.
+- `20ea7c9` — deterministic CLI and installed-console regression.
+- `d443feb` — environment, pre-commit, CI, and automation contracts.
+- `a3af00b` — mechanical formatting required by the final hook gate.
+
+Remaining risks:
+
+- The GitHub Actions YAML and every command it contains were validated locally, but no remote GitHub Actions run exists until this branch is pushed to a GitHub repository.
+- `verify-handoff` and `audit-source` are repository bootstrap commands; when invoked outside a checkout they fail closed with a concise `FinProofError`.
+- Phase 1 Task 2 must resolve A-002 before freezing `SourceRow`/evidence lineage fields. Other A-series decisions retain the task boundaries recorded in `docs/10_DECISION_LOG.md`.
+
+Exact next task:
+
+**Phase 1, Task 2.** First resolve A-002 so source checksum, dataset snapshot, and applicable-date lineage are present in the planned contracts. Then begin with the failing official-manifest checksum test; do not start normalization or artifact building in the same uncontrolled change.

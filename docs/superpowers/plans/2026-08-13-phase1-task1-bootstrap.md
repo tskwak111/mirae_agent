@@ -36,7 +36,7 @@
 - Produces: `Settings(BaseSettings)` with frozen snapshot/path/top-k defaults
 - Produces: `FinProofError` and `SourceContractError`
 
-- [ ] **Step 1: Write failing settings tests**
+- [x] **Step 1: Write failing settings tests**
 
 Create tests for the real settings boundary:
 
@@ -76,13 +76,13 @@ def test_settings_parse_prefixed_environment(monkeypatch: pytest.MonkeyPatch) ->
     assert settings.default_top_k == 7
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run: `uv run pytest tests/unit/core/test_settings.py -q`
 
 Expected: collection fails with `ModuleNotFoundError: No module named 'finproof.core'`.
 
-- [ ] **Step 3: Implement the minimum typed settings and errors**
+- [x] **Step 3: Implement the minimum typed settings and errors**
 
 Use `SettingsConfigDict(env_prefix="FINPROOF_", env_file=".env", extra="ignore")`, typed `Path` fields, Pydantic `Field` bounds, and an `after` model validator that rejects `default_top_k > max_top_k`. Do not create directories during model construction.
 
@@ -95,7 +95,7 @@ class SourceContractError(FinProofError):
     """Official source data violated a frozen contract."""
 ```
 
-- [ ] **Step 4: Run GREEN and static checks**
+- [x] **Step 4: Run GREEN and static checks**
 
 Run:
 
@@ -107,7 +107,7 @@ uv run mypy src/finproof/core tests/unit/core
 
 Expected: 3 tests pass and both static checks exit zero.
 
-- [ ] **Step 5: Commit the settings checkpoint**
+- [x] **Step 5: Commit the settings checkpoint**
 
 ```bash
 git add src/finproof/core tests/unit
@@ -126,7 +126,7 @@ git commit -m "feat: add typed FinProof settings"
 - Produces: `VersionBundle(BaseModel)` with `dataset_version: date`
 - Produces version strings: `metric_registry_version`, `state_rule_version`, `quality_rule_version`, `rating_rule_version`, `answer_policy_version`, and `planner_version`
 
-- [ ] **Step 1: Write failing version tests**
+- [x] **Step 1: Write failing version tests**
 
 ```python
 from datetime import date
@@ -156,23 +156,23 @@ def test_version_bundle_is_immutable() -> None:
         bundle.dataset_version = date(2026, 7, 12)  # type: ignore[misc]
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run: `uv run pytest tests/unit/core/test_versions.py -q`
 
 Expected: collection fails because `finproof.core.versions` is missing.
 
-- [ ] **Step 3: Implement the frozen model**
+- [x] **Step 3: Implement the frozen model**
 
 Use `ConfigDict(frozen=True, extra="forbid")`, `date(2026, 7, 11)`, and literal default version strings of `1.0.0` matching the eight checked-in versioned configurations. Registry loading remains Phase 2 Task 1.
 
-- [ ] **Step 4: Run GREEN and relevant suite**
+- [x] **Step 4: Run GREEN and relevant suite**
 
 Run: `uv run pytest tests/unit/core -q`
 
 Expected: 5 tests pass.
 
-- [ ] **Step 5: Commit the version checkpoint**
+- [x] **Step 5: Commit the version checkpoint**
 
 ```bash
 git add src/finproof/core/versions.py tests/unit/core/test_versions.py
@@ -194,7 +194,7 @@ git commit -m "feat: add immutable FinProof versions"
 - Consumes: `VersionBundle().model_dump(mode="json")`
 - Produces: `main(argv: Sequence[str] | None = None) -> int`
 
-- [ ] **Step 1: Write the failing CLI tests**
+- [x] **Step 1: Write the failing CLI tests**
 
 ```python
 import json
@@ -219,17 +219,17 @@ def test_audit_source_runs_frozen_check(capsys) -> None:
     assert "145,393 rows" in capsys.readouterr().out
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm RED**
+- [x] **Step 2: Run the focused tests and confirm RED**
 
 Run: `uv run pytest tests/contract/test_handoff_commands.py -q`
 
 Expected: collection fails because `finproof.cli.main` is missing.
 
-- [ ] **Step 3: Implement minimal argparse dispatch**
+- [x] **Step 3: Implement minimal argparse dispatch**
 
 Build a parser with required subcommands. Render versions using `json.dumps(..., ensure_ascii=False, sort_keys=True)` and a trailing newline. Call `verify_handoff.main()` and `audit_source_data.main(["--check"])` directly. Catch only `FinProofError`, print `error: <message>` to stderr, and return `2`; do not catch unexpected exceptions.
 
-- [ ] **Step 4: Run GREEN through both interfaces**
+- [x] **Step 4: Run GREEN through both interfaces**
 
 Run:
 
@@ -242,7 +242,7 @@ uv run finproof audit-source
 
 Expected: 3 tests pass, versions contain `2026-07-11`, and both official checks exit zero.
 
-- [ ] **Step 5: Commit the CLI checkpoint**
+- [x] **Step 5: Commit the CLI checkpoint**
 
 ```bash
 git add src/finproof/cli tests/contract/test_handoff_commands.py
@@ -265,11 +265,11 @@ git commit -m "feat: add FinProof bootstrap CLI"
 - Produces: a valid pre-commit configuration using Ruff `v0.15.22`
 - Produces: GitHub Actions on Ubuntu/Python 3.12 with frozen uv installation and all mandatory checks
 
-- [ ] **Step 1: Amend the original Task 1 file scope before behavior depends on it**
+- [x] **Step 1: Amend the original Task 1 file scope before behavior depends on it**
 
 Add `.env.example`, `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, and `tests/contract/test_repository_automation.py` to the Task 1 file list. Add the automation contract test and `uv run pre-commit run --all-files` to its task checks. Do not mark Task 1 complete yet.
 
-- [ ] **Step 2: Write failing executable automation tests**
+- [x] **Step 2: Write failing executable automation tests**
 
 Test these observable contracts:
 
@@ -304,13 +304,13 @@ def test_ci_runs_the_required_frozen_checks() -> None:
 
 The production/configuration changes that make these tests pass are the three missing files; the tests fail if those files are missing or if CI drops a mandatory source gate.
 
-- [ ] **Step 3: Run the focused tests and confirm RED**
+- [x] **Step 3: Run the focused tests and confirm RED**
 
 Run: `uv run pytest tests/contract/test_repository_automation.py -q`
 
 Expected: failures report missing `.env.example` and `.github/workflows/ci.yml`.
 
-- [ ] **Step 4: Add the minimal safe environment template**
+- [x] **Step 4: Add the minimal safe environment template**
 
 Use only these non-secret variables:
 
@@ -324,11 +324,11 @@ FINPROOF_DEFAULT_TOP_K=5
 FINPROOF_MAX_TOP_K=50
 ```
 
-- [ ] **Step 5: Add pre-commit and CI**
+- [x] **Step 5: Add pre-commit and CI**
 
 Pin `astral-sh/ruff-pre-commit` at `v0.15.22` with `ruff-check` and `ruff-format --check`. CI uses `actions/checkout@v6`, `actions/setup-python@v6` with `3.12`, and `astral-sh/setup-uv` at the official v9.0.0 commit `c771a70e6277c0a99b617c7a806ffedaca235ff9`, installing uv `0.12.3`. Set `permissions: contents: read`, disable credential persistence on checkout, and run every acceptance command from the design.
 
-- [ ] **Step 6: Run GREEN and validate hooks**
+- [x] **Step 6: Run GREEN and validate hooks**
 
 Run:
 
@@ -340,7 +340,7 @@ uv run pre-commit run --all-files
 
 Expected: 2 tests pass, configuration validates, and hooks exit zero without modifying files.
 
-- [ ] **Step 7: Commit the automation checkpoint**
+- [x] **Step 7: Commit the automation checkpoint**
 
 ```bash
 git add .env.example .pre-commit-config.yaml .github/workflows/ci.yml tests/contract/test_repository_automation.py docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
@@ -358,7 +358,7 @@ git commit -m "ci: add frozen FinProof quality gates"
 **Interfaces:**
 - Produces: durable RED/GREEN evidence, exact commit hashes, unresolved risks, and `Phase 1 Task 2` as the next task
 
-- [ ] **Step 1: Run the complete Task 1 and repository gates**
+- [x] **Step 1: Run the complete Task 1 and repository gates**
 
 Run:
 
@@ -380,11 +380,11 @@ git diff --check
 
 Expected: every command exits zero; source audit remains 145,393 rows at `2026-07-11`, handoff remains 9 official inputs and 41,384,928 bytes, and the schema catalog remains 207 columns.
 
-- [ ] **Step 2: Update status without advancing the Phase 1 gate**
+- [x] **Step 2: Update status without advancing the Phase 1 gate**
 
 Mark only Phase 1 Task 1 complete. Record every focused RED reason, GREEN result, final command output, commits, the local/CI validation distinction, and exact next task `Phase 1 Task 2: implement source manifest and streaming workbook reader with row lineage`.
 
-- [ ] **Step 3: Run documentation and worktree checks**
+- [x] **Step 3: Run documentation and worktree checks**
 
 Run:
 
@@ -395,7 +395,7 @@ git status --short
 
 Expected: only intentional status/plan changes remain before the final documentation commit.
 
-- [ ] **Step 4: Commit the final Task 1 record**
+- [x] **Step 4: Commit the final Task 1 record**
 
 ```bash
 git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-13-phase1-task1-bootstrap.md

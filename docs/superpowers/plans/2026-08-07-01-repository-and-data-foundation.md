@@ -44,7 +44,7 @@
 - Produces: `finproof.cli.main.main(argv: Sequence[str] | None = None) -> int`
 - CLI subcommands: `verify-handoff`, `audit-source`, `show-versions`
 
-- [ ] **Step 1: Write the failing settings tests**
+- [x] **Step 1: Write the failing settings tests**
 
 ```python
 from datetime import date
@@ -67,7 +67,7 @@ def test_settings_use_frozen_snapshot_and_evaluation_defaults(tmp_path: Path) ->
     assert settings.default_top_k <= settings.max_top_k
 ```
 
-- [ ] **Step 2: Run the focused test and observe the missing-module failure**
+- [x] **Step 2: Run the focused test and observe the missing-module failure**
 
 Run:
 
@@ -77,7 +77,7 @@ uv run pytest tests/unit/core/test_settings.py -q
 
 Expected: FAIL because `finproof.core.settings` does not exist.
 
-- [ ] **Step 3: Implement the minimal typed settings**
+- [x] **Step 3: Implement the minimal typed settings**
 
 ```python
 from datetime import date
@@ -122,7 +122,7 @@ class SourceContractError(FinProofError):
     """Raised when an official source violates its frozen contract."""
 ```
 
-- [ ] **Step 4: Run settings tests to green**
+- [x] **Step 4: Run settings tests to green**
 
 ```bash
 uv run pytest tests/unit/core/test_settings.py -q
@@ -130,7 +130,7 @@ uv run pytest tests/unit/core/test_settings.py -q
 
 Expected: PASS.
 
-- [ ] **Step 5: Write failing tests for immutable versions and CLI exit codes**
+- [x] **Step 5: Write failing tests for immutable versions and CLI exit codes**
 
 ```python
 from datetime import date
@@ -155,7 +155,7 @@ def test_show_versions_exits_zero(capsys) -> None:
     assert "2026-07-11" in capsys.readouterr().out
 ```
 
-- [ ] **Step 6: Run and observe failures, then implement versions and CLI dispatch**
+- [x] **Step 6: Run and observe failures, then implement versions and CLI dispatch**
 
 Run:
 
@@ -167,7 +167,7 @@ Expected: FAIL for missing interfaces.
 
 Implement an immutable Pydantic `VersionBundle` with seed versions from config and an `argparse` CLI that delegates `verify-handoff` and `audit-source` to importable functions from `tools` using subprocess-free Python calls. `main()` returns an integer and `if __name__ == "__main__": raise SystemExit(main())`.
 
-- [ ] **Step 7: Run task checks**
+- [x] **Step 7: Run task checks**
 
 ```bash
 uv run pytest tests/unit/core tests/contract/test_handoff_commands.py -q
@@ -181,7 +181,7 @@ python tools/audit_source_data.py --check
 
 Expected: all PASS.
 
-- [ ] **Step 8: Update status and commit**
+- [x] **Step 8: Update status and commit**
 
 ```bash
 git add src/finproof/core src/finproof/cli tests/unit/core tests/contract docs/implementation/STATUS.md
