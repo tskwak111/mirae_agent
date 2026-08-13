@@ -134,6 +134,8 @@ def _shared_strings(archive: ZipFile) -> tuple[str, ...]:
             huge_tree=False,
         )
         for _, element in context:
+            if any(isinstance(node, etree._Entity) for node in element.iter()):
+                raise ValueError("XML entities are not supported")
             strings.append("".join(node.text or "" for node in element.iter(f"{MAIN_NS}t")))
             element.clear()
             parent = element.getparent()
@@ -170,6 +172,8 @@ def _column_letter(number: int) -> str:
 
 
 def _cell_raw_value(cell: etree._Element, shared_strings: tuple[str, ...]) -> str:
+    if any(isinstance(node, etree._Entity) for node in cell.iter()):
+        raise ValueError("XML entities are not supported")
     if cell.find(f".//{MAIN_NS}f") is not None:
         raise RuntimeError("formula")
 
@@ -309,7 +313,15 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
                 header_seen = False
                 data_row_count = 0
                 previous_row_number = 0
+                sheet_data_parent = None
                 for _, element in context:
+                    parent = element.getparent()
+                    if parent is None or parent.tag != f"{MAIN_NS}sheetData":
+                        raise ValueError("worksheet rows must be direct children of sheetData")
+                    if sheet_data_parent is None:
+                        sheet_data_parent = parent
+                    elif parent is not sheet_data_parent:
+                        raise ValueError("worksheet must contain exactly one sheetData element")
                     row_number = _row_number(element)
                     if row_number <= previous_row_number:
                         raise ValueError("worksheet row numbers must increase")
@@ -322,7 +334,6 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
                         data_row_count += 1
                         yield _source_row(values, row_number, source)
                     element.clear()
-                    parent = element.getparent()
                     if parent is not None:
                         while element.getprevious() is not None:
                             del parent[0]
@@ -333,6 +344,13 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
                         SourceErrorCode.HEADER_MISMATCH,
                         "worksheet does not contain a header row",
                     )
+                worksheet = sheet_data_parent.getparent() if sheet_data_parent is not None else None
+                if (
+                    worksheet is None
+                    or worksheet.tag != f"{MAIN_NS}worksheet"
+                    or len(worksheet.findall(f"{MAIN_NS}sheetData")) != 1
+                ):
+                    raise ValueError("worksheet must contain exactly one sheetData element")
                 if data_row_count != source.expected_rows:
                     raise _error(
                         source,

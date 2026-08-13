@@ -140,7 +140,7 @@ class CatalogTable(StrictModel):
 class SourceSchemaCatalog(StrictModel):
     """Strict ordered source headers, paired with the input manifest on load."""
 
-    catalog_version: str
+    catalog_version: Literal["1.0.0"]
     snapshot_date: date
     tables: dict[str, CatalogTable]
 
@@ -189,7 +189,7 @@ ManifestEntry = Annotated[
 class SourceFileManifest(StrictModel):
     """The complete immutable official input manifest and ordered schema catalog."""
 
-    manifest_version: str
+    manifest_version: Literal["1.0.0"]
     competition: str
     snapshot_date: date
     files: tuple[ManifestEntry, ...]
@@ -351,12 +351,15 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
         )
     candidate = base_dir / Path(*relative.parts)
     try:
-        if candidate.is_symlink():
-            raise SourceContractError(
-                SourceErrorCode.FILE_TYPE_INVALID,
-                "official input must be a regular non-symlink file",
-                source_file=error_source,
-            )
+        current = base_dir
+        for part in relative.parts:
+            current /= part
+            if current.is_symlink():
+                raise SourceContractError(
+                    SourceErrorCode.FILE_TYPE_INVALID,
+                    "official input path must not contain symlinks",
+                    source_file=error_source,
+                )
         resolved = candidate.resolve(strict=True)
     except FileNotFoundError as error:
         raise SourceContractError(

@@ -115,6 +115,85 @@ def test_reader_preserves_omitted_cells_and_exact_raw_lineage(tmp_path: Path) ->
     assert row.source_checksum == verified.sha256
 
 
+def test_reader_rejects_entity_bearing_cell_text(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("placeholder",)))
+    worksheet = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE worksheet [<!ENTITY hidden "must-not-be-expanded">]>
+<worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="inlineStr"><is><t>&hidden;</t></is></c></row>
+</sheetData></worksheet>'''.encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize("duplicate_sheet_data", [False, True], ids=["missing", "duplicate"])
+def test_reader_requires_exactly_one_sheet_data_parent(
+    tmp_path: Path, duplicate_sheet_data: bool
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("placeholder",)))
+    rows = (
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>'
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>rogue</t></is></c></row>'
+    )
+    body = f"<sheetData>{rows}</sheetData><sheetData/>" if duplicate_sheet_data else rows
+    worksheet = (
+        f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{MAIN_URI}">{body}</worksheet>'
+    ).encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+def test_reader_rejects_nested_sheet_data_parent(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("placeholder",)))
+    rows = (
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>'
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>nested</t></is></c></row>'
+    )
+    worksheet = (
+        f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{MAIN_URI}">'
+        f"<sheetData><sheetData>{rows}</sheetData></sheetData></worksheet>"
+    ).encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
 def test_reader_rejects_missing_declared_sheet(tmp_path: Path) -> None:
     workbook = tmp_path / "fixture.xlsx"
     write_xlsx(workbook, sheet_name="other", rows=(("ID",), ("1",)))
@@ -652,6 +731,33 @@ def test_reader_preserves_shared_plain_and_boolean_raw_strings(tmp_path: Path) -
     rows = list(iter_xlsx_rows(verified))
 
     assert rows[0].raw_payload == (" shared ", "00123", "1")
+
+
+def test_reader_rejects_entity_bearing_shared_string(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",),))
+    worksheet = f'''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="s"><v>0</v></c></row>
+</sheetData></worksheet>'''.encode()
+    shared_strings = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sst [<!ENTITY hidden "must-not-be-expanded">]>
+<sst xmlns="{MAIN_URI}"><si><t>&hidden;</t></si></sst>'''.encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    _replace_zip_member(workbook, "xl/sharedStrings.xml", shared_strings)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
 
 
 def test_reader_rejects_invalid_shared_string_index(tmp_path: Path) -> None:

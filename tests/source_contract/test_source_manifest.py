@@ -110,6 +110,29 @@ def test_catalog_rejects_unknown_fields(tmp_path: Path) -> None:
     assert raised.value.code is SourceErrorCode.CATALOG_INVALID
 
 
+@pytest.mark.parametrize(
+    ("field", "unsupported_version", "expected_code"),
+    [
+        ("manifest_version", "999.0", SourceErrorCode.MANIFEST_INVALID),
+        ("catalog_version", "unsupported", SourceErrorCode.CATALOG_INVALID),
+    ],
+)
+def test_manifest_and_catalog_reject_unsupported_versions(
+    tmp_path: Path,
+    field: str,
+    unsupported_version: str,
+    expected_code: SourceErrorCode,
+) -> None:
+    def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
+        target = manifest if field == "manifest_version" else catalog
+        target[field] = unsupported_version
+
+    with pytest.raises(SourceContractError) as raised:
+        _load_mutated(tmp_path, mutate)
+
+    assert raised.value.code is expected_code
+
+
 def test_manifest_load_accepts_paths_for_verification_boundary(tmp_path: Path) -> None:
     def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
         del catalog
@@ -297,6 +320,24 @@ def test_verify_rejects_symlink_instead_of_file(tmp_path: Path) -> None:
         manifest.verify(tmp_path)
 
     assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+
+
+def test_verify_rejects_symlinked_parent_directory(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    data_dir = tmp_path / "data"
+    real_data_dir = tmp_path / "real_data"
+    data_dir.rename(real_data_dir)
+    try:
+        data_dir.symlink_to(real_data_dir, target_is_directory=True)
+    except OSError as error:
+        pytest.skip(f"platform refused test symlink creation: {error}")
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+    assert str(tmp_path) not in str(raised.value)
 
 
 def test_verify_rejects_path_escape_before_hashing_without_absolute_path_leak(
