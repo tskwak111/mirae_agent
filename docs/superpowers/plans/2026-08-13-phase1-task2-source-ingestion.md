@@ -1092,14 +1092,14 @@ In `docs/implementation/STATUS.md`:
 
 In the Phase 1 plan, mark Task 2 steps complete only after their evidence exists. Do not mark Task 3 or the Phase 1 gate complete.
 
-- [ ] **Step 3: Commit the status checkpoint**
+- [x] **Step 3: Commit the status checkpoint**
 
 ```bash
 git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-13-phase1-task2-source-ingestion.md
 git commit -m "docs: record Phase 1 Task 2 verification"
 ```
 
-- [ ] **Step 4: Request independent code review**
+- [x] **Step 4: Request independent code review**
 
 Review every changed file from the Task 2 branch base through HEAD against:
 
@@ -1112,7 +1112,7 @@ Review every changed file from the Task 2 branch base through HEAD against:
 
 Classify findings as Critical, Important, or Minor. Correct Critical and Important findings under strict TDD, rerun the full Step 1 gate, update status evidence, and request re-review until none remain.
 
-- [ ] **Step 5: Verify the final reviewed tree**
+- [x] **Step 5: Verify the final reviewed tree**
 
 On the final reviewed HEAD, rerun every Step 1 command and then:
 

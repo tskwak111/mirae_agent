@@ -267,7 +267,7 @@ Implementation checkpoints:
 - `05949b4` and `f4d49cc` — official full-lineage/parity acceptance plus exhaustive
   cell-coordinate/state assertions.
 
-Observed Task 6 gate before this documentation checkpoint:
+Observed pre-review Task 6 gate before the first documentation checkpoint:
 
 - `uv sync --frozen --all-groups` — PASS: 67 packages checked in 7 ms. The first
   sandboxed attempt could not initialize `~/.cache/uv`; the exact command was rerun with
@@ -278,6 +278,63 @@ Observed Task 6 gate before this documentation checkpoint:
 - `uv run pytest -q` — PASS: 104 tests in 100.07 s.
 - `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
   64 deselected in 72.68 s; the official test fully traversed 145,393 production rows.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
+  `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
+  41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- `PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache uv run pre-commit run --all-files`
+  — PASS: Ruff check and Ruff format hooks.
+- `git diff --check` — PASS.
+
+Independent review and fix round:
+
+- Review found four Important gaps and no Critical finding: metadata versions were
+  unconstrained; unresolved entities could silently become empty inline/shared-string
+  values; rows outside the worksheet's single direct `sheetData` were accepted; and an
+  intermediate manifest-path symlink was accepted.
+- RED: unsupported manifest/catalog versions plus an intermediate symlink produced
+  `3 failed, 30 deselected`; each missing guard accepted the invalid fixture.
+- RED: inline entity plus missing/duplicate `sheetData` initially produced `3 failed,
+  34 deselected`. The sheetData fixture was corrected and verified against the guardless
+  implementation as `2 failed, 35 deselected`; nested `sheetData` separately failed once.
+- RED: entity-bearing shared strings separately failed once because the reader returned
+  an empty value rather than raising.
+- GREEN: exact version literals, component-wise symlink rejection, inline/shared entity
+  rejection, and direct/single `sheetData` validation produced `7 passed, 64 deselected`;
+  the expanded entity/sheetData set produced `5 passed, 34 deselected`; and the related
+  manifest/XLSX suite produced `72 passed` after formatting.
+- Independent re-review approved the fix diff with no remaining Critical or Important
+  finding. No Phase 1 Task 3 behavior was introduced.
+- `27caba1` — close source-ingestion independent-review gaps.
+
+Observed post-review implementation gate before this final documentation update:
+
+- `uv sync --frozen --all-groups` — PASS: 67 packages checked in 1 ms.
+- `uv run ruff format --check .` — PASS: 37 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 37 source files.
+- `uv run pytest -q` — PASS: 112 tests in 103.09 s.
+- `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
+  72 deselected in 77.42 s with full 145,393-row production traversal.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
+  `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
+  41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- `PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache uv run pre-commit run --all-files`
+  — PASS: Ruff check and Ruff format hooks.
+- `git diff --check` — PASS.
+
+Observed complete gate after the final documentation update:
+
+- `uv sync --frozen --all-groups` — PASS: 67 packages checked in 1 ms.
+- `uv run ruff format --check .` — PASS: 37 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 37 source files.
+- `uv run pytest -q` — PASS: 112 tests in 103.24 s.
+- `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
+  72 deselected in 77.46 s with full 145,393-row production traversal.
 - `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
   `2026-07-11`.
 - `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
