@@ -124,6 +124,28 @@ inputs: tuple[SourceCellLocator, ...]
 Neither wrapper invents an operational timestamp. Both reject empty rule IDs and
 versions.
 
+Derived quality is deterministic and is part of the value contract:
+
+- a derived predicate that reaches a decisive `True` or `False` has
+  `quality_status=valid`, including an explicit disqualifier that makes the result
+  `False` before another input's unknown state matters;
+- a derived value that remains `None` copies the quality status of the first unresolved
+  required input in the derived rule's declared input order;
+- `remaining_days_at_as_of` and `is_matured_at_as_of` copy `MAT_DT` quality when no
+  valid maturity exists;
+- `has_positive_buyable_quantity` copies `BUYABLE_QUANTITY` quality when its value is
+  `None`;
+- validated bond buyability declares input order `BUYABLE_QUANTITY`, then `MAT_DT`;
+- domestic listed eligibility declares input order `pd_sale_yn`, `pd_tr_yn`,
+  `pd_lstg_dt`, then `pd_lste_dt`;
+- blank and `99991231` listing-end values are resolved open-ended states, not
+  unresolved prerequisites, so an otherwise resolved eligibility result remains
+  `valid`.
+
+This quality propagation does not change source-wrapper quality. It labels whether the
+derived answer itself is resolved and, when it is not, identifies the deterministic
+source state that prevented resolution.
+
 ### 3.4 Quality issues and deterministic results
 
 `DataQualityIssue` is frozen and contains:

@@ -52,6 +52,7 @@
 - Produces: frozen strict `SourceCellLocator.from_row(row: SourceRow, column_name: str) -> SourceCellLocator` with `source_table`, manifest-relative `source_file`, `source_sheet`, Excel row, exact source column name/number/letter, checksum, snapshot date, and the cell's unchanged applicable date.
 - Produces: frozen strict generic `NormalizedValue[T](raw_value: str, normalized_value: T | None, quality_status: QualityStatus, rule_id: str, rule_version: str, source: SourceCellLocator)`.
 - Produces: frozen strict generic `DerivedValue[T](value: T | None, quality_status: QualityStatus, rule_id: str, rule_version: str, as_of_date: date, inputs: tuple[SourceCellLocator, ...])`.
+- Requires: deterministic derived quality. A decisive `True`/`False` is `valid`, including explicit false-before-unknown; a `None` result copies the first unresolved required input's status in the derived rule's declared input order. Semantically resolved open-ended sentinels are skipped rather than propagated.
 - Produces: frozen strict `DataQualityIssue(issue_id: str, rule_id: str, rule_version: str, severity: IssueSeverity, quality_status: QualityStatus, source: SourceCellLocator, reason: str, quarantined: bool, raw_payload_sha256: str, first_detected_at: datetime | None)`.
 - Produces: frozen strict generic `NormalizationResult[T](record: T | None, issues: tuple[DataQualityIssue, ...])`; `record=None` requires at least one quarantined issue, while a result with a record rejects every quarantined issue.
 - Produces: `DataQualityIssue.from_row(row: SourceRow, column_name: str, *, rule_id: str, rule_version: str, severity: IssueSeverity, quality_status: QualityStatus, reason: str, quarantined: bool) -> DataQualityIssue`; normalization always leaves `first_detected_at=None`.
@@ -290,7 +291,7 @@ Append these exact behaviors to `test_normalization_contracts.py`:
 
 ```python
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from pydantic import BaseModel, ValidationError
@@ -359,7 +360,7 @@ def test_quality_issue_is_deterministic_clock_free_and_payload_safe() -> None:
     assert "/Users/" not in first.reason
 
 
-def test_persisted_issue_timestamp_must_be_timezone_aware() -> None:
+def test_persisted_issue_timestamp_must_be_utc() -> None:
     row = source_row("PREF01N001", {"pd_itm_no": "KR"})
     issue = DataQualityIssue.from_row(
         row, "pd_itm_no", rule_id="domestic_listed.product_id",
@@ -370,6 +371,15 @@ def test_persisted_issue_timestamp_must_be_timezone_aware() -> None:
     with pytest.raises(ValidationError, match="timezone-aware"):
         DataQualityIssue.model_validate(
             issue.model_dump() | {"first_detected_at": datetime(2026, 7, 11, 9, 0)}
+        )
+    with pytest.raises(ValidationError, match="UTC"):
+        DataQualityIssue.model_validate(
+            issue.model_dump()
+            | {
+                "first_detected_at": datetime(
+                    2026, 7, 11, 9, 0, tzinfo=timezone(timedelta(hours=9))
+                )
+            }
         )
     persisted = DataQualityIssue.model_validate(
         issue.model_dump()
@@ -419,7 +429,7 @@ source_checksum, source_snapshot_date.isoformat(),
 source_applicable_date.isoformat() or ""
 ```
 
-`DataQualityIssue.from_row` always supplies `first_detected_at=None`. The model accepts a non-`None` value only when `utcoffset()` is non-`None`. Add `NormalizationContractError` to `core/errors.py` with fixed expected/actual table text and no row payload.
+`DataQualityIssue.from_row` always supplies `first_detected_at=None`. The model accepts a non-`None` value only when it is timezone-aware and its `utcoffset()` is exactly zero; a nonzero fixed offset such as `+09:00` is rejected rather than silently normalized. Add `NormalizationContractError` to `core/errors.py` with fixed expected/actual table text and no row payload.
 
 - [ ] **Step 7: Run focused quality gates and refactor only while green**
 
@@ -763,16 +773,18 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for exact raw retention, ASCII/date 
 - Produces: `RatingRegistry.resolve_agencies(value: str) -> tuple[RatingResolution, ...]`; it splits on commas and resolves every independently trimmed token in source order.
 - Produces: `RatingRegistry.compare(left: str, right: str) -> int`; `-1` means left stronger, `0` equal ordinal, and `+1` left weaker.
 
-- [ ] **Step 1: Write failing official-config, canonical, alias, missing, and comparison tests**
+- [ ] **Step 1: Write the complete failing registry behavior and trust-boundary suite**
 
 Create `tests/unit/registry/test_rating_registry.py`:
 
 ```python
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
+import yaml
 
-from finproof.core.errors import RatingNotComparableError
+from finproof.core.errors import RatingNotComparableError, RatingRegistryConfigurationError
 from finproof.domain.quality import QualityStatus
 from finproof.registry.rating import RatingRegistry, RatingResolution
 
@@ -847,59 +859,11 @@ def test_agency_tokens_are_resolved_independently_in_source_order(
     )
 ```
 
-- [ ] **Step 2: Run Step 1 and confirm RED**
-
-Run:
-
-```bash
-uv run pytest tests/unit/registry/test_rating_registry.py -q
-```
-
-Expected: collection fails because `finproof.registry.rating` and the typed rating errors do not exist.
-
-- [ ] **Step 3: Implement the strict loader, immutable mappings, resolver, and compare semantics**
-
-Validate the direct `yaml.safe_load` result through this explicit raw model before constructing the public registry:
+Before running any rating test or writing production registry code, add the complete
+loader trust-boundary, deep-immutability, malformed-configuration, and safe-error
+suite to the same test file:
 
 ```python
-from typing import Literal
-
-from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
-
-
-class _RatingConfig(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
-
-    version: Literal["1.0.0"]
-    missing_tokens: list[StrictStr]
-    ratings: dict[StrictStr, StrictInt]
-    aliases: dict[StrictStr, StrictStr]
-```
-
-The raw model intentionally uses `list[StrictStr]` because YAML sequences load as Python lists; after strict validation, explicitly copy them into the public `tuple[str, ...]`. `StrictInt` must reject booleans and strings such as `"1"`; validators then require positive ordinals, a nonempty unique missing-token list (the configured empty-string member is valid), nonempty rating keys, and aliases whose nonempty targets are canonical keys. Reject alias keys that collide with canonical keys or missing tokens. Construct `RatingResolution` and `RatingRegistry` only with already-typed values and give both public models `ConfigDict(frozen=True, extra="forbid", strict=True)`. Freeze mappings with `MappingProxyType(dict(value))` after copying; never call non-strict `model_validate` to coerce raw YAML.
-
-Catch `OSError`, `yaml.YAMLError`, and Pydantic `ValidationError`, then raise `RatingRegistryConfigurationError` with a fixed category and at most `path.name`; never include YAML content or `path.resolve()`. `compare` resolves both operands and raises `RatingNotComparableError` unless both ordinals are present.
-
-Run:
-
-```bash
-uv run pytest tests/unit/registry/test_rating_registry.py -q
-```
-
-Expected: all Step 1 tests pass.
-
-- [ ] **Step 4: Write failing immutability and malformed-YAML/version tests**
-
-Append these tests:
-
-```python
-from collections.abc import Mapping
-
-import yaml
-
-from finproof.core.errors import RatingRegistryConfigurationError
-
-
 def _write_rating_yaml(path: Path, document: Mapping[str, object]) -> None:
     path.write_text(yaml.safe_dump(dict(document), allow_unicode=True), encoding="utf-8")
 
@@ -918,10 +882,14 @@ def test_registry_state_is_deeply_immutable(registry: RatingRegistry) -> None:
     [
         ({"version": "2.0.0", "missing_tokens": [""], "ratings": {"AAA": 1}, "aliases": {}}, "version"),
         ({"version": "1.0.0", "missing_tokens": [], "ratings": {"AAA": 1}, "aliases": {}}, "missing"),
+        ({"version": "1.0.0", "missing_tokens": ["", ""], "ratings": {"AAA": 1}, "aliases": {}}, "missing"),
         ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": 0}, "aliases": {}}, "ordinal"),
         ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": True}, "aliases": {}}, "ordinal"),
         ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": "1"}, "aliases": {}}, "ordinal"),
+        ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"": 1}, "aliases": {}}, "rating"),
         ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": 1}, "aliases": {"AA０": "AA0"}}, "alias"),
+        ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": 1}, "aliases": {"AAA": "AAA"}}, "alias"),
+        ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": 1}, "aliases": {"": "AAA"}}, "alias"),
         ({"version": "1.0.0", "missing_tokens": [""], "ratings": {"AAA": 1}, "aliases": {}, "extra": 1}, "configuration"),
     ],
 )
@@ -942,9 +910,19 @@ def test_registry_wraps_yaml_syntax_error_without_file_content(tmp_path: Path) -
         RatingRegistry.from_yaml(path)
     assert "unclosed" not in str(captured.value)
     assert str(tmp_path) not in str(captured.value)
+
+
+def test_registry_wraps_missing_file_os_error_without_absolute_path(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "missing-rating.yaml"
+    with pytest.raises(RatingRegistryConfigurationError, match="configuration") as captured:
+        RatingRegistry.from_yaml(path)
+    assert path.name in str(captured.value)
+    assert str(tmp_path) not in str(captured.value)
 ```
 
-- [ ] **Step 5: Run Step 4 to RED, harden the loader, then rerun to GREEN**
+- [ ] **Step 2: Run the complete Task 3 registry suite and confirm one coherent RED**
 
 Run:
 
@@ -952,11 +930,49 @@ Run:
 uv run pytest tests/unit/registry/test_rating_registry.py -q
 ```
 
-Expected: at least the wrong-version, deep-immutability, strict-ordinal, dangling-alias, extra-key, or safe-error assertions fail against the minimal Step 3 implementation. Preserve the observed failure in the work log.
+Expected: collection fails because `finproof.registry.rating` and the typed rating
+errors do not exist. This single RED covers official loading, strict types, canonical
+and alias resolution, comparison, missing/unmapped grades, agency tokens, deep
+immutability, wrong versions, duplicate missing tokens, empty canonical keys,
+dangling/colliding aliases, malformed contracts/YAML, missing-path `OSError` wrapping,
+and safe error text before any production registry implementation exists.
 
-Implement only the missing strictness, then rerun the same command. Expected: all rating tests pass, including official `C0`/`CC0` non-comparability.
+- [ ] **Step 3: Implement the complete coherent registry trust boundary, then rerun GREEN**
 
-- [ ] **Step 6: Run focused rating and static gates**
+Validate the direct `yaml.safe_load` result through this explicit raw model before constructing the public registry:
+
+```python
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, StrictInt, StrictStr
+
+
+class _RatingConfig(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    version: Literal["1.0.0"]
+    missing_tokens: list[StrictStr]
+    ratings: dict[StrictStr, StrictInt]
+    aliases: dict[StrictStr, StrictStr]
+```
+
+The raw model intentionally uses `list[StrictStr]` because YAML sequences load as Python lists; after strict validation, explicitly copy them into the public `tuple[str, ...]`. `StrictInt` must reject booleans and strings such as `"1"`; validators then require positive ordinals, a nonempty unique missing-token list (the configured empty-string member is valid), nonempty rating keys, and aliases whose nonempty targets are canonical keys. Reject alias keys that collide with canonical keys or missing tokens. Construct `RatingResolution` and `RatingRegistry` only with already-typed values and give both public models `ConfigDict(frozen=True, extra="forbid", strict=True)`. Freeze mappings with `MappingProxyType(dict(value))` after copying; never call non-strict `model_validate` to coerce raw YAML.
+
+Catch `OSError`, `yaml.YAMLError`, and Pydantic `ValidationError`, then raise `RatingRegistryConfigurationError` with a fixed category. For an `OSError`, include `path.name` but never its parent or absolute path; never include YAML content or call `path.resolve()` for any safe error. `compare` resolves both operands and raises `RatingNotComparableError` unless both ordinals are present.
+
+Run:
+
+```bash
+uv run pytest tests/unit/registry/test_rating_registry.py -q
+```
+
+Expected: every test written in Step 1 passes in one GREEN run: official resolution
+and comparison, configured missing/unmapped behavior, agency token order, public-model
+strictness, deep immutability, strict ordinal types, version/shape/alias rejection,
+malformed YAML wrapping, and safe error text. Do not implement a minimal loader and
+defer hardening; this is one coherent trust-boundary checkpoint.
+
+- [ ] **Step 4: Run focused rating and static gates**
 
 ```bash
 uv run pytest tests/unit/registry/test_rating_registry.py tests/unit/data/normalization -q
@@ -967,16 +983,16 @@ uv run mypy src/finproof/registry src/finproof/core/errors.py tests/unit/registr
 
 Expected: all commands pass and the parser suite remains green.
 
-- [ ] **Step 7: Commit the rating-registry checkpoint**
+- [ ] **Step 5: Commit the rating-registry checkpoint**
 
 ```bash
 git add src/finproof/core/errors.py src/finproof/registry tests/unit/registry
 git commit -m "feat: add strict rating registry"
 ```
 
-- [ ] **Step 8: Complete the independent Task 3 review before Task 4**
+- [ ] **Step 6: Complete the independent Task 3 review before Task 4**
 
-Have a fresh reviewer inspect `HEAD^..HEAD` for YAML coercion, unsupported versions, mutable mappings, missing-token comparison, alias inference, same-ordinal comparison, `C0`/`CC0`, error-content leakage, and hidden filesystem work after registry construction. Do not begin Task 4 until no Critical or Important finding remains. Review corrections require a focused RED regression, Step 6 rerun, and a separate review-fix commit.
+Have a fresh reviewer inspect `HEAD^..HEAD` for YAML coercion, unsupported versions, mutable mappings, missing-token comparison, alias inference, same-ordinal comparison, `C0`/`CC0`, error-content leakage, and hidden filesystem work after registry construction. Do not begin Task 4 until no Critical or Important finding remains. Review corrections require a focused RED regression, Step 4 rerun, and a separate review-fix commit.
 
 ---
 
@@ -997,6 +1013,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for YAML coercion, unsupported versi
 - Quarantines: malformed `PD_NO` with a blocker `malformed_source_row` issue. Missing or invalid optional values do not quarantine.
 - Emits: warning issues for `invalid_format`, `out_of_domain`, `mixed_source_values`, and positive quantity on a matured bond; expected missing values and date sentinels emit no issue.
 - Preserves: no rating agency value backfills `CRD_GRD`; comparable agency ordinal disagreement uses `mixed_source_values`; `AA` and `AA0` are not a disagreement; unregistered `C0`/`CC0` remain out-of-domain.
+- Propagates derived quality: maturity-derived `None` copies `MAT_DT`; `has_positive_buyable_quantity=None` copies `BUYABLE_QUANTITY`; validated buyability uses declared input order `BUYABLE_QUANTITY`, then `MAT_DT`; every decisive boolean is `valid` even when it is `False` before an unrelated unknown.
 - Checkpoint rule: Task 4 has one commit only after every Step 1-10 test/gate is green. No independently callable committed `normalize_bond` may contain placeholder/unresolved derived values, provisional currency/rating behavior, or another intentionally incomplete state; intermediate RED/GREEN edits remain uncommitted inside Task 4.
 
 - [ ] **Step 1: Write the failing bond model, table contract, valid happy path, and quarantine tests**
@@ -1084,9 +1101,13 @@ def test_valid_bond_maps_every_declared_source_column(
     assert record.currency.normalized_value == "KRW"
     assert record.credit_rating.normalized_value == "AA0"
     assert record.remaining_days_at_as_of.value == 365
+    assert record.remaining_days_at_as_of.quality_status is QualityStatus.VALID
     assert record.is_matured_at_as_of.value is False
+    assert record.is_matured_at_as_of.quality_status is QualityStatus.VALID
     assert record.has_positive_buyable_quantity.value is True
+    assert record.has_positive_buyable_quantity.quality_status is QualityStatus.VALID
     assert record.is_buyable_validated_at_as_of.value is True
+    assert record.is_buyable_validated_at_as_of.quality_status is QualityStatus.VALID
     assert tuple(
         locator.source_column_name
         for locator in record.is_buyable_validated_at_as_of.inputs
@@ -1185,6 +1206,7 @@ def test_bond_maturity_states_never_become_derived_dates(
     assert result.record.remaining_days_at_as_of.value is None
     assert result.record.is_matured_at_as_of.value is None
     assert result.record.remaining_days_at_as_of.quality_status is status
+    assert result.record.is_matured_at_as_of.quality_status is status
     assert any(issue.source.source_column_name == "MAT_DT" for issue in result.issues) is (
         status is QualityStatus.INVALID_FORMAT
     )
@@ -1223,7 +1245,9 @@ def test_bond_maturity_is_strictly_before_as_of(
     ).record
     assert record is not None
     assert record.remaining_days_at_as_of.value == remaining
+    assert record.remaining_days_at_as_of.quality_status is QualityStatus.VALID
     assert record.is_matured_at_as_of.value is matured
+    assert record.is_matured_at_as_of.quality_status is QualityStatus.VALID
 
 
 def test_update_date_is_preserved_without_inferred_applicable_date(
@@ -1271,7 +1295,7 @@ uv run pytest tests/unit/data/normalization/test_bonds.py -q
 
 Expected: the new tests fail because derived values are absent, raw `REMAINING_DAYS` is copied into the derivation, sentinel status is collapsed, the as-of boundary uses `<=`, or applicable dates are inferred.
 
-Implement `remaining_days_at_as_of` strictly as `(maturity_date - as_of).days`. Propagate the maturity wrapper's quality state when no valid maturity exists. `is_matured_at_as_of` is `remaining_days < 0`. Both derived values use only the exact `MAT_DT` locator and explicit `as_of`.
+Implement `remaining_days_at_as_of` strictly as `(maturity_date - as_of).days` and `is_matured_at_as_of` as `remaining_days < 0`. When maturity is valid, both derived statuses are `valid`; when no valid maturity exists, both values are `None` and both copy the exact `MAT_DT` wrapper status. Both derived values use only the exact `MAT_DT` locator and explicit `as_of`.
 
 Run the same command and expect all date/source-fidelity tests to pass.
 
@@ -1281,24 +1305,29 @@ Append:
 
 ```python
 @pytest.mark.parametrize(
-    ("quantity", "maturity", "positive", "buyable"),
+    (
+        "quantity", "maturity", "positive", "positive_status",
+        "buyable", "buyable_status",
+    ),
     [
-        ("1", "20260712", True, True),
-        ("0", "20260712", False, False),
-        ("-1", "20260712", False, False),
-        ("", "20260712", None, None),
-        ("bad", "20260712", None, None),
-        ("1", "20260710", True, False),
-        ("", "20260710", None, False),
-        ("0", "", False, False),
-        ("1", "", True, None),
+        ("1", "20260712", True, QualityStatus.VALID, True, QualityStatus.VALID),
+        ("0", "20260712", False, QualityStatus.VALID, False, QualityStatus.VALID),
+        ("-1", "20260712", False, QualityStatus.VALID, False, QualityStatus.VALID),
+        ("", "20260712", None, QualityStatus.MISSING_BLANK, None, QualityStatus.MISSING_BLANK),
+        ("bad", "20260712", None, QualityStatus.INVALID_FORMAT, None, QualityStatus.INVALID_FORMAT),
+        ("1", "20260710", True, QualityStatus.VALID, False, QualityStatus.VALID),
+        ("", "20260710", None, QualityStatus.MISSING_BLANK, False, QualityStatus.VALID),
+        ("0", "", False, QualityStatus.VALID, False, QualityStatus.VALID),
+        ("1", "", True, QualityStatus.VALID, None, QualityStatus.MISSING_BLANK),
     ],
 )
 def test_bond_buyability_uses_explicit_false_before_unknown(
     quantity: str,
     maturity: str,
     positive: bool | None,
+    positive_status: QualityStatus,
     buyable: bool | None,
+    buyable_status: QualityStatus,
     rating_registry: RatingRegistry,
 ) -> None:
     result = normalize_bond(
@@ -1310,7 +1339,9 @@ def test_bond_buyability_uses_explicit_false_before_unknown(
     )
     assert result.record is not None
     assert result.record.has_positive_buyable_quantity.value is positive
+    assert result.record.has_positive_buyable_quantity.quality_status is positive_status
     assert result.record.is_buyable_validated_at_as_of.value is buyable
+    assert result.record.is_buyable_validated_at_as_of.quality_status is buyable_status
     assert result.record.is_buyable_validated_at_as_of.inputs == (
         result.record.buyable_quantity.source,
         result.record.maturity_date.source,
@@ -1328,6 +1359,7 @@ def test_positive_quantity_on_matured_bond_is_preserved_and_warned(
     assert result.record is not None
     assert result.record.buyable_quantity.normalized_value == 7
     assert result.record.is_buyable_validated_at_as_of.value is False
+    assert result.record.is_buyable_validated_at_as_of.quality_status is QualityStatus.VALID
     assert any(
         issue.rule_id == "bond.matured_positive_quantity"
         and issue.severity is IssueSeverity.WARNING
@@ -1388,7 +1420,7 @@ def test_bond_currency_requires_exact_uppercase_three_letter_code(
 
 Run the full bond test file. Expected: tri-state, matured-positive warning, ordinary zero, or exact currency assertions fail before their production rules exist.
 
-Use this buyability order: already-matured valid date -> `False`; valid quantity `<= 0` -> `False`; unavailable/invalid quantity or unavailable/invalid maturity -> `None`; otherwise -> `True`. `has_positive_buyable_quantity` depends only on quantity. Preserve positive source quantity even when matured. Do not infer currency from country/issuer.
+Use this buyability order: already-matured valid date -> `False`; valid quantity `<= 0` -> `False`; unavailable/invalid quantity or unavailable/invalid maturity -> `None`; otherwise -> `True`. Every decisive boolean receives `quality_status=valid`, including matured/zero false-before-unknown outcomes. `has_positive_buyable_quantity` depends only on quantity: its decisive booleans are `valid`, while `None` copies the quantity wrapper status. Validated buyability declares input order quantity then maturity; only a `None` result propagates the first unresolved status in that order. Preserve positive source quantity even when matured. Do not infer currency from country/issuer.
 
 Run the same command and expect all quantity/currency tests to pass.
 
@@ -1514,6 +1546,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for incorrect maturity boundaries, c
 - Maps currency: exact `CURR_CD_KRW -> KRW`; blank stays `missing_blank`; `CURR_CD_000`, `KRW`, and every other code are `out_of_domain` with no name-based inference.
 - Maps flags: exact `pd_sale_yn="1" -> True`, `"0" -> False`; exact `pd_tr_yn="0" -> False` (not suspended), `"1" -> True`; other/blank values are out-of-domain and typed `None`.
 - Produces tri-state `is_eligible_at_as_of`: any explicit disqualifier -> `False`; otherwise an unknown/invalid prerequisite -> `None`; otherwise `True`.
+- Propagates eligibility quality: decisive `True`/`False` is always `valid`, including false-before-unknown; `None` copies the first unresolved status in declared input order `pd_sale_yn`, `pd_tr_yn`, `pd_lstg_dt`, `pd_lste_dt`; blank/max listing end is resolved open-ended and never makes an otherwise resolved result non-`valid`.
 - Checkpoint rule: Task 5 has one commit only after every Step 1-10 test/gate is green. No independently callable committed `normalize_domestic_listed` may contain placeholder/unresolved state, provisional currency handling, or an intentionally wrong zero policy; intermediate RED/GREEN edits remain uncommitted inside Task 5.
 
 - [ ] **Step 1: Write failing table/type, valid state/metric happy path, and quarantine tests**
@@ -1603,6 +1636,7 @@ def test_valid_domestic_listed_maps_every_declared_source_column() -> None:
     assert record.sale_flag.normalized_value is True
     assert record.suspension_flag.normalized_value is False
     assert record.is_eligible_at_as_of.value is True
+    assert record.is_eligible_at_as_of.quality_status is QualityStatus.VALID
     assert record.is_eligible_at_as_of.as_of_date == AS_OF
     assert tuple(
         locator.source_column_name for locator in record.is_eligible_at_as_of.inputs
@@ -1739,7 +1773,7 @@ class ListedProduct(BaseModel):
     is_eligible_at_as_of: DerivedValue[bool]
 ```
 
-Check the table before cell lookup. Parse `pd_itm_no` with the exact identifier parser. Parse `pd_grp_no` without trimming/case conversion. If both identity and type are malformed, emit two deterministic blocker issues in source-column order and return no record. For a valid identity/type, populate every field from its declared column, even when blank, using the shared parser appropriate to its declared type. Implement the Step 1 valid-default happy path now: `CURR_CD_KRW -> KRW`, sale enabled, not suspended, open-ended listing, and eligible at `AS_OF` with the exact four state/date input locators. Implement the exact field-specific zero policy asserted by Step 1 before any zero-policy production code: `recorded_zero_unverified` for `cu_charge_rt`, `recorded_zero` for tracking/difference and every ordinary amount/return field, and never row-level `constant_metric`. Do not introduce a provisional alternative merely to create a later RED; later cycles cover invalid/unknown/boundary states and currency/error edges.
+Check the table before cell lookup. Parse `pd_itm_no` with the exact identifier parser. Parse `pd_grp_no` without trimming/case conversion. If both identity and type are malformed, emit two deterministic blocker issues in source-column order and return no record. For a valid identity/type, populate every field from its declared source column, even when blank, using the shared parser appropriate to its declared type. Implement the Step 1 valid-default happy path now: `CURR_CD_KRW -> KRW`, sale enabled, not suspended, open-ended listing, and eligible at `AS_OF` with `quality_status=valid` and the exact four state/date input locators. Implement the exact field-specific zero policy asserted by Step 1 before any zero-policy production code: `recorded_zero_unverified` for `cu_charge_rt`, `recorded_zero` for tracking/difference and every ordinary amount/return field, and never row-level `constant_metric`. Do not introduce a provisional alternative merely to create a later RED; later cycles cover invalid/unknown/boundary states and currency/error edges.
 
 Run the Step 2 command. Expected: all table/type/quarantine, complete field mapping, valid-default state/eligibility, and metric-policy tests pass. Do not commit this partial task; continue through Step 10 before the Task 5 checkpoint.
 
@@ -1779,28 +1813,33 @@ def test_domestic_flags_use_only_exact_source_codes(
 
 
 @pytest.mark.parametrize(
-    ("sale", "suspended", "start", "end", "eligible"),
+    ("sale", "suspended", "start", "end", "eligible", "eligible_status"),
     [
-        ("1", "0", "20260711", "20260711", True),
-        ("1", "0", "20200101", "99991231", True),
-        ("1", "0", "20200101", "", True),
-        ("0", "0", "", "bad", False),
-        ("1", "1", "", "bad", False),
-        ("0", "", "", "bad", False),
-        ("", "1", "", "bad", False),
-        ("1", "0", "20260712", "99991231", False),
-        ("1", "0", "20200101", "20260710", False),
-        ("", "0", "20200101", "99991231", None),
-        ("1", "", "20200101", "99991231", None),
-        ("1", "0", "", "99991231", None),
-        ("1", "0", "0", "99991231", None),
-        ("1", "0", "bad", "99991231", None),
-        ("1", "0", "20200101", "0", None),
-        ("1", "0", "20200101", "bad", None),
+        ("1", "0", "20260711", "20260711", True, QualityStatus.VALID),
+        ("1", "0", "20200101", "99991231", True, QualityStatus.VALID),
+        ("1", "0", "20200101", "", True, QualityStatus.VALID),
+        ("0", "0", "", "bad", False, QualityStatus.VALID),
+        ("1", "1", "", "bad", False, QualityStatus.VALID),
+        ("0", "", "", "bad", False, QualityStatus.VALID),
+        ("", "1", "", "bad", False, QualityStatus.VALID),
+        ("1", "0", "20260712", "99991231", False, QualityStatus.VALID),
+        ("1", "0", "20200101", "20260710", False, QualityStatus.VALID),
+        ("", "0", "20200101", "99991231", None, QualityStatus.OUT_OF_DOMAIN),
+        ("1", "", "20200101", "99991231", None, QualityStatus.OUT_OF_DOMAIN),
+        ("1", "0", "", "99991231", None, QualityStatus.MISSING_BLANK),
+        ("1", "0", "0", "99991231", None, QualityStatus.SENTINEL_ZERO),
+        ("1", "0", "bad", "99991231", None, QualityStatus.INVALID_FORMAT),
+        ("1", "0", "20200101", "0", None, QualityStatus.SENTINEL_ZERO),
+        ("1", "0", "20200101", "bad", None, QualityStatus.INVALID_FORMAT),
     ],
 )
 def test_domestic_eligibility_uses_false_before_unknown(
-    sale: str, suspended: str, start: str, end: str, eligible: bool | None
+    sale: str,
+    suspended: str,
+    start: str,
+    end: str,
+    eligible: bool | None,
+    eligible_status: QualityStatus,
 ) -> None:
     result = normalize_domestic_listed(
         source_row(
@@ -1816,6 +1855,7 @@ def test_domestic_eligibility_uses_false_before_unknown(
     )
     assert result.record is not None
     assert result.record.is_eligible_at_as_of.value is eligible
+    assert result.record.is_eligible_at_as_of.quality_status is eligible_status
     assert result.record.is_eligible_at_as_of.as_of_date == AS_OF
     assert result.record.is_eligible_at_as_of.inputs == (
         result.record.sale_flag.source,
@@ -1842,13 +1882,15 @@ def test_max_date_sentinel_is_enabled_only_for_listing_end() -> None:
     assert record.listing_end_date.quality_status is QualityStatus.SENTINEL_MAX_DATE
     assert record.custom_update_date.normalized_value == date(9999, 12, 31)
     assert record.weekly_update_date.normalized_value == date(9999, 12, 31)
+    assert record.is_eligible_at_as_of.value is False
+    assert record.is_eligible_at_as_of.quality_status is QualityStatus.VALID
 ```
 
 - [ ] **Step 5: Run Step 4 to RED, implement exact flags and tri-state eligibility, and rerun**
 
 Run the complete domestic-listed test file. Expected: flag inversion/truthiness or one or more tri-state/boundary cases fail before the state rule exists.
 
-Implement the exact D-007 flag maps. Listing start uses max sentinel disabled; listing end uses max sentinel enabled. For eligibility, check explicit disqualifiers first: `sale_flag=False`, `suspension_flag=True`, valid start after as-of, or valid end before as-of -> `False`. If none applies and sale, suspension, or start is unavailable/invalid, or end is invalid (but not blank/max sentinel), return `None`; blank/max-sentinel end is open-ended. Otherwise return `True`.
+Implement the exact D-007 flag maps. Listing start uses max sentinel disabled; listing end uses max sentinel enabled. For eligibility, check explicit disqualifiers first: `sale_flag=False`, `suspension_flag=True`, valid start after as-of, or valid end before as-of -> `False`. If none applies and sale, suspension, or start is unavailable/invalid, or end is invalid (but not blank/max sentinel), return `None`; blank/max-sentinel end is open-ended. Otherwise return `True`. Every decisive `True` or `False` has `quality_status=valid`, including false-before-unknown. For `None`, inspect required inputs in the declared order sale, suspension, listing start, listing end and copy the first unresolved wrapper status. Treat blank and max-sentinel listing end as resolved open-ended, so skip its wrapper status rather than propagating it.
 
 Run the same command and expect all flag/eligibility tests to pass.
 
@@ -2112,7 +2154,10 @@ def _assert_wrapped_source_fidelity(
         assert wrapped.source.source_applicable_date == cell.applicable_date
 
 
-def _assert_derived_inputs(record: BondInstrument | ListedProduct) -> None:
+def _assert_derived_inputs(
+    record: BondInstrument | ListedProduct,
+    row: SourceRow,
+) -> None:
     derived_columns = (
         {
             "remaining_days_at_as_of": ("MAT_DT",),
@@ -2132,11 +2177,20 @@ def _assert_derived_inputs(record: BondInstrument | ListedProduct) -> None:
         assert isinstance(derived, DerivedValue)
         assert derived.as_of_date == AS_OF
         assert tuple(locator.source_column_name for locator in derived.inputs) == expected_columns
-        for locator in derived.inputs:
-            assert locator.source_table in {"PRBD01N001", "PREF01N001"}
-            assert locator.source_row_number == record.product_id.source.source_row_number
-            assert locator.source_file == record.product_id.source.source_file
-            assert locator.source_checksum == record.product_id.source.source_checksum
+        for locator, column_name in zip(
+            derived.inputs, expected_columns, strict=True
+        ):
+            cell = row.cell(column_name)
+            assert locator.source_table == row.source_table
+            assert locator.source_file == row.source_file
+            assert locator.source_sheet == row.source_sheet
+            assert locator.source_row_number == row.source_row_number
+            assert locator.source_column_name == cell.column_name
+            assert locator.source_column_number == cell.excel_column_number
+            assert locator.source_column_letter == cell.excel_column_letter
+            assert locator.source_checksum == row.source_checksum
+            assert locator.source_snapshot_date == row.source_snapshot_date
+            assert locator.source_applicable_date == cell.applicable_date
 
 
 def test_official_domestic_normalization_exhausts_all_rows_with_exact_counts_and_fidelity() -> None:
@@ -2162,7 +2216,7 @@ def test_official_domestic_normalization_exhausts_all_rows_with_exact_counts_and
         assert product_id not in bond_ids
         bond_ids.add(product_id)
         _assert_wrapped_source_fidelity(result.record, row, BOND_COLUMNS)
-        _assert_derived_inputs(result.record)
+        _assert_derived_inputs(result.record, row)
 
     listed_ids: set[str] = set()
     listed_source_rows = listed_records = listed_quarantined = 0
@@ -2190,7 +2244,7 @@ def test_official_domestic_normalization_exhausts_all_rows_with_exact_counts_and
         assert product_type is not None
         produced_groups[product_type] += 1
         _assert_wrapped_source_fidelity(result.record, row, LISTED_COLUMNS)
-        _assert_derived_inputs(result.record)
+        _assert_derived_inputs(result.record, row)
 
     assert bond_source_rows == 42_394
     assert bond_records == 42_394
