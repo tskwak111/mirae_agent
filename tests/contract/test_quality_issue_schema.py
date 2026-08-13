@@ -92,6 +92,17 @@ def test_issue_schema_rejects_bad_hash_enum_and_timestamp(field: str, value: obj
     assert _messages(payload)
 
 
+@pytest.mark.parametrize(
+    "value",
+    ["2026-13-99T00:00:00Z", "2026-07-11TgarbageZ"],
+)
+def test_issue_schema_rejects_terminal_z_values_that_are_not_datetimes(
+    value: str,
+) -> None:
+    payload = _issue().model_dump(mode="json") | {"first_detected_at": value}
+    assert _messages(payload)
+
+
 def test_issue_schema_rejects_missing_and_extra_issue_fields() -> None:
     payload = _issue().model_dump(mode="json")
     missing = dict(payload)

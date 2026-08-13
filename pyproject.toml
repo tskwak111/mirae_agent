@@ -36,6 +36,7 @@ dev = [
   "pytest-asyncio>=1.4,<2",
   "pytest-cov>=6.0,<8",
   "respx>=0.22,<1",
+  "rfc3339-validator>=0.1.4,<0.2",
   "ruff>=0.15.22,<0.16",
   "types-jsonschema>=4.26.0.20260518",
   "types-PyYAML>=6.0,<7",
