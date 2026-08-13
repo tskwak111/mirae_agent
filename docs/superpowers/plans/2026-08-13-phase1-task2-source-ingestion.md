@@ -1243,8 +1243,14 @@ Cover `%5C`, percent-decoded NUL/tab/newline, raw tab/newline/control text, enco
 semantics, and noncanonical percent encodings, including attacker-named ZIP members.
 Keep canonical relative and package-absolute `/xl/...` targets green.
 
-- [ ] **Step 5: Run the complete final gate once and record exact evidence**
+- [x] **Step 5: Run the complete final gate once and record exact evidence**
 
 Run the Task 6 Step 1 command set once on the complete correction tree. Record exact
 outputs, commit hashes, self-review, residual concerns, and Phase 1 Task 3 as the exact
 next task in status, the Task 6 report, and the final-fix report. Leave the tree clean.
+
+Observed on 2026-08-14: frozen sync checked 67 packages; format/lint/mypy passed;
+the full suite passed 153 tests in 99.24 s; the marked official contracts passed 3
+tests with 113 deselected in 76.09 s; source audit, handoff, schema-catalog,
+pre-commit, and diff checks passed. Independent final review reported no remaining
+Critical or Important implementation issue.

@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 2 implemented and verified; Phase 1 Task 3 is next.
+**Last updated:** 2026-08-14 — Phase 1 Task 2 final-review correction wave is verified; Phase 1 Task 3 is next.
 
 ## Frozen baseline
 
@@ -335,6 +335,64 @@ Observed complete gate after the final documentation update:
 - `uv run pytest -q` — PASS: 112 tests in 103.24 s.
 - `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
   72 deselected in 77.46 s with full 145,393-row production traversal.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
+  `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
+  41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- `PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache uv run pre-commit run --all-files`
+  — PASS: Ruff check and Ruff format hooks.
+- `git diff --check` — PASS.
+
+Subsequent final-review correction wave:
+
+- A later complete-branch review found four additional Important trusted-boundary gaps:
+  mutable validated catalog mappings; DTD/entity use in XML attributes plus permissive
+  metadata roots/descendants; raw `UnicodeDecodeError`/lexical path `ValueError`
+  escapes; and post-percent-decoding OPC target bypasses.
+- D-020 freezes the correction without changing D-018/D-019: catalog mappings are
+  deeply immutable and predictably serializable; every parsed XML part rejects
+  declarations before values/attributes and requires exact root/direct structure; raw
+  and decoded targets must pass control/backslash/NUL/traversal/URI and canonical
+  round-trip checks before ZIP access.
+- RED for catalog immutability: `3 failed, 33 deselected`; table replacement, nested
+  sample-map mutation, and serialized/reloaded catalog mutation all succeeded before
+  the correction. GREEN: the complete manifest suite was `36 passed` at that
+  checkpoint, with focused Ruff/mypy clean.
+- RED for malformed metadata/path typing: `3 failed, 36 deselected`; invalid UTF-8
+  escaped twice as `UnicodeDecodeError`, and a NUL-bearing manifest path escaped as
+  `ValueError` with a local path. GREEN: manifest suite `39 passed`, with focused
+  Ruff/mypy clean.
+- RED for XML declarations/metadata structure: `15 failed, 2 passed, 39 deselected`;
+  all four XML parts accepted unused DTDs, entity-backed metadata attributes and
+  malformed roots/containers were consumed, and nested relationships were accepted.
+  GREEN: `17 passed, 55 deselected`.
+- RED for OPC post-decoding canonicalization: `15 failed, 1 passed, 56 deselected`;
+  encoded backslash/NUL/controls, raw controls, non-round-trip encodings, XML attribute
+  normalization, and attacker-named ZIP members bypassed validation. GREEN: `18 passed,
+  54 deselected`, including canonical relative and `/xl/...` targets.
+- Self-review added two more RED-first defenses: wrapper-root worksheet data could be
+  yielded before exhaustion and a UTF-16 DTD bypassed the ASCII marker scan (`2 failed,
+  72 deselected`). GREEN was `2 passed, 72 deselected`; complete XLSX suite `74 passed`
+  with Ruff/mypy clean.
+- Correction checkpoints: `5ecab8b` (immutable catalog), `c6899aa` (safe metadata/path
+  errors), `efb0191` (XML/OPC hardening), `6610059` (design/plan/D-020), and `026860f`
+  (pre-yield root plus multiencoding declaration scan).
+- Official inputs, `tests/contracts/expected_source_audit.json`, normalization,
+  quarantine, artifacts, and all Phase 1 Task 3 behavior remain untouched.
+- Independent final review found no remaining Critical or Important implementation
+  issue. Its corroborating runs observed the 113-test focused source-manifest/XLSX suite
+  and the three official lineage/parity contracts green.
+
+Observed complete correction-tree gate:
+
+- `uv sync --frozen --all-groups` — PASS: 67 packages checked in 6 ms.
+- `uv run ruff format --check .` — PASS: 37 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 37 source files.
+- `uv run pytest -q` — PASS: 153 tests in 99.24 s.
+- `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
+  113 deselected in 76.09 s with full official traversal.
 - `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
   `2026-07-11`.
 - `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
