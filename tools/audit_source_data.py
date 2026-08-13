@@ -4,16 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import json
+import re
+import sys
 from collections import Counter
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
-import json
 from pathlib import Path
-import re
-import sys
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
-if __package__:
+if TYPE_CHECKING:
+    from tools.xlsx_stream import iter_table_dicts
+elif __package__:
     from .xlsx_stream import iter_table_dicts
 else:
     from xlsx_stream import iter_table_dicts
@@ -98,14 +100,20 @@ def audit_bonds() -> tuple[dict[str, Any], set[str]]:
         bond_kind_raw.add(row["BD_KND"])
         bond_kind_trimmed.add(clean(row["BD_KND"]))
 
-        agency_tokens = [token.strip() for token in row["PD_EVCO_CRD_GRD"].split(",") if token.strip()]
+        agency_tokens = [
+            token.strip() for token in row["PD_EVCO_CRD_GRD"].split(",") if token.strip()
+        ]
         if len(set(agency_tokens)) > 1:
             mixed_multi_agency_ratings += 1
 
         remaining = decimal_or_none(row["REMAINING_DAYS"])
-        if maturity is not None and remaining is not None and remaining == remaining.to_integral_value():
-            if maturity - timedelta(days=int(remaining)) == date(2026, 2, 24):
-                inferred_base_20260224 += 1
+        if (
+            maturity is not None
+            and remaining is not None
+            and remaining == remaining.to_integral_value()
+            and maturity - timedelta(days=int(remaining)) == date(2026, 2, 24)
+        ):
+            inferred_base_20260224 += 1
         if clean(row["PD_STD_INFO_UPDATE"]) == "20260224":
             update_20260224 += 1
 
@@ -141,9 +149,7 @@ def listed_active(row: dict[str, str]) -> bool:
     end = parse_yyyymmdd(end_raw)
     if listing is not None and listing > SNAPSHOT:
         return False
-    if end_raw not in {"", "99991231"} and end is not None and end < SNAPSHOT:
-        return False
-    return True
+    return end_raw in {"", "99991231"} or end is None or end >= SNAPSHOT
 
 
 def audit_domestic_listed() -> tuple[dict[str, Any], set[str]]:
@@ -176,7 +182,10 @@ def audit_domestic_listed() -> tuple[dict[str, Any], set[str]]:
         if difference is not None:
             counters["difference_nonblank"] += 1
             difference_values.append(difference)
-        for field, name in (("pd_net_tamt", "pd_net_tamt_positive"), ("du_last_aum", "du_last_aum_positive")):
+        for field, name in (
+            ("pd_net_tamt", "pd_net_tamt_positive"),
+            ("du_last_aum", "du_last_aum_positive"),
+        ):
             value = decimal_or_none(row[field])
             counters[name] += int(value is not None and value > 0)
         for field, name in (
@@ -296,7 +305,10 @@ def audit_public_funds(domestic_ids: set[str]) -> tuple[dict[str, Any], set[str]
         if "상장지수" in name:
             index_name_rows += 1
             index_name_items.add(item)
-        if any((value := decimal_or_none(row[field])) is not None and value < -100 for field in return_fields):
+        if any(
+            (value := decimal_or_none(row[field])) is not None and value < -100
+            for field in return_fields
+        ):
             below_minus_100_rows += 1
             below_minus_100_items.add(item)
 
@@ -405,7 +417,10 @@ def main(argv: list[str] | None = None) -> int:
             for line in delta:
                 print(f"- {line}", file=sys.stderr)
             return 1
-        print(f"Official source audit PASS: {actual['total_source_rows']:,} rows; snapshot {actual['snapshot_date']}")
+        print(
+            "Official source audit PASS: "
+            f"{actual['total_source_rows']:,} rows; snapshot {actual['snapshot_date']}"
+        )
     return 0
 
 

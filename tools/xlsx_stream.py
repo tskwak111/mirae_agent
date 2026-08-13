@@ -8,10 +8,10 @@ fully bootstrapped.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-import re
 from typing import Final
 from xml.etree import ElementTree as ET
 from zipfile import ZipFile
@@ -36,9 +36,15 @@ def _column_index(cell_reference: str) -> int:
     return value - 1
 
 
+def _parse_official_xlsx_xml(payload: bytes) -> ET.Element:
+    """Parse XML bundled in checksum-verified official XLSX inputs pre-bootstrap."""
+
+    return ET.fromstring(payload)  # noqa: S314
+
+
 def _sheet_target(archive: ZipFile, sheet_name: str) -> str:
-    workbook = ET.fromstring(archive.read("xl/workbook.xml"))
-    relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+    workbook = _parse_official_xlsx_xml(archive.read("xl/workbook.xml"))
+    relationships = _parse_official_xlsx_xml(archive.read("xl/_rels/workbook.xml.rels"))
     target_by_id = {item.attrib["Id"]: item.attrib["Target"] for item in relationships}
 
     for sheet in workbook.findall(f".//{_MAIN}sheet"):
@@ -56,7 +62,7 @@ def _sheet_target(archive: ZipFile, sheet_name: str) -> str:
 
 def list_sheet_names(path: Path) -> tuple[str, ...]:
     with ZipFile(path) as archive:
-        workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+        workbook = _parse_official_xlsx_xml(archive.read("xl/workbook.xml"))
     return tuple(sheet.attrib["name"] for sheet in workbook.findall(f".//{_MAIN}sheet"))
 
 
@@ -67,7 +73,7 @@ def _shared_strings(archive: ZipFile) -> tuple[str, ...]:
 
     values: list[str] = []
     with archive.open(member) as stream:
-        for _, element in ET.iterparse(stream, events=("end",)):
+        for _, element in ET.iterparse(stream, events=("end",)):  # noqa: S314
             if element.tag == f"{_MAIN}si":
                 values.append("".join(node.text or "" for node in element.iter(f"{_MAIN}t")))
                 element.clear()
@@ -99,7 +105,7 @@ def iter_sheet_rows(path: Path, sheet_name: str) -> Iterator[WorkbookRow]:
         target = _sheet_target(archive, sheet_name)
         shared_strings = _shared_strings(archive)
         with archive.open(target) as stream:
-            for _, element in ET.iterparse(stream, events=("end",)):
+            for _, element in ET.iterparse(stream, events=("end",)):  # noqa: S314
                 if element.tag != f"{_MAIN}row":
                     continue
                 cells: dict[int, str] = {}
@@ -114,7 +120,9 @@ def iter_sheet_rows(path: Path, sheet_name: str) -> Iterator[WorkbookRow]:
                 element.clear()
 
 
-def iter_table_dicts(path: Path, sheet_name: str = "datarows") -> Iterator[tuple[int, dict[str, str]]]:
+def iter_table_dicts(
+    path: Path, sheet_name: str = "datarows"
+) -> Iterator[tuple[int, dict[str, str]]]:
     rows = iter_sheet_rows(path, sheet_name)
     try:
         header_row = next(rows)
@@ -131,6 +139,8 @@ def iter_table_dicts(path: Path, sheet_name: str = "datarows") -> Iterator[tuple
         if len(row.values) > len(headers):
             extra = row.values[len(headers) :]
             if any(value != "" for value in extra):
-                raise ValueError(f"Row {row.excel_row_number} is wider than the header in {path.name}")
+                raise ValueError(
+                    f"Row {row.excel_row_number} is wider than the header in {path.name}"
+                )
         padded = row.values + ("",) * max(0, len(headers) - len(row.values))
         yield row.excel_row_number, dict(zip(headers, padded, strict=True))

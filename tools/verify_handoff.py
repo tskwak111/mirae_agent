@@ -5,17 +5,24 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path
 import re
 import sys
-from typing import Any, Final
+from collections.abc import Callable
+from importlib import import_module
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Final, cast
 
+YamlSafeLoad = Callable[[str], object]
+yaml_safe_load: YamlSafeLoad | None
 try:
-    import yaml  # type: ignore[import-untyped]
+    yaml_safe_load = cast(YamlSafeLoad, import_module("yaml").safe_load)
 except ModuleNotFoundError:  # pragma: no cover - bootstrap without dependencies
-    yaml = None
+    yaml_safe_load = None
 
-if __package__:
+if TYPE_CHECKING:
+    from tools.extract_schema_catalog import build_catalog
+    from tools.xlsx_stream import list_sheet_names
+elif __package__:
     from .extract_schema_catalog import build_catalog
     from .xlsx_stream import list_sheet_names
 else:
@@ -217,7 +224,10 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             errors.append(f"invalid JSON {path.relative_to(ROOT)}: {exc}")
             continue
-        if path.name != provider_schema_name and document.get("$schema") != "https://json-schema.org/draft/2020-12/schema":
+        if (
+            path.name != provider_schema_name
+            and document.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
+        ):
             errors.append(f"unexpected JSON Schema draft: {path.relative_to(ROOT)}")
 
     api_path = ROOT / "schemas/api_response.schema.json"
@@ -235,9 +245,18 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
     query_path = ROOT / "schemas/query_plan.schema.json"
     provider_path = ROOT / "schemas/hcx_query_plan.schema.json"
     required = {
-        "intent", "product_types", "entities", "as_of_date", "result_grain",
-        "filters", "metrics", "sort", "top_k", "top_k_scope",
-        "needs_clarification", "clarification_reason",
+        "intent",
+        "product_types",
+        "entities",
+        "as_of_date",
+        "result_grain",
+        "filters",
+        "metrics",
+        "sort",
+        "top_k",
+        "top_k_scope",
+        "needs_clarification",
+        "clarification_reason",
     }
     if query_path.is_file():
         query = load_json(query_path)
@@ -253,7 +272,9 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
         provider = load_json(provider_path)
         unsupported = unsupported_hcx_schema_keywords(provider)
         if unsupported:
-            errors.append(f"HCX provider schema contains unsupported keywords: {sorted(unsupported)!r}")
+            errors.append(
+                f"HCX provider schema contains unsupported keywords: {sorted(unsupported)!r}"
+            )
         if set(provider.get("required", [])) != required:
             errors.append("HCX provider schema required fields differ from canonical contract")
         if provider.get("type") != "object":
@@ -277,10 +298,10 @@ def verify_yaml(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         if "\t" in text:
             errors.append(f"tab character in YAML: {path.relative_to(ROOT)}")
-        if yaml is not None:
+        if yaml_safe_load is not None:
             try:
-                document = yaml.safe_load(text)
-            except Exception as exc:  # noqa: BLE001
+                document = yaml_safe_load(text)
+            except Exception as exc:
                 errors.append(f"invalid YAML {path.relative_to(ROOT)}: {exc}")
                 continue
             if not isinstance(document, dict) or "version" not in document:
@@ -350,7 +371,8 @@ def verify_golden_seeds(errors: list[str]) -> None:
             }
             if len(native_grains) > 1 and plan.get("result_grain") != "product":
                 errors.append(
-                    f"golden seed line {line_number} spans heterogeneous native grains without product envelope"
+                    f"golden seed line {line_number} spans heterogeneous native grains "
+                    "without product envelope"
                 )
         review = case.get("review")
         if not isinstance(review, dict) or set(review) != {"reviewer", "reviewed_at", "source"}:
@@ -364,16 +386,22 @@ def verify_plans(errors: list[str]) -> None:
         text = path.read_text(encoding="utf-8")
         for pattern in PLAN_FORBIDDEN_PATTERNS:
             if pattern.search(text):
-                errors.append(f"plan placeholder pattern {pattern.pattern!r}: {path.relative_to(ROOT)}")
+                errors.append(
+                    f"plan placeholder pattern {pattern.pattern!r}: {path.relative_to(ROOT)}"
+                )
         if "- [ ]" not in text:
             errors.append(f"plan has no trackable checkbox: {path.relative_to(ROOT)}")
-        if "**Goal:**" not in text or "**Architecture:**" not in text or "**Tech Stack:**" not in text:
+        if (
+            "**Goal:**" not in text
+            or "**Architecture:**" not in text
+            or "**Tech Stack:**" not in text
+        ):
             errors.append(f"plan header incomplete: {path.relative_to(ROOT)}")
 
 
 def verify_runtime_dependency_policy(errors: list[str]) -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8").lower()
-    forbidden = ("\"openai", "\"anthropic", "google-generativeai", "\"cohere", "\"groq")
+    forbidden = ('"openai', '"anthropic', "google-generativeai", '"cohere', '"groq')
     for token in forbidden:
         if token in pyproject:
             errors.append(f"forbidden generative runtime dependency in pyproject: {token}")
@@ -407,8 +435,11 @@ def main() -> int:
         f"{len(REQUIRED_FILES)} required files, {len(manifest['files'])} official inputs, "
         f"{total_bytes:,} source bytes"
     )
-    if yaml is None:
-        print("Note: PyYAML unavailable; bootstrap verification performed non-parser YAML checks only.")
+    if yaml_safe_load is None:
+        print(
+            "Note: PyYAML unavailable; bootstrap verification performed non-parser YAML "
+            "checks only."
+        )
     return 0
 
 

@@ -6,7 +6,6 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-
 ROOT = Path(__file__).resolve().parents[2]
 HCX_ALLOWED_SCHEMA_KEYWORDS = {
     "type",
@@ -73,9 +72,7 @@ def test_query_plan_contract_supports_cross_product_scope() -> None:
 
 
 def test_hcx_provider_schema_uses_only_supported_subset() -> None:
-    schema = json.loads(
-        (ROOT / "schemas/hcx_query_plan.schema.json").read_text(encoding="utf-8")
-    )
+    schema = json.loads((ROOT / "schemas/hcx_query_plan.schema.json").read_text(encoding="utf-8"))
 
     assert _unsupported_hcx_schema_keywords(schema) == set()
     assert schema["type"] == "object"
@@ -109,13 +106,17 @@ def test_golden_seed_file_is_valid_jsonl_with_unique_ids() -> None:
     assert len(cases) >= 10
     assert len(case_ids) == len(set(case_ids))
     assert all(case["review"]["reviewer"] == "AI-handoff-seed" for case in cases)
-    assert all(case["expected_plan"]["top_k_scope"] in {"global", "per_product_type"} for case in cases)
+    assert all(
+        case["expected_plan"]["top_k_scope"] in {"global", "per_product_type"} for case in cases
+    )
 
 
 def test_cross_product_seed_preserves_native_segments() -> None:
     cases = [
         json.loads(line)
-        for line in (ROOT / "tests/golden/seed_cases.jsonl").read_text(encoding="utf-8").splitlines()
+        for line in (ROOT / "tests/golden/seed_cases.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
         if line.strip()
     ]
     case = next(item for item in cases if item["case_id"] == "SEED-POLICY-013")

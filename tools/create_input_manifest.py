@@ -11,7 +11,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, cast
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 SOURCE: Final = ROOT / "source_material"
@@ -19,14 +19,66 @@ DEFAULT_OUTPUT: Final = SOURCE / "input_manifest.json"
 
 FILE_SPECS: Final = (
     {"path": "competition_task_financial_product_agent.pdf", "kind": "official_task_pdf"},
-    {"path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx", "kind": "data", "table_id": "PRBD01N001", "sheet_name": "datarows", "expected_rows": 42394, "expected_columns": 40},
-    {"path": "data/PRBD01N001_schema.xlsx", "kind": "schema", "table_id": "PRBD01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 40},
-    {"path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx", "kind": "data", "table_id": "PREF01N001", "sheet_name": "datarows", "expected_rows": 1734, "expected_columns": 73},
-    {"path": "data/PREF01N001_schema.xlsx", "kind": "schema", "table_id": "PREF01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 73},
-    {"path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx", "kind": "data", "table_id": "PREF02N001", "sheet_name": "datarows", "expected_rows": 5646, "expected_columns": 49},
-    {"path": "data/PREF02N001_schema.xlsx", "kind": "schema", "table_id": "PREF02N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 49},
-    {"path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx", "kind": "data", "table_id": "PRFD01N001", "sheet_name": "datarows", "expected_rows": 95619, "expected_columns": 45},
-    {"path": "data/PRFD01N001_schema.xlsx", "kind": "schema", "table_id": "PRFD01N001", "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"], "expected_columns": 45},
+    {
+        "path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
+        "kind": "data",
+        "table_id": "PRBD01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 42394,
+        "expected_columns": 40,
+    },
+    {
+        "path": "data/PRBD01N001_schema.xlsx",
+        "kind": "schema",
+        "table_id": "PRBD01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 40,
+    },
+    {
+        "path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx",
+        "kind": "data",
+        "table_id": "PREF01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 1734,
+        "expected_columns": 73,
+    },
+    {
+        "path": "data/PREF01N001_schema.xlsx",
+        "kind": "schema",
+        "table_id": "PREF01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 73,
+    },
+    {
+        "path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx",
+        "kind": "data",
+        "table_id": "PREF02N001",
+        "sheet_name": "datarows",
+        "expected_rows": 5646,
+        "expected_columns": 49,
+    },
+    {
+        "path": "data/PREF02N001_schema.xlsx",
+        "kind": "schema",
+        "table_id": "PREF02N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 49,
+    },
+    {
+        "path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
+        "kind": "data",
+        "table_id": "PRFD01N001",
+        "sheet_name": "datarows",
+        "expected_rows": 95619,
+        "expected_columns": 45,
+    },
+    {
+        "path": "data/PRFD01N001_schema.xlsx",
+        "kind": "schema",
+        "table_id": "PRFD01N001",
+        "sheet_names": ["Sheet1_Schema", "Sheet2_Sample"],
+        "expected_columns": 45,
+    },
 )
 
 
@@ -41,7 +93,7 @@ def sha256(path: Path) -> str:
 def build_manifest() -> dict[str, Any]:
     files = []
     for spec in FILE_SPECS:
-        path = SOURCE / spec["path"]
+        path = SOURCE / cast(str, spec["path"])
         entry = dict(spec)
         entry["size_bytes"] = path.stat().st_size
         entry["sha256"] = sha256(path)
@@ -58,9 +110,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     args = parser.parse_args(argv)
+    output = cast(Path, args.output)
     manifest = build_manifest()
-    args.output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {args.output}")
+    output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {output}")
     return 0
 
 
