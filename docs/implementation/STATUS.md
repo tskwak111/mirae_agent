@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation, official acceptance, and independent whole-branch review are verified; the final reviewed-tree gate is pending before integration, and Phase 1 Task 4 is the next development task.
+**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation, official acceptance, independent whole-branch review, and final reviewed-tree gate are verified; Phase 1 Task 4 is the next development task.
 
 ## Frozen baseline
 
@@ -532,8 +532,12 @@ Decision-log inspection and residual boundaries:
   observed 230 focused tests, the official 44,128-row acceptance, 384 full-suite tests,
   Ruff, mypy over 64 files, source audit 145,393, handoff 61/9/41,384,928, schema 207,
   strict serialization/no-I/O probes, clean scope diff, and a clean worktree.
-- The final reviewed-tree rerun remains the branch integration gate. Phase 1 Tasks 4–5
-  and the Phase 1 gate remain unchecked.
+- Final reviewed-tree gate on review-evidence commit `fbbcec4` — PASS: frozen sync
+  checked 67 packages; 230 focused tests; official acceptance 1 test in 14.03 s;
+  source-contract 4 tests/113 deselected in 91.85 s; Ruff format/check; mypy over 64
+  files; 384 full-suite tests in 116.06 s; source audit 145,393; handoff
+  61/9/41,384,928; schema 207; pre-commit; diff checks; and clean feature worktree.
+- Phase 1 Tasks 4–5 and the Phase 1 gate remain unchecked.
 
 Exact next development task:
 

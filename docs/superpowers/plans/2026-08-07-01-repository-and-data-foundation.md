@@ -356,7 +356,7 @@ git commit -m "feat: add verified streaming source ingestion"
 - [x] **Checkpoint 3: Strict immutable rating registry, including unregistered `C0`/`CC0`**
 - [x] **Checkpoint 4: Domestic bond model and normalizer**
 - [x] **Checkpoint 5: Domestic ETF/ETN model and normalizer**
-- [ ] **Checkpoint 6: Official 44,128-row acceptance, evidence, all gates, and final independent review**
+- [x] **Checkpoint 6: Official 44,128-row acceptance, evidence, all gates, and final independent review**
 
 Do not mark this Task 3 section complete until the dedicated plan records observed
 focused RED/GREEN evidence, all mandatory gates, per-task reviews, the final whole-branch

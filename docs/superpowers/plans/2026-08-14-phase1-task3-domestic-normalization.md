@@ -2353,7 +2353,7 @@ Have a fresh reviewer inspect the Task 3 branch base through HEAD against `AGENT
 
 Classify findings as Critical, Important, or Minor. For every Critical or Important behavior finding, add a focused regression to the owning test file, observe RED, make the smallest correction, rerun that task's gate and Step 4, commit the correction separately, update status evidence, and request re-review. Repeat until no Critical or Important finding remains.
 
-- [ ] **Step 8: Run the final reviewed-tree gate and prove cleanliness**
+- [x] **Step 8: Run the final reviewed-tree gate and prove cleanliness**
 
 On the final reviewed HEAD, rerun every Step 4 command, then run:
 
