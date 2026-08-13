@@ -41,6 +41,7 @@ Defaults are evaluation-safe:
 - maximum top-k: `50`, bounded to at most `100`
 
 Validation rejects a default top-k greater than the maximum. Paths remain typed `Path` values and are not created as a side effect of loading settings.
+Evaluation mode also rejects any snapshot date other than the official `2026-07-11`; extended demo mode may use a separately declared snapshot without relabeling it as evaluation data.
 
 ### Version bundle
 
@@ -61,6 +62,7 @@ The bundle is serializable for CLI output and later execution traces, but this t
 - `show-versions` emits deterministic JSON from `VersionBundle`.
 
 The first two commands do not spawn subprocesses. Expected `FinProofError` failures produce a concise stderr message and a nonzero exit code; unexpected exceptions are not silently swallowed.
+They load repository tools only when the current directory is the same checkout that contains the installed editable FinProof package, so a lookalike working directory cannot supply executable `tools` modules.
 
 ## 4. Repository automation
 
@@ -86,6 +88,7 @@ GitHub Actions runs on a case-sensitive Linux filesystem with Python 3.12 and a 
 8. schema catalog verification
 
 CI receives no external model credential and invokes no generative model. Official source files are treated as immutable inputs and verified before their values are trusted.
+Third-party action references use full commit SHAs, with release versions retained in comments for auditability.
 
 ## 5. Data flow and failure behavior
 

@@ -326,7 +326,7 @@ FINPROOF_MAX_TOP_K=50
 
 - [x] **Step 5: Add pre-commit and CI**
 
-Pin `astral-sh/ruff-pre-commit` at `v0.15.22` with `ruff-check` and `ruff-format --check`. CI uses `actions/checkout@v6`, `actions/setup-python@v6` with `3.12`, and `astral-sh/setup-uv` at the official v9.0.0 commit `c771a70e6277c0a99b617c7a806ffedaca235ff9`, installing uv `0.12.3`. Set `permissions: contents: read`, disable credential persistence on checkout, and run every acceptance command from the design.
+Pin `astral-sh/ruff-pre-commit` at `v0.15.22` with `ruff-check` and `ruff-format --check`. CI pins `actions/checkout` v6.0.3 at `9f698171ed81b15d1823a05fc7211befd50c8ae0`, `actions/setup-python` v6.2.0 at `a309ff8b426b58ec0e2a45f0f869d46889d02405` with Python `3.12`, and `astral-sh/setup-uv` v9.0.0 at `c771a70e6277c0a99b617c7a806ffedaca235ff9`, installing uv `0.12.3`. Set `permissions: contents: read`, disable credential persistence on checkout, and run every acceptance command from the design.
 
 - [x] **Step 6: Run GREEN and validate hooks**
 
@@ -357,6 +357,8 @@ git commit -m "ci: add frozen FinProof quality gates"
 
 **Interfaces:**
 - Produces: durable RED/GREEN evidence, exact commit hashes, unresolved risks, and `Phase 1 Task 2` as the next task
+
+Independent review added three security/invariant regressions before handoff: evaluation mode rejects a non-official snapshot date, repository commands reject a lookalike working directory instead of importing its code, and every CI action reference is a full commit SHA. All three tests were observed failing against the first implementation and passing after the minimal hardening changes.
 
 - [x] **Step 1: Run the complete Task 1 and repository gates**
 

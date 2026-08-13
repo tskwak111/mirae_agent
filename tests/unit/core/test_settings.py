@@ -42,3 +42,13 @@ def test_settings_parse_prefixed_environment(
 
     assert settings.execution_mode is ExecutionMode.EXTENDED_DEMO
     assert settings.default_top_k == 7
+
+
+def test_evaluation_settings_reject_snapshot_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("FINPROOF_DATASET_SNAPSHOT_DATE", "2026-07-10")
+
+    with pytest.raises(ValidationError, match="2026-07-11"):
+        Settings()

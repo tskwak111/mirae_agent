@@ -35,14 +35,17 @@ def _show_versions() -> int:
 
 
 def _load_repository_tool(module_name: str) -> ModuleType:
-    root = Path.cwd().resolve()
+    root = Path(__file__).resolve().parents[3]
     required = (
         root / "AGENTS.md",
+        root / "pyproject.toml",
         root / "source_material/input_manifest.json",
         root / "tools/__init__.py",
     )
-    if not all(path.is_file() for path in required):
-        raise FinProofError("bootstrap source commands must run from a FinProof checkout")
+    if Path.cwd().resolve() != root or not all(path.is_file() for path in required):
+        raise FinProofError(
+            "bootstrap source commands must run from the installed FinProof checkout"
+        )
 
     sys.path.insert(0, str(root))
     try:

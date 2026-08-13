@@ -51,3 +51,28 @@ def test_installed_console_entry_point_runs_from_checkout(command: str, expected
 
     assert completed.returncode == 0, completed.stderr
     assert expected in completed.stdout
+
+
+def test_installed_console_rejects_lookalike_checkout(tmp_path: Path) -> None:
+    (tmp_path / "source_material").mkdir()
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "AGENTS.md").write_text("untrusted\n", encoding="utf-8")
+    (tmp_path / "source_material/input_manifest.json").write_text("{}\n", encoding="utf-8")
+    (tmp_path / "tools/__init__.py").write_text("", encoding="utf-8")
+    (tmp_path / "tools/verify_handoff.py").write_text(
+        "def main():\n    print('untrusted code executed')\n    return 0\n",
+        encoding="utf-8",
+    )
+    executable = Path(sys.executable).with_name("finproof")
+
+    completed = subprocess.run(  # noqa: S603
+        [str(executable), "verify-handoff"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 2
+    assert "untrusted code executed" not in completed.stdout
+    assert "installed FinProof checkout" in completed.stderr

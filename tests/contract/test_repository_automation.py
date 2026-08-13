@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,8 @@ def test_ci_runs_the_required_frozen_checks() -> None:
     assert workflow["jobs"]["quality"]["runs-on"] == "ubuntu-latest"
 
     steps = workflow["jobs"]["quality"]["steps"]
+    action_references = [step["uses"] for step in steps if "uses" in step]
+    assert all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", reference) for reference in action_references)
     commands = "\n".join(step.get("run", "") for step in steps)
     assert "uv sync --frozen --all-groups" in commands
     assert "uv run ruff format --check ." in commands
