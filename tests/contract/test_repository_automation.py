@@ -24,9 +24,7 @@ def test_environment_example_loads_without_secrets(
 
 
 def test_pre_commit_configuration_pins_ruff() -> None:
-    configuration = yaml.safe_load(
-        (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
-    )
+    configuration = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
 
     ruff_repository = next(
         repository
@@ -37,9 +35,7 @@ def test_pre_commit_configuration_pins_ruff() -> None:
 
 
 def test_ci_runs_the_required_frozen_checks() -> None:
-    workflow = yaml.safe_load(
-        (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    )
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
     assert workflow["permissions"]["contents"] == "read"
     assert workflow["jobs"]["quality"]["runs-on"] == "ubuntu-latest"
 
