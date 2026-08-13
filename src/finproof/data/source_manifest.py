@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import date
 from json import JSONDecodeError
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, Self, cast
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
 
@@ -21,20 +22,60 @@ OFFICIAL_TABLE_IDS = (
 )
 
 
-def _manifest_relative_path(value: PurePosixPath) -> PurePosixPath:
-    """Reject path identities that cannot safely represent an official input."""
-    if value.is_absolute() or ".." in value.parts:
-        raise ValueError("path must be manifest-relative and traversal-free")
-    return value
-
-
-ManifestRelativePath = Annotated[PurePosixPath, AfterValidator(_manifest_relative_path)]
+ManifestRelativePath = PurePosixPath
 
 
 class StrictModel(BaseModel):
     """Immutable model that rejects source fields outside the frozen contract."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+class VerifiedSourceFile(StrictModel):
+    """One verified data workbook with a safe internal access path."""
+
+    manifest_relative_path: PurePosixPath
+    verified_absolute_path: Path = Field(exclude=True, repr=False)
+    kind: Literal["data"] = "data"
+    table_id: str
+    sheet_name: str
+    snapshot_date: date
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    expected_rows: int = Field(ge=0)
+    expected_columns: int = Field(gt=0)
+    expected_headers: tuple[str, ...]
+
+    @model_validator(mode="after")
+    def validate_verified_source_file(self) -> Self:
+        """Require a descriptor that cannot escape its verified source root."""
+        if self.manifest_relative_path.is_absolute() or ".." in self.manifest_relative_path.parts:
+            raise ValueError("manifest_relative_path must be safe and traversal-free")
+        if not self.verified_absolute_path.is_absolute():
+            raise ValueError("verified_absolute_path must be absolute")
+        if self.expected_columns != len(self.expected_headers):
+            raise ValueError("expected_columns must match expected_headers")
+        return self
+
+
+class VerifiedSourceSet(StrictModel):
+    """All verified data workbooks from one all-or-nothing source check."""
+
+    data_files: tuple[VerifiedSourceFile, ...]
+
+    @model_validator(mode="after")
+    def validate_unique_table_ids(self) -> Self:
+        """Prevent ambiguous lookup in a verified source set."""
+        table_ids = tuple(source.table_id for source in self.data_files)
+        if len(set(table_ids)) != len(table_ids):
+            raise ValueError("data_files must have unique table IDs")
+        return self
+
+    def data_file(self, table_id: str) -> VerifiedSourceFile:
+        """Return one verified data workbook by its exact official table ID."""
+        for source in self.data_files:
+            if source.table_id == table_id:
+                return source
+        raise KeyError(table_id)
 
 
 class TaskPdfEntry(StrictModel):
@@ -235,6 +276,41 @@ class SourceFileManifest(StrictModel):
         table = self.schema_catalog.tables[table_id]
         return tuple(column.column_name for column in table.columns)
 
+    def verify(self, base_dir: Path) -> VerifiedSourceSet:
+        """Verify every official input before exposing any data workbook descriptor."""
+        data_files: list[VerifiedSourceFile] = []
+        for entry in self.files:
+            verified_path = _safe_file(base_dir, entry.path)
+            if verified_path.stat().st_size != entry.size_bytes:
+                raise SourceContractError(
+                    SourceErrorCode.SIZE_MISMATCH,
+                    "official input size does not match the manifest",
+                    source_file=_safe_error_path(entry.path),
+                    table_id=getattr(entry, "table_id", None),
+                )
+            if _sha256(verified_path) != entry.sha256:
+                raise SourceContractError(
+                    SourceErrorCode.CHECKSUM_MISMATCH,
+                    "official input SHA-256 does not match the manifest",
+                    source_file=_safe_error_path(entry.path),
+                    table_id=getattr(entry, "table_id", None),
+                )
+            if isinstance(entry, DataFileEntry):
+                data_files.append(
+                    VerifiedSourceFile(
+                        manifest_relative_path=entry.path,
+                        verified_absolute_path=verified_path,
+                        table_id=entry.table_id,
+                        sheet_name=entry.sheet_name,
+                        snapshot_date=self.snapshot_date,
+                        sha256=entry.sha256,
+                        expected_rows=entry.expected_rows,
+                        expected_columns=entry.expected_columns,
+                        expected_headers=self.expected_headers(entry.table_id),
+                    )
+                )
+        return VerifiedSourceSet(data_files=tuple(data_files))
+
 
 def _load_json(path: Path, error_code: SourceErrorCode) -> dict[str, object]:
     """Read JSON without allowing parser or filesystem details into errors."""
@@ -251,6 +327,59 @@ def _invalid_error(code: SourceErrorCode, error: ValidationError) -> SourceContr
     """Convert Pydantic's detailed, local-input errors into one stable safe error."""
     del error
     return SourceContractError(code, "official metadata violates the required schema")
+
+
+def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
+    """Resolve one manifest path without following links or escaping ``base_dir``."""
+    error_source = _safe_error_path(relative)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise SourceContractError(
+            SourceErrorCode.PATH_ESCAPE,
+            "manifest path must remain under source root",
+            source_file=error_source,
+        )
+    candidate = base_dir / Path(*relative.parts)
+    if candidate.is_symlink():
+        raise SourceContractError(
+            SourceErrorCode.FILE_TYPE_INVALID,
+            "official input must be a regular non-symlink file",
+            source_file=error_source,
+        )
+    try:
+        resolved = candidate.resolve(strict=True)
+    except FileNotFoundError as error:
+        raise SourceContractError(
+            SourceErrorCode.FILE_MISSING,
+            "official input is missing",
+            source_file=error_source,
+        ) from error
+    if not resolved.is_relative_to(base_dir.resolve()):
+        raise SourceContractError(
+            SourceErrorCode.PATH_ESCAPE,
+            "manifest path must remain under source root",
+            source_file=error_source,
+        )
+    if not resolved.is_file():
+        raise SourceContractError(
+            SourceErrorCode.FILE_TYPE_INVALID,
+            "official input must be a regular file",
+            source_file=error_source,
+        )
+    return resolved
+
+
+def _safe_error_path(path: PurePosixPath) -> PurePosixPath | None:
+    """Prevent absolute manifest input from leaking through error formatting."""
+    return None if path.is_absolute() else path
+
+
+def _sha256(path: Path) -> str:
+    """Calculate SHA-256 with bounded memory usage."""
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _validate_manifest_table_ids(

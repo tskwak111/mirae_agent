@@ -2,7 +2,8 @@
 
 import json
 from collections.abc import Callable
-from pathlib import Path
+from datetime import date
+from pathlib import Path, PurePosixPath
 from typing import cast
 
 import pytest
@@ -107,18 +108,14 @@ def test_catalog_rejects_unknown_fields(tmp_path: Path) -> None:
     assert raised.value.code is SourceErrorCode.CATALOG_INVALID
 
 
-@pytest.mark.parametrize("unsafe_path", ["/outside/source.xlsx", "../outside/source.xlsx"])
-def test_manifest_rejects_non_relative_or_traversal_source_paths(
-    tmp_path: Path, unsafe_path: str
-) -> None:
+def test_manifest_load_accepts_paths_for_verification_boundary(tmp_path: Path) -> None:
     def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
         del catalog
-        _manifest_files(manifest)[1]["path"] = unsafe_path
+        _manifest_files(manifest)[1]["path"] = "../outside.xlsx"
 
-    with pytest.raises(SourceContractError) as raised:
-        _load_mutated(tmp_path, mutate)
+    manifest = _load_mutated(tmp_path, mutate)
 
-    assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
+    assert manifest.data_entry("PRBD01N001").path == PurePosixPath("../outside.xlsx")
 
 
 def test_manifest_rejects_snapshot_mismatch(tmp_path: Path) -> None:
@@ -215,3 +212,130 @@ def test_catalog_rejects_blank_or_duplicate_headers(
         _load_mutated(tmp_path, mutate)
 
     assert raised.value.code is expected_code
+
+
+def test_official_manifest_verifies_all_files() -> None:
+    manifest = SourceFileManifest.load(
+        ROOT / "source_material/input_manifest.json",
+        ROOT / "source_material/schema_catalog.json",
+    )
+
+    verified = manifest.verify(ROOT / "source_material")
+
+    bond = verified.data_file("PRBD01N001")
+    assert bond.manifest_relative_path == PurePosixPath(
+        "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx"
+    )
+    assert bond.snapshot_date == date(2026, 7, 11)
+    assert bond.sha256 == "728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8"
+    assert bond.expected_headers[:3] == ("PD_NO", "PD_EXG_MKT", "PD_NM")
+
+
+def test_verify_rejects_missing_file(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    (tmp_path / "data/PRBD01N001_data.xlsx").unlink()
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_MISSING
+
+
+def test_verify_rejects_size_mismatch(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    target = tmp_path / "data/PRBD01N001_data.xlsx"
+    target.write_bytes(target.read_bytes() + b"x")
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.SIZE_MISMATCH
+
+
+def test_verify_rejects_checksum_mismatch(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    target = tmp_path / "data/PRBD01N001_data.xlsx"
+    target.write_bytes(b"x" * target.stat().st_size)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.CHECKSUM_MISMATCH
+
+
+def test_verify_rejects_directory_instead_of_file(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    target = tmp_path / "data/PRBD01N001_data.xlsx"
+    target.unlink()
+    target.mkdir()
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+
+
+def test_verify_rejects_symlink_instead_of_file(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    target = tmp_path / "data/PRBD01N001_data.xlsx"
+    external = tmp_path / "external.xlsx"
+    external.write_bytes(b"external")
+    target.unlink()
+    try:
+        target.symlink_to(external)
+    except OSError as error:
+        pytest.skip(f"platform refused test symlink creation: {error}")
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+
+
+def test_verify_rejects_path_escape_before_hashing_without_absolute_path_leak(
+    tmp_path: Path,
+) -> None:
+    manifest_path, catalog_path, manifest_payload, catalog = _load_payloads(tmp_path)
+    _manifest_files(manifest_payload)[1]["path"] = "../outside.xlsx"
+    _write_payloads(manifest_path, catalog_path, manifest_payload, catalog)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.PATH_ESCAPE
+    assert "../outside.xlsx" in str(raised.value)
+    assert str(tmp_path) not in str(raised.value)
+
+
+def test_verify_rejects_absolute_manifest_path_without_path_leak(tmp_path: Path) -> None:
+    manifest_path, catalog_path, manifest_payload, catalog = _load_payloads(tmp_path)
+    _manifest_files(manifest_payload)[1]["path"] = "/outside.xlsx"
+    _write_payloads(manifest_path, catalog_path, manifest_payload, catalog)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.PATH_ESCAPE
+    assert "/outside.xlsx" not in str(raised.value)
+    assert str(tmp_path) not in str(raised.value)
+
+
+def test_verify_is_all_or_nothing_and_does_not_cache_failure(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    final_schema = tmp_path / "data/PRFD01N001_schema.xlsx"
+    final_schema.write_bytes(final_schema.read_bytes() + b"x")
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    before = manifest.__dict__.copy()
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.SIZE_MISMATCH
+    assert manifest.__dict__ == before
