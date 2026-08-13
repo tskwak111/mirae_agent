@@ -1,10 +1,12 @@
 """Tests for fail-closed official manifest and schema-catalog loading."""
 
 import json
+import os
 from collections.abc import Callable
 from datetime import date
+from errno import EACCES, ELOOP
 from pathlib import Path, PurePosixPath
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -339,3 +341,72 @@ def test_verify_is_all_or_nothing_and_does_not_cache_failure(tmp_path: Path) -> 
 
     assert raised.value.code is SourceErrorCode.SIZE_MISMATCH
     assert manifest.__dict__ == before
+
+
+@pytest.mark.parametrize("error_number", [EACCES, ELOOP])
+def test_verify_converts_resolution_os_error_to_safe_contract_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error_number: int
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    def deny_resolution(path: Path, *, strict: bool = False) -> Path:
+        del strict
+        raise OSError(error_number, "resolution denied", path)
+
+    monkeypatch.setattr(Path, "resolve", deny_resolution)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+    assert str(tmp_path) not in str(raised.value)
+
+
+def test_verify_converts_stat_os_error_to_safe_contract_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    target = (tmp_path / "data/PRBD01N001_data.xlsx").resolve()
+    original_stat = Path.stat
+    target_stat_calls = 0
+
+    def deny_target_stat(path: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        nonlocal target_stat_calls
+        if path == target and follow_symlinks:
+            target_stat_calls += 1
+            if target_stat_calls == 2:
+                raise PermissionError(13, "permission denied", path)
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", deny_target_stat)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert target_stat_calls == 2
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+    assert str(tmp_path) not in str(raised.value)
+
+
+def test_verify_converts_hash_open_os_error_to_safe_contract_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    target = (tmp_path / "data/PRBD01N001_data.xlsx").resolve()
+    original_open = cast(Any, Path.open)
+
+    def deny_target_open(path: Path, *args: Any, **kwargs: Any) -> Any:
+        if path == target:
+            raise PermissionError(13, "permission denied", path)
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", deny_target_open)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+    assert str(tmp_path) not in str(raised.value)

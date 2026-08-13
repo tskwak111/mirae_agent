@@ -281,19 +281,30 @@ class SourceFileManifest(StrictModel):
         data_files: list[VerifiedSourceFile] = []
         for entry in self.files:
             verified_path = _safe_file(base_dir, entry.path)
-            if verified_path.stat().st_size != entry.size_bytes:
+            table_id = (
+                entry.table_id if isinstance(entry, (DataFileEntry, SchemaFileEntry)) else None
+            )
+            try:
+                size_bytes = verified_path.stat().st_size
+            except OSError as error:
+                raise _source_access_error(entry.path, error, table_id=table_id) from error
+            if size_bytes != entry.size_bytes:
                 raise SourceContractError(
                     SourceErrorCode.SIZE_MISMATCH,
                     "official input size does not match the manifest",
                     source_file=_safe_error_path(entry.path),
-                    table_id=getattr(entry, "table_id", None),
+                    table_id=table_id,
                 )
-            if _sha256(verified_path) != entry.sha256:
+            try:
+                sha256 = _sha256(verified_path)
+            except OSError as error:
+                raise _source_access_error(entry.path, error, table_id=table_id) from error
+            if sha256 != entry.sha256:
                 raise SourceContractError(
                     SourceErrorCode.CHECKSUM_MISMATCH,
                     "official input SHA-256 does not match the manifest",
                     source_file=_safe_error_path(entry.path),
-                    table_id=getattr(entry, "table_id", None),
+                    table_id=table_id,
                 )
             if isinstance(entry, DataFileEntry):
                 data_files.append(
@@ -339,13 +350,13 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
             source_file=error_source,
         )
     candidate = base_dir / Path(*relative.parts)
-    if candidate.is_symlink():
-        raise SourceContractError(
-            SourceErrorCode.FILE_TYPE_INVALID,
-            "official input must be a regular non-symlink file",
-            source_file=error_source,
-        )
     try:
+        if candidate.is_symlink():
+            raise SourceContractError(
+                SourceErrorCode.FILE_TYPE_INVALID,
+                "official input must be a regular non-symlink file",
+                source_file=error_source,
+            )
         resolved = candidate.resolve(strict=True)
     except FileNotFoundError as error:
         raise SourceContractError(
@@ -353,24 +364,60 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
             "official input is missing",
             source_file=error_source,
         ) from error
-    if not resolved.is_relative_to(base_dir.resolve()):
-        raise SourceContractError(
-            SourceErrorCode.PATH_ESCAPE,
-            "manifest path must remain under source root",
-            source_file=error_source,
-        )
-    if not resolved.is_file():
+    except OSError as error:
+        raise _source_access_error(relative, error) from error
+    except RuntimeError as error:
         raise SourceContractError(
             SourceErrorCode.FILE_TYPE_INVALID,
-            "official input must be a regular file",
+            "official input path could not be resolved safely",
             source_file=error_source,
-        )
+        ) from error
+    try:
+        if not resolved.is_relative_to(base_dir.resolve()):
+            raise SourceContractError(
+                SourceErrorCode.PATH_ESCAPE,
+                "manifest path must remain under source root",
+                source_file=error_source,
+            )
+        if not resolved.is_file():
+            raise SourceContractError(
+                SourceErrorCode.FILE_TYPE_INVALID,
+                "official input must be a regular file",
+                source_file=error_source,
+            )
+    except OSError as error:
+        raise _source_access_error(relative, error) from error
+    except RuntimeError as error:
+        raise SourceContractError(
+            SourceErrorCode.FILE_TYPE_INVALID,
+            "official input path could not be resolved safely",
+            source_file=error_source,
+        ) from error
     return resolved
 
 
 def _safe_error_path(path: PurePosixPath) -> PurePosixPath | None:
     """Prevent absolute manifest input from leaking through error formatting."""
     return None if path.is_absolute() else path
+
+
+def _source_access_error(
+    path: PurePosixPath, error: OSError, *, table_id: str | None = None
+) -> SourceContractError:
+    """Map an OS access failure to a safe, stable source-contract error."""
+    if isinstance(error, FileNotFoundError):
+        return SourceContractError(
+            SourceErrorCode.FILE_MISSING,
+            "official input is missing",
+            source_file=_safe_error_path(path),
+            table_id=table_id,
+        )
+    return SourceContractError(
+        SourceErrorCode.FILE_TYPE_INVALID,
+        "official input could not be accessed safely",
+        source_file=_safe_error_path(path),
+        table_id=table_id,
+    )
 
 
 def _sha256(path: Path) -> str:
