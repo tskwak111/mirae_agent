@@ -321,6 +321,54 @@ def test_reader_rejects_unexpected_xml_part_roots(
     assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
 
 
+def test_reader_rejects_unexpected_worksheet_root_before_first_value(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<wrapper><worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="inlineStr"><is><t>1</t></is></c></row>
+</sheetData></worksheet></wrapper>'''.encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", payload)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        next(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+def test_reader_rejects_utf16_dtd_before_first_worksheet_value(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    xml = f'''<?xml version="1.0" encoding="UTF-16"?>
+<!DOCTYPE worksheet [<!ENTITY unused "private-utf16-metadata">]>
+<worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="inlineStr"><is><t>1</t></is></c></row>
+</sheetData></worksheet>'''.encode("utf-16")
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", xml)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        next(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+    assert "private" not in str(raised.value)
+
+
 @pytest.mark.parametrize("duplicate_sheet_data", [False, True], ids=["missing", "duplicate"])
 def test_reader_requires_exactly_one_sheet_data_parent(
     tmp_path: Path, duplicate_sheet_data: bool

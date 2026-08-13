@@ -27,7 +27,11 @@ _WORKSHEET_RELATIONSHIP_TYPE: Final = (
 _WORKBOOK_MEMBER: Final = "xl/workbook.xml"
 _WORKBOOK_RELS_MEMBER: Final = "xl/_rels/workbook.xml.rels"
 _SHARED_STRINGS_MEMBER: Final = "xl/sharedStrings.xml"
-_XML_DECLARATION_MARKERS: Final = (b"<!DOCTYPE", b"<!ENTITY")
+_XML_DECLARATION_MARKERS: Final = tuple(
+    marker.encode(encoding)
+    for marker in ("<!DOCTYPE", "<!ENTITY")
+    for encoding in ("ascii", "utf-16-le", "utf-16-be", "utf-32-le", "utf-32-be")
+)
 _XML_SCAN_CHUNK_SIZE: Final = 64 * 1024
 _URI_PATH_SAFE: Final = "/:@!$&'()*+,;=-._~"
 
@@ -97,6 +101,25 @@ def _parse_xml_root(archive: ZipFile, member: str, expected_root: str) -> etree.
     if root.tag != expected_root or root.getparent() is not None:
         raise ValueError("XML part has an unexpected root")
     return root
+
+
+def _validate_streaming_xml_root(archive: ZipFile, member: str, expected_root: str) -> None:
+    """Validate a streamed XML root before any row value can be yielded."""
+    with archive.open(member) as stream:
+        context = etree.iterparse(
+            stream,
+            events=("start",),
+            resolve_entities=False,
+            no_network=True,
+            recover=False,
+            huge_tree=False,
+        )
+        try:
+            _, root = next(context)
+        except StopIteration as error:
+            raise ValueError("XML part has no root") from error
+        if root.tag != expected_root or root.getparent() is not None:
+            raise ValueError("XML part has an unexpected root")
 
 
 def _sheet_target(archive: ZipFile, source: VerifiedSourceFile) -> str:
@@ -425,6 +448,7 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
             sheet_target = _sheet_target(archive, source)
             shared_strings = _shared_strings(archive)
             _reject_xml_declarations(archive, sheet_target)
+            _validate_streaming_xml_root(archive, sheet_target, f"{MAIN_NS}worksheet")
             with archive.open(sheet_target) as worksheet_stream:
                 context = etree.iterparse(
                     worksheet_stream,
