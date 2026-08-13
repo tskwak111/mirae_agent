@@ -152,10 +152,10 @@ Exact next task:
 
 Scope implemented:
 
-- Added environment-backed typed `Settings` with evaluation defaults, frozen `2026-07-11` snapshot, typed paths, and bounded top-k validation.
+- Added environment-backed typed `Settings` with evaluation defaults, an evaluation-mode invariant that fixes the official snapshot at `2026-07-11`, typed paths, and bounded top-k validation.
 - Added transport-independent `FinProofError`/`SourceContractError` and immutable `VersionBundle` defaults matching checked-in version `1.0.0` policies.
-- Added `finproof` commands `show-versions`, `verify-handoff`, and `audit-source`. Source commands call the existing Python tools in-process from a verified FinProof checkout.
-- Added `.env.example` with safe non-secret values, Ruff pre-commit hooks pinned to `v0.15.22`, and a read-only-permission GitHub Actions workflow on Python 3.12 with uv `0.12.3` frozen installation.
+- Added `finproof` commands `show-versions`, `verify-handoff`, and `audit-source`. Source commands call the existing Python tools in-process only when the working directory is the checkout containing the installed editable FinProof package.
+- Added `.env.example` with safe non-secret values, Ruff pre-commit hooks pinned to `v0.15.22`, and a read-only-permission GitHub Actions workflow on Python 3.12 with uv `0.12.3` frozen installation. Every third-party CI action is pinned to a full commit SHA.
 - Installed the local pre-commit hook and amended the original Phase 1 Task 1 file/check scope to cover the previously missing automation files.
 
 RED evidence observed before implementation:
@@ -165,6 +165,7 @@ RED evidence observed before implementation:
 - CLI test collection failed with `ModuleNotFoundError: No module named 'finproof.cli'`.
 - The installed `finproof` entry point then failed all three commands because pytest exposed top-level `tools` while the real console did not. A parameterized console regression reproduced that boundary before repository-tool loading was corrected.
 - Automation contract tests failed three times with missing `.env.example`, `.pre-commit-config.yaml`, and `.github/workflows/ci.yml`.
+- Independent review then produced three focused RED checks against the first implementation: evaluation mode accepted `2026-07-10`; a lookalike working directory executed its own `tools.verify_handoff`; and the CI action-reference assertion rejected the mutable `actions/checkout@v6` and `actions/setup-python@v6` tags. The minimal hardening change made the three focused checks and the 14-test related suite pass.
 
 Incidental verification findings and resolution:
 
@@ -179,7 +180,7 @@ Final observed verification before this status update:
 - `uv run ruff format --check .` — PASS: 22 files already formatted.
 - `uv run ruff check .` — PASS.
 - `uv run mypy src tests tools` — PASS: no issues in 22 source files.
-- `uv run pytest -q` — PASS: 22 tests.
+- `uv run pytest -q` — PASS: 24 tests.
 - `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot `2026-07-11`.
 - `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs, 41,384,928 source bytes.
 - `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
@@ -195,11 +196,12 @@ Implementation checkpoints:
 - `d443feb` — environment, pre-commit, CI, and automation contracts.
 - `a3af00b` — mechanical formatting required by the final hook gate.
 - `1e12985` — Task 1 verification evidence, status, and exact next task.
+- `a23fab3` — independent-review hardening for snapshot, repository-command, and CI supply-chain boundaries.
 
 Remaining risks:
 
 - The GitHub Actions YAML and every command it contains were validated locally, but no remote GitHub Actions run exists until this branch is pushed to a GitHub repository.
-- `verify-handoff` and `audit-source` are repository bootstrap commands; when invoked outside a checkout they fail closed with a concise `FinProofError`.
+- `verify-handoff` and `audit-source` are repository bootstrap commands; when invoked anywhere other than the checkout that supplies the installed editable package they fail closed with a concise `FinProofError`.
 - Phase 1 Task 2 must resolve A-002 before freezing `SourceRow`/evidence lineage fields. Other A-series decisions retain the task boundaries recorded in `docs/10_DECISION_LOG.md`.
 
 Exact next task:

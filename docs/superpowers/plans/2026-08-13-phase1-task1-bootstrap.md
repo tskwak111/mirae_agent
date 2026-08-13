@@ -358,7 +358,7 @@ git commit -m "ci: add frozen FinProof quality gates"
 **Interfaces:**
 - Produces: durable RED/GREEN evidence, exact commit hashes, unresolved risks, and `Phase 1 Task 2` as the next task
 
-Independent review added three security/invariant regressions before handoff: evaluation mode rejects a non-official snapshot date, repository commands reject a lookalike working directory instead of importing its code, and every CI action reference is a full commit SHA. All three tests were observed failing against the first implementation and passing after the minimal hardening changes.
+Independent review added three security/invariant regression checks before handoff: evaluation mode rejects a non-official snapshot date, repository commands reject a lookalike working directory instead of importing its code, and every CI action reference is a full commit SHA. All three checks were observed failing against the first implementation and passing after the minimal hardening changes.
 
 - [x] **Step 1: Run the complete Task 1 and repository gates**
 
