@@ -192,6 +192,10 @@ git commit -m "feat: bootstrap typed FinProof core and CLI"
 
 ### Task 2: Implement source manifest and streaming workbook rows with lineage
 
+> **Approved detailed plan:** `docs/superpowers/plans/2026-08-13-phase1-task2-source-ingestion.md`
+>
+> D-017 supersedes the legacy path-based reader examples below. Production ingestion must use `VerifiedSourceFile`, and the complete raw lineage includes manifest-relative file, table, sheet, Excel row/column, verified checksum, dataset snapshot, raw payload/value, and an explicit optional cell applicable date. Execute and track the approved detailed plan; do not implement `iter_xlsx_rows(path, table_id, sheet_name)`.
+
 **Files:**
 - Create: `src/finproof/data/__init__.py`
 - Create: `src/finproof/data/source_manifest.py`
@@ -203,11 +207,11 @@ git commit -m "feat: bootstrap typed FinProof core and CLI"
 - Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
-- Produces: `SourceFileManifest.load(path: Path) -> SourceFileManifest`
-- Produces: `SourceFileManifest.verify(base_dir: Path) -> None`
-- Produces: `SourceCell(column_name: str, column_index: int, raw_value: str)`
-- Produces: `SourceRow(table_id: str, source_file: str, sheet_name: str, excel_row_number: int, cells: tuple[SourceCell, ...])`
-- Produces: `iter_xlsx_rows(path: Path, table_id: str, sheet_name: str) -> Iterator[SourceRow]`
+- Produces: `SourceFileManifest.load(manifest_path: Path, schema_catalog_path: Path) -> SourceFileManifest`
+- Produces: `SourceFileManifest.verify(base_dir: Path) -> VerifiedSourceSet`
+- Produces: `VerifiedSourceSet.data_file(table_id: str) -> VerifiedSourceFile`
+- Produces: frozen `SourceCell` and `SourceRow` contracts defined in D-017
+- Produces: `iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]`
 - Consumes: `source_material/input_manifest.json`
 
 - [ ] **Step 1: Write a failing manifest checksum test**
@@ -220,8 +224,12 @@ from finproof.data.source_manifest import SourceFileManifest
 
 def test_official_manifest_verifies_all_files() -> None:
     repo = Path(__file__).resolve().parents[2]
-    manifest = SourceFileManifest.load(repo / "source_material/input_manifest.json")
-    manifest.verify(repo / "source_material")
+    manifest = SourceFileManifest.load(
+        repo / "source_material/input_manifest.json",
+        repo / "source_material/schema_catalog.json",
+    )
+    verified = manifest.verify(repo / "source_material")
+    assert verified.data_file("PRBD01N001").expected_rows == 42_394
 ```
 
 - [ ] **Step 2: Run and observe the missing implementation failure**
@@ -247,15 +255,21 @@ uv run pytest tests/source_contract/test_source_manifest.py -q
 ```python
 from pathlib import Path
 
+from finproof.data.source_manifest import SourceFileManifest
 from finproof.data.xlsx_stream import iter_xlsx_rows
 
 
 def test_bond_reader_emits_excel_row_and_header_named_cells() -> None:
-    path = Path("source_material/data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx")
-    row = next(iter_xlsx_rows(path, table_id="PRBD01N001", sheet_name="datarows"))
+    repo = Path(__file__).resolve().parents[2]
+    manifest = SourceFileManifest.load(
+        repo / "source_material/input_manifest.json",
+        repo / "source_material/schema_catalog.json",
+    )
+    source = manifest.verify(repo / "source_material").data_file("PRBD01N001")
+    row = next(iter_xlsx_rows(source))
 
     values = {cell.column_name: cell.raw_value for cell in row.cells}
-    assert row.excel_row_number == 2
+    assert row.source_row_number == 2
     assert values["PD_NO"] == "KR101501DA16"
     assert values["PD_NM"] == "국민주택1종채권 20-01"
 ```
@@ -272,14 +286,14 @@ Expected: FAIL because `iter_xlsx_rows` does not exist.
 
 - [ ] **Step 7: Implement streaming XLSX parsing**
 
-Use `zipfile.ZipFile` and `lxml.etree.iterparse` to:
+Use the approved detailed plan to implement `zipfile.ZipFile` and hardened `lxml.etree.iterparse` parsing that:
 
 - resolve workbook sheet name to XML target
 - load shared strings once per workbook
-- parse header row exactly
+- compare the header row exactly with the ordered schema catalog
 - map Excel column references to zero-based indices
 - emit data rows without loading the worksheet XML into memory
-- preserve empty cells and exact raw strings
+- preserve empty cells, exact raw strings, checksum, snapshot, and optional applicable-date state
 - clear parsed elements to bound memory
 - raise `SourceContractError` for missing sheet, duplicate/blank header, or row wider than header
 
