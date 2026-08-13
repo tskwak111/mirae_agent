@@ -42,6 +42,56 @@ def _remove_zip_member(path: Path, member: str) -> None:
             archive.writestr(name, content)
 
 
+def _worksheet_xml(*rows: str) -> bytes:
+    return (
+        f'<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="{MAIN_URI}">'
+        f"<sheetData>{''.join(rows)}</sheetData></worksheet>"
+    ).encode()
+
+
+def _patch_zip_member_flags(
+    path: Path,
+    member: str,
+    *,
+    encrypted: bool = False,
+    compression_method: int | None = None,
+) -> None:
+    payload = bytearray(path.read_bytes())
+    member_bytes = member.encode()
+    matches = 0
+    for signature, flag_offset, method_offset, name_length_offset, name_offset in (
+        (b"PK\x03\x04", 6, 8, 26, 30),
+        (b"PK\x01\x02", 8, 10, 28, 46),
+    ):
+        offset = 0
+        while (header_offset := payload.find(signature, offset)) >= 0:
+            name_length = int.from_bytes(
+                payload[
+                    header_offset + name_length_offset : header_offset + name_length_offset + 2
+                ],
+                "little",
+            )
+            name_start = header_offset + name_offset
+            if payload[name_start : name_start + name_length] == member_bytes:
+                matches += 1
+                if encrypted:
+                    flags = int.from_bytes(
+                        payload[header_offset + flag_offset : header_offset + flag_offset + 2],
+                        "little",
+                    )
+                    payload[header_offset + flag_offset : header_offset + flag_offset + 2] = (
+                        flags | 1
+                    ).to_bytes(2, "little")
+                if compression_method is not None:
+                    payload[header_offset + method_offset : header_offset + method_offset + 2] = (
+                        compression_method.to_bytes(2, "little")
+                    )
+            offset = header_offset + len(signature)
+    if matches != 2:
+        raise AssertionError("test ZIP member must have one local and one central header")
+    path.write_bytes(payload)
+
+
 def test_reader_preserves_omitted_cells_and_exact_raw_lineage(tmp_path: Path) -> None:
     workbook = tmp_path / "fixture.xlsx"
     write_xlsx(
@@ -221,11 +271,17 @@ def _remove_workbook_relationships(path: Path) -> None:
     _remove_zip_member(path, "xl/_rels/workbook.xml.rels")
 
 
-def _set_relationship_target(path: Path, target: str, *, target_mode: str | None = None) -> None:
+def _set_relationship_target(
+    path: Path,
+    target: str,
+    *,
+    target_mode: str | None = None,
+    relationship_type: str = f"{REL_URI}/worksheet",
+) -> None:
     target_mode_xml = "" if target_mode is None else f' TargetMode="{target_mode}"'
     relationships = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="{PACKAGE_REL_URI}">
-  <Relationship Id="rId1" Type="{REL_URI}/worksheet" Target="{target}"{target_mode_xml}/>
+  <Relationship Id="rId1" Type="{relationship_type}" Target="{target}"{target_mode_xml}/>
 </Relationships>""".encode()
     _replace_zip_member(path, "xl/_rels/workbook.xml.rels", relationships)
 
@@ -294,6 +350,52 @@ def test_reader_rejects_uri_relationship_target_even_if_zip_member_exists(tmp_pa
     assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
 
 
+def test_reader_rejects_nonworksheet_relationship_type(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    _set_relationship_target(
+        workbook,
+        "worksheets/sheet1.xml",
+        relationship_type=f"{REL_URI}/styles",
+    )
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+def test_reader_resolves_relative_relationship_against_workbook_directory(
+    tmp_path: Path,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("outer",)))
+    nested_worksheet = _worksheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>',
+        '<row r="2"><c r="A2" t="inlineStr"><is><t>nested</t></is></c></row>',
+    )
+    _replace_zip_member(workbook, "xl/xl/worksheets/sheet1.xml", nested_worksheet)
+    _set_relationship_target(workbook, "xl/worksheets/sheet1.xml")
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    rows = list(iter_xlsx_rows(verified))
+
+    assert rows[0].raw_payload == ("nested",)
+
+
 @pytest.mark.parametrize(
     "corrupt",
     [
@@ -323,6 +425,64 @@ def test_reader_converts_malformed_workbook_structure_to_safe_error(
 
     assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
     assert str(tmp_path) not in str(raised.value)
+
+
+def test_reader_rejects_duplicate_zip_member_names(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("secret duplicate payload",)))
+    with ZipFile(workbook) as archive:
+        worksheet = archive.read("xl/worksheets/sheet1.xml")
+    with (
+        pytest.warns(UserWarning, match="Duplicate name"),
+        ZipFile(workbook, "a", compression=ZIP_DEFLATED) as archive,
+    ):
+        archive.writestr("xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+    assert str(tmp_path) not in str(raised.value)
+    assert "secret duplicate payload" not in str(raised.value)
+
+
+@pytest.mark.parametrize(
+    ("encrypted", "compression_method"),
+    [(True, None), (False, 99)],
+    ids=["encrypted", "unsupported-compression"],
+)
+def test_reader_converts_unsupported_zip_member_read_failures(
+    tmp_path: Path, encrypted: bool, compression_method: int | None
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("secret member payload",)))
+    _patch_zip_member_flags(
+        workbook,
+        "xl/worksheets/sheet1.xml",
+        encrypted=encrypted,
+        compression_method=compression_method,
+    )
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+    assert str(tmp_path) not in str(raised.value)
+    assert "secret member payload" not in str(raised.value)
 
 
 @pytest.mark.parametrize("row_attribute", ["0", "not-a-row"])
@@ -362,6 +522,97 @@ def test_reader_rejects_invalid_cell_reference(tmp_path: Path) -> None:
         workbook=workbook,
         expected_headers=("ID",),
         expected_rows=0,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize(
+    ("data_row_number", "cell_reference"),
+    [(2, "XFE2"), (1_048_577, "A1048577")],
+    ids=["column-above-xfd", "row-above-1048576"],
+)
+def test_reader_rejects_cell_references_beyond_excel_bounds(
+    tmp_path: Path, data_row_number: int, cell_reference: str
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",),))
+    worksheet = _worksheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>',
+        f'<row r="{data_row_number}"><c r="{cell_reference}" '
+        't="inlineStr"><is><t>value</t></is></c></row>',
+    )
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+def test_reader_accepts_exact_excel_row_and_column_boundaries(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",),))
+    worksheet = _worksheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>',
+        '<row r="1048576"><c r="A1048576" t="inlineStr"><is><t>value</t></is></c>'
+        '<c r="XFD1048576" t="inlineStr"><is><t></t></is></c></row>',
+    )
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    rows = list(iter_xlsx_rows(verified))
+
+    assert rows[0].source_row_number == 1_048_576
+    assert rows[0].raw_payload == ("value",)
+
+
+@pytest.mark.parametrize(
+    "data_rows",
+    [
+        (
+            '<row r="2"><c r="A2" t="inlineStr"><is><t>first</t></is></c></row>',
+            '<row r="2"><c r="A2" t="inlineStr"><is><t>again</t></is></c></row>',
+        ),
+        (
+            '<row r="3"><c r="A3" t="inlineStr"><is><t>first</t></is></c></row>',
+            '<row r="2"><c r="A2" t="inlineStr"><is><t>backward</t></is></c></row>',
+        ),
+    ],
+    ids=["repeated", "decreasing"],
+)
+def test_reader_rejects_nonincreasing_worksheet_row_numbers(
+    tmp_path: Path, data_rows: tuple[str, str]
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",),))
+    worksheet = _worksheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>',
+        *data_rows,
+    )
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=2,
     )
 
     with pytest.raises(SourceContractError) as raised:
@@ -412,6 +663,31 @@ def test_reader_rejects_invalid_shared_string_index(tmp_path: Path) -> None:
   <row r="2"><c r="A2" t="s"><v>99</v></c></row>
 </sheetData></worksheet>""".encode()
     _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+def test_reader_rejects_negative_shared_string_index(tmp_path: Path) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",),))
+    worksheet = _worksheet_xml(
+        '<row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>',
+        '<row r="2"><c r="A2" t="s"><v>-1</v></c></row>',
+    )
+    shared_strings = f"""<?xml version="1.0" encoding="UTF-8"?>
+<sst xmlns="{MAIN_URI}"><si><t>wrong value</t></si></sst>""".encode()
+    _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    _replace_zip_member(workbook, "xl/sharedStrings.xml", shared_strings)
     verified = verified_fixture_source(
         tmp_path,
         table_id="PRBD01N001",
