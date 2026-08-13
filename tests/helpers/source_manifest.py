@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 TABLE_COLUMNS = {
@@ -12,12 +13,20 @@ TABLE_COLUMNS = {
 }
 
 
-def write_source_contract_fixture(base_dir: Path) -> tuple[Path, Path]:
+def write_source_contract_fixture(
+    base_dir: Path, *, data_payloads: Mapping[str, bytes] | None = None
+) -> tuple[Path, Path]:
     """Write an official-shaped manifest and catalog only below ``base_dir``."""
     payloads = {"competition_task.pdf": b"pdf"}
     for table_id in TABLE_COLUMNS:
         payloads[f"data/{table_id}_data.xlsx"] = f"{table_id}-data".encode()
         payloads[f"data/{table_id}_schema.xlsx"] = f"{table_id}-schema".encode()
+    if data_payloads is not None:
+        data_paths = {f"data/{table_id}_data.xlsx" for table_id in TABLE_COLUMNS}
+        unknown_paths = set(data_payloads) - data_paths
+        if unknown_paths:
+            raise ValueError("data_payloads keys must name fixture data workbooks")
+        payloads.update(data_payloads)
     for relative_path, payload in payloads.items():
         destination = base_dir / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
