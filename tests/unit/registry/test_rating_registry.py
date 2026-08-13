@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from finproof.core.errors import RatingNotComparableError, RatingRegistryConfigurationError
 from finproof.domain.quality import QualityStatus
@@ -91,6 +92,55 @@ def test_registry_state_is_deeply_immutable(registry: RatingRegistry) -> None:
         registry.aliases["AA０"] = "AAA"  # type: ignore[index]  # noqa: RUF001
     with pytest.raises(AttributeError):
         registry.missing_tokens.append("UNKNOWN")  # type: ignore[attr-defined]
+
+
+def test_registry_json_round_trip_uses_plain_objects_and_restores_immutability(
+    registry: RatingRegistry,
+) -> None:
+    dumped = registry.model_dump(mode="json")
+    assert type(dumped["ratings"]) is dict
+    assert type(dumped["aliases"]) is dict
+    assert dumped["ratings"] == dict(registry.ratings)
+    assert dumped["aliases"] == dict(registry.aliases)
+
+    encoded = registry.model_dump_json()
+    restored = RatingRegistry.model_validate_json(encoded)
+    assert restored == registry
+    with pytest.raises(TypeError):
+        restored.ratings["AAA"] = 99  # type: ignore[index]
+    with pytest.raises(TypeError):
+        restored.aliases["ALT"] = "AAA"  # type: ignore[index]
+
+
+@pytest.mark.parametrize(
+    ("missing_tokens", "ratings", "aliases"),
+    [
+        ((), {"AAA": 1}, {}),
+        (("", ""), {"AAA": 1}, {}),
+        (("", " NR "), {"AAA": 1}, {}),
+        (("",), {}, {}),
+        (("",), {"": 1}, {}),
+        (("",), {" AAA": 1}, {}),
+        (("",), {"AAA": 0}, {}),
+        (("",), {"AAA": 1}, {"ALT": "AA0"}),
+        (("",), {"AAA": 1}, {"AAA": "AAA"}),
+        (("", "NR"), {"AAA": 1}, {"NR": "AAA"}),
+        (("",), {"AAA": 1}, {" ALT": "AAA"}),
+        (("",), {"AAA": 1}, {"ALT": " AAA"}),
+    ],
+)
+def test_direct_registry_construction_rejects_semantically_invalid_state(
+    missing_tokens: tuple[str, ...],
+    ratings: Mapping[str, int],
+    aliases: Mapping[str, str],
+) -> None:
+    with pytest.raises(ValidationError):
+        RatingRegistry(
+            version="1.0.0",
+            missing_tokens=missing_tokens,
+            ratings=ratings,
+            aliases=aliases,
+        )
 
 
 @pytest.mark.parametrize(
@@ -206,6 +256,58 @@ def test_registry_rejects_wrong_version_and_malformed_contracts(
     with pytest.raises(RatingRegistryConfigurationError, match=category) as captured:
         RatingRegistry.from_yaml(path)
     assert str(tmp_path) not in str(captured.value)
+
+
+@pytest.mark.parametrize(
+    ("document", "category"),
+    [
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": ["", " NR "],
+                "ratings": {"AAA": 1},
+                "aliases": {},
+            },
+            "missing",
+        ),
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": [""],
+                "ratings": {"AAA": 1, " AAA ": 2},
+                "aliases": {},
+            },
+            "rating",
+        ),
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": [""],
+                "ratings": {"AAA": 1},
+                "aliases": {" ALT ": "AAA"},
+            },
+            "alias",
+        ),
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": [""],
+                "ratings": {"AAA": 1},
+                "aliases": {"ALT": " AAA "},
+            },
+            "alias",
+        ),
+    ],
+)
+def test_registry_rejects_padded_and_normalization_colliding_config_tokens(
+    tmp_path: Path,
+    document: Mapping[str, object],
+    category: str,
+) -> None:
+    path = tmp_path / "rating.yaml"
+    _write_rating_yaml(path, document)
+    with pytest.raises(RatingRegistryConfigurationError, match=category):
+        RatingRegistry.from_yaml(path)
 
 
 def test_registry_wraps_yaml_syntax_error_without_file_content(tmp_path: Path) -> None:

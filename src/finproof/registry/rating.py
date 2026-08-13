@@ -12,7 +12,9 @@ from pydantic import (
     StrictInt,
     StrictStr,
     ValidationError,
+    field_serializer,
     field_validator,
+    model_validator,
 )
 
 from finproof.core.errors import RatingNotComparableError, RatingRegistryConfigurationError
@@ -62,6 +64,28 @@ class RatingRegistry(BaseModel):
     def freeze_aliases(cls, value: Mapping[str, str]) -> Mapping[str, str]:
         """Copy and freeze aliases even for direct construction."""
         return MappingProxyType(dict(value))
+
+    @model_validator(mode="after")
+    def validate_semantics(self) -> Self:
+        """Reject invalid registry state at every public construction boundary."""
+        category = _semantic_error_category(
+            self.missing_tokens,
+            self.ratings,
+            self.aliases,
+        )
+        if category is not None:
+            raise ValueError(f"invalid rating registry {category}")
+        return self
+
+    @field_serializer("ratings")
+    def serialize_ratings(self, value: Mapping[str, int]) -> dict[str, int]:
+        """Serialize the immutable mapping as an ordinary JSON object."""
+        return dict(value)
+
+    @field_serializer("aliases")
+    def serialize_aliases(self, value: Mapping[str, str]) -> dict[str, str]:
+        """Serialize the immutable mapping as an ordinary JSON object."""
+        return dict(value)
 
     @classmethod
     def from_yaml(cls, path: Path) -> Self:
@@ -153,21 +177,43 @@ def _validation_error_category(error: ValidationError) -> str:
 
 def _validate_semantics(config: _RatingConfig) -> None:
     """Validate relationships that cannot be expressed by raw field types alone."""
-    if not config.missing_tokens or len(set(config.missing_tokens)) != len(config.missing_tokens):
-        raise RatingRegistryConfigurationError("missing token")
-    if not config.ratings:
-        raise RatingRegistryConfigurationError("rating")
-    if any(not rating for rating in config.ratings):
-        raise RatingRegistryConfigurationError("rating")
-    if any(ordinal <= 0 for ordinal in config.ratings.values()):
-        raise RatingRegistryConfigurationError("ordinal")
-    if any(rating in config.missing_tokens for rating in config.ratings):
-        raise RatingRegistryConfigurationError("rating")
+    category = _semantic_error_category(
+        tuple(config.missing_tokens),
+        config.ratings,
+        config.aliases,
+    )
+    if category is not None:
+        raise RatingRegistryConfigurationError(category)
+
+
+def _semantic_error_category(
+    missing_tokens: tuple[str, ...],
+    ratings: Mapping[str, int],
+    aliases: Mapping[str, str],
+) -> str | None:
+    """Return the first fixed semantic-error category, or ``None`` when valid."""
+    if (
+        not missing_tokens
+        or len(set(missing_tokens)) != len(missing_tokens)
+        or any(token != token.strip() for token in missing_tokens)
+    ):
+        return "missing token"
+    if (
+        not ratings
+        or any(not rating or rating != rating.strip() for rating in ratings)
+        or any(rating in missing_tokens for rating in ratings)
+    ):
+        return "rating"
+    if any(ordinal <= 0 for ordinal in ratings.values()):
+        return "ordinal"
     if any(
         not alias
-        or alias in config.ratings
-        or alias in config.missing_tokens
-        or target not in config.ratings
-        for alias, target in config.aliases.items()
+        or alias != alias.strip()
+        or target != target.strip()
+        or alias in ratings
+        or alias in missing_tokens
+        or target not in ratings
+        for alias, target in aliases.items()
     ):
-        raise RatingRegistryConfigurationError("alias")
+        return "alias"
+    return None
