@@ -3,6 +3,7 @@
 import hashlib
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import PurePosixPath
 from typing import TypedDict
 
 import pytest
@@ -84,6 +85,47 @@ def test_locator_is_built_only_from_exact_row_and_cell_lineage() -> None:
     assert locator.source_applicable_date == date(2026, 7, 10)
     with pytest.raises(KeyError, match="pd_no"):
         SourceCellLocator.from_row(row, "pd_no")
+
+
+@pytest.mark.parametrize(
+    ("field_name", "invalid_value", "message"),
+    [
+        ("source_file", PurePosixPath("/absolute/forged.xlsx"), "manifest-relative"),
+        ("source_file", PurePosixPath("../forged.xlsx"), "manifest-relative"),
+        ("source_table", "", "source_table"),
+        ("source_sheet", "", "source_sheet"),
+        ("source_column_name", "", "source_column_name"),
+        ("source_column_letter", "", "source_column_letter"),
+    ],
+)
+def test_locator_direct_construction_rejects_unsafe_or_blank_lineage(
+    field_name: str, invalid_value: str | PurePosixPath, message: str
+) -> None:
+    """Forged paths and blank source identity fields must not create a locator."""
+    valid_locator = SourceCellLocator.from_row(source_row("PRBD01N001"), "PD_NO")
+    with pytest.raises(ValidationError, match=message):
+        SourceCellLocator.model_validate(valid_locator.model_dump() | {field_name: invalid_value})
+
+
+def test_locator_direct_construction_requires_matching_multi_letter_column_location() -> None:
+    """Column number and Excel letters are one location, including columns beyond Z."""
+    valid_locator = SourceCellLocator.from_row(source_row("PRBD01N001"), "PD_NO")
+    multi_letter_locator = SourceCellLocator.model_validate(
+        valid_locator.model_dump()
+        | {
+            "source_column_number": 27,
+            "source_column_letter": "AA",
+        }
+    )
+    assert multi_letter_locator.source_column_letter == "AA"
+    with pytest.raises(ValidationError, match="source_column_letter"):
+        SourceCellLocator.model_validate(
+            valid_locator.model_dump()
+            | {
+                "source_column_number": 27,
+                "source_column_letter": "A",
+            }
+        )
 
 
 @pytest.mark.parametrize(

@@ -2,10 +2,23 @@
 
 from datetime import date
 from pathlib import PurePosixPath
+from typing import Annotated, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from finproof.domain.source import SourceRow
+
+NonEmptyText = Annotated[str, StringConstraints(min_length=1)]
+
+
+def _excel_column_letter(number: int) -> str:
+    """Return uppercase Excel column letters for a one-based column number."""
+    letters: list[str] = []
+    remaining = number
+    while remaining:
+        remaining, remainder = divmod(remaining - 1, 26)
+        letters.append(chr(ord("A") + remainder))
+    return "".join(reversed(letters))
 
 
 class SourceCellLocator(BaseModel):
@@ -13,16 +26,25 @@ class SourceCellLocator(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
-    source_table: str
+    source_table: NonEmptyText
     source_file: PurePosixPath
-    source_sheet: str
+    source_sheet: NonEmptyText
     source_row_number: int = Field(gt=0)
-    source_column_name: str
+    source_column_name: NonEmptyText
     source_column_number: int = Field(gt=0)
-    source_column_letter: str
+    source_column_letter: NonEmptyText
     source_checksum: str = Field(pattern=r"^[0-9a-f]{64}$")
     source_snapshot_date: date
     source_applicable_date: date | None
+
+    @model_validator(mode="after")
+    def validate_source_lineage(self) -> Self:
+        """Reject path and column-location values that cannot name one raw cell."""
+        if self.source_file.is_absolute() or ".." in self.source_file.parts:
+            raise ValueError("source_file must be a safe manifest-relative path")
+        if self.source_column_letter != _excel_column_letter(self.source_column_number):
+            raise ValueError("source_column_letter must match source_column_number")
+        return self
 
     @classmethod
     def from_row(cls, row: SourceRow, column_name: str) -> "SourceCellLocator":
