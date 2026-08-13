@@ -27,6 +27,7 @@ htmlcov/
 .idea/
 .vscode/
 .superpowers/
+.worktrees/
 .uv-cache/
 *.log
 
