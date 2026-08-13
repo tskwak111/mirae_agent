@@ -351,11 +351,11 @@ git commit -m "feat: add verified streaming source ingestion"
 - Produces: `normalize_domestic_listed(row: SourceRow, as_of: date) -> NormalizationResult[ListedProduct]`.
 - Proves: 42,394 bond records/zero quarantined; 1,733 domestic listed records/one quarantined at Excel row 1,155; source groups 1,202 ETF/532 ETN; identity uniqueness and complete raw/locator fidelity across all 44,128 rows.
 
-- [ ] **Checkpoint 1: Shared quality/value/locator/result contracts and complete `SourceRow` fixture**
-- [ ] **Checkpoint 2: Pure text/identifier/temporal/decimal/integer parsers**
-- [ ] **Checkpoint 3: Strict immutable rating registry, including unregistered `C0`/`CC0`**
-- [ ] **Checkpoint 4: Domestic bond model and normalizer**
-- [ ] **Checkpoint 5: Domestic ETF/ETN model and normalizer**
+- [x] **Checkpoint 1: Shared quality/value/locator/result contracts and complete `SourceRow` fixture**
+- [x] **Checkpoint 2: Pure text/identifier/temporal/decimal/integer parsers**
+- [x] **Checkpoint 3: Strict immutable rating registry, including unregistered `C0`/`CC0`**
+- [x] **Checkpoint 4: Domestic bond model and normalizer**
+- [x] **Checkpoint 5: Domestic ETF/ETN model and normalizer**
 - [ ] **Checkpoint 6: Official 44,128-row acceptance, evidence, all gates, and final independent review**
 
 Do not mark this Task 3 section complete until the dedicated plan records observed

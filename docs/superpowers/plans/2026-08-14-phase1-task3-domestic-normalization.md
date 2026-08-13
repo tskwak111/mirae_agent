@@ -58,7 +58,7 @@
 - Produces: `DataQualityIssue.from_row(row: SourceRow, column_name: str, *, rule_id: str, rule_version: str, severity: IssueSeverity, quality_status: QualityStatus, reason: str, quarantined: bool) -> DataQualityIssue`; normalization always leaves `first_detected_at=None`.
 - Produces: `source_row(table_id: Literal["PRBD01N001", "PREF01N001"], values: Mapping[str, str] | None = None, *, excel_row: int = 2, applicable_dates: Mapping[str, date | None] | None = None) -> SourceRow`. It creates every official cell in schema order with fixed safe fixture lineage and accepts no path, checksum, sheet, column-number, or raw-payload override.
 
-- [ ] **Step 1: Write the complete synthetic-row helper before tests use it**
+- [x] **Step 1: Write the complete synthetic-row helper before tests use it**
 
 Create `tests/helpers/source_rows.py` with these exact official ordered headers and fixed valid defaults:
 
@@ -171,7 +171,7 @@ def source_row(
     )
 ```
 
-- [ ] **Step 2: Write failing enum, helper-completeness, and locator tests**
+- [x] **Step 2: Write failing enum, helper-completeness, and locator tests**
 
 Create `tests/unit/domain/test_normalization_contracts.py` with literal equality checks rather than subset checks:
 
@@ -231,7 +231,7 @@ def test_locator_is_built_only_from_exact_row_and_cell_lineage() -> None:
         SourceCellLocator.from_row(row, "pd_no")
 ```
 
-- [ ] **Step 3: Run Step 2 and confirm the expected RED**
+- [x] **Step 3: Run Step 2 and confirm the expected RED**
 
 Run:
 
@@ -241,7 +241,7 @@ uv run pytest tests/unit/domain/test_normalization_contracts.py -q
 
 Expected: collection fails with `ModuleNotFoundError` for `finproof.domain.locators` or `finproof.domain.quality`; no production contract exists yet. A failure in `source_row()` itself means the fixture is incomplete and must be corrected before production code is added.
 
-- [ ] **Step 4: Implement the exact enums and locator, then rerun to GREEN**
+- [x] **Step 4: Implement the exact enums and locator, then rerun to GREEN**
 
 Implement frozen strict Pydantic models. Every model created in `locators.py`, `values.py`, `quality.py`, and `normalization.py` must declare `ConfigDict(frozen=True, extra="forbid", strict=True)`; do not inherit an implicit non-strict default. `SourceCellLocator.from_row` must call `row.cell(column_name)` and copy every value; it must not accept any locator field as an argument:
 
@@ -285,7 +285,7 @@ uv run pytest tests/unit/domain/test_normalization_contracts.py -q
 
 Expected: the three Step 2 tests pass.
 
-- [ ] **Step 5: Write failing wrapper, issue-hash, immutability, and result-invariant tests**
+- [x] **Step 5: Write failing wrapper, issue-hash, immutability, and result-invariant tests**
 
 Append these exact behaviors to `test_normalization_contracts.py`:
 
@@ -410,7 +410,7 @@ def test_normalization_result_enforces_quarantine_equivalence() -> None:
         NormalizationResult[str](record="record", issues=(blocker,))
 ```
 
-- [ ] **Step 6: Run Step 5 and confirm RED, then implement the smallest contracts**
+- [x] **Step 6: Run Step 5 and confirm RED, then implement the smallest contracts**
 
 Run:
 
@@ -431,7 +431,7 @@ source_applicable_date.isoformat() or ""
 
 `DataQualityIssue.from_row` always supplies `first_detected_at=None`. The model accepts a non-`None` value only when it is timezone-aware and its `utcoffset()` is exactly zero; a nonzero fixed offset such as `+09:00` is rejected rather than silently normalized. Add `NormalizationContractError` to `core/errors.py` with fixed expected/actual table text and no row payload.
 
-- [ ] **Step 7: Run focused quality gates and refactor only while green**
+- [x] **Step 7: Run focused quality gates and refactor only while green**
 
 Run:
 
@@ -444,14 +444,14 @@ uv run mypy src/finproof/domain src/finproof/core/errors.py tests/helpers/source
 
 Expected: all commands pass; existing Task 2 source models remain unchanged.
 
-- [ ] **Step 8: Commit the shared-contract checkpoint**
+- [x] **Step 8: Commit the shared-contract checkpoint**
 
 ```bash
 git add src/finproof/core/errors.py src/finproof/domain tests/helpers/source_rows.py tests/unit/domain
 git commit -m "feat: add normalization quality contracts"
 ```
 
-- [ ] **Step 9: Complete the independent Task 1 review before Task 2**
+- [x] **Step 9: Complete the independent Task 1 review before Task 2**
 
 Have a fresh reviewer inspect `HEAD^..HEAD` against Task 1, with special attention to caller-invented locators, mutable nested state, empty rule IDs, clock use, safe issue text, hash determinism, and both directions of the quarantine invariant. Do not begin Task 2 until no Critical or Important finding remains. Any behavioral correction starts with a focused regression in `test_normalization_contracts.py`, demonstrates RED, makes the smallest implementation change, reruns Step 7, and receives a separate review-fix commit.
 
@@ -484,7 +484,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` against Task 1, with special attenti
 - Produces: `parse_integer(row: SourceRow, column_name: str, *, zero_status: NumericZeroStatus, rule_id: str, rule_version: str) -> NormalizedValue[int]`; decimal syntax is accepted only when mathematically integral.
 - Emits no issues and performs no I/O. Product normalizers own issue construction and mandatory-field quarantine decisions.
 
-- [ ] **Step 1: Write failing text and identifier parser tests**
+- [x] **Step 1: Write failing text and identifier parser tests**
 
 Create `test_text_parsers.py`:
 
@@ -541,7 +541,7 @@ def test_identifier_rejects_blank_short_padded_lowercase_and_non_ascii(raw: str)
     assert result.quality_status is QualityStatus.MALFORMED_SOURCE_ROW
 ```
 
-- [ ] **Step 2: Run the text tests and confirm RED**
+- [x] **Step 2: Run the text tests and confirm RED**
 
 Run:
 
@@ -551,7 +551,7 @@ uv run pytest tests/unit/data/normalization/test_text_parsers.py -q
 
 Expected: collection fails because `finproof.data.normalization.text` does not exist.
 
-- [ ] **Step 3: Implement the value factory, text parser, and exact identifier parser**
+- [x] **Step 3: Implement the value factory, text parser, and exact identifier parser**
 
 `make_normalized_value` obtains `raw_value` only from `row.cell(column_name)` and the locator only from `SourceCellLocator.from_row(row, column_name)`. `parse_text` uses `raw.strip()` only for the normalized value. `parse_identifier` applies `re.fullmatch(r"[A-Z0-9]{12}", raw, flags=re.ASCII)` to the exact raw string and never calls `strip()` or `upper()`.
 
@@ -563,7 +563,7 @@ uv run pytest tests/unit/data/normalization/test_text_parsers.py -q
 
 Expected: all text and identifier tests pass.
 
-- [ ] **Step 4: Write failing strict date and source-datetime tests**
+- [x] **Step 4: Write failing strict date and source-datetime tests**
 
 Create `test_temporal_parsers.py`:
 
@@ -631,7 +631,7 @@ def test_source_datetime_is_exact_and_timezone_naive(
         assert result.normalized_value.tzinfo is None
 ```
 
-- [ ] **Step 5: Run temporal tests to RED, implement strict parsers, and rerun to GREEN**
+- [x] **Step 5: Run temporal tests to RED, implement strict parsers, and rerun to GREEN**
 
 Run:
 
@@ -645,7 +645,7 @@ Implement ASCII `YYYYMMDD` validation before `datetime.strptime(..., "%Y%m%d").d
 
 Run the same focused command and expect all temporal tests to pass.
 
-- [ ] **Step 6: Write failing Decimal, zero-policy, finite-value, and integral tests**
+- [x] **Step 6: Write failing Decimal, zero-policy, finite-value, and integral tests**
 
 Create `test_numeric_parsers.py`:
 
@@ -713,7 +713,7 @@ def test_integer_parser_accepts_decimal_syntax_only_when_integral(
     assert result.quality_status is status
 ```
 
-- [ ] **Step 7: Run numeric tests to RED, implement the smallest finite Decimal path, and rerun**
+- [x] **Step 7: Run numeric tests to RED, implement the smallest finite Decimal path, and rerun**
 
 Run:
 
@@ -727,7 +727,7 @@ For nonblank values, reject leading/trailing whitespace, then construct `Decimal
 
 Run the focused test and expect all numeric tests to pass.
 
-- [ ] **Step 8: Run the parser suite and focused static gates**
+- [x] **Step 8: Run the parser suite and focused static gates**
 
 ```bash
 uv run pytest tests/unit/data/normalization/test_text_parsers.py tests/unit/data/normalization/test_temporal_parsers.py tests/unit/data/normalization/test_numeric_parsers.py -q
@@ -738,14 +738,14 @@ uv run mypy src/finproof/data/normalization tests/unit/data/normalization
 
 Expected: all commands pass; parser tests prove exact raw retention, literal `NULL` as ordinary domestic text, every date sentinel, finite Decimal behavior, integral parsing, and both row-level zero statuses.
 
-- [ ] **Step 9: Commit the shared-parser checkpoint**
+- [x] **Step 9: Commit the shared-parser checkpoint**
 
 ```bash
 git add src/finproof/data/normalization tests/unit/data/normalization
 git commit -m "feat: add pure source-row parsers"
 ```
 
-- [ ] **Step 10: Complete the independent Task 2 review before Task 3**
+- [x] **Step 10: Complete the independent Task 2 review before Task 3**
 
 Have a fresh reviewer inspect `HEAD^..HEAD` for exact raw retention, ASCII/date strictness, NaN/Infinity rejection, integral conversion, accidental `float`, arbitrary locator construction, I/O, and a hidden `constant_metric` assignment. Do not begin Task 3 until no Critical or Important finding remains. Review corrections require a focused RED regression, Step 8 rerun, and a separate review-fix commit.
 
@@ -773,7 +773,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for exact raw retention, ASCII/date 
 - Produces: `RatingRegistry.resolve_agencies(value: str) -> tuple[RatingResolution, ...]`; it splits on commas and resolves every independently trimmed token in source order.
 - Produces: `RatingRegistry.compare(left: str, right: str) -> int`; `-1` means left stronger, `0` equal ordinal, and `+1` left weaker.
 
-- [ ] **Step 1: Write the complete failing registry behavior and trust-boundary suite**
+- [x] **Step 1: Write the complete failing registry behavior and trust-boundary suite**
 
 Create `tests/unit/registry/test_rating_registry.py`:
 
@@ -922,7 +922,7 @@ def test_registry_wraps_missing_file_os_error_without_absolute_path(
     assert str(tmp_path) not in str(captured.value)
 ```
 
-- [ ] **Step 2: Run the complete Task 3 registry suite and confirm one coherent RED**
+- [x] **Step 2: Run the complete Task 3 registry suite and confirm one coherent RED**
 
 Run:
 
@@ -937,7 +937,7 @@ immutability, wrong versions, duplicate missing tokens, empty canonical keys,
 dangling/colliding aliases, malformed contracts/YAML, missing-path `OSError` wrapping,
 and safe error text before any production registry implementation exists.
 
-- [ ] **Step 3: Implement the complete coherent registry trust boundary, then rerun GREEN**
+- [x] **Step 3: Implement the complete coherent registry trust boundary, then rerun GREEN**
 
 Validate the direct `yaml.safe_load` result through this explicit raw model before constructing the public registry:
 
@@ -972,7 +972,7 @@ strictness, deep immutability, strict ordinal types, version/shape/alias rejecti
 malformed YAML wrapping, and safe error text. Do not implement a minimal loader and
 defer hardening; this is one coherent trust-boundary checkpoint.
 
-- [ ] **Step 4: Run focused rating and static gates**
+- [x] **Step 4: Run focused rating and static gates**
 
 ```bash
 uv run pytest tests/unit/registry/test_rating_registry.py tests/unit/data/normalization -q
@@ -983,14 +983,14 @@ uv run mypy src/finproof/registry src/finproof/core/errors.py tests/unit/registr
 
 Expected: all commands pass and the parser suite remains green.
 
-- [ ] **Step 5: Commit the rating-registry checkpoint**
+- [x] **Step 5: Commit the rating-registry checkpoint**
 
 ```bash
 git add src/finproof/core/errors.py src/finproof/registry tests/unit/registry
 git commit -m "feat: add strict rating registry"
 ```
 
-- [ ] **Step 6: Complete the independent Task 3 review before Task 4**
+- [x] **Step 6: Complete the independent Task 3 review before Task 4**
 
 Have a fresh reviewer inspect `HEAD^..HEAD` for YAML coercion, unsupported versions, mutable mappings, missing-token comparison, alias inference, same-ordinal comparison, `C0`/`CC0`, error-content leakage, and hidden filesystem work after registry construction. Do not begin Task 4 until no Critical or Important finding remains. Review corrections require a focused RED regression, Step 4 rerun, and a separate review-fix commit.
 
@@ -1016,7 +1016,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for YAML coercion, unsupported versi
 - Propagates derived quality: maturity-derived `None` copies `MAT_DT`; `has_positive_buyable_quantity=None` copies `BUYABLE_QUANTITY`; validated buyability uses declared input order `BUYABLE_QUANTITY`, then `MAT_DT`; every decisive boolean is `valid` even when it is `False` before an unrelated unknown.
 - Checkpoint rule: Task 4 has one commit only after every Step 1-10 test/gate is green. No independently callable committed `normalize_bond` may contain placeholder/unresolved derived values, provisional currency/rating behavior, or another intentionally incomplete state; intermediate RED/GREEN edits remain uncommitted inside Task 4.
 
-- [ ] **Step 1: Write the failing bond model, table contract, valid happy path, and quarantine tests**
+- [x] **Step 1: Write the failing bond model, table contract, valid happy path, and quarantine tests**
 
 Create `tests/unit/data/normalization/test_bonds.py`:
 
@@ -1132,7 +1132,7 @@ def test_malformed_bond_identifier_quarantines_with_safe_blocker(
         assert product_id not in issue.reason
 ```
 
-- [ ] **Step 2: Run Step 1 and confirm RED**
+- [x] **Step 2: Run Step 1 and confirm RED**
 
 Run:
 
@@ -1142,7 +1142,7 @@ uv run pytest tests/unit/data/normalization/test_bonds.py -q
 
 Expected: collection fails because `finproof.domain.bonds` or `finproof.data.normalization.bonds` does not exist.
 
-- [ ] **Step 3: Implement the frozen `BondInstrument` fields and Step 1 tested happy path**
+- [x] **Step 3: Implement the frozen `BondInstrument` fields and Step 1 tested happy path**
 
 Define these exact types; do not use a dynamic field/metric dictionary:
 
@@ -1178,7 +1178,7 @@ Check `row.source_table` before any cell lookup. For malformed `PD_NO`, return i
 
 Run the Step 2 command. Expected: the table, valid-ID, complete field mapping, valid-default derived/state, grain, and quarantine tests pass. Do not commit this partial task; continue through Step 10 before the Task 4 checkpoint.
 
-- [ ] **Step 4: Write failing date-state, source-versus-derived, boundary, and applicable-date tests**
+- [x] **Step 4: Write failing date-state, source-versus-derived, boundary, and applicable-date tests**
 
 Append:
 
@@ -1285,7 +1285,7 @@ def test_max_date_sentinel_is_enabled_only_for_bond_maturity(
     assert record.credit_rating_date.normalized_value == date(9999, 12, 31)
 ```
 
-- [ ] **Step 5: Run Step 4 to RED, implement derived maturity values, and rerun**
+- [x] **Step 5: Run Step 4 to RED, implement derived maturity values, and rerun**
 
 Run:
 
@@ -1299,7 +1299,7 @@ Implement `remaining_days_at_as_of` strictly as `(maturity_date - as_of).days` a
 
 Run the same command and expect all date/source-fidelity tests to pass.
 
-- [ ] **Step 6: Write failing quantity/buyability tri-state, zero, currency, and warning tests**
+- [x] **Step 6: Write failing quantity/buyability tri-state, zero, currency, and warning tests**
 
 Append:
 
@@ -1416,7 +1416,7 @@ def test_bond_currency_requires_exact_uppercase_three_letter_code(
     assert any(issue.source.source_column_name == "CURR_CD" for issue in result.issues) is has_warning
 ```
 
-- [ ] **Step 7: Run Step 6 to RED, implement exact buyability precedence and field policies, and rerun**
+- [x] **Step 7: Run Step 6 to RED, implement exact buyability precedence and field policies, and rerun**
 
 Run the full bond test file. Expected: tri-state, matured-positive warning, ordinary zero, or exact currency assertions fail before their production rules exist.
 
@@ -1424,7 +1424,7 @@ Use this buyability order: already-matured valid date -> `False`; valid quantity
 
 Run the same command and expect all quantity/currency tests to pass.
 
-- [ ] **Step 8: Write failing primary/agency rating, missing, unregistered, and no-backfill tests**
+- [x] **Step 8: Write failing primary/agency rating, missing, unregistered, and no-backfill tests**
 
 Append:
 
@@ -1494,7 +1494,7 @@ def test_agency_disagreement_uses_ordinals_and_preserves_primary(
     assert any(issue.rule_id == "bond.rating_disagreement" for issue in result.issues) is mixed
 ```
 
-- [ ] **Step 9: Run Step 8 to RED, implement rating wrappers/disagreement, and rerun**
+- [x] **Step 9: Run Step 8 to RED, implement rating wrappers/disagreement, and rerun**
 
 Run the bond test file. Expected: at least `C0`/`CC0`, configured missing-token status, agency normalization, same-ordinal handling, missing-primary no-backfill, or disagreement warnings fail.
 
@@ -1502,7 +1502,7 @@ Build `credit_rating` from `RatingRegistry.resolve(CRD_GRD)`. Build `credit_rati
 
 Run the same command and expect the entire bond test file to pass.
 
-- [ ] **Step 10: Run bond, shared-contract, parser, and rating regression gates**
+- [x] **Step 10: Run bond, shared-contract, parser, and rating regression gates**
 
 ```bash
 uv run pytest tests/unit/data/normalization/test_bonds.py tests/unit/data/normalization/test_text_parsers.py tests/unit/data/normalization/test_temporal_parsers.py tests/unit/data/normalization/test_numeric_parsers.py tests/unit/domain/test_normalization_contracts.py tests/unit/registry/test_rating_registry.py -q
@@ -1513,14 +1513,14 @@ uv run mypy src/finproof/domain/bonds.py src/finproof/data/normalization/bonds.p
 
 Expected: all commands pass; no test loads an XLSX path or constructs a locator by hand.
 
-- [ ] **Step 11: Commit the domestic-bond checkpoint**
+- [x] **Step 11: Commit the domestic-bond checkpoint**
 
 ```bash
 git add src/finproof/domain/bonds.py src/finproof/data/normalization/bonds.py tests/unit/data/normalization/test_bonds.py
 git commit -m "feat: normalize domestic bonds"
 ```
 
-- [ ] **Step 12: Complete the independent Task 4 review before Task 5**
+- [x] **Step 12: Complete the independent Task 4 review before Task 5**
 
 Have a fresh reviewer inspect `HEAD^..HEAD` for incorrect maturity boundaries, copied `REMAINING_DAYS`, loss of raw values/locators, quantity/maturity tri-state precedence, inferred currencies/ratings, `float`, agency backfill, C0/CC0 inference, issue leakage, and accidental quarantine of optional fields. Do not begin Task 5 until no Critical or Important finding remains. Corrections require a focused RED regression, Step 10 rerun, and a separate review-fix commit.
 
@@ -1549,7 +1549,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for incorrect maturity boundaries, c
 - Propagates eligibility quality: decisive `True`/`False` is always `valid`, including false-before-unknown; `None` copies the first unresolved status in declared input order `pd_sale_yn`, `pd_tr_yn`, `pd_lstg_dt`, `pd_lste_dt`; blank/max listing end is resolved open-ended and never makes an otherwise resolved result non-`valid`.
 - Checkpoint rule: Task 5 has one commit only after every Step 1-10 test/gate is green. No independently callable committed `normalize_domestic_listed` may contain placeholder/unresolved state, provisional currency handling, or an intentionally wrong zero policy; intermediate RED/GREEN edits remain uncommitted inside Task 5.
 
-- [ ] **Step 1: Write failing table/type, valid state/metric happy path, and quarantine tests**
+- [x] **Step 1: Write failing table/type, valid state/metric happy path, and quarantine tests**
 
 Create `tests/unit/data/normalization/test_domestic_listed.py`:
 
@@ -1721,7 +1721,7 @@ def test_malformed_listed_identity_or_type_quarantines_one_row(
     )
 ```
 
-- [ ] **Step 2: Run Step 1 and confirm RED**
+- [x] **Step 2: Run Step 1 and confirm RED**
 
 Run:
 
@@ -1731,7 +1731,7 @@ uv run pytest tests/unit/data/normalization/test_domestic_listed.py -q
 
 Expected: collection fails because `finproof.domain.domestic_listed` or `finproof.data.normalization.domestic_listed` does not exist.
 
-- [ ] **Step 3: Implement the frozen `ListedProduct` fields and Step 1 tested happy path**
+- [x] **Step 3: Implement the frozen `ListedProduct` fields and Step 1 tested happy path**
 
 Define exact fields rather than a metrics dictionary:
 
@@ -1777,7 +1777,7 @@ Check the table before cell lookup. Parse `pd_itm_no` with the exact identifier 
 
 Run the Step 2 command. Expected: all table/type/quarantine, complete field mapping, valid-default state/eligibility, and metric-policy tests pass. Do not commit this partial task; continue through Step 10 before the Task 5 checkpoint.
 
-- [ ] **Step 4: Write failing exact flag and eligibility truth-table tests**
+- [x] **Step 4: Write failing exact flag and eligibility truth-table tests**
 
 Append:
 
@@ -1886,7 +1886,7 @@ def test_max_date_sentinel_is_enabled_only_for_listing_end() -> None:
     assert record.is_eligible_at_as_of.quality_status is QualityStatus.VALID
 ```
 
-- [ ] **Step 5: Run Step 4 to RED, implement exact flags and tri-state eligibility, and rerun**
+- [x] **Step 5: Run Step 4 to RED, implement exact flags and tri-state eligibility, and rerun**
 
 Run the complete domestic-listed test file. Expected: flag inversion/truthiness or one or more tri-state/boundary cases fail before the state rule exists.
 
@@ -1894,7 +1894,7 @@ Implement the exact D-007 flag maps. Listing start uses max sentinel disabled; l
 
 Run the same command and expect all flag/eligibility tests to pass.
 
-- [ ] **Step 6: Add broader AUM/return regression coverage without new production behavior**
+- [x] **Step 6: Add broader AUM/return regression coverage without new production behavior**
 
 Append:
 
@@ -1949,7 +1949,7 @@ def test_exact_minus_one_hundred_returns_remain_valid_recorded_values(
     assert wrapped.quality_status is QualityStatus.VALID
 ```
 
-- [ ] **Step 7: Run the broader metric regressions and refactor only while green**
+- [x] **Step 7: Run the broader metric regressions and refactor only while green**
 
 Run the domestic-listed test file. Expected: PASS because the source-column mapping, no-backfill structure, finite `Decimal`/`-100` parser behavior, and every field-specific zero state were already introduced by RED tests in Tasks 2 and 5 Step 1. These tests broaden regression coverage only; do not create a synthetic RED and do not add new production policy here. If a test unexpectedly fails, treat that as evidence that Step 3 did not satisfy its earlier RED contract: correct the existing implementation minimally and rerun from Step 2 before proceeding.
 
@@ -1957,7 +1957,7 @@ Refactor repeated field-to-parser declarations only if the explicit mapping rema
 
 Run the same command and expect all AUM/zero/return tests to pass.
 
-- [ ] **Step 8: Write failing currency allowlist and independent update-field tests**
+- [x] **Step 8: Write failing currency allowlist and independent update-field tests**
 
 Append:
 
@@ -2021,7 +2021,7 @@ def test_invalid_optional_metric_emits_warning_but_does_not_quarantine() -> None
     )
 ```
 
-- [ ] **Step 9: Run Step 8 to RED, implement currency/update/issue behavior, and rerun**
+- [x] **Step 9: Run Step 8 to RED, implement currency/update/issue behavior, and rerun**
 
 Run the domestic-listed test file. Expected: unregistered currency handling, name-based inference, update parsing, applicable-date inference, or optional-invalid issue behavior fails.
 
@@ -2029,7 +2029,7 @@ Implement one explicit immutable mapping `{"CURR_CD_KRW": "KRW"}`. Parse update 
 
 Run the same command and expect the entire domestic-listed test file to pass.
 
-- [ ] **Step 10: Run domestic-listed and all prior Task 3 unit gates**
+- [x] **Step 10: Run domestic-listed and all prior Task 3 unit gates**
 
 ```bash
 uv run pytest tests/unit/data/normalization tests/unit/domain/test_normalization_contracts.py tests/unit/registry/test_rating_registry.py -q
@@ -2040,14 +2040,14 @@ uv run mypy src/finproof/domain/domestic_listed.py src/finproof/data/normalizati
 
 Expected: all commands pass; D-007, ETF/ETN separation, primary AUM, update-time independence, zero policy, and tri-state eligibility are covered.
 
-- [ ] **Step 11: Commit the domestic-listed checkpoint**
+- [x] **Step 11: Commit the domestic-listed checkpoint**
 
 ```bash
 git add src/finproof/domain/domestic_listed.py src/finproof/data/normalization/domestic_listed.py tests/unit/data/normalization/test_domestic_listed.py
 git commit -m "feat: normalize domestic listed products"
 ```
 
-- [ ] **Step 12: Complete the independent Task 5 review before acceptance**
+- [x] **Step 12: Complete the independent Task 5 review before acceptance**
 
 Have a fresh reviewer inspect `HEAD^..HEAD` for ETF/ETN conflation, flag inversion/truthiness, eligibility false-before-unknown precedence, listing-end sentinel handling, primary-AUM backfill, row-level `constant_metric`, wrong fee/tracking/difference zero states, currency inference, update/applicable-date conflation, `float`, issue leakage, and optional-field quarantine. Do not begin Task 6 until no Critical or Important finding remains. Corrections require a focused RED regression, Step 10 rerun, and a separate review-fix commit.
 
@@ -2076,7 +2076,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for ETF/ETN conflation, flag inversi
 - Preserves: A-011 as open for the later artifact quality/evidence schema; Task 3 does not persist issues and does not resolve that artifact contract.
 - Does not: alter official inputs, `tests/contracts/expected_source_audit.json`, Task 4+ behavior, artifacts, overseas/public-fund code, query code, API code, or the Phase 1 gate checkbox.
 
-- [ ] **Step 1: Write the full official acceptance contract; do not manufacture RED**
+- [x] **Step 1: Write the full official acceptance contract; do not manufacture RED**
 
 Create `tests/source_contract/test_official_domestic_normalization.py` with module marks and explicit field-to-column maps:
 
@@ -2273,7 +2273,7 @@ def test_official_domestic_normalization_exhausts_all_rows_with_exact_counts_and
 
 The `produced_groups` assertion proves the one quarantined source row belongs to the ETF source group without altering the required 1,202 ETF/532 ETN source counts.
 
-- [ ] **Step 2: Run the acceptance test; passing immediately is valid, synthetic RED is prohibited**
+- [x] **Step 2: Run the acceptance test; passing immediately is valid, synthetic RED is prohibited**
 
 Run:
 
@@ -2283,14 +2283,14 @@ uv run pytest tests/source_contract/test_official_domestic_normalization.py -q -
 
 Expected: PASS after Tasks 1-5. This test adds full-source evidence rather than new production behavior, so a synthetic production failure is neither required nor permitted. If it fails, stop broad implementation work: isolate the exact table/Excel row/field, add one focused unit regression to the owning Task 1-5 test file, observe that focused regression fail, apply the smallest correction, rerun the owning task gate and this acceptance test. Never weaken an official count or add a correction list.
 
-- [ ] **Step 3: Commit the official acceptance checkpoint**
+- [x] **Step 3: Commit the official acceptance checkpoint**
 
 ```bash
 git add tests/source_contract/test_official_domestic_normalization.py
 git commit -m "test: enforce official domestic normalization"
 ```
 
-- [ ] **Step 4: Run the complete implementation and repository gates**
+- [x] **Step 4: Run the complete implementation and repository gates**
 
 From the isolated Task 3 worktree, run every command and record its observed output; do not copy expected results into status as though they were observed:
 
@@ -2313,7 +2313,7 @@ git diff --cached --check
 
 Expected source evidence remains exactly 145,393 official rows overall, snapshot `2026-07-11`, 207 schema columns, and the Task 3 acceptance counts from Step 1. Any unexplained failure is a stop condition.
 
-- [ ] **Step 5: Update status and plans using only observed evidence**
+- [x] **Step 5: Update status and plans using only observed evidence**
 
 In `docs/implementation/STATUS.md`:
 
@@ -2329,7 +2329,7 @@ In `docs/implementation/STATUS.md`:
 
 In `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`, mark the Task 3 pointer/checkpoint complete only after the evidence above exists; do not change Task 4+ behavior. In this dedicated plan, check a box only after its command/evidence exists.
 
-- [ ] **Step 6: Commit the Task 3 evidence checkpoint**
+- [x] **Step 6: Commit the Task 3 evidence checkpoint**
 
 ```bash
 git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-14-phase1-task3-domestic-normalization.md

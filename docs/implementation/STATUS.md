@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 2 final-review correction wave is verified; Phase 1 Task 3 is next.
+**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation and official acceptance are verified; final whole-branch review is pending before integration, and Phase 1 Task 4 is the next development task.
 
 ## Frozen baseline
 
@@ -17,7 +17,7 @@ Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 
 - [x] Task 1: bootstrap settings, version bundle, CLI, and handoff/source checks in tests/CI
 - [x] Task 2: implement source manifest and streaming workbook reader with row lineage
-- [ ] Task 3: normalize domestic bonds and domestic listed products
+- [x] Task 3: normalize domestic bonds and domestic listed products
 - [ ] Task 4: normalize overseas listed products and public funds with quarantine
 - [ ] Task 5: build Parquet/DuckDB artifacts, exact links, quality report, and reproducibility check
 - [ ] Phase 1 gate passed
@@ -58,7 +58,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 3: normalize domestic bonds and domestic listed products.** Begin with the failing bond date/source-fidelity tests in the Phase 1 plan. Do not start overseas-listed/public-fund normalization or artifact building in the same uncontrolled change.
+**Phase 1 Task 4: normalize overseas listed products and public funds with quarantine.** Resolve A-011 at the first later quality/evidence artifact producer or consumer, then begin with the overseas zero/tie preservation RED in the Phase 1 plan. Keep artifact building and the Phase 1 gate outside that change.
 
 ## Handoff validation record — not production implementation
 
@@ -416,3 +416,122 @@ Exact next task:
 **Phase 1 Task 3: normalize domestic bonds and domestic listed products.** Begin with
 the failing bond date/source-fidelity tests in the Phase 1 plan. Keep Phase 1 Tasks 4–5
 and the Phase 1 gate unchecked until their own evidence exists.
+
+### 2026-08-14 — Phase 1 Task 3: domestic bond and domestic ETF/ETN normalization
+
+Scope implemented:
+
+- Added frozen strict source-cell locator, normalized/derived value, quality-issue,
+  and normalization-result contracts. Locators come only from complete `SourceRow`
+  cells and preserve raw values, verified checksum, snapshot, sheet, Excel row/column,
+  and unchanged cell applicable dates.
+- Added pure text, exact identifier, strict date/source-datetime, finite `Decimal`,
+  and integral parsers. No parser performs filesystem, database, network, clock, or
+  environment I/O.
+- Added the strict immutable `1.0.0` rating registry. Missing/unrated and unmapped
+  ratings are not comparable; official `C0` and `CC0` remain out of domain, and agency
+  values never backfill the primary grade.
+- Added pure domestic bond normalization with raw-versus-derived remaining days,
+  strict-before-as-of maturity, quantity/maturity tri-state buyability, exact currency,
+  rating disagreement, and deterministic nonquarantine warnings.
+- Added pure domestic ETF/ETN normalization with distinct product types, exact D-007
+  flags, false-before-unknown eligibility, primary/secondary AUM separation, explicit
+  domestic currency mapping, independent update fields, and field-specific zero states.
+- Added official full-source acceptance only after Tasks 1–5. No official input,
+  expected source-audit value, artifact, overseas/public-fund, query, or API behavior
+  changed.
+
+Focused RED/GREEN and independent checkpoint review evidence:
+
+| Checkpoint | Observed RED before behavior | Observed GREEN / review result |
+|---|---|---|
+| shared contracts (`a178438`, `2cad9ca`) | missing `finproof.domain.locators`, then missing normalization error/wrapper contracts; review regressions were `7 failed, 14 passed` because unsafe direct locators were accepted | initial contracts `14 passed`; final locator/source suite `30 passed`; review approved after the direct-lineage fix |
+| pure parsers (`5eab49f`, `bb78c80`) | each text/temporal/numeric module was absent; review regressions were `2 failed, 17 passed` for raw string zero status and oversized integral expansion | parser suite `48 passed`; review approved after numeric-bound hardening |
+| rating registry (`1a2afa5`, `a5f0481`, `a5dfa17`) | typed errors/registry were absent; first review regressions were `16 failed, 29 passed`; second were `6 failed, 45 passed` for duplicate YAML keys and categories | final registry suite `51 passed`; review approved after serialization/direct-construction and duplicate-key hardening |
+| bonds (`e905edf`) | module absent; later behavior REDs were `1 failed, 19 passed`, `4 failed, 37 passed`, and `6 failed, 46 passed` for maturity warning, currency/quantity warnings, and ratings | bond file `52 passed`; combined gate `172 passed`; independent review approved with no Critical or Important finding |
+| domestic listed (`7ab7a88`, `388fdd9`) | module absent; state RED was `16 failed, 18 passed`; currency/optional-warning RED was `4 failed, 53 passed` | domestic-listed file `57 passed`; combined gate `229 passed`; review approved, and its Minor combined-quarantine test passed immediately then committed test-only |
+
+Task 6 acceptance evidence:
+
+- The full acceptance contract was permitted to pass immediately because it introduced
+  no new production behavior. Its first executable run was `1 passed in 14.16s`; no
+  synthetic RED or production correction was introduced. After a type-only test local
+  rename and Ruff formatting, the same acceptance was `1 passed in 14.10s`; the Step 4
+  run was `1 passed in 14.04s`.
+- The accepted assertions exhausted exactly 44,128 source rows without an unexpected
+  exception: 42,394 bond rows produced 42,394 records and zero quarantines; 1,734
+  domestic-listed rows produced 1,733 records and one quarantine.
+- Source groups were exactly 1,202 ETF and 532 ETN before quarantine; produced groups
+  were 1,201 ETF and 532 ETN. The only quarantined row was Excel row 1,155 with raw
+  `pd_itm_no="KR"` and a blocker located at that exact cell.
+- The acceptance assertions proved 42,394 unique bond IDs and 1,733 unique
+  domestic-listed IDs. Every declared wrapped field matched its source row's exact raw
+  value and full locator, and every derived value named the exact expected input-cell
+  locators at as-of `2026-07-11`.
+
+Observed pre-final-review repository gate on acceptance commit `f9d218d`:
+
+- `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv sync --frozen --all-groups` — PASS:
+  67 packages checked in 1 ms.
+- focused Task 3 unit command — PASS: 230 tests in 0.24 s.
+- official domestic acceptance command — PASS: 1 test in 14.04 s.
+- all source-contract tests with the marker — PASS: 4 tests, 113 deselected in
+  93.13 s.
+- `uv run ruff format --check .` — PASS: 64 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 64 source files.
+- `uv run pytest -q` — PASS: 384 tests in 114.63 s.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
+  `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official
+  inputs, 41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- `PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache uv run pre-commit run --all-files`
+  — PASS: Ruff check and Ruff format hooks.
+- `git diff --check` and `git diff --cached --check` — PASS: no output.
+
+Task 3 commits through the acceptance checkpoint:
+
+- `e855d8a0375037febf3374a7c01424cc00cedc38` — approved domestic-normalization
+  design.
+- `f2a49136509b1fea9ad1191b992fc4cbd7394c96` and
+  `c5d2434ca810e7724d1c4384e566bb56a355b926` — detailed implementation plan and
+  plan-review hardening.
+- `a1784384da6c90a21cebc341802c189a8adc0717` and
+  `2cad9ca8c1f25895d3f0ff08975d340690ed293d` — shared contracts and direct-locator
+  review fix.
+- `5eab49fa6668d7ba9b800dc9d76cbb228d878d83` and
+  `bb78c8075690e0a2eee11cf281b40d49035f5a68` — pure parsers and numeric-bound
+  review fix.
+- `1a2afa5f05679dad328cb5b078af9558206d6e17`,
+  `a5f048174a3bf93aa7d0737c8cbe6fcd2f44a5c3`, and
+  `a5dfa170300541f0bdc7f797ceb91a34aba8cd1a` — rating registry and its two review
+  fixes.
+- `e905edfe5ad3b8f973b2be9fc25c3302b1efaba4` — domestic bond normalization.
+- `7ab7a88bdd877175d4b4879199cf3b9042ffa7f3` and
+  `388fdd98d7bdaf545fedbae465006c733c597086` — domestic listed normalization and
+  review-requested test-only composition coverage.
+- `f9d218d4820cb4cf64dae73163a7af53841bfdcf` — official 44,128-row acceptance.
+- The Task 3 verification-document commit is recorded in the subsequent
+  final-review evidence update and the ignored Task 6 report, because a Git commit
+  cannot embed its own final object hash.
+
+Decision-log inspection and residual boundaries:
+
+- No higher-priority conflict or new frozen product decision was discovered, so
+  `docs/10_DECISION_LOG.md` was not changed.
+- A-011 remains open for the later persisted quality/evidence artifact schema; Task 3
+  keeps normalization issues deterministic and clock-free with
+  `first_detected_at=None`.
+- Q-003 remains open. Bond source quantity and deterministic snapshot-maturity
+  validation remain separate rather than guessing the organizer's intended meaning
+  of “buyable.”
+- The independent whole-branch review and final reviewed-tree rerun remain branch
+  integration gates. Phase 1 Tasks 4–5 and the Phase 1 gate remain unchecked.
+
+Exact next development task:
+
+**Phase 1 Task 4: normalize overseas listed products and public funds with
+quarantine.** Resolve A-011 before its first persisted quality/evidence consumer and
+start with the overseas zero/tie preservation RED. Do not start artifact building in
+the same uncontrolled change.
