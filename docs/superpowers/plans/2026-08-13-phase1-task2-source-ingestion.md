@@ -42,7 +42,7 @@
 - Produces: frozen `SourceRow(source_table: str, source_file: PurePosixPath, source_sheet: str, source_row_number: int, source_checksum: str, source_snapshot_date: date, raw_payload: tuple[str, ...], cells: tuple[SourceCell, ...])`.
 - Produces: `SourceRow.cell(column_name: str) -> SourceCell` using exact case-sensitive lookup.
 
-- [ ] **Step 1: Write failing error-contract tests**
+- [x] **Step 1: Write failing error-contract tests**
 
 Create `tests/unit/core/test_source_errors.py`:
 
@@ -111,7 +111,7 @@ def test_source_error_codes_are_stable() -> None:
     assert {code.value for code in SourceErrorCode} == EXPECTED_CODES
 ```
 
-- [ ] **Step 2: Run the error tests and confirm RED**
+- [x] **Step 2: Run the error tests and confirm RED**
 
 Run:
 
@@ -121,7 +121,7 @@ uv run pytest tests/unit/core/test_source_errors.py -q
 
 Expected: test collection fails because `SourceErrorCode` and structured `SourceContractError` do not exist.
 
-- [ ] **Step 3: Implement the smallest structured source error**
+- [x] **Step 3: Implement the smallest structured source error**
 
 In `src/finproof/core/errors.py`, keep `FinProofError` and replace the empty source error with:
 
@@ -176,7 +176,7 @@ class SourceContractError(FinProofError):
 
 Do not accept `Path` in the public error context; this prevents accidental absolute-path rendering.
 
-- [ ] **Step 4: Run error tests to GREEN**
+- [x] **Step 4: Run error tests to GREEN**
 
 Run:
 
@@ -186,7 +186,7 @@ uv run pytest tests/unit/core/test_source_errors.py -q
 
 Expected: both tests pass.
 
-- [ ] **Step 5: Write failing lineage-model tests**
+- [x] **Step 5: Write failing lineage-model tests**
 
 Create `tests/unit/domain/test_source.py`:
 
@@ -252,7 +252,7 @@ def test_source_models_are_frozen() -> None:
 
 Also assert duplicate cell names, non-contiguous one-based column numbers, incorrect Excel letters, an absolute `source_file`, and a checksum outside lowercase 64-character hex are rejected.
 
-- [ ] **Step 6: Run lineage tests and confirm RED**
+- [x] **Step 6: Run lineage tests and confirm RED**
 
 Run:
 
@@ -262,7 +262,7 @@ uv run pytest tests/unit/domain/test_source.py -q
 
 Expected: collection fails because `finproof.domain.source` does not exist.
 
-- [ ] **Step 7: Implement frozen source models and invariants**
+- [x] **Step 7: Implement frozen source models and invariants**
 
 Create `src/finproof/domain/source.py` with `ConfigDict(frozen=True, extra="forbid")`, constrained positive row/column numbers, a lowercase SHA-256 pattern, and an `after` model validator that enforces:
 
@@ -289,7 +289,7 @@ def cell(self, column_name: str) -> SourceCell:
     raise KeyError(column_name)
 ```
 
-- [ ] **Step 8: Run focused tests and quality checks**
+- [x] **Step 8: Run focused tests and quality checks**
 
 Run:
 
@@ -302,7 +302,7 @@ uv run mypy src/finproof/core/errors.py src/finproof/domain tests/unit/core/test
 
 Expected: all pass.
 
-- [ ] **Step 9: Commit the lineage checkpoint**
+- [x] **Step 9: Commit the lineage checkpoint**
 
 ```bash
 git add src/finproof/core/errors.py src/finproof/domain tests/unit/core/test_source_errors.py tests/unit/domain
@@ -329,7 +329,7 @@ git commit -m "feat: add immutable source lineage contracts"
 - Produces: `SourceFileManifest.data_entry(table_id: str) -> DataFileEntry`.
 - The four evaluation table IDs are exactly `PRBD01N001`, `PREF01N001`, `PREF02N001`, and `PRFD01N001`.
 
-- [ ] **Step 1: Add a deterministic official-shaped manifest fixture builder**
+- [x] **Step 1: Add a deterministic official-shaped manifest fixture builder**
 
 Create `tests/helpers/source_manifest.py` with:
 
@@ -425,7 +425,7 @@ def write_source_contract_fixture(base_dir: Path) -> tuple[Path, Path]:
 
 Import `hashlib`, `json`, and `Path`. This helper creates only test files under `tmp_path`; it never writes under `source_material/`.
 
-- [ ] **Step 2: Write failing strict-load tests**
+- [x] **Step 2: Write failing strict-load tests**
 
 Create `tests/source_contract/test_source_manifest.py`:
 
@@ -463,7 +463,7 @@ def test_manifest_rejects_unknown_fields(tmp_path: Path) -> None:
 
 Add one focused mutation test each for catalog unknown fields, manifest snapshot mismatch, catalog snapshot mismatch, duplicate/missing data table, duplicate/missing schema table, PDF count other than one, manifest/catalog column-count disagreement, and duplicate/blank catalog headers.
 
-- [ ] **Step 3: Run strict-load tests and confirm RED**
+- [x] **Step 3: Run strict-load tests and confirm RED**
 
 Run:
 
@@ -473,7 +473,7 @@ uv run pytest tests/source_contract/test_source_manifest.py -q
 
 Expected: collection fails because `finproof.data.source_manifest` does not exist.
 
-- [ ] **Step 4: Implement strict manifest/catalog loading**
+- [x] **Step 4: Implement strict manifest/catalog loading**
 
 In `src/finproof/data/source_manifest.py`:
 
@@ -570,7 +570,7 @@ class SourceFileManifest(StrictModel):
 
 Import `Annotated` and `Literal` from `typing`. `load()` parses the two JSON files independently, validates `SourceSchemaCatalog`, and validates `SourceFileManifest` from `manifest_payload | {"schema_catalog": catalog.model_dump()}`. Wrap `JSONDecodeError`, `OSError`, and `ValidationError` in safe `SourceContractError` categories without copying exception text that contains a local path. The model validator compares the exact ordered set of data/schema table IDs with `OFFICIAL_TABLE_IDS`, requires one PDF, requires snapshot agreement, and compares each catalog header count with both manifest entries.
 
-- [ ] **Step 5: Run strict-load tests to GREEN and refactor**
+- [x] **Step 5: Run strict-load tests to GREEN and refactor**
 
 Run:
 
@@ -583,7 +583,7 @@ uv run mypy src/finproof/data/source_manifest.py tests/helpers/source_manifest.p
 
 Expected: all pass. Refactor repeated safe-error construction only inside `source_manifest.py`; do not create a generic utility module.
 
-- [ ] **Step 6: Commit the strict metadata checkpoint**
+- [x] **Step 6: Commit the strict metadata checkpoint**
 
 ```bash
 git add src/finproof/data tests/helpers tests/source_contract/test_source_manifest.py
@@ -605,7 +605,7 @@ git commit -m "feat: load strict official source metadata"
 - Produces: frozen `VerifiedSourceSet.data_file(table_id: str) -> VerifiedSourceFile`.
 - Produces: `SourceFileManifest.verify(base_dir: Path) -> VerifiedSourceSet`.
 
-- [ ] **Step 1: Write the failing official verification test**
+- [x] **Step 1: Write the failing official verification test**
 
 Append:
 
@@ -626,7 +626,7 @@ def test_official_manifest_verifies_all_files() -> None:
     assert bond.expected_headers[:3] == ("PD_NO", "PD_EXG_MKT", "PD_NM")
 ```
 
-- [ ] **Step 2: Write failing verification-error tests**
+- [x] **Step 2: Write failing verification-error tests**
 
 Using `write_source_contract_fixture(tmp_path)`, add five focused tests. Each test mutates exactly one path and asserts the listed code:
 
@@ -648,7 +648,7 @@ Add a `../outside.xlsx` manifest path test that fails with `PATH_ESCAPE` before 
 
 Add an all-or-nothing test: corrupt the final schema file, call `verify`, assert it raises and no `VerifiedSourceSet` was returned or cached on the manifest.
 
-- [ ] **Step 3: Run verification tests and confirm RED**
+- [x] **Step 3: Run verification tests and confirm RED**
 
 Run:
 
@@ -658,7 +658,7 @@ uv run pytest tests/source_contract/test_source_manifest.py -q
 
 Expected: new tests fail because `verify`, `VerifiedSourceFile`, and `VerifiedSourceSet` do not exist.
 
-- [ ] **Step 4: Implement safe path resolution and chunked hashing**
+- [x] **Step 4: Implement safe path resolution and chunked hashing**
 
 First add the exact immutable descriptor models:
 
@@ -738,7 +738,7 @@ def _sha256(path: Path) -> str:
 
 Check `stat().st_size` before hashing. Build verified descriptors in a local list and instantiate `VerifiedSourceSet` only after every entry succeeds. Populate data descriptors with ordered catalog headers. Do not store the set back onto a mutable module global or manifest cache.
 
-- [ ] **Step 5: Run verification tests to GREEN**
+- [x] **Step 5: Run verification tests to GREEN**
 
 Run:
 
@@ -750,7 +750,7 @@ uv run mypy src/finproof/data/source_manifest.py tests/helpers/source_manifest.p
 
 Expected: all pass.
 
-- [ ] **Step 6: Commit the verified-descriptor checkpoint**
+- [x] **Step 6: Commit the verified-descriptor checkpoint**
 
 ```bash
 git add src/finproof/data/source_manifest.py tests/helpers/source_manifest.py tests/source_contract/test_source_manifest.py
@@ -771,7 +771,7 @@ git commit -m "feat: verify official source files"
 - Produces: `iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]`.
 - No public function in `finproof.data.xlsx_stream` accepts a filesystem `Path`.
 
-- [ ] **Step 1: Build a minimal XLSX fixture writer for tests**
+- [x] **Step 1: Build a minimal XLSX fixture writer for tests**
 
 Create `tests/helpers/xlsx.py` using `zipfile.ZipFile` and fixed XML strings. Its interface is:
 
@@ -791,7 +791,7 @@ Use inline strings and explicit cell references. `None` omits a cell node, while
 
 Update `write_source_contract_fixture` so an optional `data_payloads: Mapping[str, bytes]` supplies XLSX bytes before manifest sizes/hashes are calculated.
 
-- [ ] **Step 2: Write the failing successful-row lineage test**
+- [x] **Step 2: Write the failing successful-row lineage test**
 
 Create `tests/source_contract/test_xlsx_stream.py`:
 
@@ -821,7 +821,7 @@ def test_reader_preserves_omitted_cells_and_exact_raw_lineage(tmp_path: Path) ->
 
 `verified_fixture_source` must create a complete official-shaped fixture manifest/catalog, substitute the generated workbook for the requested table, call `SourceFileManifest.load(manifest_path, catalog_path).verify(tmp_path)`, and return `data_file(table_id)`. It does not directly instantiate `VerifiedSourceFile`.
 
-- [ ] **Step 3: Write failing structural-error tests**
+- [x] **Step 3: Write failing structural-error tests**
 
 Add one test each for:
 
@@ -837,7 +837,7 @@ Add one test each for:
 
 Assert a consumer that takes only the first row does not receive a false full-count success signal; the mismatch is raised only when the iterator is exhausted.
 
-- [ ] **Step 4: Run reader tests and confirm RED**
+- [x] **Step 4: Run reader tests and confirm RED**
 
 Run:
 
@@ -847,7 +847,7 @@ uv run pytest tests/source_contract/test_xlsx_stream.py -q
 
 Expected: collection fails because `finproof.data.xlsx_stream` does not exist.
 
-- [ ] **Step 5: Implement secure workbook metadata parsing**
+- [x] **Step 5: Implement secure workbook metadata parsing**
 
 In `src/finproof/data/xlsx_stream.py`:
 
@@ -861,7 +861,7 @@ In `src/finproof/data/xlsx_stream.py`:
 
 Keep these helpers private: `_sheet_target`, `_shared_strings`, `_column_number`, `_column_letter`, and `_cell_raw_value`.
 
-- [ ] **Step 6: Implement streaming row emission and validation**
+- [x] **Step 6: Implement streaming row emission and validation**
 
 Use:
 
@@ -892,7 +892,7 @@ For each row:
 
 Count emitted data rows. After normal iterator exhaustion, compare the count with `source.expected_rows` and raise `ROW_COUNT_MISMATCH` if unequal. Do not catch `GeneratorExit` and do not claim full validation on early close.
 
-- [ ] **Step 7: Run reader tests to GREEN and verify public API shape**
+- [x] **Step 7: Run reader tests to GREEN and verify public API shape**
 
 Run:
 
@@ -906,7 +906,7 @@ uv run mypy src/finproof/data/xlsx_stream.py tests/helpers/xlsx.py tests/source_
 
 Expected signature: `(source: VerifiedSourceFile) -> Iterator[SourceRow]`; all tests/checks pass.
 
-- [ ] **Step 8: Commit the streaming-reader checkpoint**
+- [x] **Step 8: Commit the streaming-reader checkpoint**
 
 ```bash
 git add src/finproof/data/xlsx_stream.py tests/helpers tests/source_contract/test_xlsx_stream.py
@@ -924,7 +924,7 @@ git commit -m "feat: stream verified XLSX source rows"
 - Consumes: official `VerifiedSourceSet`, production `iter_xlsx_rows`, and independent `tools.xlsx_stream.iter_table_dicts`.
 - Proves: exact four-table counts, total count, first-row values, lineage metadata, column widths, and selected parity values.
 
-- [ ] **Step 1: Write the official full-lineage acceptance contract**
+- [x] **Step 1: Write the official full-lineage acceptance contract**
 
 Create `tests/source_contract/test_official_xlsx_lineage.py`:
 
@@ -988,7 +988,7 @@ def test_official_first_bond_row_preserves_exact_values() -> None:
     assert row.cell("PD_NM").raw_value == "국민주택1종채권 20-01"
 ```
 
-- [ ] **Step 2: Write the independent-reader parity contract**
+- [x] **Step 2: Write the independent-reader parity contract**
 
 For each official table, compare the production reader and `tools.xlsx_stream.iter_table_dicts` at Excel rows 2, the midpoint, and the final row. Add this helper and assert both readers return the same mapping:
 
@@ -1006,7 +1006,7 @@ def _selected_rows(source: VerifiedSourceFile) -> dict[int, dict[str, str]]:
 
 Build the bootstrap-reader mapping from `iter_table_dicts(source.verified_absolute_path, source.sheet_name)` using the same `wanted` set. The full-lineage test above exhausts every production iterator and separately proves row-count validation.
 
-- [ ] **Step 3: Run the official acceptance contracts**
+- [x] **Step 3: Run the official acceptance contracts**
 
 Run:
 
@@ -1016,13 +1016,13 @@ uv run pytest tests/source_contract/test_official_xlsx_lineage.py -q -m source_c
 
 Expected: the acceptance contracts pass if Tasks 1–4 fully implement the approved behavior. These tests add full-source evidence rather than new production behavior, so a synthetic RED is neither required nor permitted. If a contract fails, treat it as an unexplained implementation defect and follow Step 4.
 
-- [ ] **Step 4: Make only evidence-driven reader corrections**
+- [x] **Step 4: Make only evidence-driven reader corrections**
 
 If an official contract exposes a reader defect, isolate one failing table/row, write or reduce a focused fixture regression in `test_xlsx_stream.py`, observe it fail, then make the smallest correction in `xlsx_stream.py`. Do not weaken an official expectation or change source files.
 
 If no reader defect appears, leave production code unchanged.
 
-- [ ] **Step 5: Run official, audit, and quality checks**
+- [x] **Step 5: Run official, audit, and quality checks**
 
 Run:
 
@@ -1038,7 +1038,7 @@ uv run mypy src tests tools
 
 Expected: production/source parity passes, official counts remain `145,393`, schema catalog remains `207`, and all checks pass.
 
-- [ ] **Step 6: Commit the official-contract checkpoint**
+- [x] **Step 6: Commit the official-contract checkpoint**
 
 ```bash
 git add tests/source_contract/test_official_xlsx_lineage.py
@@ -1058,7 +1058,7 @@ git commit -m "test: enforce official source lineage"
 - Produces: durable RED/GREEN evidence, exact observed commands/results, commit hashes, remaining A-011 boundary, and Phase 1 Task 3 as the exact next task.
 - Does not mark the Phase 1 gate complete.
 
-- [ ] **Step 1: Run the complete Task 2 and repository gates**
+- [x] **Step 1: Run the complete Task 2 and repository gates**
 
 From the isolated Task 2 worktree, run:
 
@@ -1078,7 +1078,7 @@ git diff --check
 
 Record exact counts and output summaries; do not write expected values as observed results before running them.
 
-- [ ] **Step 2: Update authoritative task/status documentation**
+- [x] **Step 2: Update authoritative task/status documentation**
 
 In `docs/implementation/STATUS.md`:
 

@@ -31,6 +31,8 @@ Statuses:
 | D-015 | 2026-08-07 | FROZEN | evaluation mode has no live external data | stable official-reference answers |
 | D-016 | 2026-08-07 | FROZEN | `think_trace` is execution/tool summary | reproducible, bounded, safe output |
 | D-017 | 2026-08-13 | FROZEN | Production XLSX ingestion accepts only a manifest/catalog-verified source descriptor; raw rows preserve checksum, snapshot, exact row/cell location, raw payload/value, and an explicit optional cell applicable date | prevents unverified files or caller-invented lineage from entering normalization and resolves A-002 |
+| D-018 | 2026-08-14 | FROZEN | `SourceFileManifest.load` validates JSON structure and metadata; `SourceFileManifest.verify(base_dir)` exclusively validates manifest-relative path containment and emits `PATH_ESCAPE` | keeps metadata parsing independent from a caller-supplied source root and resolves the Task 2-versus-Task 3 plan conflict without weakening fail-closed path validation |
+| D-019 | 2026-08-14 | FROZEN | OPC package-absolute internal worksheet targets such as `/xl/worksheets/sheet1.xml` are accepted only after strict canonicalization to an internal ZIP member; `..` escape, URI schemes or external URLs, external relationship mode, and host-filesystem interpretation remain prohibited | all four checksum-verified official workbooks use the package-absolute internal form, so blanket rejection would reject official inputs while strict ZIP-internal canonicalization preserves the source-security boundary |
 
 ## Open official questions
 
@@ -54,7 +56,7 @@ These records track contradictions found while reading the entire transferred pa
 | ID | Status | Conflict or gap | Resolve before | Safe action until resolved |
 |---|---|---|---|---|
 | A-001 | OPEN_INTERNAL | `aggregate` is a supported intent, but QueryPlan has no typed aggregation function, target, grouping, or output contract. | Phase 2 Task 1/3 | do not implement aggregate planning or compilation |
-| A-002 | RESOLVED_INTERNAL | D-017 and `docs/superpowers/specs/2026-08-13-phase1-task2-source-ingestion-design.md` freeze the complete Task 2 raw-lineage and verified-reader boundary. | Phase 1 Task 2 | implement the approved contract under strict TDD |
+| A-002 | RESOLVED_INTERNAL | D-017 and `docs/superpowers/specs/2026-08-13-phase1-task2-source-ingestion-design.md` freeze the complete Task 2 raw-lineage and verified-reader boundary; Phase 1 Task 2 implements that boundary in commits `c711623` through `f4d49cc`. | Phase 1 Task 2 | implemented under D-017; preserve the verified-descriptor and complete raw-lineage contract in later producers/consumers |
 | A-003 | OPEN_INTERNAL | Overseas-listed and public-fund product-specific eligibility rules are incomplete. | Phase 2 Task 5 | do not infer eligibility from generic status fields |
 | A-004 | OPEN_INTERNAL | Cache-key prose/tests disagree on argument order and inclusion of artifact, rating, quality, and execution-mode versions. | Phase 3 Task 4 | disable or defer result caching |
 | A-005 | OPEN_INTERNAL | The release plan builds/verifies a manifest before the final covered commit/tag, which would stale the manifest. | Phase 4 Task 5 | do not freeze or publish a release manifest |
@@ -63,7 +65,7 @@ These records track contradictions found while reading the entire transferred pa
 | A-008 | RESOLVED_MIGRATION | The original manifest claimed CI/environment templates that were absent. The manifest/start guide now state the files are pending. | Phase 1 Task 1 | create and test the three missing templates in Task 1 |
 | A-009 | OPEN_INTERNAL | All 13 seed `expected_plan` objects omit canonical QueryPlan-required fields. | Phase 4 Task 1, or earlier if reused | treat seeds as non-canonical AI handoff examples only |
 | A-010 | OPEN_INTERNAL | Seed fields `return_1d`/`risk_grade` and seven registered metrics are unreachable through the field registry. | Phase 2 Task 1 | reject unreachable fields rather than bypassing registries |
-| A-011 | OPEN_INTERNAL | Golden/evidence/quality schemas and metric entries do not enforce every frozen lineage/quality/version field. | Phase 1 Task 2/4 and Phase 2 Task 1/6 | resolve each schema before its first producer/consumer is implemented |
+| A-011 | OPEN_INTERNAL | Later golden, evidence, and quality schemas and metric entries do not yet enforce every frozen lineage, quality, and version field; the Task 2 raw-lineage boundary itself is implemented under D-017. | Phase 1 Task 4 and Phase 2 Task 1/6 | resolve each remaining quality/evidence schema before its first producer/consumer is implemented |
 | A-012 | OPEN_INTERNAL | Planned provider-compliance scanning is narrower than the competition's ban on every non-HCX generative provider. | Phase 3 Task 1 and Phase 4 Task 4 | keep production dependencies provider-free except HCX |
 | A-013 | RESOLVED_MIGRATION | Hidden-answer matching and request-validation questions were missing from this log. | organizer response | tracked as Q-009 and Q-010 above |
 | A-014 | OPEN_INTERNAL | Some Phase 3/4 plan steps create behavior/configuration before their failing test. | before each affected Phase 3/4 task | rewrite those task steps into strict red-green-refactor order |

@@ -214,7 +214,7 @@ git commit -m "feat: bootstrap typed FinProof core and CLI"
 - Produces: `iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]`
 - Consumes: `source_material/input_manifest.json`
 
-- [ ] **Step 1: Write a failing manifest checksum test**
+- [x] **Step 1: Write a failing manifest checksum test**
 
 ```python
 from pathlib import Path
@@ -232,7 +232,7 @@ def test_official_manifest_verifies_all_files() -> None:
     assert verified.data_file("PRBD01N001").expected_rows == 42_394
 ```
 
-- [ ] **Step 2: Run and observe the missing implementation failure**
+- [x] **Step 2: Run and observe the missing implementation failure**
 
 ```bash
 uv run pytest tests/source_contract/test_source_manifest.py -q
@@ -240,17 +240,17 @@ uv run pytest tests/source_contract/test_source_manifest.py -q
 
 Expected: FAIL because the manifest model/loader does not exist.
 
-- [ ] **Step 3: Implement strict manifest models and chunked SHA-256 verification**
+- [x] **Step 3: Implement strict manifest models and chunked SHA-256 verification**
 
 Use Pydantic models with `extra="forbid"`. Verify path remains under `base_dir`, size matches, SHA-256 matches, and table/snapshot metadata matches the manifest. Raise `SourceContractError` with file name and mismatch category but not a misleading automatic update suggestion.
 
-- [ ] **Step 4: Run manifest test to green**
+- [x] **Step 4: Run manifest test to green**
 
 ```bash
 uv run pytest tests/source_contract/test_source_manifest.py -q
 ```
 
-- [ ] **Step 5: Write failing row-lineage tests against the official first data row**
+- [x] **Step 5: Write failing row-lineage tests against the official first data row**
 
 ```python
 from pathlib import Path
@@ -276,7 +276,7 @@ def test_bond_reader_emits_excel_row_and_header_named_cells() -> None:
 
 Also test that empty trailing cells are represented by header name and empty raw value rather than shifting later columns.
 
-- [ ] **Step 6: Run the failing reader tests**
+- [x] **Step 6: Run the failing reader tests**
 
 ```bash
 uv run pytest tests/source_contract/test_xlsx_stream.py -q
@@ -284,7 +284,7 @@ uv run pytest tests/source_contract/test_xlsx_stream.py -q
 
 Expected: FAIL because `iter_xlsx_rows` does not exist.
 
-- [ ] **Step 7: Implement streaming XLSX parsing**
+- [x] **Step 7: Implement streaming XLSX parsing**
 
 Use the approved detailed plan to implement `zipfile.ZipFile` and hardened `lxml.etree.iterparse` parsing that:
 
@@ -299,7 +299,7 @@ Use the approved detailed plan to implement `zipfile.ZipFile` and hardened `lxml
 
 Do not use OCR, pandas, or openpyxl for this lineage path.
 
-- [ ] **Step 8: Run reader and source contract checks**
+- [x] **Step 8: Run reader and source contract checks**
 
 ```bash
 uv run pytest tests/source_contract/test_xlsx_stream.py tests/source_contract/test_source_manifest.py -q
@@ -308,7 +308,7 @@ uv run python tools/audit_source_data.py --check
 
 Expected: PASS and frozen audit unchanged.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/finproof/data src/finproof/domain/source.py tests/source_contract docs/implementation/STATUS.md

@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-13 — Phase 1 Task 1 implemented and verified; Phase 1 Task 2 is next.
+**Last updated:** 2026-08-14 — Phase 1 Task 2 implemented and verified; Phase 1 Task 3 is next.
 
 ## Frozen baseline
 
@@ -16,7 +16,7 @@
 Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 
 - [x] Task 1: bootstrap settings, version bundle, CLI, and handoff/source checks in tests/CI
-- [ ] Task 2: implement source manifest and streaming workbook reader with row lineage
+- [x] Task 2: implement source manifest and streaming workbook reader with row lineage
 - [ ] Task 3: normalize domestic bonds and domestic listed products
 - [ ] Task 4: normalize overseas listed products and public funds with quarantine
 - [ ] Task 5: build Parquet/DuckDB artifacts, exact links, quality report, and reproducibility check
@@ -58,7 +58,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1, Task 2.** Resolve decision-log item A-002 for the complete lineage shape, then implement the source manifest and streaming workbook reader under strict TDD.
+**Phase 1 Task 3: normalize domestic bonds and domestic listed products.** Begin with the failing bond date/source-fidelity tests in the Phase 1 plan. Do not start overseas-listed/public-fund normalization or artifact building in the same uncontrolled change.
 
 ## Handoff validation record — not production implementation
 
@@ -207,3 +207,97 @@ Remaining risks:
 Exact next task:
 
 **Phase 1, Task 2.** First resolve A-002 so source checksum, dataset snapshot, and applicable-date lineage are present in the planned contracts. Then begin with the failing official-manifest checksum test; do not start normalization or artifact building in the same uncontrolled change.
+
+### 2026-08-14 — Phase 1 Task 2: verified source manifest and streaming XLSX lineage
+
+This is the first Phase 1 product-data implementation checkpoint. The prior Task 1
+checkpoint made the workstation/repository automation ready; it did not implement
+source ingestion. The Phase 1 gate remains open because normalization, quarantine,
+quality reports, and reproducible Parquet/DuckDB artifacts are later tasks.
+
+Scope implemented:
+
+- Added safe structured source errors and immutable `SourceCell`/`SourceRow` raw-lineage
+  contracts with checksum, snapshot, manifest-relative file, table, sheet, exact Excel
+  row/column, raw payload/value, and explicit optional cell applicable date.
+- Added strict immutable manifest/schema-catalog metadata models. Unknown fields,
+  coercible numeric metadata, table/catalog drift, and injected catalog content fail
+  closed.
+- Added all-or-nothing file verification for containment, type/symlink, size, and
+  chunked SHA-256 checks. Only a fully verified set exposes `VerifiedSourceFile` values.
+- Added a bounded-memory hardened XLSX reader whose only public input is
+  `VerifiedSourceFile`. It validates ZIP/OPC/XML structure, exact sheet/header/cell
+  coordinates, formulas, row widths/order/counts, and emits exact unnormalised strings.
+- Added official-source acceptance coverage that fully traverses all 145,393 rows,
+  checks every row/cell lineage coordinate and state, and compares selected rows with
+  the independent bootstrap reader.
+- No normalization, quarantine, artifact building, query/API behavior, official input,
+  or expected source-audit value changed.
+
+Authoritative decisions and remaining boundary:
+
+- A-002 is implemented under D-017: production ingestion accepts only a verified
+  descriptor and preserves the complete frozen raw-lineage shape.
+- D-018 assigns JSON structure/metadata validation to `SourceFileManifest.load` and
+  manifest-relative containment/`PATH_ESCAPE` validation to `verify(base_dir)`.
+- D-019 permits the official OPC package-absolute `/xl/...` worksheet target only after
+  strict canonicalization to an internal ZIP member; traversal, external/URI targets,
+  external relationship mode, and host-filesystem interpretation remain prohibited.
+- A-011 remains open only for later quality/evidence schemas and metric entries. It no
+  longer blocks the implemented Task 2 raw-lineage boundary.
+
+Focused RED/GREEN evidence:
+
+| Checkpoint | Observed RED before behavior | Observed GREEN |
+|---|---|---|
+| source errors / lineage (`c711623`) | error imports failed because `SourceErrorCode` was absent; lineage collection failed because `finproof.domain` was absent; the public error boundary then failed because `Path` context was accepted | error tests `3 passed`; initial combined lineage/error tests `12 passed`; hardened combined suite `13 passed` |
+| strict metadata (`946f562`, `0aa3907`) | collection failed because `finproof.data` was absent; review regressions then showed injected `schema_catalog` accepted, two unsafe path forms accepted, and a numeric string coerced | initial metadata suite `14 passed`; hardened suite `18 passed` |
+| verified descriptors (`5541d55`, `3941f3e`) | `10 failed, 16 passed`: nine cases lacked `verify`, and the boundary test exposed load-time rather than verify-time path handling; three injected OS-access cases then escaped as raw `PermissionError` | verification suite `26 passed`; fail-closed OS-error suite brought the file to `30 passed` |
+| streaming reader (`ecbc6e2`) | collection failed because `finproof.data.xlsx_stream` was absent; first implementation was `19 passed, 1 failed` because an invalid shared-string index escaped as `IndexError`; after the authoritative OPC decision, three tests exposed rejection of the required package-absolute target and acceptance of external variants | initial reader suite `20 passed`; OPC-safe reader suite `23 passed` |
+| reader hardening (`6ac3c5b`) | Excel bounds/row ordering: `4 failed, 1 passed`; negative shared-string index: `1 failed`; relationship type/base resolution: `2 failed`; duplicate/encrypted/unsupported ZIP members: `3 failed` | corresponding focused suites `5 passed`, `2 passed`, `3 passed`, and `3 passed`; complete reader suite `34 passed` |
+| official acceptance (`05949b4`, `f4d49cc`) | no synthetic production RED was permitted for already-implemented acceptance behavior; one authoring-only pytest mark tuple error was corrected before the first executable acceptance run | official lineage/parity acceptance `3 passed`; exhaustive cell-coordinate/state amendment also passed immediately with no production change |
+
+Implementation checkpoints:
+
+- `c711623` — immutable source lineage contracts.
+- `946f562` and `0aa3907` — strict official metadata plus validation hardening.
+- `5541d55` and `3941f3e` — all-or-nothing verified descriptors plus fail-closed
+  source-access handling.
+- `ecbc6e2` and `6ac3c5b` — verified XLSX streaming plus structural hardening.
+- `05949b4` and `f4d49cc` — official full-lineage/parity acceptance plus exhaustive
+  cell-coordinate/state assertions.
+
+Observed Task 6 gate before this documentation checkpoint:
+
+- `uv sync --frozen --all-groups` — PASS: 67 packages checked in 7 ms. The first
+  sandboxed attempt could not initialize `~/.cache/uv`; the exact command was rerun with
+  approved access to the configured uv cache.
+- `uv run ruff format --check .` — PASS: 37 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 37 source files.
+- `uv run pytest -q` — PASS: 104 tests in 100.07 s.
+- `uv run pytest tests/source_contract -q -m source_contract` — PASS: 3 passed,
+  64 deselected in 72.68 s; the official test fully traversed 145,393 production rows.
+- `uv run python tools/audit_source_data.py --check` — PASS: 145,393 rows; snapshot
+  `2026-07-11`.
+- `uv run python tools/verify_handoff.py` — PASS: 61 required files, 9 official inputs,
+  41,384,928 source bytes.
+- `uv run python tools/extract_schema_catalog.py --check` — PASS: 207 columns.
+- `PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache uv run pre-commit run --all-files`
+  — PASS: Ruff check and Ruff format hooks.
+- `git diff --check` — PASS.
+
+Residual risks:
+
+- Full official lineage acceptance is intentionally expensive because it normally
+  exhausts every production iterator; sampling cannot replace this count/lineage gate.
+- The GitHub Actions workflow remains locally validated but has no remote run until the
+  branch is pushed.
+- A-011 must be resolved before its later quality/evidence producer or consumer; Task 2
+  does not authorize guessing those schemas.
+
+Exact next task:
+
+**Phase 1 Task 3: normalize domestic bonds and domestic listed products.** Begin with
+the failing bond date/source-fidelity tests in the Phase 1 plan. Keep Phase 1 Tasks 4–5
+and the Phase 1 gate unchecked until their own evidence exists.
