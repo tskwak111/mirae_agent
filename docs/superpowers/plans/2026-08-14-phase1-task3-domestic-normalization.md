@@ -2336,7 +2336,7 @@ git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-07-01-repos
 git commit -m "docs: record Phase 1 Task 3 verification"
 ```
 
-- [ ] **Step 7: Request the final independent whole-branch review**
+- [x] **Step 7: Request the final independent whole-branch review**
 
 Have a fresh reviewer inspect the Task 3 branch base through HEAD against `AGENTS.md`, D-003/D-006/D-007/D-008/D-017, the approved design, this plan, the current Task 2 interfaces, and every official acceptance invariant. Require explicit review of:
 

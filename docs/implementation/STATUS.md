@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation and official acceptance are verified; final whole-branch review is pending before integration, and Phase 1 Task 4 is the next development task.
+**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation, official acceptance, and independent whole-branch review are verified; the final reviewed-tree gate is pending before integration, and Phase 1 Task 4 is the next development task.
 
 ## Frozen baseline
 
@@ -526,8 +526,14 @@ Decision-log inspection and residual boundaries:
 - Q-003 remains open. Bond source quantity and deterministic snapshot-maturity
   validation remain separate rather than guessing the organizer's intended meaning
   of “buyable.”
-- The independent whole-branch review and final reviewed-tree rerun remain branch
-  integration gates. Phase 1 Tasks 4–5 and the Phase 1 gate remain unchecked.
+- Independent whole-branch review of
+  `f2a49136509b1fea9ad1191b992fc4cbd7394c96..1a9dc52be0c4d981ec89b008fe2c246e98784ce4`
+  was approved with Critical 0, Important 0, and Minor 0. The reviewer independently
+  observed 230 focused tests, the official 44,128-row acceptance, 384 full-suite tests,
+  Ruff, mypy over 64 files, source audit 145,393, handoff 61/9/41,384,928, schema 207,
+  strict serialization/no-I/O probes, clean scope diff, and a clean worktree.
+- The final reviewed-tree rerun remains the branch integration gate. Phase 1 Tasks 4–5
+  and the Phase 1 gate remain unchecked.
 
 Exact next development task:
 
