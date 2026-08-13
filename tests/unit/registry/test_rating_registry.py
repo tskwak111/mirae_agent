@@ -162,7 +162,7 @@ def test_direct_registry_construction_rejects_semantically_invalid_state(
                 "ratings": {"AAA": 1},
                 "aliases": {},
             },
-            "missing",
+            "missing token",
         ),
         (
             {
@@ -171,7 +171,7 @@ def test_direct_registry_construction_rejects_semantically_invalid_state(
                 "ratings": {"AAA": 1},
                 "aliases": {},
             },
-            "missing",
+            "missing token",
         ),
         (
             {
@@ -246,6 +246,23 @@ def test_direct_registry_construction_rejects_semantically_invalid_state(
             },
             "configuration",
         ),
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": [""],
+                "aliases": {},
+            },
+            "configuration",
+        ),
+        (
+            {
+                "version": "1.0.0",
+                "missing_tokens": [""],
+                "ratings": [],
+                "aliases": {},
+            },
+            "rating",
+        ),
     ],
 )
 def test_registry_rejects_wrong_version_and_malformed_contracts(
@@ -255,6 +272,7 @@ def test_registry_rejects_wrong_version_and_malformed_contracts(
     _write_rating_yaml(path, document)
     with pytest.raises(RatingRegistryConfigurationError, match=category) as captured:
         RatingRegistry.from_yaml(path)
+    assert captured.value.category == category
     assert str(tmp_path) not in str(captured.value)
 
 
@@ -308,6 +326,69 @@ def test_registry_rejects_padded_and_normalization_colliding_config_tokens(
     _write_rating_yaml(path, document)
     with pytest.raises(RatingRegistryConfigurationError, match=category):
         RatingRegistry.from_yaml(path)
+
+
+@pytest.mark.parametrize(
+    ("raw_yaml", "hidden_content"),
+    [
+        (
+            """version: "2.0.0"
+version: "1.0.0"
+missing_tokens: [""]
+ratings: {AAA: 1}
+aliases: {}
+""",
+            "2.0.0",
+        ),
+        (
+            """version: "1.0.0"
+missing_tokens: [""]
+ratings:
+  UNSUPPORTED_POLICY: 0
+ratings:
+  AAA: 1
+aliases: {}
+""",
+            "UNSUPPORTED_POLICY",
+        ),
+        (
+            """version: "1.0.0"
+missing_tokens: [""]
+ratings:
+  AAA: 0
+  AAA: 1
+aliases: {}
+""",
+            "AAA",
+        ),
+        (
+            """version: "1.0.0"
+missing_tokens: [""]
+ratings:
+  AAA: 1
+  AA0: 3
+aliases:
+  ALT: AAA
+  ALT: AA0
+""",
+            "ALT",
+        ),
+    ],
+)
+def test_registry_rejects_duplicate_yaml_keys_without_leaking_hidden_content(
+    tmp_path: Path,
+    raw_yaml: str,
+    hidden_content: str,
+) -> None:
+    path = tmp_path / "rating.yaml"
+    path.write_text(raw_yaml, encoding="utf-8")
+    with pytest.raises(
+        RatingRegistryConfigurationError,
+        match=r"^rating registry configuration error: configuration$",
+    ) as captured:
+        RatingRegistry.from_yaml(path)
+    assert hidden_content not in str(captured.value)
+    assert str(tmp_path) not in str(captured.value)
 
 
 def test_registry_wraps_yaml_syntax_error_without_file_content(tmp_path: Path) -> None:

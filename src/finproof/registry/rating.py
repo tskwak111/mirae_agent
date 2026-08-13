@@ -1,6 +1,6 @@
 """Strict immutable credit-rating registry."""
 
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from pathlib import Path
 from types import MappingProxyType
 from typing import Literal, Self
@@ -16,6 +16,8 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from yaml.constructor import ConstructorError
+from yaml.nodes import MappingNode
 
 from finproof.core.errors import RatingNotComparableError, RatingRegistryConfigurationError
 from finproof.domain.quality import QualityStatus
@@ -30,6 +32,32 @@ class _RatingConfig(BaseModel):
     missing_tokens: list[StrictStr]
     ratings: dict[StrictStr, StrictInt]
     aliases: dict[StrictStr, StrictStr]
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    """A task-local SafeLoader that rejects duplicate keys at every mapping level."""
+
+    def construct_mapping(self, node: MappingNode, deep: bool = False) -> dict[object, object]:
+        self.flatten_mapping(node)
+        mapping: dict[object, object] = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, Hashable):
+                raise ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    "found unhashable key",
+                    key_node.start_mark,
+                )
+            if key in mapping:
+                raise ConstructorError(
+                    "while constructing a mapping",
+                    node.start_mark,
+                    "found duplicate key",
+                    key_node.start_mark,
+                )
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
 
 
 class RatingResolution(BaseModel):
@@ -91,7 +119,7 @@ class RatingRegistry(BaseModel):
     def from_yaml(cls, path: Path) -> Self:
         """Load and validate one rating registry without leaking unsafe details."""
         try:
-            document = yaml.safe_load(path.read_text(encoding="utf-8"))
+            document = _load_unique_key_yaml(path.read_text(encoding="utf-8"))
         except OSError as exc:
             raise RatingRegistryConfigurationError("configuration", source_name=path.name) from exc
         except (UnicodeError, yaml.YAMLError) as exc:
@@ -169,10 +197,21 @@ def _validation_error_category(error: ValidationError) -> str:
     if field == "missing_tokens":
         return "missing token"
     if field == "ratings":
-        return "rating" if "[key]" in location else "ordinal"
+        if first_error["type"] == "missing":
+            return "configuration"
+        return "rating" if len(location) == 1 or "[key]" in location else "ordinal"
     if field == "aliases":
         return "alias"
     return "configuration"
+
+
+def _load_unique_key_yaml(raw_yaml: str) -> object:
+    """Safely construct YAML while rejecting duplicate keys without global mutation."""
+    loader = _UniqueKeySafeLoader(raw_yaml)
+    try:
+        return loader.get_single_data()
+    finally:
+        loader.dispose()  # type: ignore[no-untyped-call]  # types-PyYAML omits this signature
 
 
 def _validate_semantics(config: _RatingConfig) -> None:
