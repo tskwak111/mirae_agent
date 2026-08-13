@@ -324,125 +324,44 @@ git commit -m "feat: add verified streaming source ingestion"
 
 ### Task 3: Normalize domestic bonds and domestic ETF/ETN
 
+> **Approved design:** `docs/superpowers/specs/2026-08-14-phase1-task3-domestic-normalization-design.md`
+>
+> **Authoritative detailed plan:** `docs/superpowers/plans/2026-08-14-phase1-task3-domestic-normalization.md`
+>
+> The approved design and dedicated plan supersede the legacy combined-model/
+> `common.py` sketch. Execute the dedicated plan's six reviewer-worthy tasks in
+> order under strict RED -> GREEN -> REFACTOR and its required independent reviews.
+
 **Files:**
-- Create: `src/finproof/domain/quality.py`
-- Create: `src/finproof/domain/products.py`
-- Create: `src/finproof/data/normalization/__init__.py`
-- Create: `src/finproof/data/normalization/common.py`
-- Create: `src/finproof/data/normalization/bonds.py`
-- Create: `src/finproof/data/normalization/domestic_listed.py`
-- Create: `src/finproof/registry/__init__.py`
-- Create: `src/finproof/registry/rating.py`
-- Create: `tests/unit/data/test_bond_normalization.py`
-- Create: `tests/unit/data/test_domestic_listed_normalization.py`
-- Create: `tests/unit/registry/test_rating_registry.py`
-- Modify: `docs/implementation/STATUS.md`
 
-**Interfaces:**
-- Produces: `normalize_bond(row: SourceRow, as_of: date, rating_registry: RatingRegistry) -> NormalizationResult[BondInstrument]`
-- Produces: `normalize_domestic_listed(row: SourceRow, as_of: date) -> NormalizationResult[ListedProduct]`
-- Produces: `NormalizationResult[T](record: T | None, issues: tuple[DataQualityIssue, ...])`
-- Produces: `RatingRegistry.from_yaml(path: Path) -> RatingRegistry`
-- Produces: `RatingRegistry.compare(left: str, right: str) -> int`
+- Create focused quality/value/locator/result contracts under `src/finproof/domain/`
+- Create focused pure parsers under `src/finproof/data/normalization/`
+- Create the strict immutable rating registry in `src/finproof/registry/rating.py`
+- Create separate domestic bond and domestic listed product models/normalizers
+- Create complete synthetic `SourceRow` fixtures and focused unit tests
+- Create `tests/source_contract/test_official_domestic_normalization.py`
+- Modify `docs/implementation/STATUS.md` and the two Task 3 plan files only after evidence exists
 
-- [ ] **Step 1: Write failing bond date/source-fidelity tests**
+**Authoritative interfaces:**
 
-```python
-from datetime import date
+- Consumes: existing frozen `SourceRow`/`SourceCell` values from the verified Task 2 reader; normalizers accept no arbitrary source path or invented locator data.
+- Produces: frozen strict `SourceCellLocator`, `NormalizedValue[T]`, `DerivedValue[T]`, `DataQualityIssue`, and `NormalizationResult[T]` contracts from the dedicated plan.
+- Produces: `RatingRegistry.from_yaml(path: Path) -> RatingRegistry`, `RatingRegistry.resolve(value: str) -> RatingResolution`, and `RatingRegistry.compare(left: str, right: str) -> int`.
+- Produces: `normalize_bond(row: SourceRow, as_of: date, rating_registry: RatingRegistry) -> NormalizationResult[BondInstrument]`.
+- Produces: `normalize_domestic_listed(row: SourceRow, as_of: date) -> NormalizationResult[ListedProduct]`.
+- Proves: 42,394 bond records/zero quarantined; 1,733 domestic listed records/one quarantined at Excel row 1,155; source groups 1,202 ETF/532 ETN; identity uniqueness and complete raw/locator fidelity across all 44,128 rows.
 
-from finproof.data.normalization.bonds import normalize_bond
-from tests.helpers.source_rows import source_row
+- [ ] **Checkpoint 1: Shared quality/value/locator/result contracts and complete `SourceRow` fixture**
+- [ ] **Checkpoint 2: Pure text/identifier/temporal/decimal/integer parsers**
+- [ ] **Checkpoint 3: Strict immutable rating registry, including unregistered `C0`/`CC0`**
+- [ ] **Checkpoint 4: Domestic bond model and normalizer**
+- [ ] **Checkpoint 5: Domestic ETF/ETN model and normalizer**
+- [ ] **Checkpoint 6: Official 44,128-row acceptance, evidence, all gates, and final independent review**
 
-
-def test_bond_recalculates_remaining_days_without_overwriting_raw_value(rating_registry) -> None:
-    row = source_row(
-        "PRBD01N001",
-        2,
-        {"PD_NO": "B1", "PD_NM": "채권", "MAT_DT": "20260720", "REMAINING_DAYS": "999"},
-    )
-    result = normalize_bond(row, date(2026, 7, 11), rating_registry)
-
-    assert result.record is not None
-    assert result.record.remaining_days_at_as_of == 9
-    assert result.record.source_remaining_days.raw_value == "999"
-```
-
-Add separate tests for `MAT_DT` blank, `0`, `99991231`, invalid calendar date, positive quantity on matured bond, missing rating, and mixed agency text.
-
-- [ ] **Step 2: Run and observe failure**
-
-```bash
-uv run pytest tests/unit/data/test_bond_normalization.py tests/unit/registry/test_rating_registry.py -q
-```
-
-- [ ] **Step 3: Implement typed value wrappers, quality issues, rating registry, and bond normalization**
-
-Use `Decimal` for yields/amounts and `date` for dates. `NormalizedValue[T]` contains raw string, parsed value, quality status, rule ID, and source-cell locator. A malformed product ID is a quarantine issue; a missing optional metric is not.
-
-Rating ordering comes solely from `config/rating_scale.yaml`; missing/Not Rated has no ordinal pass for `AA-` filtering.
-
-- [ ] **Step 4: Run bond/rating tests to green**
-
-```bash
-uv run pytest tests/unit/data/test_bond_normalization.py tests/unit/registry/test_rating_registry.py -q
-```
-
-- [ ] **Step 5: Write failing domestic listed-product state tests**
-
-```python
-from datetime import date
-
-from finproof.data.normalization.domestic_listed import normalize_domestic_listed
-from tests.helpers.source_rows import source_row
-
-
-def test_domestic_etf_is_eligible_when_sale_on_not_suspended_and_dates_valid() -> None:
-    row = source_row(
-        "PREF01N001",
-        2,
-        {
-            "pd_itm_no": "KR7000000001",
-            "pd_nm": "테스트 ETF",
-            "pd_grp_no": "ETF",
-            "pd_sale_yn": "1",
-            "pd_tr_yn": "0",
-            "pd_lstg_dt": "20200101",
-            "pd_lste_dt": "99991231",
-        },
-    )
-    result = normalize_domestic_listed(row, date(2026, 7, 11))
-    assert result.record is not None
-    assert result.record.is_eligible_at_as_of is True
-```
-
-Add tests proving `pd_tr_yn="1"` is suspended, ETN remains type ETN, `pd_net_tamt` is primary AUM, and zero tracking error retains recorded zero.
-
-- [ ] **Step 6: Run, implement, and rerun domestic listed tests**
-
-```bash
-uv run pytest tests/unit/data/test_domestic_listed_normalization.py -q
-```
-
-Implement explicit type/state/date parsing and metric wrappers; do not reuse a generic state flag with inverted semantics.
-
-```bash
-uv run pytest tests/unit/data/test_domestic_listed_normalization.py -q
-```
-
-Expected: PASS.
-
-- [ ] **Step 7: Run task checks and commit**
-
-```bash
-uv run pytest tests/unit/data tests/unit/registry -q
-uv run ruff check src/finproof/data/normalization src/finproof/domain src/finproof/registry tests/unit/data tests/unit/registry
-uv run mypy src/finproof/data/normalization src/finproof/domain src/finproof/registry
-```
-
-```bash
-git add src/finproof/data/normalization src/finproof/domain src/finproof/registry tests/unit docs/implementation/STATUS.md
-git commit -m "feat: normalize bonds and domestic listed products"
-```
+Do not mark this Task 3 section complete until the dedicated plan records observed
+focused RED/GREEN evidence, all mandatory gates, per-task reviews, the final whole-branch
+review, status evidence, and clean-tree evidence. Task 3 does not start overseas/public-
+fund normalization, artifact building, or Phase 1 gate closure.
 
 ---
 
