@@ -159,6 +159,30 @@ def test_catalog_rejects_unknown_fields(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("metadata_name", "expected_code"),
+    [
+        ("manifest", SourceErrorCode.MANIFEST_INVALID),
+        ("catalog", SourceErrorCode.CATALOG_INVALID),
+    ],
+)
+def test_load_converts_invalid_utf8_metadata_to_safe_contract_error(
+    tmp_path: Path,
+    metadata_name: str,
+    expected_code: SourceErrorCode,
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    invalid_path = manifest_path if metadata_name == "manifest" else catalog_path
+    invalid_path.write_bytes(b'{"private":"\xff"}')
+
+    with pytest.raises(SourceContractError) as raised:
+        SourceFileManifest.load(manifest_path, catalog_path)
+
+    assert raised.value.code is expected_code
+    assert str(raised.value) == f"{expected_code.value}: official metadata could not be read"
+    assert str(tmp_path) not in str(raised.value)
+
+
+@pytest.mark.parametrize(
     ("field", "unsupported_version", "expected_code"),
     [
         ("manifest_version", "999.0", SourceErrorCode.MANIFEST_INVALID),
@@ -415,6 +439,26 @@ def test_verify_rejects_absolute_manifest_path_without_path_leak(tmp_path: Path)
 
     assert raised.value.code is SourceErrorCode.PATH_ESCAPE
     assert "/outside.xlsx" not in str(raised.value)
+    assert str(tmp_path) not in str(raised.value)
+
+
+def test_verify_rejects_nul_bearing_manifest_path_with_safe_typed_error(
+    tmp_path: Path,
+) -> None:
+    manifest_path, catalog_path, manifest_payload, catalog = _load_payloads(tmp_path)
+    _manifest_files(manifest_payload)[1]["path"] = "data/private\x00payload.xlsx"
+    _write_payloads(manifest_path, catalog_path, manifest_payload, catalog)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        manifest.verify(tmp_path)
+
+    assert raised.value.code is SourceErrorCode.PATH_ESCAPE
+    assert str(raised.value) == (
+        "path_escape: manifest path must be a safe relative filesystem path"
+    )
+    assert "private" not in str(raised.value)
+    assert "\x00" not in str(raised.value)
     assert str(tmp_path) not in str(raised.value)
 
 

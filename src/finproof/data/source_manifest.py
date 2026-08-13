@@ -359,7 +359,7 @@ def _load_json(path: Path, error_code: SourceErrorCode) -> dict[str, object]:
     """Read JSON without allowing parser or filesystem details into errors."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
-    except (JSONDecodeError, OSError):
+    except (JSONDecodeError, OSError, UnicodeDecodeError):
         raise SourceContractError(error_code, "official metadata could not be read") from None
     if not isinstance(payload, dict):
         raise SourceContractError(error_code, "official metadata must be a JSON object")
@@ -375,6 +375,8 @@ def _invalid_error(code: SourceErrorCode, error: ValidationError) -> SourceContr
 def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
     """Resolve one manifest path without following links or escaping ``base_dir``."""
     error_source = _safe_error_path(relative)
+    if "\x00" in relative.as_posix():
+        raise _lexical_path_error(relative)
     if relative.is_absolute() or ".." in relative.parts:
         raise SourceContractError(
             SourceErrorCode.PATH_ESCAPE,
@@ -401,6 +403,8 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
         ) from error
     except OSError as error:
         raise _source_access_error(relative, error) from error
+    except ValueError as error:
+        raise _lexical_path_error(relative) from error
     except RuntimeError as error:
         raise SourceContractError(
             SourceErrorCode.FILE_TYPE_INVALID,
@@ -422,6 +426,8 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
             )
     except OSError as error:
         raise _source_access_error(relative, error) from error
+    except ValueError as error:
+        raise _lexical_path_error(relative) from error
     except RuntimeError as error:
         raise SourceContractError(
             SourceErrorCode.FILE_TYPE_INVALID,
@@ -433,7 +439,16 @@ def _safe_file(base_dir: Path, relative: PurePosixPath) -> Path:
 
 def _safe_error_path(path: PurePosixPath) -> PurePosixPath | None:
     """Prevent absolute manifest input from leaking through error formatting."""
-    return None if path.is_absolute() else path
+    return None if path.is_absolute() or "\x00" in path.as_posix() else path
+
+
+def _lexical_path_error(path: PurePosixPath) -> SourceContractError:
+    """Map invalid filesystem path text to one non-leaking contract error."""
+    return SourceContractError(
+        SourceErrorCode.PATH_ESCAPE,
+        "manifest path must be a safe relative filesystem path",
+        source_file=_safe_error_path(path),
+    )
 
 
 def _source_access_error(
