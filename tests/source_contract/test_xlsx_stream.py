@@ -7,7 +7,7 @@ from zipfile import ZIP_DEFLATED, ZipFile
 import pytest
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
-from finproof.data.xlsx_stream import iter_xlsx_rows
+from finproof.data.xlsx_stream import _canonical_zip_target, iter_xlsx_rows
 from tests.helpers.xlsx import (
     MAIN_URI,
     PACKAGE_REL_URI,
@@ -125,6 +125,188 @@ def test_reader_rejects_entity_bearing_cell_text(tmp_path: Path) -> None:
   <row r="2"><c r="A2" t="inlineStr"><is><t>&hidden;</t></is></c></row>
 </sheetData></worksheet>'''.encode()
     _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize(
+    "xml_part",
+    ["workbook", "relationships", "worksheet", "shared-strings"],
+)
+def test_reader_rejects_dtd_declaration_before_parsing_every_xml_part(
+    tmp_path: Path,
+    xml_part: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    if xml_part == "workbook":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE workbook [<!ENTITY unused "private-workbook-metadata">]>
+<workbook xmlns="{MAIN_URI}" xmlns:r="{REL_URI}">
+  <sheets><sheet name="datarows" sheetId="1" r:id="rId1"/></sheets>
+</workbook>'''.encode()
+        _replace_zip_member(workbook, "xl/workbook.xml", payload)
+    elif xml_part == "relationships":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Relationships [<!ENTITY unused "private-relationship-metadata">]>
+<Relationships xmlns="{PACKAGE_REL_URI}">
+  <Relationship Id="rId1" Type="{REL_URI}/worksheet" Target="worksheets/sheet1.xml"/>
+</Relationships>'''.encode()
+        _replace_zip_member(workbook, "xl/_rels/workbook.xml.rels", payload)
+    elif xml_part == "worksheet":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE worksheet [<!ENTITY unused "private-worksheet-metadata">]>
+<worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="inlineStr"><is><t>1</t></is></c></row>
+</sheetData></worksheet>'''.encode()
+        _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", payload)
+    else:
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE sst [<!ENTITY unused "private-shared-metadata">]>
+<sst xmlns="{MAIN_URI}"><si><t>unused</t></si></sst>'''.encode()
+        _replace_zip_member(workbook, "xl/sharedStrings.xml", payload)
+
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+    assert "private" not in str(raised.value)
+
+
+@pytest.mark.parametrize("metadata_part", ["workbook", "relationships"])
+def test_reader_rejects_entity_backed_workbook_metadata_attributes(
+    tmp_path: Path,
+    metadata_part: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    if metadata_part == "workbook":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE workbook [<!ENTITY declaredSheet "datarows">]>
+<workbook xmlns="{MAIN_URI}" xmlns:r="{REL_URI}">
+  <sheets><sheet name="&declaredSheet;" sheetId="1" r:id="rId1"/></sheets>
+</workbook>'''.encode()
+        _replace_zip_member(workbook, "xl/workbook.xml", payload)
+    else:
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Relationships [<!ENTITY worksheetTarget "worksheets/sheet1.xml">]>
+<Relationships xmlns="{PACKAGE_REL_URI}">
+  <Relationship Id="rId1" Type="{REL_URI}/worksheet" Target="&worksheetTarget;"/>
+</Relationships>'''.encode()
+        _replace_zip_member(workbook, "xl/_rels/workbook.xml.rels", payload)
+
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize(
+    "workbook_body",
+    [
+        '<sheet name="datarows" sheetId="1" r:id="rId1"/>',
+        ('<sheets><sheet name="datarows" sheetId="1" r:id="rId1"/></sheets><sheets/>'),
+        (
+            "<bookViews><sheets>"
+            '<sheet name="datarows" sheetId="1" r:id="rId1"/>'
+            "</sheets></bookViews>"
+        ),
+        (
+            "<sheets>"
+            '<sheet name="datarows" sheetId="1" r:id="rId1"/>'
+            '<sheet name="datarows" sheetId="2" r:id="rId1"/>'
+            "</sheets>"
+        ),
+    ],
+    ids=["missing-container", "duplicate-container", "nested-container", "duplicate-sheet"],
+)
+def test_reader_rejects_ambiguous_workbook_sheet_metadata(
+    tmp_path: Path,
+    workbook_body: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<workbook xmlns="{MAIN_URI}" xmlns:r="{REL_URI}">{workbook_body}</workbook>'''.encode()
+    _replace_zip_member(workbook, "xl/workbook.xml", payload)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize("metadata_part", ["workbook", "relationships", "worksheet", "shared"])
+def test_reader_rejects_unexpected_xml_part_roots(
+    tmp_path: Path,
+    metadata_part: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    if metadata_part == "workbook":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<wrapper xmlns="{MAIN_URI}" xmlns:r="{REL_URI}">
+  <sheets><sheet name="datarows" sheetId="1" r:id="rId1"/></sheets>
+</wrapper>'''.encode()
+        _replace_zip_member(workbook, "xl/workbook.xml", payload)
+    elif metadata_part == "relationships":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<wrapper xmlns="{PACKAGE_REL_URI}">
+  <Relationship Id="rId1" Type="{REL_URI}/worksheet" Target="worksheets/sheet1.xml"/>
+</wrapper>'''.encode()
+        _replace_zip_member(workbook, "xl/_rels/workbook.xml.rels", payload)
+    elif metadata_part == "worksheet":
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<wrapper><worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="inlineStr"><is><t>1</t></is></c></row>
+</sheetData></worksheet></wrapper>'''.encode()
+        _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", payload)
+    else:
+        worksheet = f'''<?xml version="1.0" encoding="UTF-8"?>
+<worksheet xmlns="{MAIN_URI}"><sheetData>
+  <row r="1"><c r="A1" t="inlineStr"><is><t>ID</t></is></c></row>
+  <row r="2"><c r="A2" t="s"><v>0</v></c></row>
+</sheetData></worksheet>'''.encode()
+        payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<wrapper><sst xmlns="{MAIN_URI}"><si><t>1</t></si></sst></wrapper>'''.encode()
+        _replace_zip_member(workbook, "xl/worksheets/sheet1.xml", worksheet)
+        _replace_zip_member(workbook, "xl/sharedStrings.xml", payload)
+
     verified = verified_fixture_source(
         tmp_path,
         table_id="PRBD01N001",
@@ -386,6 +568,101 @@ def test_reader_accepts_package_absolute_internal_relationship_target(tmp_path: 
     assert rows[0].raw_payload == ("1",)
 
 
+@pytest.mark.parametrize(
+    "target",
+    [
+        "worksheets%5Csheet1.xml",
+        "worksheets/sheet%00one.xml",
+        "worksheets/sheet%09one.xml",
+        "worksheets/sheet%0Aone.xml",
+        "worksheets/\tsheet1.xml",
+        "worksheets/\nsheet1.xml",
+        "worksheets/\rsheet1.xml",
+        "worksheets/\x1fsheet1.xml",
+        "worksheets/\x7fsheet1.xml",
+        "https%3A//example.invalid/sheet.xml",
+        "worksheets/%73heet1.xml",
+    ],
+    ids=[
+        "encoded-backslash",
+        "encoded-nul",
+        "encoded-tab",
+        "encoded-newline",
+        "raw-tab",
+        "raw-newline",
+        "raw-carriage-return",
+        "raw-unit-separator",
+        "raw-delete",
+        "encoded-uri-scheme",
+        "noncanonical-unreserved-encoding",
+    ],
+)
+def test_relationship_target_canonicalizer_rejects_raw_decoded_and_nonroundtrip_forms(
+    target: str,
+) -> None:
+    with pytest.raises(ValueError, match="worksheet relationship target"):
+        _canonical_zip_target(target)
+
+
+@pytest.mark.parametrize("raw_control", ["\t", "\n"], ids=["tab", "newline"])
+def test_reader_rejects_raw_target_controls_before_xml_attribute_normalization(
+    tmp_path: Path,
+    raw_control: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    with ZipFile(workbook) as archive:
+        worksheet = archive.read("xl/worksheets/sheet1.xml")
+    _replace_zip_member(workbook, "xl/worksheets/ sheet1.xml", worksheet)
+    _set_relationship_target(workbook, f"worksheets/{raw_control}sheet1.xml")
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize(
+    ("target", "zip_member"),
+    [
+        ("worksheets%5Csheet1.xml", "xl/worksheets\\sheet1.xml"),
+        ("worksheets/sheet%09one.xml", "xl/worksheets/sheet\tone.xml"),
+        ("worksheets/sheet%0Aone.xml", "xl/worksheets/sheet\none.xml"),
+    ],
+    ids=["encoded-backslash", "encoded-tab", "encoded-newline"],
+)
+def test_reader_rejects_post_decoding_target_bypass_even_if_zip_member_exists(
+    tmp_path: Path,
+    target: str,
+    zip_member: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    with ZipFile(workbook) as archive:
+        worksheet = archive.read("xl/worksheets/sheet1.xml")
+    _replace_zip_member(workbook, zip_member, worksheet)
+    _set_relationship_target(workbook, target)
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
 def test_reader_rejects_external_relationship_target_mode(tmp_path: Path) -> None:
     workbook = tmp_path / "fixture.xlsx"
     write_xlsx(workbook, rows=(("ID",), ("1",)))
@@ -437,6 +714,48 @@ def test_reader_rejects_nonworksheet_relationship_type(tmp_path: Path) -> None:
         "worksheets/sheet1.xml",
         relationship_type=f"{REL_URI}/styles",
     )
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+
+    with pytest.raises(SourceContractError) as raised:
+        list(iter_xlsx_rows(verified))
+
+    assert raised.value.code is SourceErrorCode.MALFORMED_WORKBOOK
+
+
+@pytest.mark.parametrize(
+    "relationships_body",
+    [
+        (
+            "<group>"
+            f'<Relationship Id="rId1" Type="{REL_URI}/worksheet" '
+            'Target="worksheets/sheet1.xml"/>'
+            "</group>"
+        ),
+        (
+            f'<Relationship Id="rId1" Type="{REL_URI}/worksheet" '
+            'Target="worksheets/sheet1.xml"/>'
+            f'<Relationship Id="rId1" Type="{REL_URI}/worksheet" '
+            'Target="worksheets/other.xml"/>'
+        ),
+        "",
+    ],
+    ids=["nested", "duplicate-id", "missing"],
+)
+def test_reader_rejects_nested_duplicate_or_missing_workbook_relationships(
+    tmp_path: Path,
+    relationships_body: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    payload = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="{PACKAGE_REL_URI}">{relationships_body}</Relationships>'''.encode()
+    _replace_zip_member(workbook, "xl/_rels/workbook.xml.rels", payload)
     verified = verified_fixture_source(
         tmp_path,
         table_id="PRBD01N001",
