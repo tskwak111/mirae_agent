@@ -11,7 +11,11 @@ from typing import Any, cast
 import pytest
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
-from finproof.data.source_manifest import OFFICIAL_TABLE_IDS, SourceFileManifest
+from finproof.data.source_manifest import (
+    OFFICIAL_TABLE_IDS,
+    SourceFileManifest,
+    SourceSchemaCatalog,
+)
 from tests.helpers.source_manifest import write_source_contract_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -64,6 +68,50 @@ def test_official_manifest_and_catalog_load_with_exact_tables() -> None:
     assert tuple(entry.table_id for entry in manifest.data_files) == OFFICIAL_TABLE_IDS
     assert manifest.data_entry("PRBD01N001").expected_rows == 42_394
     assert manifest.expected_headers("PRBD01N001")[0] == "PD_NO"
+
+
+def test_loaded_catalog_tables_cannot_be_replaced_before_verification(tmp_path: Path) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    original_table = manifest.schema_catalog.tables["PRBD01N001"]
+
+    with pytest.raises(TypeError):
+        manifest.schema_catalog.tables["PRBD01N001"] = manifest.schema_catalog.tables["PREF01N001"]  # type: ignore[index]
+
+    assert manifest.schema_catalog.tables["PRBD01N001"] is original_table
+    verified = manifest.verify(tmp_path).data_file("PRBD01N001")
+    assert verified.expected_headers == ("PD_NO", "PD_NM")
+
+
+def test_loaded_catalog_nested_mappings_and_verified_headers_are_immutable(
+    tmp_path: Path,
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    table = manifest.schema_catalog.tables["PRBD01N001"]
+
+    with pytest.raises(TypeError):
+        table.sample["injected"] = "header"  # type: ignore[index]
+
+    verified = manifest.verify(tmp_path).data_file("PRBD01N001")
+    with pytest.raises(TypeError):
+        verified.expected_headers[0] = "INJECTED"  # type: ignore[index]
+    assert verified.expected_headers == ("PD_NO", "PD_NM")
+
+
+def test_immutable_catalog_serializes_and_round_trips_as_ordered_json_mapping(
+    tmp_path: Path,
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+
+    dumped = manifest.schema_catalog.model_dump(mode="json")
+    assert tuple(cast(dict[str, object], dumped["tables"])) == OFFICIAL_TABLE_IDS
+
+    reloaded = SourceSchemaCatalog.model_validate(dumped)
+    assert tuple(reloaded.tables) == OFFICIAL_TABLE_IDS
+    with pytest.raises(TypeError):
+        reloaded.tables["PRBD01N001"] = reloaded.tables["PREF01N001"]  # type: ignore[index]
 
 
 def test_manifest_rejects_unknown_fields(tmp_path: Path) -> None:

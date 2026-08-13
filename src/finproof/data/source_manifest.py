@@ -4,12 +4,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from datetime import date
 from json import JSONDecodeError
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 from typing import Annotated, Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
 
@@ -129,12 +139,23 @@ class CatalogTable(StrictModel):
     axis_warning: str
     column_count: int = Field(gt=0, strict=True)
     columns: tuple[CatalogColumn, ...]
-    sample: dict[str, str] = Field(default_factory=dict)
+    sample: Mapping[str, str] = Field(default_factory=dict, validate_default=True)
     sample_axis_columns: tuple[str, ...] = ()
     schema_file: str = ""
     source_snapshot_label: str = ""
     table_id: str = ""
     total_row_label: str = ""
+
+    @field_validator("sample", mode="after")
+    @classmethod
+    def freeze_sample(cls, value: Mapping[str, str]) -> Mapping[str, str]:
+        """Keep nested catalog sample metadata immutable after validation."""
+        return MappingProxyType(dict(value))
+
+    @field_serializer("sample")
+    def serialize_sample(self, value: Mapping[str, str]) -> dict[str, str]:
+        """Serialize immutable sample metadata as an ordered JSON object."""
+        return dict(value)
 
 
 class SourceSchemaCatalog(StrictModel):
@@ -142,7 +163,18 @@ class SourceSchemaCatalog(StrictModel):
 
     catalog_version: Literal["1.0.0"]
     snapshot_date: date
-    tables: dict[str, CatalogTable]
+    tables: Mapping[str, CatalogTable]
+
+    @field_validator("tables", mode="after")
+    @classmethod
+    def freeze_tables(cls, value: Mapping[str, CatalogTable]) -> Mapping[str, CatalogTable]:
+        """Prevent replacement of a table after catalog validation."""
+        return MappingProxyType(dict(value))
+
+    @field_serializer("tables")
+    def serialize_tables(self, value: Mapping[str, CatalogTable]) -> dict[str, CatalogTable]:
+        """Serialize the immutable ordered mapping predictably."""
+        return dict(value)
 
     @model_validator(mode="after")
     def validate_catalog(self) -> Self:
