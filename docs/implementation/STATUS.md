@@ -194,6 +194,7 @@ Implementation checkpoints:
 - `20ea7c9` — deterministic CLI and installed-console regression.
 - `d443feb` — environment, pre-commit, CI, and automation contracts.
 - `a3af00b` — mechanical formatting required by the final hook gate.
+- `1e12985` — Task 1 verification evidence, status, and exact next task.
 
 Remaining risks:
 

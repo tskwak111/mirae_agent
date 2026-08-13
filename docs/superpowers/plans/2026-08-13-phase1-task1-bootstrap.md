@@ -402,6 +402,6 @@ git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-13-phase1-t
 git commit -m "docs: record Phase 1 Task 1 completion"
 ```
 
-- [ ] **Step 5: Verify the committed tree and report**
+- [x] **Step 5: Verify the committed tree and report**
 
 Rerun the complete gate from Step 1, confirm `git status --porcelain=v1` is empty, and report exact outputs and commit hashes. Do not mark the Phase 1 gate complete.
