@@ -7,6 +7,7 @@ Statuses:
 - `OPEN_OFFICIAL`: awaiting organizer answer; current safe default remains labeled
 - `PROPOSED`: not yet authorized for core behavior
 - `OPEN_INTERNAL`: conflicting repository contracts need an explicit project decision; this status has no behavioral authority
+- `RESOLVED_INTERNAL`: an internal contract conflict was explicitly resolved and linked to a frozen decision
 - `RESOLVED_MIGRATION`: a non-product handoff discrepancy was corrected without choosing product behavior
 
 ## Frozen decisions
@@ -29,6 +30,7 @@ Statuses:
 | D-014 | 2026-08-07 | FROZEN | DuckDB + Parquet default runtime data architecture | small read-heavy snapshot and reproducibility |
 | D-015 | 2026-08-07 | FROZEN | evaluation mode has no live external data | stable official-reference answers |
 | D-016 | 2026-08-07 | FROZEN | `think_trace` is execution/tool summary | reproducible, bounded, safe output |
+| D-017 | 2026-08-13 | FROZEN | Production XLSX ingestion accepts only a manifest/catalog-verified source descriptor; raw rows preserve checksum, snapshot, exact row/cell location, raw payload/value, and an explicit optional cell applicable date | prevents unverified files or caller-invented lineage from entering normalization and resolves A-002 |
 
 ## Open official questions
 
@@ -52,7 +54,7 @@ These records track contradictions found while reading the entire transferred pa
 | ID | Status | Conflict or gap | Resolve before | Safe action until resolved |
 |---|---|---|---|---|
 | A-001 | OPEN_INTERNAL | `aggregate` is a supported intent, but QueryPlan has no typed aggregation function, target, grouping, or output contract. | Phase 2 Task 1/3 | do not implement aggregate planning or compilation |
-| A-002 | OPEN_INTERNAL | Planned SourceRow/evidence locators do not carry every Source Fidelity checksum/snapshot/applicable-date field. | Phase 1 Task 2 | preserve raw inputs; do not freeze a weaker lineage model |
+| A-002 | RESOLVED_INTERNAL | D-017 and `docs/superpowers/specs/2026-08-13-phase1-task2-source-ingestion-design.md` freeze the complete Task 2 raw-lineage and verified-reader boundary. | Phase 1 Task 2 | implement the approved contract under strict TDD |
 | A-003 | OPEN_INTERNAL | Overseas-listed and public-fund product-specific eligibility rules are incomplete. | Phase 2 Task 5 | do not infer eligibility from generic status fields |
 | A-004 | OPEN_INTERNAL | Cache-key prose/tests disagree on argument order and inclusion of artifact, rating, quality, and execution-mode versions. | Phase 3 Task 4 | disable or defer result caching |
 | A-005 | OPEN_INTERNAL | The release plan builds/verifies a manifest before the final covered commit/tag, which would stale the manifest. | Phase 4 Task 5 | do not freeze or publish a release manifest |
