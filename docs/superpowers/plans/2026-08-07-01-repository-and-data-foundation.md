@@ -32,6 +32,10 @@
 - Create: `tests/unit/core/test_settings.py`
 - Create: `tests/unit/core/test_versions.py`
 - Create: `tests/contract/test_handoff_commands.py`
+- Create: `tests/contract/test_repository_automation.py`
+- Create: `.env.example`
+- Create: `.pre-commit-config.yaml`
+- Create: `.github/workflows/ci.yml`
 - Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
@@ -169,6 +173,8 @@ Implement an immutable Pydantic `VersionBundle` with seed versions from config a
 uv run pytest tests/unit/core tests/contract/test_handoff_commands.py -q
 uv run ruff check src/finproof/core src/finproof/cli tests/unit/core tests/contract/test_handoff_commands.py
 uv run mypy src/finproof/core src/finproof/cli tests/unit/core tests/contract/test_handoff_commands.py
+uv run pytest tests/contract/test_repository_automation.py -q
+uv run pre-commit run --all-files
 python tools/verify_handoff.py
 python tools/audit_source_data.py --check
 ```
