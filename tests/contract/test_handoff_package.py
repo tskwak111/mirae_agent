@@ -136,3 +136,24 @@ def test_handoff_tools_are_importable_modules() -> None:
     assert callable(audit_source_data.main)
     assert callable(extract_schema_catalog.main)
     assert callable(verify_handoff.main)
+
+
+def test_bootstrap_instructions_use_the_checked_in_lock() -> None:
+    assert (ROOT / "uv.lock").is_file()
+
+    makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+    start_here = (ROOT / "START_HERE.md").read_text(encoding="utf-8")
+    handoff_manifest = (ROOT / "HANDOFF_PACKAGE_MANIFEST.md").read_text(encoding="utf-8")
+
+    frozen_sync = "uv sync --frozen --all-groups"
+    assert frozen_sync in makefile
+    assert frozen_sync in start_here
+    assert frozen_sync in handoff_manifest
+
+    if "uv run pre-commit install" in start_here:
+        assert (ROOT / ".pre-commit-config.yaml").is_file()
+
+    first_commands = handoff_manifest.split("## First command sequence", maxsplit=1)[1]
+    sync_position = first_commands.index(frozen_sync)
+    assert first_commands.index("python3 tools/verify_handoff.py") < sync_position
+    assert first_commands.index("python3 tools/audit_source_data.py --check") < sync_position

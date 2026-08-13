@@ -19,11 +19,11 @@ Read, in order:
 ## 2. Verify the package
 
 ```bash
-python tools/verify_handoff.py
-python tools/audit_source_data.py --check
+python3 tools/verify_handoff.py
+python3 tools/audit_source_data.py --check
 ```
 
-Both must pass before source-derived implementation work begins. A checksum or audit mismatch is a stop condition, not an invitation to update expected numbers.
+These standard-library entry points provide the pre-install integrity check. Both must pass before source-derived implementation work begins. A checksum or audit mismatch is a stop condition, not an invitation to update expected numbers.
 
 ## 3. Initialize Git safely
 
@@ -40,11 +40,12 @@ When using Codex for implementation, create an isolated branch/worktree per phas
 ## 4. Bootstrap dependencies
 
 ```bash
-uv sync --all-groups
-uv run pre-commit install
+uv sync --frozen --all-groups
+uv run python tools/verify_handoff.py
+uv run python tools/audit_source_data.py --check
 ```
 
-The handoff intentionally does not fabricate a lock file: its creation environment had no registry access. Generate and commit `uv.lock` in the first network-enabled bootstrap, change CI to `uv sync --frozen --all-groups`, and use frozen sync afterward.
+The macOS bootstrap generated and committed `uv.lock` with Python 3.12, so installation must remain frozen. `.pre-commit-config.yaml`, `.github/workflows/ci.yml`, and `.env.example` were not present in the transferred handoff; Phase 1 Task 1 must add and test them before installing hooks or claiming CI bootstrap completion.
 
 ## 5. Start Codex
 

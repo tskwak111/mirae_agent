@@ -1,7 +1,7 @@
 .PHONY: sync verify audit format lint type test check
 
 sync:
-	uv sync --all-groups
+	uv sync --frozen --all-groups
 
 verify:
 	uv run python tools/verify_handoff.py

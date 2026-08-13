@@ -30,7 +30,7 @@
 - Consumes: the transferred repository tree
 - Produces: an evidence-backed inventory, integrity result, and implementation-status assessment
 
-- [ ] **Step 1: Inventory tracked candidates and hidden transfer artifacts**
+- [x] **Step 1: Inventory tracked candidates and hidden transfer artifacts**
 
 Run:
 
@@ -41,7 +41,7 @@ find . -maxdepth 3 -name '.*' -print
 
 Expected: all handoff files are visible; `.DS_Store`, Python bytecode, and temporary pytest directories are classified as generated transfer artifacts.
 
-- [ ] **Step 2: Verify the handoff contract and frozen source audit**
+- [x] **Step 2: Verify the handoff contract and frozen source audit**
 
 Run:
 
@@ -52,7 +52,7 @@ python3 tools/audit_source_data.py --check
 
 Expected: 61 required files, 9 official inputs, and 145,393 source rows at snapshot `2026-07-11`.
 
-- [ ] **Step 3: Compare documented progress with implementation contents**
+- [x] **Step 3: Compare documented progress with implementation contents**
 
 Inspect `docs/implementation/STATUS.md`, the current Phase 1 plan, `src/`, `tests/`, `tools/`, `config/`, and `schemas/`. Confirm whether any production behavior exists beyond the handoff/audit scaffold.
 
@@ -69,7 +69,7 @@ Inspect `docs/implementation/STATUS.md`, the current Phase 1 plan, `src/`, `test
 - Produces: `uv run python` at Python 3.12
 - Produces: a resolver-generated, reproducible dependency lock
 
-- [ ] **Step 1: Install native Apple Silicon tools**
+- [x] **Step 1: Install native Apple Silicon tools**
 
 Run:
 
@@ -79,7 +79,7 @@ brew install uv python@3.12
 
 Expected: `uv` and `/opt/homebrew/bin/python3.12` are available as arm64 binaries.
 
-- [ ] **Step 2: Pin Python and synchronize every dependency group**
+- [x] **Step 2: Pin Python and synchronize every dependency group**
 
 Run:
 
@@ -103,11 +103,11 @@ Expected: `.python-version`, `.venv`, and a resolver-generated `uv.lock` are cre
 - Produces: an initial independently reviewable handoff/bootstrap commit
 - Preserves: all official inputs and frozen contracts byte-for-byte
 
-- [ ] **Step 1: Add ignore rules for local and generated state**
+- [x] **Step 1: Add ignore rules for local and generated state**
 
 Cover `.DS_Store`, `.venv`, Python/test/type/lint caches, coverage output, editor state, local secrets, temporary transfer directories, and generated DuckDB/Parquet data while permitting checked-in artifact manifests and reports when later required.
 
-- [ ] **Step 2: Verify ignore behavior before staging**
+- [x] **Step 2: Verify ignore behavior before staging**
 
 Run after Git initialization:
 
@@ -118,7 +118,7 @@ git status --short
 
 Expected: local artifacts are ignored and official inputs remain visible for the baseline commit.
 
-- [ ] **Step 3: Initialize and commit the verified baseline**
+- [x] **Step 3: Initialize and commit the verified baseline**
 
 Run:
 
@@ -141,7 +141,7 @@ Expected: one baseline commit with no ignored caches or local environment files.
 **Interfaces:**
 - Produces: current-session evidence for every mandatory bootstrap check
 
-- [ ] **Step 1: Run the project checks in the pinned environment**
+- [x] **Step 1: Run the project checks in the pinned environment**
 
 Run:
 
@@ -157,14 +157,14 @@ uv run python tools/extract_schema_catalog.py --check
 
 Expected: all checks succeed on Python 3.12; any unexplained failure is a stop condition.
 
-- [ ] **Step 2: Install repository hooks and inspect final state**
+- [x] **Step 2: Inspect hook availability and final state**
 
 Run:
 
 ```bash
-uv run pre-commit install
+test -f .pre-commit-config.yaml
 git status --short --branch
 git log -1 --oneline
 ```
 
-Expected: the pre-commit hook is installed, the working tree is clean, and the exact next product task remains Phase 1, Task 1.
+Observed: the transferred handoff has no `.pre-commit-config.yaml`, despite its manifest claiming environment templates are included. A hook was therefore not installed or invented during migration. The missing configuration is recorded for Phase 1 Task 1; after the final audit commit, the working tree must be clean and the exact next product task remains Phase 1, Task 1.

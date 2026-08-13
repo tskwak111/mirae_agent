@@ -14,7 +14,7 @@ The preferred delivery is the whole repository. The minimum required set is:
 8. `schemas/` — strict local QueryPlan, HCX-provider-safe QueryPlan, evidence, trace, API, quality-issue, artifact, and golden-case contracts.
 9. `source_material/` — official task PDF, eight immutable workbooks, SHA-256 manifest, and extracted schema catalog.
 10. `tools/` and `tests/contracts/` — source audit and package verification baselines.
-11. `pyproject.toml`, `Makefile`, CI, and environment templates — reproducible engineering environment. Generate and commit `uv.lock` during the first network-enabled bootstrap.
+11. `pyproject.toml`, `Makefile`, `.python-version`, and `uv.lock` — the macOS Python 3.12 dependency environment. CI, pre-commit, and `.env.example` templates are not included yet and remain explicit Phase 1 Task 1 work.
 12. `prompts/` — phase-specific and review prompts.
 
 Do not give Codex only a prose summary or only the source workbooks. The contracts, registries, tests, and phase plans are what prevent design drift.
@@ -24,9 +24,11 @@ Do not give Codex only a prose summary or only the source workbooks. The contrac
 ```bash
 cat START_HERE.md
 cat AGENTS.md
-python tools/verify_handoff.py
-python tools/audit_source_data.py --check
-uv sync --all-groups
+python3 tools/verify_handoff.py
+python3 tools/audit_source_data.py --check
+uv sync --frozen --all-groups
+uv run python tools/verify_handoff.py
+uv run python tools/audit_source_data.py --check
 uv run pytest -q
 ```
 
