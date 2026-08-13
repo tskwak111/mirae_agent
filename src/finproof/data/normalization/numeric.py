@@ -12,14 +12,15 @@ NumericZeroStatus = Literal[
     QualityStatus.RECORDED_ZERO,
     QualityStatus.RECORDED_ZERO_UNVERIFIED,
 ]
+_MAX_EXPANDED_INTEGER_DIGITS = 4300
 
 
 def _validate_zero_status(zero_status: NumericZeroStatus) -> None:
     """Reject a quality state that cannot describe an exact numeric zero."""
-    if zero_status not in {
-        QualityStatus.RECORDED_ZERO,
-        QualityStatus.RECORDED_ZERO_UNVERIFIED,
-    }:
+    if not isinstance(zero_status, QualityStatus) or (
+        zero_status is not QualityStatus.RECORDED_ZERO
+        and zero_status is not QualityStatus.RECORDED_ZERO_UNVERIFIED
+    ):
         raise ValueError("zero_status must be a recorded-zero quality status")
 
 
@@ -74,7 +75,9 @@ def parse_integer(
     decimal_value, quality_status = _parse_finite_decimal(row.cell(column_name).raw_value)
     if decimal_value is None:
         normalized_value = None
-    elif decimal_value != decimal_value.to_integral_value():
+    elif decimal_value != decimal_value.to_integral_value() or (
+        not decimal_value.is_zero() and decimal_value.adjusted() + 1 > _MAX_EXPANDED_INTEGER_DIGITS
+    ):
         normalized_value = None
         quality_status = QualityStatus.INVALID_FORMAT
     else:

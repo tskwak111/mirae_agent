@@ -1,6 +1,7 @@
 """Tests for exact finite Decimal and integral source parsing."""
 
 from decimal import Decimal
+from typing import Any
 
 import pytest
 
@@ -47,6 +48,9 @@ def test_decimal_parser_preserves_exact_finite_values_and_field_zero_status(
     assert result.raw_value == raw
     assert result.normalized_value == value
     assert result.quality_status is status
+    if raw == "3.500":
+        assert result.normalized_value is not None
+        assert result.normalized_value.as_tuple().exponent == -3
 
 
 @pytest.mark.parametrize(
@@ -87,3 +91,38 @@ def test_numeric_parsers_reject_a_nonzero_quality_status() -> None:
             rule_id="bond.source_remaining_days",
             rule_version="1.0.0",
         )
+
+
+def test_numeric_parsers_reject_raw_string_zero_statuses() -> None:
+    """String lookalikes cannot bypass the enum-only zero-policy contract."""
+    row = source_row("PRBD01N001", {"REMAINING_DAYS": "1"})
+    raw_zero_status: Any = "recorded_zero"
+    with pytest.raises(ValueError, match="zero_status"):
+        parse_decimal(
+            row,
+            "REMAINING_DAYS",
+            zero_status=raw_zero_status,
+            rule_id="bond.source_remaining_days",
+            rule_version="1.0.0",
+        )
+    with pytest.raises(ValueError, match="zero_status"):
+        parse_integer(
+            row,
+            "REMAINING_DAYS",
+            zero_status=raw_zero_status,
+            rule_id="bond.source_remaining_days",
+            rule_version="1.0.0",
+        )
+
+
+def test_integer_parser_rejects_compact_values_exceeding_expanded_digit_limit() -> None:
+    """An exponent cannot cause an unbounded integer allocation during parsing."""
+    result = parse_integer(
+        source_row("PRBD01N001", {"REMAINING_DAYS": "1e100000"}),
+        "REMAINING_DAYS",
+        zero_status=QualityStatus.RECORDED_ZERO,
+        rule_id="bond.source_remaining_days",
+        rule_version="1.0.0",
+    )
+    assert result.normalized_value is None
+    assert result.quality_status is QualityStatus.INVALID_FORMAT
