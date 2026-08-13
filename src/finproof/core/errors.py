@@ -8,6 +8,17 @@ class FinProofError(Exception):
     """Base FinProof application error."""
 
 
+class NormalizationContractError(FinProofError):
+    """A normalizer received a row from a table outside its contract."""
+
+    def __init__(self, expected_table: str, actual_table: str) -> None:
+        self.expected_table = expected_table
+        self.actual_table = actual_table
+        super().__init__(
+            f"normalization table mismatch: expected {expected_table}, got {actual_table}"
+        )
+
+
 class SourceErrorCode(StrEnum):
     """Stable categories for fail-closed official-source contract failures."""
 
