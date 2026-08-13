@@ -19,6 +19,23 @@ class NormalizationContractError(FinProofError):
         )
 
 
+class RatingRegistryConfigurationError(FinProofError):
+    """The rating registry configuration failed its strict trust boundary."""
+
+    def __init__(self, category: str, *, source_name: str | None = None) -> None:
+        self.category = category
+        self.source_name = source_name
+        source_context = f" ({source_name})" if source_name is not None else ""
+        super().__init__(f"rating registry configuration error: {category}{source_context}")
+
+
+class RatingNotComparableError(FinProofError):
+    """At least one rating operand has no registered comparison ordinal."""
+
+    def __init__(self) -> None:
+        super().__init__("rating operands are not comparable")
+
+
 class SourceErrorCode(StrEnum):
     """Stable categories for fail-closed official-source contract failures."""
 
