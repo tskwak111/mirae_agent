@@ -367,114 +367,39 @@ fund normalization, artifact building, or Phase 1 gate closure.
 
 ### Task 4: Normalize overseas ETF/ETN and public funds with item/attribute split
 
-**Files:**
-- Create: `src/finproof/data/normalization/overseas_listed.py`
-- Create: `src/finproof/data/normalization/public_funds.py`
-- Create: `src/finproof/data/quarantine.py`
-- Create: `tests/unit/data/test_overseas_listed_normalization.py`
-- Create: `tests/unit/data/test_public_fund_normalization.py`
-- Create: `tests/source_contract/test_public_fund_grain.py`
-- Modify: `docs/implementation/STATUS.md`
+> **Approved design:** `docs/superpowers/specs/2026-08-14-phase1-task4-overseas-public-normalization-design.md`
+>
+> **Authoritative detailed plan:** `docs/superpowers/plans/2026-08-14-phase1-task4-overseas-public-normalization.md`
+>
+> The approved design and detailed plan supersede this section's legacy domestic-model,
+> inert-`as_of`, dynamic-metric, path-based, and caller-reconstructed-quarantine sketches.
+> Execute the seven reviewer-worthy checkpoints below under their exact RED -> GREEN,
+> commit, review, official-acceptance, and final-gate instructions.
 
-**Interfaces:**
-- Produces: `normalize_overseas_listed(row: SourceRow, as_of: date) -> NormalizationResult[ListedProduct]`
-- Produces: `normalize_fund_attribute(row: SourceRow) -> NormalizationResult[FundAttributeRow]`
-- Produces: `collapse_fund_items(rows: Iterable[FundAttributeRow]) -> FundCollapseResult`
-- Produces: `FundCollapseResult(items: tuple[FundItem, ...], attributes: tuple[FundItemAttribute, ...], issues: tuple[DataQualityIssue, ...])`
+**Authoritative interfaces:**
 
-- [ ] **Step 1: Write failing overseas zero/tie preservation tests**
+- `normalize_overseas_listed(row: SourceRow) -> NormalizationResult[OverseasListedProduct]`
+- `normalize_fund_attribute(row: SourceRow) -> NormalizationResult[FundAttributeRow]`
+- `collapse_fund_items(rows: Iterable[FundAttributeRow]) -> FundCollapseResult`
+- `normalize_public_funds(rows: Iterable[SourceRow]) -> FundCollapseResult`
+- D-021 canonical quality issue JSON with explicit Draft 2020-12 `FormatChecker`
+- Strict frozen all-field records, normalizer `SourceRow` identity, exact-type Python
+  acceptance/rejection, canonical-shape JSON validation, complete repeated locators,
+  global item grouping, and deterministic issue/result ordering
+- No `src/finproof/data/quarantine.py` utility bucket; focused persistence belongs to Task 5
 
-```python
-from finproof.data.normalization.overseas_listed import normalize_overseas_listed
-from tests.helpers.source_rows import source_row
+- [ ] **Checkpoint 1: D-021 canonical quality schema and partial A-011 resolution**
+- [ ] **Checkpoint 2: complete fixtures, shared listed type, exact helpers, and `FundItemValue`**
+- [ ] **Checkpoint 3: complete 49-field overseas model/normalizer with no eligibility inference**
+- [ ] **Checkpoint 4: complete 45-field fund row, identity/exact-type Python boundary, and canonical JSON**
+- [ ] **Checkpoint 5: global item collapse, completeness, exact failure cardinalities/order, and bounded-order invariance**
+- [ ] **Checkpoint 6: verified official 101,265-row acceptance**
+- [ ] **Checkpoint 7: repository gates, status evidence, independent whole-branch review, and clean tree**
 
-
-def test_overseas_fee_zero_is_preserved_and_flagged() -> None:
-    row = source_row(
-        "PREF02N001",
-        2,
-        {"pd_itm_no": "US1", "pd_nm": "ETF", "pd_grp_no": "ETF", "pd_trd_ccy": "USD", "cu_charge_rt": "0"},
-    )
-    result = normalize_overseas_listed(row, as_of=SNAPSHOT_DATE)
-    fee = result.record.metrics["total_fee"]  # type: ignore[union-attr]
-    assert fee.value == Decimal("0")
-    assert fee.quality_status is QualityStatus.RECORDED_ZERO_UNVERIFIED
-```
-
-Add tests for ETF/ETN type, USD read from field, constant-zero return retained, and rich strategy text treated as data.
-
-- [ ] **Step 2: Run, implement minimal overseas normalizer, and rerun**
-
-```bash
-uv run pytest tests/unit/data/test_overseas_listed_normalization.py -q
-```
-
-Expected RED, then implement and obtain PASS.
-
-- [ ] **Step 3: Write failing public-fund item/attribute tests**
-
-```python
-from finproof.data.normalization.public_funds import collapse_fund_items, normalize_fund_attribute
-
-
-def test_two_attribute_rows_collapse_to_one_fund_item() -> None:
-    rows = [
-        normalize_fund_attribute(fund_source_row("F1", "A", name="펀드")).record,
-        normalize_fund_attribute(fund_source_row("F1", "B", name="펀드")).record,
-    ]
-    result = collapse_fund_items(row for row in rows if row is not None)
-    assert [item.fund_item_id for item in result.items] == ["F1"]
-    assert {(a.fund_item_id, a.attribute_code) for a in result.attributes} == {("F1", "A"), ("F1", "B")}
-```
-
-Add tests for:
-
-- literal `NULL` risk -> missing-literal-null
-- `or_attr_desc="06"` -> unmapped code
-- KRW/USD currency preserved
-- disagreement in non-attribute fields -> quarantine/high issue, not silent representative selection
-- malformed `itm_no='"'` -> no normal item and `malformed_source_row`
-- deterministic representative row chooses lowest Excel row only when fields agree
-
-- [ ] **Step 4: Run, implement, and rerun public-fund tests**
-
-```bash
-uv run pytest tests/unit/data/test_public_fund_normalization.py -q
-```
-
-Implement a sort/group pass keyed by `itm_no`, compare canonical non-attribute payload hashes, emit attributes separately, and preserve all source locators.
-
-```bash
-uv run pytest tests/unit/data/test_public_fund_normalization.py -q
-```
-
-- [ ] **Step 5: Add the full-source grain contract test**
-
-```python
-@pytest.mark.source_contract
-@pytest.mark.slow
-def test_official_public_fund_grain_matches_frozen_counts() -> None:
-    result = build_public_fund_records(OFFICIAL_FUND_PATH)
-    assert result.source_rows == 95_619
-    assert result.unique_item_ids == 11_139
-    assert result.valid_items == 11_138
-    assert result.unique_item_attribute_pairs == 95_619
-    assert result.non_attribute_disagreement_items == 0
-```
-
-- [ ] **Step 6: Run source contract and audit**
-
-```bash
-uv run pytest tests/source_contract/test_public_fund_grain.py -q -m source_contract
-uv run python tools/audit_source_data.py --check
-```
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/finproof/data tests/unit/data tests/source_contract docs/implementation/STATUS.md
-git commit -m "feat: normalize overseas products and public fund grain"
-```
+Do not mark Task 4 complete until the dedicated plan records every focused RED/GREEN,
+per-checkpoint review, official count/fidelity assertion, final whole-branch review,
+mandatory gate, and clean-tree result. Task 4 does not build artifacts, exact links,
+families, query/API behavior, or eligibility rules.
 
 ---
 

@@ -223,7 +223,9 @@ as `du_diff_rt`, prices, and volumes remain typed source data only.
   currency. Current all-USD data is not hardcoded. `pd_curr_cd` remains a distinct raw
   source field and never overrides trading currency.
 - `pd_lstg_dt` accepts the shared strict `YYYYMMDD` parser; the eight `00000000`
-  values are `sentinel_zero`, not quarantines.
+  values are `sentinel_zero`, not quarantines. Every overseas date call sets
+  `allow_max_sentinel=False`; `99991231` is therefore parsed as an ordinary valid date,
+  not a maximum-date sentinel.
 - `cu_upt_dt`, `du_clpr_base_dt`, `du_upt_dt`, and `wu_upt_dt` are independent strict
   `YYYYMMDD` dates. `du_nav_base_dt` is the source's exact naive timestamp.
 - Fee zero is `recorded_zero_unverified`. AUM, return, prices, counts, values, volumes,
@@ -346,15 +348,36 @@ risk_name                    <- zrin_fd_ivst_risk_grd_nm
 ```
 
 Together with `itm_no` and `prfd_attr_cd`, all 45 official columns are represented.
-The Python construction boundary requires the exact `SourceRow` instance received by
-the normalizer. The field uses a mode-aware before validator (or equivalent annotated
-validator): in Python mode it accepts only `type(value) is SourceRow` and rejects a
-dictionary, mapping, subclass, or reconstructed lookalike; the stored value is the same
-object (`record.source_row is row`). In JSON mode it permits only the
-canonical nested object needed by `model_validate_json`, then subjects it to the
-unchanged `SourceRow` model and the after-validation checks below. This does not make
-serialized JSON a trusted ingestion boundary; only the verified reader may supply a
-row to a production normalizer.
+The normalizer preserves the exact input object by identity:
+`normalize_fund_attribute(row).record.source_row is row`. The Python model boundary is
+separate and enforceable: it accepts any value for which `type(value) is SourceRow`,
+and rejects dictionaries, other mappings, and `SourceRow` subclasses. Python cannot
+distinguish an exact `SourceRow` reconstructed by a caller from one emitted by the
+reader, so this contract makes no such claim; the after validator instead proves that
+all wrappers match whichever exact `SourceRow` was supplied.
+
+JSON validation has no Python-object identity guarantee. Before ordinary `SourceRow`
+validation, it requires the canonical serialized shape. The exact `SourceRow` key set
+is `source_table`, `source_file`, `source_sheet`, `source_row_number`,
+`source_checksum`, `source_snapshot_date`, `raw_payload`, and `cells`; the exact
+`SourceCell` key set is `column_name`, `excel_column_number`,
+`excel_column_letter`, `raw_value`, and `applicable_date`. It further requires
+`cells` as a JSON array of exactly 45 JSON objects in catalog order, every cell with
+that exact key set, and `raw_payload` as a JSON array of strings equal in order and
+value to the cells' raw values. Scalar types are checked before Pydantic can coerce:
+table/file/sheet/checksum/column names/letters/raw values are strings; row and column
+numbers satisfy `type(value) is int` (so booleans and numeric strings fail); snapshot
+and applicable dates are `YYYY-MM-DD` strings whose `date.fromisoformat` round trip is
+identical, with `null` additionally allowed only for applicable date. No boolean field
+exists in `SourceRow`/`SourceCell`; any future canonical boolean must analogously
+require `type(value) is bool`. `source_file` is additionally nonempty, relative, free
+of `..`, and already canonical:
+`PurePosixPath(value).as_posix() == value`; redundant separators or dot segments such
+as `data//file.xlsx` and `data/./file.xlsx` fail before Pydantic normalization. The
+unchanged `SourceRow` and record after
+validators then enforce types, safe path, dates, table, raw values, and locators. This
+permits deterministic `model_validate_json(record.model_dump_json())` only as a
+structural round trip; serialized JSON is not a trusted ingestion boundary.
 
 An after validator checks every wrapper against the nested row using the frozen
 field-to-column map: exact raw value equality and exact
@@ -365,7 +388,8 @@ value happens to match.
 
 Contract tests require deterministic `model_dump(mode="json")` and
 `model_dump_json()`, reject Python `model_validate`/constructor calls containing a
-dumped dictionary instead of the real instance, and allow only a strict
+mapping or subclass instead of an exact-type instance, accept a separately constructed
+exact `SourceRow` when every wrapper agrees with it, and allow only the canonical-shape
 `model_validate_json(record.model_dump_json())` round trip. The JSON round trip must
 reproduce raw payload, safe path, dates, cells, wrappers, and locators exactly.
 
@@ -446,10 +470,12 @@ equivalent_sources: tuple[SourceCellLocator, ...]
 The tuple is nonempty, contains one locator for every agreeing source row, is sorted by
 Excel row/column, contains the representative locator first, and names one exact source
 column. The representative comes from the lowest Excel row only after equality is
-proved. All locators are unique and must match the representative's table, file, sheet,
-column name/number/letter, checksum, and snapshot; their row numbers may differ and
-their cell-applicable dates remain exact. Direct construction that omits, duplicates,
-reorders, or mismatches the representative/source column is rejected.
+proved. All locators are unique. Shared-lineage comparison matches the representative's
+table, file, sheet, column name/number/letter, checksum, and snapshot while explicitly
+excluding both `source_row_number` and `source_applicable_date`. Each locator is still
+retained exactly with its own row number and applicable date. Direct construction that
+omits, duplicates, reorders, or mismatches the shared lineage or representative/source
+column is rejected.
 
 Every concrete generic specialization must support deterministic JSON-mode dump and
 strict JSON round-trip validation while preserving the representative raw value,
@@ -466,12 +492,15 @@ listed-product type, or eligibility value.
 contributing_rows: tuple[SourceRow, ...]
 ```
 
-The tuple is nonempty, contains exact `SourceRow` instances in Python construction
-mode, and uses the same mode-aware instance/JSON-round-trip boundary as
-`FundAttributeRow.source_row`. All rows must be `PRFD01N001`, share file, sheet,
+The tuple is nonempty and the collapse builder preserves each sorted input identity
+(`item.contributing_rows[i] is input_row`). Direct Python construction accepts only
+elements for which `type(value) is SourceRow`; it rejects mappings and subclasses but
+accepts a separately constructed exact `SourceRow` that satisfies all invariants. JSON
+uses the same canonical-shape structural boundary as `FundAttributeRow.source_row`,
+without claiming object identity. All rows must be `PRFD01N001`, share file, sheet,
 checksum, and snapshot, use the canonical 45 cells, and have the same exact raw
 `itm_no`. Row numbers are unique and strictly increasing; the first row is therefore
-the deterministic representative row. Dictionary coercion and a caller-supplied
+the deterministic representative row. Mapping coercion and a caller-supplied
 reordering are rejected in Python mode.
 
 The `FundItem` after validator iterates the frozen field-to-column map. For every
@@ -519,13 +548,36 @@ uses the exact failure contracts in section 6.3 and excludes the entire affected
 plus all its attributes. Collapse never silently deduplicates or selects a preferred
 value. Official data has zero such groups.
 
-The result is input-order invariant: every permutation of equivalent input rows must
-produce byte-equivalent JSON-mode item, attribute, and issue dumps. Implementations
-accumulate one canonical row group per item rather than retaining a second complete
-tuple of `FundAttributeRow` objects after construction. The official result is large
-because 95,618 rows contribute direct cell evidence, but source rows are stored only
-once per item and not once per value. Task 5 may replace the grouping mechanism with
-bounded external sort/storage while preserving this semantic contract.
+The result is input-order invariant. Tests prove that property with a finite exact
+order suite rather than factorial enumeration. Given fixture declaration order
+`canonical`, the required orders are `canonical`, `canonical[::-1]`,
+`canonical[0::2] + canonical[1::2]`,
+`canonical[1::2] + canonical[0::2]`, a stable item/attribute-key grouped order,
+stable malformed-first, stable malformed-last, and 32 shuffles produced by one
+`random.Random(20260814)` instance by copying `canonical` and calling `shuffle` once
+per sample. Every order must produce byte-equivalent JSON-mode item, attribute, and
+issue dumps.
+
+The authoritative `normalize_public_funds` path materializes and groups only
+`SourceRow` references. Its first pass uses the same internal key validator as
+`normalize_fund_attribute`, preserving malformed item/attribute issues without
+building full normalized row records. It then visits normalized item keys in stable
+order, normalizes only that one Excel-row-sorted group, collapses it through one shared
+single-group helper (routing each row through `normalize_fund_attribute`), appends
+immutable outputs/issues, and releases every
+`FundAttributeRow` before advancing. It never constructs a dataset-wide normalized-row
+tuple or list. The standalone `collapse_fund_items` boundary may group its caller's
+already-normalized iterable, but the official path must not call it with all 95,618
+records.
+
+The official result remains large because 95,618 rows contribute direct cell evidence,
+but source rows are stored only once per item and not once per value. A two-size
+`tracemalloc` preflight compares transient `peak-current` allocation slope after source
+fixtures are built and structurally verifies the authoritative source-row grouping
+path. The official pytest records `perf_counter` wall time and
+`resource.getrusage(RUSAGE_SELF).ru_maxrss` before/after normalization. Task 5 may
+replace the grouping mechanism with bounded external sort/storage while preserving
+this semantic contract.
 
 ### 6.3 Collapse failure issues and global issue order
 
@@ -610,9 +662,10 @@ never emitted in the issue reason or substituted for identity. Thus the malforme
 The remaining locator/rule/hash components make the order total. Duplicate issue IDs
 are a contract failure rather than silently repeated output.
 
-Tests permute successful, malformed, warning-bearing, duplicate, collision, and
-disagreement rows together and assert byte-identical
-`FundCollapseResult.model_dump_json()` output, including the entire issue tuple.
+Tests mix successful, malformed, warning-bearing, duplicate, collision, and
+disagreement rows and apply the exact bounded order suite from section 6.2, asserting
+byte-identical `FundCollapseResult.model_dump_json()` output including the entire issue
+tuple.
 
 ### 6.4 Family boundary
 
@@ -666,10 +719,17 @@ every item field preserves the representative and all contributing locators
 no family collapse and no name-based ETF conversion
 ```
 
-The official test also proves permutation invariance on representative multi-attribute
-groups and exhaustive raw/locator fidelity. It does not freeze every optional warning
-count; a justified warning refinement may change issue counts without changing source
-identity, raw values, or the normative anomalies above.
+The official test also proves bounded order invariance on representative
+multi-attribute groups: source-row-number canonical order, reverse, zero-based even
+indices followed by odd indices, and zero-based odd indices followed by even indices.
+Attribute fidelity is compared directly to the existing `SourceRow` cells and
+locators; the acceptance test does not renormalize 95,618 attributes or construct a
+second complete `FundAttributeRow` tuple. The official pytest records wall time and
+process peak RSS with `perf_counter` and `resource.getrusage`, after the two-size
+transient-allocation slope preflight. It does
+not freeze every optional warning count; a justified warning refinement may change
+issue counts without changing source identity, raw values, or the normative anomalies
+above.
 
 ## 8. Error handling and security
 
@@ -691,12 +751,17 @@ Every behavior is introduced under observed RED -> GREEN -> REFACTOR:
    validation, UTC-negative cases, and partial A-011/D-021 decision;
 2. complete synthetic source rows plus shared listed type, exact overseas identity,
    literal-null helper, and `FundItemValue` invariants;
-3. all-field overseas model/normalizer, zero/sentinel/date/text/identity tests;
-4. all-field fund attribute model/normalizer, actual-`SourceRow` Python construction
-   RED, nested JSON round trip, padded-code/risk/06/return tests;
-5. deterministic global collapse, the three exact failure-issue contracts, global
-   malformed-aware issue order, all-column agreement, complete issue orchestration,
-   and byte-level permutation tests;
+3. overseas import/table/model scaffold RED -> minimum uncommitted scaffold GREEN,
+   mapping/valid-path RED -> GREEN, field-policy RED -> GREEN, then mutation/invariant
+   RED -> GREEN before one complete checkpoint commit;
+4. fund-row model scaffold RED -> minimum uncommitted model GREEN, table/key/all-field
+   valid-path RED -> GREEN, field-policy RED -> GREEN, then exact-type Python,
+   canonical-JSON scalar/shape, and mutation RED -> GREEN before commit;
+5. collapse output-model scaffold RED -> GREEN; then valid standalone/authoritative
+   path plus authoritative memory slope/lifetime RED -> GREEN before that grouping
+   implementation; result invariant RED -> GREEN; each failure producer including its
+   complete issue fields RED -> GREEN; global issue/bounded-order RED -> GREEN; and a
+   final memory rerun before one complete checkpoint commit;
 6. full official 101,265-row acceptance for section 7;
 7. mandatory repository gates, status evidence, independent whole-branch review, and
    clean-tree evidence.
