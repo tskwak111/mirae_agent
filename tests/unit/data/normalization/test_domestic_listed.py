@@ -206,6 +206,35 @@ def test_malformed_listed_identity_or_type_quarantines_one_row(
     )
 
 
+def test_simultaneous_invalid_type_and_identity_emit_ordered_safe_blockers() -> None:
+    result = normalize_domestic_listed(
+        source_row(
+            "PREF01N001",
+            {"pd_grp_no": "FUND", "pd_itm_no": "KR"},
+            excel_row=1155,
+        ),
+        AS_OF,
+    )
+
+    assert result.record is None
+    assert len(result.issues) == 2
+    assert tuple(issue.source.source_column_name for issue in result.issues) == (
+        "pd_grp_no",
+        "pd_itm_no",
+    )
+    assert tuple(issue.source.source_column_number for issue in result.issues) == (43, 44)
+    assert all(
+        issue.quarantined
+        and issue.severity is IssueSeverity.BLOCKER
+        and issue.quality_status is QualityStatus.MALFORMED_SOURCE_ROW
+        for issue in result.issues
+    )
+    assert tuple(issue.reason for issue in result.issues) == (
+        "Domestic listed product group has an invalid source format.",
+        "Domestic listed product identifier has an invalid source format.",
+    )
+
+
 @pytest.mark.parametrize(
     ("sale", "suspended", "expected_sale", "expected_suspended"),
     [
