@@ -20,6 +20,15 @@ EXPECTED_ROWS = {
 pytestmark = [pytest.mark.source_contract, pytest.mark.slow]
 
 
+def _expected_excel_column_letter(column_number: int) -> str:
+    letters: list[str] = []
+    remaining = column_number
+    while remaining:
+        remaining, remainder = divmod(remaining - 1, 26)
+        letters.append(chr(ord("A") + remainder))
+    return "".join(reversed(letters))
+
+
 def test_official_workbooks_stream_with_complete_lineage() -> None:
     manifest = SourceFileManifest.load(
         ROOT / "source_material/input_manifest.json",
@@ -30,15 +39,24 @@ def test_official_workbooks_stream_with_complete_lineage() -> None:
 
     for table_id, expected_rows in EXPECTED_ROWS.items():
         source = verified.data_file(table_id)
-        for row in iter_xlsx_rows(source):
+        for expected_excel_row, row in enumerate(iter_xlsx_rows(source), start=2):
             observed[table_id] += 1
             assert row.source_table == table_id
             assert row.source_file == source.manifest_relative_path
             assert row.source_sheet == source.sheet_name
+            assert row.source_row_number == expected_excel_row
             assert row.source_checksum == source.sha256
             assert row.source_snapshot_date == source.snapshot_date
             assert len(row.cells) == source.expected_columns
             assert row.raw_payload == tuple(cell.raw_value for cell in row.cells)
+            for column_number, (expected_header, raw_value, cell) in enumerate(
+                zip(source.expected_headers, row.raw_payload, row.cells, strict=True), start=1
+            ):
+                assert cell.column_name == expected_header
+                assert cell.excel_column_number == column_number
+                assert cell.excel_column_letter == _expected_excel_column_letter(column_number)
+                assert cell.raw_value == raw_value
+                assert cell.applicable_date is None
         assert observed[table_id] == expected_rows
 
     assert sum(observed.values()) == 145_393
