@@ -8,7 +8,7 @@ from json import JSONDecodeError
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Literal, Self, cast
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
 
@@ -21,6 +21,16 @@ OFFICIAL_TABLE_IDS = (
 )
 
 
+def _manifest_relative_path(value: PurePosixPath) -> PurePosixPath:
+    """Reject path identities that cannot safely represent an official input."""
+    if value.is_absolute() or ".." in value.parts:
+        raise ValueError("path must be manifest-relative and traversal-free")
+    return value
+
+
+ManifestRelativePath = Annotated[PurePosixPath, AfterValidator(_manifest_relative_path)]
+
+
 class StrictModel(BaseModel):
     """Immutable model that rejects source fields outside the frozen contract."""
 
@@ -30,34 +40,34 @@ class StrictModel(BaseModel):
 class TaskPdfEntry(StrictModel):
     """The one official competition task document."""
 
-    path: PurePosixPath
+    path: ManifestRelativePath
     kind: Literal["official_task_pdf"]
-    size_bytes: int = Field(ge=0)
+    size_bytes: int = Field(ge=0, strict=True)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class DataFileEntry(StrictModel):
     """Expected metadata for one official data workbook."""
 
-    path: PurePosixPath
+    path: ManifestRelativePath
     kind: Literal["data"]
     table_id: str
     sheet_name: str
-    expected_rows: int = Field(ge=0)
-    expected_columns: int = Field(gt=0)
-    size_bytes: int = Field(ge=0)
+    expected_rows: int = Field(ge=0, strict=True)
+    expected_columns: int = Field(gt=0, strict=True)
+    size_bytes: int = Field(ge=0, strict=True)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
 class SchemaFileEntry(StrictModel):
     """Expected metadata for one official schema workbook."""
 
-    path: PurePosixPath
+    path: ManifestRelativePath
     kind: Literal["schema"]
     table_id: str
     sheet_names: tuple[str, ...]
-    expected_columns: int = Field(gt=0)
-    size_bytes: int = Field(ge=0)
+    expected_columns: int = Field(gt=0, strict=True)
+    size_bytes: int = Field(ge=0, strict=True)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
@@ -69,14 +79,14 @@ class CatalogColumn(StrictModel):
     example: str
     key: str
     name_ko: str
-    schema_excel_row: int = Field(gt=0)
+    schema_excel_row: int = Field(gt=0, strict=True)
 
 
 class CatalogTable(StrictModel):
     """The ordered columns for one source table."""
 
     axis_warning: str
-    column_count: int = Field(gt=0)
+    column_count: int = Field(gt=0, strict=True)
     columns: tuple[CatalogColumn, ...]
     sample: dict[str, str] = Field(default_factory=dict)
     sample_axis_columns: tuple[str, ...] = ()
@@ -149,6 +159,11 @@ class SourceFileManifest(StrictModel):
         """Load both metadata files and fail closed on malformed source contracts."""
         manifest_payload = _load_json(manifest_path, SourceErrorCode.MANIFEST_INVALID)
         catalog_payload = _load_json(schema_catalog_path, SourceErrorCode.CATALOG_INVALID)
+        if "schema_catalog" in manifest_payload:
+            raise SourceContractError(
+                SourceErrorCode.MANIFEST_INVALID,
+                "manifest must not contain an injected schema catalog",
+            )
         try:
             catalog = SourceSchemaCatalog.model_validate(catalog_payload)
         except SourceContractError:

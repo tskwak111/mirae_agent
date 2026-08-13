@@ -74,6 +74,28 @@ def test_manifest_rejects_unknown_fields(tmp_path: Path) -> None:
     assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
 
 
+def test_manifest_rejects_injected_schema_catalog_field(tmp_path: Path) -> None:
+    def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
+        del catalog
+        manifest["schema_catalog"] = {}
+
+    with pytest.raises(SourceContractError) as raised:
+        _load_mutated(tmp_path, mutate)
+
+    assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
+
+
+def test_manifest_rejects_coercible_numeric_scalar(tmp_path: Path) -> None:
+    def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
+        del catalog
+        _manifest_files(manifest)[1]["expected_rows"] = "1"
+
+    with pytest.raises(SourceContractError) as raised:
+        _load_mutated(tmp_path, mutate)
+
+    assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
+
+
 def test_catalog_rejects_unknown_fields(tmp_path: Path) -> None:
     def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
         del manifest
@@ -83,6 +105,20 @@ def test_catalog_rejects_unknown_fields(tmp_path: Path) -> None:
         _load_mutated(tmp_path, mutate)
 
     assert raised.value.code is SourceErrorCode.CATALOG_INVALID
+
+
+@pytest.mark.parametrize("unsafe_path", ["/outside/source.xlsx", "../outside/source.xlsx"])
+def test_manifest_rejects_non_relative_or_traversal_source_paths(
+    tmp_path: Path, unsafe_path: str
+) -> None:
+    def mutate(manifest: dict[str, object], catalog: dict[str, object]) -> None:
+        del catalog
+        _manifest_files(manifest)[1]["path"] = unsafe_path
+
+    with pytest.raises(SourceContractError) as raised:
+        _load_mutated(tmp_path, mutate)
+
+    assert raised.value.code is SourceErrorCode.MANIFEST_INVALID
 
 
 def test_manifest_rejects_snapshot_mismatch(tmp_path: Path) -> None:
