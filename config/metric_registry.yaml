@@ -1,0 +1,311 @@
+version: "1.0.0"
+metrics:
+  bond.buy_yield:
+    label_ko: "매수수익률"
+    product_types: ["domestic_bond"]
+    source_table: "PRBD01N001"
+    source_column: "BUY_YIELD"
+    value_type: "decimal"
+    unit: "percent"
+    period: "yield_to_maturity_like_source_field"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_valid_numeric_with_quote_date_warning"
+    literal_filter_policy: "use_recorded_numeric"
+    ranking_policy: "valid_numeric_only"
+    aggregation_policy: "valid_numeric_with_included_count"
+    tie_policy: "competition_rank"
+    comparability_group: "bond_buy_yield"
+    cross_product_policy: "not_equal_to_historical_period_return"
+    evidence_rule: "direct_source_cell"
+  bond.buyable_quantity:
+    label_ko: "매수가능수량"
+    product_types: ["domestic_bond"]
+    source_table: "PRBD01N001"
+    source_column: "BUYABLE_QUANTITY"
+    value_type: "decimal"
+    unit: "source_quantity"
+    period: null
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded"
+    literal_filter_policy: "use_recorded_numeric"
+    ranking_policy: "valid_numeric_only"
+    aggregation_policy: "sum_with_included_count"
+    tie_policy: "competition_rank"
+    comparability_group: "bond_quantity"
+    cross_product_policy: "same_metric_only"
+    evidence_rule: "direct_source_cell"
+  bond.remaining_days_at_as_of:
+    label_ko: "기준일 잔존일수"
+    product_types: ["domestic_bond"]
+    source_table: "PRBD01N001"
+    source_column: "MAT_DT"
+    derived_rule: "maturity_date_minus_as_of.v1"
+    value_type: "integer"
+    unit: "day"
+    period: null
+    currency: null
+    missing_policy: "requires_valid_maturity_date"
+    zero_policy: "valid_zero_on_maturity_date"
+    display_policy: "display_derived_with_as_of"
+    literal_filter_policy: "use_derived"
+    ranking_policy: "valid_derived_only"
+    aggregation_policy: "valid_derived_with_count"
+    tie_policy: "competition_rank"
+    comparability_group: "remaining_days"
+    cross_product_policy: "same_metric_only"
+    evidence_rule: "derived_from_source_and_as_of"
+  bond.credit_rating:
+    label_ko: "신용등급"
+    product_types: ["domestic_bond"]
+    source_table: "PRBD01N001"
+    source_column: "CRD_GRD"
+    value_type: "ordinal_rating"
+    unit: null
+    period: null
+    currency: null
+    missing_policy: "not_rated_does_not_pass_threshold"
+    zero_policy: "not_applicable"
+    display_policy: "display_normalized_and_agency_raw_when_mixed"
+    literal_filter_policy: "rating_registry_order"
+    ranking_policy: "rated_only"
+    aggregation_policy: "counts_by_grade"
+    tie_policy: "competition_rank"
+    comparability_group: "bond_credit_rating"
+    cross_product_policy: "not_equivalent_to_fund_risk_grade"
+    evidence_rule: "direct_and_multi_agency_source"
+  domestic_etf.aum:
+    label_ko: "순자산총액"
+    product_types: ["domestic_etf", "domestic_etn"]
+    source_table: "PREF01N001"
+    source_column: "pd_net_tamt"
+    secondary_source_column: "du_last_aum"
+    value_type: "decimal"
+    unit: "currency"
+    period: "snapshot"
+    currency_source: "pd_curr_cd"
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_primary"
+    literal_filter_policy: "use_primary"
+    ranking_policy: "positive_primary_same_currency"
+    aggregation_policy: "same_currency_with_count"
+    tie_policy: "competition_rank"
+    comparability_group: "aum"
+    cross_product_policy: "same_currency_or_fixed_fx"
+    evidence_rule: "direct_source_cell"
+  domestic_etf.total_fee:
+    label_ko: "총보수"
+    product_types: ["domestic_etf", "domestic_etn"]
+    source_table: "PREF01N001"
+    source_column: "cu_charge_rt"
+    value_type: "decimal"
+    unit: "percent"
+    period: "annual_source_convention"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero_unverified_when_zero"
+    display_policy: "display_recorded_with_quality"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "recorded_and_comparison_valid_views_when_zero_material"
+    aggregation_policy: "report_recorded_and_valid_counts"
+    tie_policy: "competition_rank"
+    comparability_group: "annual_fee"
+    cross_product_policy: "same_definition_with_source_caveat"
+    evidence_rule: "direct_source_cell"
+  domestic_etf.tracking_error:
+    label_ko: "추적오차"
+    product_types: ["domestic_etf", "domestic_etn"]
+    source_table: "PREF01N001"
+    source_column: "du_chas_errt"
+    value_type: "decimal"
+    unit: "percent"
+    period: "source_convention"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "joint_rank_when_constant"
+    aggregation_policy: "constant_metric_warning"
+    tie_policy: "joint_rank_secondary_display_sort_only"
+    comparability_group: "tracking_error"
+    cross_product_policy: "same_metric_only"
+    evidence_rule: "direct_source_cell_and_dataset_distribution"
+  domestic_etf.return_1m: &domestic_return
+    label_ko: "1개월 수익률"
+    product_types: ["domestic_etf", "domestic_etn"]
+    source_table: "PREF01N001"
+    source_column: "du_er_1m"
+    value_type: "decimal"
+    unit: "percent"
+    period: "1m"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded_with_state"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "eligible_product_and_valid_numeric"
+    aggregation_policy: "valid_numeric_with_included_count"
+    tie_policy: "competition_rank"
+    comparability_group: "historical_total_return"
+    cross_product_policy: "same_period_and_compatible_source_semantics"
+    evidence_rule: "direct_source_cell"
+  domestic_etf.return_3m:
+    <<: *domestic_return
+    label_ko: "3개월 수익률"
+    source_column: "du_er_3m"
+    period: "3m"
+  domestic_etf.return_6m:
+    <<: *domestic_return
+    label_ko: "6개월 수익률"
+    source_column: "du_er_6m"
+    period: "6m"
+  domestic_etf.return_1y:
+    <<: *domestic_return
+    label_ko: "1년 수익률"
+    source_column: "du_er_1y"
+    period: "1y"
+  domestic_etf.return_ytd:
+    <<: *domestic_return
+    label_ko: "연초이후 수익률"
+    source_column: "du_er_ytd"
+    period: "ytd"
+  overseas_etf.aum:
+    label_ko: "운용규모(AUM)"
+    product_types: ["overseas_etf", "overseas_etn"]
+    source_table: "PREF02N001"
+    source_column: "du_last_aum"
+    value_type: "decimal"
+    unit: "currency"
+    period: "source_as_of"
+    currency_source: "pd_trd_ccy"
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded_with_as_of"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "positive_same_currency"
+    aggregation_policy: "same_currency_with_count"
+    tie_policy: "competition_rank"
+    comparability_group: "aum"
+    cross_product_policy: "same_currency_or_fixed_fx"
+    evidence_rule: "direct_source_cell"
+  overseas_etf.total_fee:
+    label_ko: "총보수"
+    product_types: ["overseas_etf", "overseas_etn"]
+    source_table: "PREF02N001"
+    source_column: "cu_charge_rt"
+    value_type: "decimal"
+    unit: "percent"
+    period: "annual_source_convention"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero_unverified"
+    display_policy: "display_recorded_with_warning"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "recorded_and_positive_comparison_views"
+    aggregation_policy: "separate_unverified_zero_and_report_counts"
+    tie_policy: "competition_rank"
+    comparability_group: "annual_fee"
+    cross_product_policy: "same_definition_with_source_caveat"
+    evidence_rule: "direct_source_cell"
+  overseas_etf.return_1d:
+    label_ko: "1일 수익률"
+    product_types: ["overseas_etf", "overseas_etn"]
+    source_table: "PREF02N001"
+    source_column: "du_er_1d"
+    value_type: "decimal"
+    unit: "percent"
+    period: "1d"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "joint_rank_when_constant"
+    aggregation_policy: "constant_metric_warning"
+    tie_policy: "joint_rank_secondary_display_sort_only"
+    comparability_group: "historical_total_return"
+    cross_product_policy: "same_period_and_compatible_source_semantics"
+    evidence_rule: "direct_source_cell_and_dataset_distribution"
+  public_fund.aum:
+    label_ko: "순자산"
+    product_types: ["public_fund"]
+    source_table: "PRFD01N001"
+    source_column: "fd_nast_suma"
+    value_type: "decimal"
+    unit: "currency"
+    period: "source_snapshot"
+    currency_source: "curr_cd"
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "same_currency_fund_item_only"
+    aggregation_policy: "same_currency_fund_item_only_with_count"
+    tie_policy: "competition_rank"
+    comparability_group: "aum"
+    cross_product_policy: "same_currency_or_fixed_fx"
+    evidence_rule: "fund_item_representative_and_attribute_lineage"
+  public_fund.return_1w: &fund_return
+    label_ko: "1주 수익률"
+    product_types: ["public_fund"]
+    source_table: "PRFD01N001"
+    source_column: "fd_wk1_ern_r"
+    value_type: "decimal"
+    unit: "percent"
+    period: "1w"
+    currency: null
+    missing_policy: "unavailable"
+    zero_policy: "recorded_zero"
+    display_policy: "display_recorded_with_quality"
+    literal_filter_policy: "use_recorded"
+    ranking_policy: "fund_item_valid_numeric_sale_policy_when_requested"
+    aggregation_policy: "fund_item_valid_numeric_with_count"
+    tie_policy: "competition_rank"
+    comparability_group: "historical_total_return"
+    cross_product_policy: "same_period_and_compatible_source_semantics"
+    evidence_rule: "fund_item_representative_and_attribute_lineage"
+  public_fund.return_1m:
+    <<: *fund_return
+    label_ko: "1개월 수익률"
+    source_column: "fd_mm1_ern_r"
+    period: "1m"
+  public_fund.return_3m:
+    <<: *fund_return
+    label_ko: "3개월 수익률"
+    source_column: "fd_mm3_ern_r"
+    period: "3m"
+  public_fund.return_6m:
+    <<: *fund_return
+    label_ko: "6개월 수익률"
+    source_column: "fd_mm6_ern_r"
+    period: "6m"
+  public_fund.return_18m:
+    <<: *fund_return
+    label_ko: "18개월 수익률"
+    source_column: "fd_mm18_ern_r"
+    period: "18m"
+  public_fund.return_1y:
+    <<: *fund_return
+    label_ko: "1년 수익률"
+    source_column: "fd_yr1_ern_r"
+    period: "1y"
+  public_fund.return_2y:
+    <<: *fund_return
+    label_ko: "2년 수익률"
+    source_column: "fd_yr2_ern_r"
+    period: "2y"
+  public_fund.return_3y:
+    <<: *fund_return
+    label_ko: "3년 수익률"
+    source_column: "fd_yr3_ern_r"
+    period: "3y"
+  public_fund.return_5y:
+    <<: *fund_return
+    label_ko: "5년 수익률"
+    source_column: "fd_yr5_ern_r"
+    period: "5y"

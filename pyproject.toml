@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "finproof"
+version = "0.0.0"
+description = "Evidence-first financial product analysis agent for the 2026 Mirae Asset Securities AI Festival"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "duckdb>=1.5.4,<1.6",
+  "fastapi>=0.139.2,<0.140",
+  "fastexcel[polars]>=0.20.2,<0.21",
+  "httpx>=0.28,<1",
+  "lxml>=6.0,<7",
+  "orjson>=3.10,<4",
+  "polars>=1.43.0,<1.44",
+  "pydantic>=2.13.4,<2.14",
+  "pydantic-settings>=2.8,<3",
+  "python-dateutil>=2.9,<3",
+  "PyYAML>=6.0,<7",
+  "rapidfuzz>=3.12,<4",
+  "structlog>=25.1,<26",
+  "tenacity>=9.0,<10",
+  "uvicorn[standard]>=0.34,<1",
+]
+
+[dependency-groups]
+dev = [
+  "hypothesis>=6.120,<7",
+  "jsonschema>=4.26,<5",
+  "mypy>=1.15,<2",
+  "pre-commit>=4.0,<5",
+  "pytest>=9.1.1,<10",
+  "pytest-asyncio>=1.4,<2",
+  "pytest-cov>=6.0,<8",
+  "respx>=0.22,<1",
+  "ruff>=0.15.22,<0.16",
+  "types-PyYAML>=6.0,<7",
+]
+
+[project.scripts]
+finproof = "finproof.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/finproof"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "tools"]
+exclude = ["source_material"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "C4", "RUF", "S", "T20", "ANN", "ARG", "PT", "RET"]
+ignore = ["S101", "ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "ANN201", "ANN202", "ARG001"]
+"tools/**/*.py" = ["T201", "S603"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_unreachable = true
+show_error_codes = true
+exclude = ["source_material"]
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+addopts = "-ra --strict-config --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "integration: tests that exercise multiple application components",
+  "source_contract: tests that read official source files",
+  "slow: long-running tests excluded from the default inner loop",
+  "performance: load or latency tests",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["finproof"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 90

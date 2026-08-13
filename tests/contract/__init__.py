@@ -1,0 +1,1 @@
+"""Repository handoff contract tests."""

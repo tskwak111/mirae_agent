@@ -1,0 +1,101 @@
+{
+  "manifest_version": "1.0.0",
+  "competition": "제10회 2026 미래에셋증권 AI Festival — 금융상품 Agent",
+  "snapshot_date": "2026-07-11",
+  "files": [
+    {
+      "path": "competition_task_financial_product_agent.pdf",
+      "kind": "official_task_pdf",
+      "size_bytes": 924413,
+      "sha256": "3717441e091958b7214db710e0e4b9b8ae15ac6c205cad6e51721214798eb3de"
+    },
+    {
+      "path": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
+      "kind": "data",
+      "table_id": "PRBD01N001",
+      "sheet_name": "datarows",
+      "expected_rows": 42394,
+      "expected_columns": 40,
+      "size_bytes": 6836772,
+      "sha256": "728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8"
+    },
+    {
+      "path": "data/PRBD01N001_schema.xlsx",
+      "kind": "schema",
+      "table_id": "PRBD01N001",
+      "sheet_names": [
+        "Sheet1_Schema",
+        "Sheet2_Sample"
+      ],
+      "expected_columns": 40,
+      "size_bytes": 18021,
+      "sha256": "f0647ce274f94e0474960b98832b98d87838d812b4772f15bdeda2dceff3676b"
+    },
+    {
+      "path": "data/PREF01N001_domestic_etf_20260711_datarows.xlsx",
+      "kind": "data",
+      "table_id": "PREF01N001",
+      "sheet_name": "datarows",
+      "expected_rows": 1734,
+      "expected_columns": 73,
+      "size_bytes": 706081,
+      "sha256": "0f5706d45f93284bcaac2fa8eaed04db920a7043abaa859e455f06e246d54723"
+    },
+    {
+      "path": "data/PREF01N001_schema.xlsx",
+      "kind": "schema",
+      "table_id": "PREF01N001",
+      "sheet_names": [
+        "Sheet1_Schema",
+        "Sheet2_Sample"
+      ],
+      "expected_columns": 73,
+      "size_bytes": 18970,
+      "sha256": "17ae6befa4f0f5b60481882ff24de1f7729386cef9d9b56f32187e41f1cb00e6"
+    },
+    {
+      "path": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx",
+      "kind": "data",
+      "table_id": "PREF02N001",
+      "sheet_name": "datarows",
+      "expected_rows": 5646,
+      "expected_columns": 49,
+      "size_bytes": 2114967,
+      "sha256": "3cec19043f742771e0016d56fe806f19ad78f4295d1ae59192740a78feb2253b"
+    },
+    {
+      "path": "data/PREF02N001_schema.xlsx",
+      "kind": "schema",
+      "table_id": "PREF02N001",
+      "sheet_names": [
+        "Sheet1_Schema",
+        "Sheet2_Sample"
+      ],
+      "expected_columns": 49,
+      "size_bytes": 40216,
+      "sha256": "c6a022dd8a349363c405e7bf47b44f8cc099a92bfafb276b985a5c89d1881162"
+    },
+    {
+      "path": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
+      "kind": "data",
+      "table_id": "PRFD01N001",
+      "sheet_name": "datarows",
+      "expected_rows": 95619,
+      "expected_columns": 45,
+      "size_bytes": 30709892,
+      "sha256": "140d1ef0cec918d0b3f7c52c107cb123395594eb089b0cd70bb305709b0f44eb"
+    },
+    {
+      "path": "data/PRFD01N001_schema.xlsx",
+      "kind": "schema",
+      "table_id": "PRFD01N001",
+      "sheet_names": [
+        "Sheet1_Schema",
+        "Sheet2_Sample"
+      ],
+      "expected_columns": 45,
+      "size_bytes": 15596,
+      "sha256": "eedb7e517312234b2825a6752adb2b5f11053f0f4fb93b70e83e87b56ee134e9"
+    }
+  ]
+}

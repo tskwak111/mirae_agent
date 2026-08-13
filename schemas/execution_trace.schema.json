@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ExecutionTrace",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "correlation_id",
+    "intent",
+    "product_types",
+    "as_of_date",
+    "result_grain",
+    "top_k_scope",
+    "segments",
+    "candidate_counts",
+    "tools",
+    "policy_ids",
+    "validation",
+    "versions"
+  ],
+  "properties": {
+    "correlation_id": {
+      "type": "string"
+    },
+    "intent": {
+      "type": "string"
+    },
+    "product_types": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "as_of_date": {
+      "type": "string",
+      "format": "date"
+    },
+    "result_grain": {
+      "type": "string"
+    },
+    "top_k_scope": {
+      "enum": [
+        "global",
+        "per_product_type"
+      ]
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "product_type",
+          "native_result_grain",
+          "partition_key",
+          "candidate_counts",
+          "returned"
+        ],
+        "properties": {
+          "product_type": {
+            "type": "string"
+          },
+          "native_result_grain": {
+            "type": "string"
+          },
+          "partition_key": {
+            "type": "string"
+          },
+          "candidate_counts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "returned": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "candidate_counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "policy_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "validation": {
+      "enum": [
+        "passed",
+        "clarify",
+        "unsupported",
+        "safe_failure"
+      ]
+    },
+    "versions": {
+      "type": "object"
+    },
+    "latency_ms": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number",
+        "minimum": 0
+      }
+    }
+  }
+}

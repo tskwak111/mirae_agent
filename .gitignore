@@ -1,0 +1,45 @@
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Python environments and bytecode
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+build/
+dist/
+
+# Test, analysis, and coverage caches
+.pytest_cache/
+/pytest-cache-files-*/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local tooling and editor state
+.idea/
+.vscode/
+.superpowers/
+.uv-cache/
+*.log
+
+# Local secrets; commit names-only examples explicitly
+.env
+.env.*
+!.env.example
+
+# Transfer/runtime scratch
+/tmp/
+*.tmp
+
+# Rebuildable large data artifacts; manifests and reports remain trackable
+/artifacts/parquet/
+/artifacts/*.duckdb
+/artifacts/*.duckdb.wal

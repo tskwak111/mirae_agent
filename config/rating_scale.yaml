@@ -1,0 +1,38 @@
+version: "1.0.0"
+missing_tokens: ["", "NULL", "N/A", "NR", "Not Rated", "무등급"]
+# Smaller ordinal is stronger. Missing/unrated has no ordinal and never passes a minimum-grade filter.
+ratings:
+  AAA: 1
+  AA+: 2
+  AA0: 3
+  AA: 3
+  AA-: 4
+  A+: 5
+  A0: 6
+  A: 6
+  A-: 7
+  BBB+: 8
+  BBB0: 9
+  BBB: 9
+  BBB-: 10
+  BB+: 11
+  BB0: 12
+  BB: 12
+  BB-: 13
+  B+: 14
+  B0: 15
+  B: 15
+  B-: 16
+  CCC+: 17
+  CCC0: 18
+  CCC: 18
+  CCC-: 19
+  CC: 20
+  C: 21
+  D: 22
+aliases:
+  "AA０": "AA0"
+  "A０": "A0"
+  "BBB０": "BBB0"
+  "BB０": "BB0"
+  "B０": "B0"

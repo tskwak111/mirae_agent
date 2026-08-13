@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ArtifactManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "dataset_version",
+    "source_manifest_sha256",
+    "registry_versions",
+    "database_path",
+    "database_sha256",
+    "tables",
+    "logical_hash"
+  ],
+  "properties": {
+    "dataset_version": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_manifest_sha256": {
+      "type": "string"
+    },
+    "registry_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "database_path": {
+      "type": "string"
+    },
+    "database_sha256": {
+      "type": "string"
+    },
+    "tables": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "row_count",
+          "logical_hash"
+        ],
+        "properties": {
+          "row_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "logical_hash": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "logical_hash": {
+      "type": "string"
+    }
+  }
+}

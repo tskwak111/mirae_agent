@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EvidenceRecord",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "evidence_id",
+    "claim_id",
+    "product_id",
+    "source",
+    "raw_value",
+    "normalized_value",
+    "quality_status",
+    "transformation_rule"
+  ],
+  "properties": {
+    "evidence_id": {
+      "type": "string"
+    },
+    "claim_id": {
+      "type": "string"
+    },
+    "product_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "metric_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table_id",
+        "file_name",
+        "sheet_name",
+        "excel_row_number",
+        "column_name"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string"
+        },
+        "file_name": {
+          "type": "string"
+        },
+        "sheet_name": {
+          "type": "string"
+        },
+        "excel_row_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column_name": {
+          "type": "string"
+        }
+      }
+    },
+    "raw_value": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "normalized_value": {},
+    "unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "as_of_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "quality_status": {
+      "type": "string"
+    },
+    "transformation_rule": {
+      "type": "string"
+    }
+  }
+}
