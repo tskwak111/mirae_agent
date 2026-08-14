@@ -411,7 +411,7 @@ families, query/API behavior, or eligibility rules.
 > **Authoritative detailed plan:**
 > `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`
 
-D-022, D-023, and D-024 supersede the removed legacy two-argument builder, undeclared
+D-022, D-023, D-024, and D-025 supersede the removed legacy two-argument builder, undeclared
 `table_hashes`, generic atomic-directory replacement, count-only DuckDB validation,
 trim-ambiguous link, and tracked runtime-artifact examples. Do not reconstruct or
 execute those examples from Git history.
@@ -427,8 +427,10 @@ The dedicated plan must implement the approved specification under strict RED ->
   exhaustive expected-contract comparison, and an internal synthetic-port kernel; no
   public trusted verifier/result**
 - [ ] **Checkpoint 3: frozen table specs, wide projection/strict `record_json`
-  serializers, exact Decimal/time behavior, Parquet writers, and the concrete reopened-
-  Parquet table-verifier port**
+  serializers, exact Decimal/time behavior, capability-bound Parquet writers, one
+  bounded stream/unique checker, D-025 single-owner staged-set verification contracts
+  for CP4-7, and the distinct final CP2-inventory adapter implementation first invoked
+  by CP7**
 - [ ] **Checkpoint 4: complete generic Bronze streaming and bounded external staging,
   ordering, spill, and cleanup behavior**
 - [ ] **Checkpoint 5: wide Silver products/attributes, bounded fund-item collapse,

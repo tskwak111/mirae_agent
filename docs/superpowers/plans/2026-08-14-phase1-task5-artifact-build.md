@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, D-023, and D-024. Stop and log any conflict instead of reconciling it in code.
+- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, D-023, D-024, and D-025. Stop and log any conflict instead of reconciling it in code.
 - Official source files, `source_material/input_manifest.json`, `source_material/schema_catalog.json`, and `tests/contracts/expected_source_audit.json` are immutable. Snapshot date is exactly `2026-07-11`.
 - Task 5 creates exactly three Bronze, six Silver, and two Gold logical tables. It creates no metric, family, eligibility/state, alias/fuzzy, search, runtime-evidence, QueryPlan, API, HCX, or release behavior.
 - Public funds are persisted at `fund_item` and `fund_attribute` grains. Artifact construction orders staged canonical `SourceRow` payloads and collapses one complete item group at a time; it never calls `normalize_public_funds` on all 95,619 rows.
@@ -43,7 +43,8 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
   after CP8 installs the reviewed expected resource—public `VerifiedArtifactSet`.
 - `table_specs.py`: the sole frozen eleven-table schema/name/type/key/path registry.
 - `serialization.py`: exact strict-model `record_json`, wide projections, Bronze/quality/Gold row projections.
-- `parquet_io.py`: fixed-schema incremental writer and reopened Parquet verifier.
+- `parquet_io.py`: capability-bound fixed-schema writer, common bounded stream/unique
+  checker, pre-manifest staged verification, and distinct final-inventory adapter.
 - `staging.py`: one-thread/1-GiB bounded DuckDB staging, spill ownership, ordering, and cleanup.
 - `bronze.py`: source-catalog/row/cell emission and source-audit observations.
 - `silver.py`: non-fund normalization staging and one-item-at-a-time public-fund collapse.
@@ -373,7 +374,7 @@ Expected GREEN: focused tests pass; an actual isolated standard editable outside
 
 - [x] **Step 7: Run regressions, commit, and obtain a fresh review**
 
-Run the unchanged Task 1-4 regression command, `git diff --check`, and verify `find source_material -type f -perm -u=w -print` returns no path. Commit:
+Run the unchanged Task 1-4 regression command, `git diff --check`, and verify `find source_material -type f -perm -222 -print` returns no path. Commit:
 
 ```bash
 git add pyproject.toml uv.lock .env.example .gitignore config/artifact_build.yaml \
@@ -444,7 +445,9 @@ Observed completion evidence on 2026-08-15:
 - Produces: `ArtifactManifest.load(path: Path) -> ArtifactManifest`.
 - Produces internal `verify_declared_inventory(manifest: ArtifactManifest, root: Path)
   -> VerifiedPhysicalInventory`, which reparses `root/manifest.json` through the held
-  root and whose `open_verified` is the only CP3+ artifact-file reopen boundary.
+  root and whose `open_verified` is the only final-artifact reopen boundary. It is
+  unavailable to CP4-6 pre-manifest construction, which uses CP3's distinct staged
+  contract over CP4's owned leaf.
 - Produces internal `ClosedTableSpecRegistry`, `ArtifactTableVerifier`,
   `VerifiedTableHandle`, `TableVerificationResult`, `ArtifactReportVerifier`, `ArtifactDatabaseVerifier`,
   `ArtifactExpectedComparator`, `ReportVerificationResult`,
@@ -460,8 +463,10 @@ Observed completion evidence on 2026-08-15:
   Its exact CP1 logical entries and eleven handles must match one-to-one, and every
   handle entry must be the exact object-identity-owned member of that still-live
   inventory through `inventory.require_owned(entry)`. Report/overall/database stages
-  revalidate that same immutable result; CP3's `VerifiedParquetTable` implements the
-  handle and CP7 may reopen it only through `inventory.open_verified(handle.entry)`.
+  revalidate that same immutable result; CP3's final-only `VerifiedParquetTable`
+  implements the handle and CP7 may reopen it only through
+  `inventory.open_verified(handle.entry)`. `StagedParquetHandle` has no entry and cannot
+  implement or enter this result.
 - Adds exact error code `ArtifactErrorCode.VERIFICATION_INCOMPLETE`; missing kernel
   ports fail before filesystem work with `reason=missing_verification_ports` and unique
   sorted port names as compact canonical JSON in string-only internal context.
@@ -897,7 +902,7 @@ test ! -e artifacts
 git check-ignore -v artifacts/manifest.json artifacts/finproof.duckdb \
   .artifacts.finproof-stage-op .artifacts.finproof-backup-op \
   .artifacts.finproof-cleanup-op .artifacts.finproof-build.lock
-find source_material -type f -perm -u=w -print
+find source_material -type f -perm -222 -print
 git status --short
 ```
 
@@ -955,7 +960,6 @@ Observed completion evidence on 2026-08-15:
 - Create: `src/finproof/data/artifacts/serialization.py`
 - Create: `src/finproof/data/artifacts/parquet_io.py`
 - Modify: `src/finproof/data/artifacts/hashing.py`
-- Modify: `src/finproof/data/artifacts/manifest.py`
 - Create: `tests/unit/data/artifacts/test_table_specs.py`
 - Create: `tests/unit/data/artifacts/test_serialization.py`
 - Create: `tests/unit/data/artifacts/test_parquet_io.py`
@@ -963,26 +967,100 @@ Observed completion evidence on 2026-08-15:
 - Create: `tests/integration/artifacts/__init__.py`
 - Create: `tests/integration/artifacts/test_parquet_verification.py`
 - Modify: `tests/helpers/artifacts.py`
+- Modify: `docs/implementation/STATUS.md`
 
 **Interfaces:**
 
 - Produces strict frozen `ColumnSpec(name, logical_type, arrow_type, duckdb_type, nullable)`, `TableSpec(table_name, layer, grain, columns, unique_key, sort_key, logical_projection, parquet_path)`, and deeply immutable `TABLE_SPECS` in exact artifact order.
-- Produces: `derive_wide_columns(model_type: type[BaseModel], *, skip_fields: frozenset[str] = frozenset()) -> tuple[ColumnSpec, ...]`.
-- Produces: `canonical_record_json(model: BaseModel) -> str` and `serialize_table_row(spec: TableSpec, value: object, *, persistence_timestamp: datetime | None = None) -> Mapping[str, object]`.
-- Produces: `ParquetBatchWriter(spec: TableSpec, path: Path)` with `write_batch(rows: Sequence[Mapping[str, object]])`, `close()`, `abort()`, and metrics `max_batch_rows`/`rows_written`.
-- Produces private `verify_parquet_table(*, inventory: VerifiedPhysicalInventory,
-  entry: VerifiedPhysicalEntry, spec: TableSpec, declared: ArtifactTable) ->
-  VerifiedParquetTable`. It consumes the Parquet stream only through
-  `inventory.open_verified(entry)` and never reopens a reconstructed absolute path.
-- Produces CP3's private concrete `ParquetArtifactTableVerifier`, implementing CP2's
-  exact `ArtifactTableVerifier.verify_tables(...)` port over the closed `TABLE_SPECS`
-  and returning only
-  `TableVerificationResult.from_verified(inventory=inventory, tables=..., handles=...)`
-  with CP1 `ExpectedLogicalTable` entries plus corresponding `VerifiedParquetTable`
-  handles in exact order. Direct result construction or a second/unbound entry set is
-  impossible. It does not wire the CP2 kernel or create a public verification result.
+- Produces `derive_wide_columns(model_type: type[BaseModel]) -> tuple[ColumnSpec, ...]`;
+  there is no `skip_fields` parameter. Only exact `FundItem.contributing_rows` is
+  skipped, and only when `model_type is FundItem`.
+- Produces `canonical_record_json(model: BaseModel) -> str`,
+  `serialize_table_row(spec: TableSpec, value: object) -> Mapping[str, object]`, and
+  `serialize_bronze_source_row(spec: TableSpec, value: SourceRow, *,
+  persistence_timestamp: datetime) -> Mapping[str, object]`. Only the latter accepts a
+  timestamp. Quality accepts an already persisted CP5 row; all model/spec pairs are
+  exact closed-registry identities and are revalidated on every call.
+- Produces internal `OwnedStageArtifactOwner(Protocol)` and
+  `OwnedStageParquetLeaf(Protocol)` with exact design-section-9.1 methods. CP3 has only
+  test implementations; CP4 supplies the production marker/descriptor-owned
+  capabilities. CP4 separately owns the section-9.2 database-stage protocols/results;
+  no CP3 module references a CP7 result type. Produces
+  `ParquetBatchWriter(spec: TableSpec, leaf:
+  OwnedStageParquetLeaf)` with `write_batch`, `close() -> None`, `abort()`, and metrics.
+  No API accepts a raw output/reopen `Path`.
+- Produces direct-construction-disabled `StagedParquetHandle` and
+  `StagedParquetVerification`, plus `verify_staged_parquet_table(*, owner:
+  OwnedStageArtifactOwner, leaf: OwnedStageParquetLeaf, spec: TableSpec) ->
+  StagedParquetVerification`. These are the
+  per-leaf facts, but the only CP4-7 pre-manifest cross-stage table capability is
+  direct-construction-disabled `StagedParquetSet.from_verified(owner=...,
+  verifications=...)` and its same-owner `extend_verified(...)`. It validates one exact
+  opaque owner token/object identity, every exact leaf/handle identity, frozen order,
+  and the owner's UTC persistence timestamp; every consumer calls `assert_live()`,
+  `require_tables(...)`, and `require_owned(...)`, while CP7 also calls
+  `require_complete()`. The owner registers the exact canonical set object; extension
+  atomically registers the successor and supersedes its predecessor. Copies,
+  `object.__new__`/equal-field forgeries, superseded sets, and bare/mixed-session handle
+  tuples are forbidden. Each verification carries logical facts plus staged physical
+  size/SHA and the opaque token from atomic owner registration of that exact
+  verification/handle pair; no leaf/public method can mint it. The handle retains the
+  same frozen physical/identity facts. `verification_for(name)` revalidates logical and
+  physical facts, while `table_declarations()` returns logical declarations only; CP7
+  pairs each with its revalidated verification to construct the physical manifest
+  file entry. All facts are
+  independently recomputed on reopen; later final
+  verification trusts none of them. `StagedParquetHandle.iter_batches(*,
+  batch_size=65_536)` is a context manager that retains the leaf/stream/`ParquetFile`
+  through iteration and fixes `use_threads=False`; production refuses values above
+  65,536 and tests inject only smaller positive limits.
+- Produces one private common bounded stream checker and a secure marker-owned managed
+  exact unique-key-index context with one thread, `1GiB`, bounded inserts, owned spill,
+  external access/extensions disabled, close-before-cleanup, and exact marker/
+  directory/leaf identity deletion. No database/spill path or generic connection
+  escapes. It catches nonadjacent duplicates across more than two batches and uses no
+  Python key set or previous-key-only uniqueness.
+  `OwnedStageParquetLeaf.create_verification_workspace()` supplies CP4's exact staged
+  scratch capability; the final adapter uses its own trusted-OS-temp implementation of
+  the same `OwnedParquetVerificationWorkspace` protocol. Neither accepts a caller path.
+- Produces the distinct final-only `VerifiedParquetTable` and concrete
+  `ParquetArtifactTableVerifier`, implementing CP2
+  `ArtifactTableVerifier.verify_tables(...)`. Only this adapter accepts
+  `VerifiedPhysicalInventory`/`VerifiedPhysicalEntry`; it independently reruns the
+  common checker after the complete manifest tree exists, compares every fact with
+  `ArtifactTable`, and returns
+  `TableVerificationResult.from_verified(inventory=inventory, tables=..., handles=...)`.
+  A staged handle has no final entry and cannot be cast/promoted into this result. CP3
+  implements/tests the adapter with a complete synthetic 14-file tree but does not wire
+  the kernel; CP7 is the first production invocation.
 
-- [ ] **Step 1: Write REDs for all eleven exact immutable table specs**
+- [ ] **Step 1: Close exact table-spec behaviors through strict serial selectors**
+
+Author only one selector after its predecessor is GREEN. Run each as
+`UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest
+tests/unit/data/artifacts/test_table_specs.py::<selector> -q` in this exact order:
+
+```text
+test_table_spec_module_skeleton_rejects_closed_registry_fixture
+test_table_registry_has_exact_eleven_names_and_paths
+test_bronze_explicit_specs_have_exact_columns_types_and_keys
+test_fund_attribute_and_quality_specs_have_exact_columns_types_and_keys
+test_gold_specs_have_exact_columns_types_and_keys
+test_bond_wide_spec_matches_independent_model_derivation
+test_domestic_wide_spec_matches_independent_model_derivation
+test_overseas_wide_spec_matches_independent_model_derivation
+test_fund_item_wide_spec_matches_independent_model_derivation
+test_derive_wide_columns_has_only_closed_fund_contributing_rows_skip
+test_model_drift_guard_rejects_insert_remove_and_reorder
+test_registry_rejects_forged_equal_spec_and_wrong_model_pair
+```
+
+The first missing-import RED permits only importable `ColumnSpec`, `TableSpec`, and an
+empty/raising registry skeleton; rerun the same selector for the narrower rejected-
+fixture RED before implementing names. Each explicit/wide selector implements only its
+named table family. The drift selector is one coherent parameter family only when all
+insert/remove/reorder IDs reach their intended rejection in the same run. No later
+selector may be authored from the first module-missing failure.
 
 Assert the table order is exactly:
 
@@ -1004,7 +1082,7 @@ EXPECTED_TABLES = (
 
 For every explicit Bronze/fund-attribute/quality/Gold table, assert the exact column order, nullability, Arrow/DuckDB types, key, grain, and Parquet path from Sections 5.1-5.3 and 5.8-5.11. For each wide table, independently derive its expected sequence from the frozen domain model declaration and assert it equals the hard-coded reviewed `TableSpec`; never generate the production spec at runtime from the same helper used by the test.
 
-Add synthetic Pydantic models with one inserted, removed, and reordered field and prove `assert_model_matches_frozen_spec(...)` rejects each. Prove changing only `layer` or `parquet_path` leaves `schema_sha256` unchanged, while name/grain/column/type/nullability/unique/sort changes it.
+Add synthetic Pydantic models with one inserted, removed, and reordered field and prove `assert_model_matches_frozen_spec(...)` rejects each. Exact model-to-table registration rejects subclasses, wrong model/table pairs, and structurally equal copied specs. After all behavior selectors are GREEN, add `test_frozen_spec_hash_metamorphisms` as a labeled first-GREEN acceptance: changing only `layer` or `parquet_path` leaves `schema_sha256` unchanged, while name/grain/column/type/nullability/unique/sort changes it. CP2 already RED-drove the generic hash projection; do not manufacture another failure.
 
 Run:
 
@@ -1013,17 +1091,19 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_table_specs.py -q
 ```
 
-Expected RED: `table_specs` and its exact registry do not exist.
+Expected aggregate GREEN only after every recorded selector RED/GREEN and the derived
+hash acceptance. This grouped command is never module/behavior RED evidence.
 
 - [ ] **Step 2: Implement the closed type/spec registry and model-drift guard**
 
 Map only the frozen physical types: UTF-8/VARCHAR, int64/BIGINT, decimal128(38,18)/DECIMAL(38,18), date32/DATE, timestamp[us]/TIMESTAMP, timestamp[us, UTC]/TIMESTAMPTZ, and bool/BOOLEAN. Reject caller names and any unregistered logical type.
 
-The wide derivation algorithm is exact:
+The wide derivation algorithm is exact and has no caller skip set:
 
 1. emit `grain`;
 2. traverse Pydantic fields in declaration order;
-3. skip only `FundItem.contributing_rows`;
+3. skip `contributing_rows` only when the exact model is `FundItem`; skip nothing for
+   every other model and reject any caller/subclass attempt to alter that rule;
 4. `NormalizedValue[T]` emits `<field>` then `<field>__quality_status`;
 5. `DerivedValue[T]` emits `<field>`, `<field>__quality_status`, then `<field>__as_of_date`;
 6. **`FundItemValue[T]` emits `<field> = representative.normalized_value` then `<field>__quality_status = representative.quality_status`; `equivalent_sources` remains only in `record_json`;**
@@ -1031,7 +1111,32 @@ The wide derivation algorithm is exact:
 
 Hard-code the reviewed resulting columns in `TABLE_SPECS`; use derivation only as a drift assertion. Validate exactly 17 normalized plus four derived bond fields, 30 normalized plus one derived domestic fields, 49 overseas fields, and 44 fund representative fields.
 
-- [ ] **Step 3: Write REDs for exact strict-model serialization and projection equality**
+- [ ] **Step 3: Close serializer behaviors through strict serial selectors**
+
+Use the same one-selector RED/skeleton/narrower-RED/GREEN rule and this exact order in
+`tests/unit/data/artifacts/test_serialization.py`:
+
+```text
+test_serialization_module_skeleton_rejects_valid_bond
+test_bond_record_json_round_trip_and_projection
+test_domestic_record_json_round_trip_and_projection
+test_overseas_record_json_round_trip_and_projection
+test_fund_item_record_json_round_trip_representative_and_lineage
+test_explicit_table_serializers_cover_bronze_attribute_quality_and_gold
+test_bronze_source_row_alone_accepts_and_injects_persistence_timestamp
+test_persisted_quality_requires_typed_json_timestamp_agreement
+test_non_bronze_serializers_expose_no_persistence_timestamp_parameter
+test_decimal_date_local_datetime_enum_null_and_utc_encoding
+test_serialization_rejects_nonfinite_overflow_scale_loss_and_noncanonical_json
+test_serialization_revalidates_exact_registered_spec_and_model_pair
+```
+
+The skeleton implements only names with raising bodies. Each model selector adds only
+that exact model/table projection. The non-Bronze timestamp selector inspects/calls the
+closed signatures and must fail before the generic timestamp parameter is removed; it
+does not rely only on mypy. The forged-spec selector supplies equal-looking copies,
+subclasses, wrong model/table pairs, and a mutated registry member, and every ID must
+reach the same intended exact-identity rejection.
 
 Using current complete SourceRow helpers, normalize one bond, domestic-listed, overseas, and two-row fund item. For every model field, assert:
 
@@ -1045,19 +1150,133 @@ assert row["record_json"] == payload
 
 Then assert each wide scalar and quality/as-of field equals its exact wrapper. Add explicit fund assertions that the projected scalar is `item.ksd_id.representative.normalized_value`, the quality is `item.ksd_id.representative.quality_status.value`, and every `equivalent_sources` plus `contributing_rows` survives only in parsed `record_json`. Add raw/padded attribute-code, source-local datetime-without-timezone, Decimal scale-preservation in `record_json`, null scalar, enum string, and UTC terminal-`Z` cases. Reject NaN/Infinity, Decimal overflow/scale loss, mismatched spec/model, and noncanonical model JSON.
 
-For `bronze_source_row`, prove the typed physical `loaded_at` is the injected UTC value while its logical projection is null. For `silver_quality_issue`, prove typed/strict JSON timestamps agree physically and both become null only through strict model reconstruction for logical hashing; changing any other field changes the logical hash.
+For `bronze_source_row`, call only `serialize_bronze_source_row` and prove the typed
+physical `loaded_at` is the injected UTC value while its logical projection is null.
+For `silver_quality_issue`, call only `serialize_table_row` with an already-persisted
+CP5 strict row; prove typed/strict JSON timestamps agree physically and both become null
+only through strict model reconstruction for logical hashing. Every other model has no
+timestamp parameter and rejects one at Python call binding.
 
-Expected RED: serializer/projection functions are absent.
+Expected: every named behavior records its own RED/GREEN; no grouped import failure
+masks a later model, timestamp, numeric, or forged-spec branch.
 
 - [ ] **Step 4: Implement canonical strict-model JSON and typed row serializers**
 
 Use `model.model_dump(mode="json")` followed only by sorted keys, compact separators, UTF-8, and JSON escaping. Do not pass payload leaves through `canonical_scalar`. Parse the resulting JSON back through the exact model in tests. Convert wide wrapper values according to `ColumnSpec`; reject any conversion that changes Decimal value/scale beyond `DECIMAL(38,18)` or adds a timezone to a source-local timestamp.
 
-For quality rows, the serializer accepts only an already-persisted strict issue with a non-null UTC `first_detected_at`, emits its physical typed/JSON values, and computes a separate null-timestamp logical `record_json` by strict model reconstruction. It does not inject persistence time; that pure-to-persisted adapter begins with a CP5 RED. Do not replace timestamp text in a string. For Bronze rows, logical projection replaces only `loaded_at` with null.
+For quality rows, `serialize_table_row` accepts only an already-persisted strict issue
+with a non-null UTC `first_detected_at`, emits its physical typed/JSON values, and
+computes a separate null-timestamp logical `record_json` by strict model reconstruction.
+It does not inject persistence time; that pure-to-persisted adapter begins with a CP5
+RED. Do not replace timestamp text in a string. Only
+`serialize_bronze_source_row(..., persistence_timestamp=...)` injects time, and its
+logical projection replaces only `loaded_at` with null. Revalidate exact registry spec
+object and exact model type immediately before projection; derivation-time validation
+alone is insufficient.
 
-- [ ] **Step 5: Write REDs for one-file bounded Parquet writing and reopened verification**
+- [ ] **Step 5: Close writer, staged verification, uniqueness, and final-adapter selectors serially**
 
-Use a batch limit of two in tests, write two batches to one file, close, reopen with PyArrow, and assert exact physical schema, row order, metadata, compression `ZSTD`, statistics present, row-group maximum, and values. Include all-null Decimal/date/local-time/UTC/bool columns to prove their declared types survive. Assert rows over the batch maximum, out-of-order keys, duplicate unique keys, wrong/missing/extra columns, incompatible Decimal, write/flush/close failure, and reuse-after-close fail typed. Instrument the writer to prove it only writes/counts bounded batches and does not attempt a final logical hash before close. On reopened verification, prove the known final row count is placed in the logical header before the first row is streamed. Mutate one logical cell, recompute the outer physical hash, and require `verify_parquet_table` to fail its logical hash; a mutation limited to Parquet physical encoding with identical typed logical rows must leave the logical hash unchanged.
+Use exact node selectors, one at a time, in this order:
+
+```text
+tests/unit/data/artifacts/test_parquet_io.py::test_parquet_module_skeleton_rejects_valid_owned_leaf
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_creates_only_exact_owned_leaf_exclusively_nofollow
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_uses_exact_schema_options_and_row_group_limit
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_enforces_bounded_batches_without_early_logical_hash
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_close_flush_failure_and_reuse_lifecycle
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_abort_unlinks_only_exact_writer_created_inode
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_keeps_stream_and_parquetfile_inside_owned_context
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_checks_exact_schema_metadata_row_groups_and_count
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_hashes_known_count_header_before_bounded_rows
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_checks_canonical_sort_with_previous_key_only
+tests/integration/artifacts/test_parquet_verification.py::test_bounded_unique_index_rejects_nonadjacent_duplicate_beyond_two_batches
+tests/integration/artifacts/test_parquet_verification.py::test_staged_unique_index_is_managed_pathless_spillable_and_exact_owned
+tests/integration/artifacts/test_parquet_verification.py::test_final_unique_index_is_managed_pathless_spillable_and_exact_owned
+tests/integration/artifacts/test_parquet_verification.py::test_unique_index_closes_before_cleanup_and_rejects_aba_or_ambiguity
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_detects_logical_mutation_but_ignores_physical_reencoding
+tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_rejects_unissued_facts_and_forged_registration_token
+tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_atomically_registers_exact_verification_and_handle_objects
+tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_rejects_copied_equal_and_object_new_forge
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_rejects_foreign_copy_closed_owner_and_leaf_substitution
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_freezes_physical_facts_and_owner_registration
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_detects_same_inode_same_size_mutation_during_read
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_detects_same_inode_same_size_mutation_between_reads
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_skeleton_rejects_valid_verified_fixture
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_factory_binds_owner_timestamp_and_exact_verifications
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_extension_supersedes_predecessor_and_preserves_frozen_order
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_require_methods_revalidate_registration_and_verified_facts
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_copy_object_new_equal_forge_and_mixed_owner
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_closed_or_substituted_owner_and_leaf
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_manifest_declarations_revalidate_physical_facts
+tests/integration/artifacts/test_parquet_verification.py::test_final_adapter_requires_complete_manifest_inventory_and_declared_entry
+tests/integration/artifacts/test_parquet_verification.py::test_final_adapter_independently_rechecks_all_facts_and_returns_inventory_owned_result
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_cannot_enter_final_table_verification_result
+```
+
+The first selector permits only exact protocols/types and raising bodies. Every later
+selector is authored after its predecessor is GREEN. Writer schema, bounds, lifecycle,
+abort, reopen metadata, hash, sort, uniqueness, ownership, and final transition are
+independent behaviors; a missing module or the first bad parameter cannot stand in for
+their REDs.
+
+Use a test-only internal limit of two, write two batches through an exact test
+`OwnedStageParquetLeaf`, close, and assert `close() is None`: closing never creates a
+verified handle. Reopen only through `verify_staged_parquet_table`. Assert exact
+physical schema, row order, metadata, compression `ZSTD`, statistics, row-group maximum,
+and values. Include all-null Decimal/date/local-time/UTC/bool columns. Assert over-limit
+rows, wrong/missing/extra columns, incompatible Decimal, write/flush/close failure, and
+reuse-after-close fail typed. The writer neither counts/hash-verifies by reopening nor
+attempts a final logical hash before close.
+
+The staged handle's context-managed `iter_batches(batch_size=2)` test holds the leaf
+stream and `ParquetFile` live until iterator/context exit, observes `use_threads=False`,
+rejects zero/negative/>65,536, and proves no escaped iterator works after close. On
+reopened verification, prove the known final row count enters the logical header before
+the first row. Mutate one logical cell and require logical-hash drift; physical
+reencoding with identical typed rows leaves logical identity unchanged.
+Mutate one byte in place without changing inode/length during iteration and between two
+opens; pre/post same-descriptor size/SHA plus owner rescan must reject both without a
+staged or final result.
+
+The common verifier accepts the exact owner explicitly, seals verification/handle only
+after all reads/rescans, and atomically registers those exact object identities with the
+owner. Its three registration selectors separately reject missing/forged tokens, prove
+the valid atomic pair, and reject copied/equal/`object.__new__` facts; no public leaf
+method or caller can issue a token.
+
+After the registration and three physical/identity handle selectors are independently GREEN,
+author the staged-set skeleton and then each named set selector serially. The skeleton
+may expose only raising factory/method bodies. Factory/timestamp, extension/order,
+require-method behavior, copy/forge/mixed owner, and closed/substituted owner are
+separate REDs. Register only the exact factory-created set object; extension atomically
+supersedes it. Mix one structurally valid handle from a second live session,
+copy/`object.__new__`/equal-forge a handle/set, reorder or duplicate a table,
+use a superseded set, close/substitute the owner, and pass a bare tuple; every ID must
+reach its intended rejection before any batch or database/report relation is read.
+Finally require `table_declarations()` to revalidate the registered objects/logical
+facts and pair every table with `verification_for(name)` to revalidate physical size/
+SHA before producing CP7's separate table/file manifest entries; between-verification
+physical mutation must fail rather than emit either declaration.
+
+For exact uniqueness, choose a frozen table whose `unique_key` is not the sort-key
+prefix (quality `issue_id`), place the duplicate in batch 1 and after more than two full
+test batches while maintaining valid sort order, and require rejection. Sentinels fail
+on Python `set`, table-sized list/tuple/DataFrame, second input iteration, or retained
+prior batches. Separately exercise the staged-owner workspace and final trusted-temp
+workspace. Each exposes only a managed closed unique-index operation, never a raw
+database/spill path or generic connection; assert external access and extension install/
+load are disabled, production fixes one thread/1 GiB, and only the internal focused-
+test seam can lower the positive memory/batch limits to force spill. Fault-inject
+create, insert, query, close, marker/directory/store/spill substitution, ABA replacement,
+and cleanup. Every failure closes before exact cleanup and never deletes an ambiguous
+workspace or leaf.
+
+The final adapter fixture is a complete CP2-valid root with `manifest.json`, eleven
+Parquets, two reports, DuckDB, and no extras. It opens each exact manifest entry through
+the live CP2 inventory, reruns the common checker rather than copying staged facts,
+compares schema/count/sort/unique/logical/physical declarations, and creates final
+handles only through the CP2 result factory. Missing report/database/manifest, partial
+tree, staged handle, foreign entry, and declared mismatch all fail before a result.
 
 Run:
 
@@ -1068,23 +1287,41 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/integration/artifacts/test_parquet_verification.py -q
 ```
 
-Expected RED: the bounded writer and table-aware verifier are missing.
+Expected aggregate GREEN only after every selector's own RED/GREEN. This grouped command
+is never evidence for the individual writer/reopen/uniqueness/ownership behaviors.
 
 - [ ] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
 
-Construct `pyarrow.parquet.ParquetWriter` with only the exact explicit Arrow schema and supported constructor options `compression="zstd"`, `compression_level=3`, `write_statistics=True`, and `data_page_size=1_048_576`. Reject any input batch above 65,536 before constructing its Arrow table, then call `writer.write_table(arrow_batch, row_group_size=65_536)` for each bounded batch; `row_group_size` is deliberately a `write_table` argument, not a `ParquetWriter` constructor keyword. The writer only writes bounded typed batches and tracks the prospective count/key bounds needed for early failures; it does not compute the table logical hash while writing and never collects the full table in Polars/Python. Reopened metadata tests require every row group to contain at most 65,536 rows.
+Construct `pyarrow.parquet.ParquetWriter` only on the binary sink yielded by
+`leaf.create_exclusive()`, with exact explicit Arrow schema and supported constructor
+options `compression="zstd"`, `compression_level=3`, `write_statistics=True`, and
+`data_page_size=1_048_576`. Reject any input batch above 65,536 before constructing its
+Arrow table, then call `writer.write_table(arrow_batch, row_group_size=65_536)` for each
+bounded batch; `row_group_size` is deliberately a `write_table` argument, not a
+`ParquetWriter` constructor keyword. The writer tracks only prospective count/key
+bounds needed for early failures, does not reopen or compute the table logical hash,
+and `close()` only flushes/closes. `abort()` delegates exact-inode deletion to the leaf
+capability and fails closed on substitution/ambiguity.
 
-On close, flush and close once, then reopen the file through the live CP2 inventory
-entry capability. Obtain and validate the final Parquet row count and exact schema
-first. Initialize the logical hash with the now-known exact header
+After close, `verify_staged_parquet_table` reopens through the live stage leaf. The
+final adapter separately reopens through CP2 inventory only after a complete manifest
+tree exists. Both enter one common checker, construct `ParquetFile(stream)` inside the
+owning context, and call only `iter_batches(batch_size=65_536, use_threads=False)` in
+production. Obtain and validate final row count and exact schema first. Initialize the logical hash with the now-known exact header
 `{schema_sha256, logical_projection, row_count}`, then bounded-stream reopened typed
-logical rows while validating count/sort/unique keys and updating the hash. Never use
+logical rows while validating count/sort keys and updating the hash. Verify uniqueness
+through canonical typed key bytes in the fixed marker-owned one-thread/1-GiB spillable
+DuckDB index; close then exact-clean it on every path. Never use
 serialized Arrow buffers, Parquet row bytes, row-group encoding, compression bytes, or
-the outer file SHA as logical identity. Return `VerifiedParquetTable` only after the
-reopened stream/count, post-consumer same-descriptor physical size/SHA, and entry/
-ancestor/content rescans agree. Implement the CP2
-table-verifier port, but under D-024 do not assemble the kernel or expose a complete
-artifact verifier before the concrete report/database/expected ports exist in CP7.
+the outer file SHA as logical identity. Return staged verification only after stage
+owner/content rescans agree, atomically register the exact verification/handle objects
+with the owner, and freeze the physical size/SHA plus returned opaque token in both.
+Every later batch/declaration access repeats those
+checks; return final `VerifiedParquetTable` only after CP2
+post-consumer same-descriptor physical size/SHA and entry/ancestor/content rescans agree.
+Never convert one result into the other. Implement the CP2 table-verifier port, but
+under D-024 do not assemble/invoke it in production or expose a complete artifact
+verifier before CP7.
 
 - [ ] **Step 7: Run GREEN, focused gates, and model coverage probes**
 
@@ -1103,19 +1340,113 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   src/finproof/data/artifacts tests/unit/data/artifacts tests/integration/artifacts
 ```
 
-Expected GREEN: exact eleven specs are immutable; all four wide models have complete projection/round-trip coverage including the `FundItemValue.representative` rule; one-file bounded Parquet and reopened logical verification pass.
+Expected GREEN: exact eleven specs are immutable; all four wide models have complete
+projection/round-trip coverage including the `FundItemValue.representative` rule;
+writer close is not verification; staged handles remain stage-owned; the final adapter
+independently returns only CP2-inventory-owned handles; streaming, spillable uniqueness,
+and all cleanup/ownership failures remain bounded.
 
-- [ ] **Step 8: Commit and obtain a fresh review**
+- [ ] **Step 8: Run exact repository gates, commit for review, then close status separately**
 
-Run regressions/diff checks, then commit:
+Update `docs/implementation/STATUS.md` with every observed selector RED/GREEN, focused
+counts, mandatory command results, the CP3 capability split, unresolved risk if any,
+and exact next task **fresh independent Checkpoint 3 review**. Do not claim CP3 complete
+or name CP4 as next yet. Then run all gates on the exact implementation tree:
 
 ```bash
-git add src/finproof/data/artifacts tests/helpers/artifacts.py \
-  tests/unit/data/artifacts tests/integration/artifacts
-git commit -m "feat: freeze artifact table and Parquet contracts"
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_hashing.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/core tests/unit/domain tests/unit/registry \
+  tests/unit/data/normalization tests/contract/test_quality_issue_schema.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+git diff --check
+git diff --stat
+git diff --name-only
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+git status --short
 ```
 
-Fresh review must enumerate all table columns from source models independently, test model insertion/removal/reorder, verify the fund representative projection rule and record-only equivalent lineage, inspect exact Decimal/timestamp behavior, confirm incremental one-file writing, and ensure no table-sized collection. Require 0 Critical / 0 Important.
+Required observations: full suite and all focused/static gates pass; source audit stays
+145,393 at `2026-07-11`; handoff stays 61/9/41,384,928; catalog stays 207; both expected
+contract paths and runtime `artifacts/` remain absent; writable-source output is empty.
+Before commit, `git diff --name-only` contains exactly the CP3 file map and
+`docs/implementation/STATUS.md`: no `manifest.py`, config, schema, source material, or
+later-checkpoint module. Formatting/pre-commit may make only mechanical changes inside
+that exact list and must be rerun if they do.
+
+Commit only:
+
+```bash
+git add src/finproof/data/artifacts/hashing.py \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/__init__.py \
+  tests/integration/artifacts/__init__.py \
+  tests/integration/artifacts/test_parquet_verification.py \
+  docs/implementation/STATUS.md
+git commit -m "feat: freeze artifact table and Parquet contracts"
+git status --porcelain
+```
+
+Expected post-commit status is empty. Dispatch a fresh reviewer against the commit.
+Review must enumerate all table columns independently, test model insertion/removal/
+reorder and forged pairs, verify fund representative/record-only lineage, inspect exact
+Decimal/timestamp APIs, attack exclusive leaf/abort/substitution boundaries, prove
+stage/final capabilities cannot cross, force a nonadjacent duplicate beyond two batches
+with spill/cleanup faults, inspect stream lifetime and `use_threads=False`, and confirm
+no table-sized collection. Require 0 Critical / 0 Important. Any correction begins with
+one focused observed RED, gets a separate `fix: close Task 5 checkpoint 3 review gaps`
+commit, reruns the complete Step 8 gates, and receives another independent 0/0 review.
+
+Only after the final 0/0 verdict, make a separate docs-only closure: update
+`docs/implementation/STATUS.md` with reviewed commit hash(es), reviewer counts/evidence,
+all observed gate results, unresolved risk, and exact next task Checkpoint 4; mark CP3's
+steps/evidence complete in this dedicated plan; and mark only legacy Task 5 Checkpoint 3
+complete with Checkpoint 4 as the first incomplete legacy task. Run:
+
+```bash
+git diff --check
+git diff --name-only
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+git status --short
+git add docs/implementation/STATUS.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git commit -m "docs: close Task 5 checkpoint 3 review"
+git status --porcelain
+```
+
+Require empty writable-source output and final status, no expected/artifact path, and
+the pre-add diff list exactly these three files in lexical order:
+`docs/implementation/STATUS.md`, the legacy phase plan, and this dedicated plan. No
+decision/design/code/test/schema/config file belongs in the closure. CP4 may start only
+after that clean closure commit; implementation, correction, and review-closure
+evidence never share a commit.
 
 ---
 
@@ -1141,6 +1472,21 @@ Fresh review must enumerate all table columns from source models independently, 
 - Produces internal `SourceRowConsumer` protocol with exactly `consume(row: SourceRow) -> None`; it owns no workbook iterator and may not request/rescan source rows.
 - Produces internal `BronzeFanoutSink(..., consumer: SourceRowConsumer | None)` with `consume_source_row(row: SourceRow) -> None`; the method enqueues that row's complete Bronze row and cells first, then invokes the registered consumer exactly once. `None` is valid for the CP4 Bronze-only fixture.
 - Produces internal `ArtifactBuildSession.initialize(settings, versions, options) -> ArtifactBuildSession` and `ingest_bronze(*, consumer: SourceRowConsumer | None = None) -> BronzeBuildResult`; it writes only to a recognized sibling stage and never publishes.
+- `ArtifactBuildSession` is CP4's sole production `OwnedStageArtifactOwner` and
+  `OwnedStageDatabaseOwner`, with one
+  opaque owner token, injected UTC persistence timestamp, retained descriptors, and
+  liveness checks. `claim_parquet_leaf(spec: TableSpec) -> OwnedStageParquetLeaf` binds
+  that exact owner, stage marker, retained stage/`parquet` directory descriptors,
+  frozen relative path, and one exclusive leaf identity;
+  `claim_database_leaf() -> OwnedStageDatabaseLeaf` similarly reserves only
+  `finproof.duckdb`. Its Parquet `create_verification_workspace()` exposes only a
+  managed configured unique-key-index context over a separate exact marker-owned mode-
+  0700 scratch child and owned mode-0600 store/spill identities, never their paths.
+  CP4 `staging.py` also owns direct-init-disabled `SealedStageDatabase`; its managed
+  database build returns only this neutral exact owner/leaf-registered physical seal,
+  never a CP7 type.
+  `BronzeBuildResult` carries the one owner-bound three-table `StagedParquetSet` plus
+  observations; it has no bare handle tuple, CP2 inventory, or final handle.
 - Produces strict frozen, phase-tagged `SourceAuditObservations.from_bronze(config, inputs, bronze_counts) -> SourceAuditObservations`. At CP4 it contains and validates only resolved input identity plus expected/observed catalog/Bronze row/cell/column observations; Silver, quarantine, link, and evidence fields are forbidden rather than fabricated.
 
 - [ ] **Step 1: Write REDs for fixed staging settings, ownership, spill, and cleanup**
@@ -1149,11 +1495,58 @@ Create a private stage fixture and assert the staging connection reports exactly
 
 Fault-inject disk-full/write, close, spill-directory removal, marker removal, and connection-close failures. Each must raise its typed pre-publication error, leave a pre-existing published target byte-identical, close before cleanup, and never delete an unmarked or mismatched directory. Concurrent lock ownership and ambiguous orphan-stage markers must fail without mutation. On the success path, first deliberately omit `close_and_remove_working_state()` and prove exact-tree readiness fails because store-owned database/WAL/spill/temp/marker state remains; then call it and assert emitted Parquet/stage ownership bytes remain while only verified store-owned working state disappears. Parameterize partial cleanup, inode substitution, symlink, wrong marker, and ambiguous path; each must fail closed without broadening deletion.
 
-Expected RED: `ExternalOrderStore` and recognized stage ownership do not exist.
+Close CP4's separately owned database-stage behaviors serially in
+`tests/unit/data/artifacts/test_staging.py`. Author only the next selector after the
+previous one has reached its intended RED and smallest GREEN:
+
+```text
+test_database_stage_skeleton_rejects_valid_owner_fixture
+test_database_stage_claims_one_same_owner_final_leaf
+test_database_stage_build_uses_pathless_owned_scratch_and_fixed_settings
+test_database_stage_checkpoints_closes_and_rejects_wal_before_seal
+test_database_stage_exclusively_nofollow_copies_fsyncs_and_closes_final_leaf
+test_database_stage_reopens_hashes_and_rescans_final_leaf
+test_database_stage_closes_before_cleanup_and_rejects_abort_or_substitution_ambiguity
+test_sealed_stage_database_requires_same_owner_registration_and_exact_leaf
+test_sealed_stage_database_rejects_copy_equal_object_new_and_token_forge
+```
+
+The skeleton may add only raising names. Leaf claim, scratch creation/settings,
+checkpoint/close/WAL, final copy/fsync/close, final reopen/hash/rescan, cleanup/abort/
+substitution, valid seal registration, and seal forgery are independent behavior
+families. Every parameter ID must reach the named boundary; no generic
+`ExternalOrderStore` failure or earlier database failure is evidence for a later RED.
+
+Expected: each named database-stage selector records its own RED/GREEN in order;
+separately, the initial generic staging selector REDs because `ExternalOrderStore` and
+recognized stage ownership do not exist.
 
 - [ ] **Step 2: Implement bounded staging and marker-owned cleanup only**
 
+Step 2 records/refactors the already serially closed database-stage GREEN behavior; it
+does not bulk-implement an unobserved database branch after one Step 1 failure.
+
 Create the sibling lock/stage names exactly from the managed target basename and opaque operation ID. Create sidecar marker mode 0600 with operation ID, artifact-set ID, contract version, and target basename. Use static allowlisted DDL and parameters; no caller SQL/table name/path. On failure remove only a nonsymlink, exact-basename, exact-marker-owned private stage after the connection closes. If cleanup fails, preserve the recognized stage and raise `STAGING_CLEANUP_FAILED`.
+
+Open and retain the stage then `parquet/` directories descriptor-relatively with
+no-follow checks. `claim_parquet_leaf` accepts only the exact registry spec, reserves
+one path once, and its `create_exclusive` uses mode 0600
+`O_CREAT | O_EXCL | O_NOFOLLOW`; open/assert/unlink revalidate the exact leaf and every
+owner/marker ancestor. A copied/foreign/closed leaf or substituted inode fails. CP3
+writer abort may request deletion only of its exact created inode; session cleanup owns
+all broader recognized-stage cleanup and never treats a CP3 staged handle as a final
+manifest entry.
+
+`claim_database_leaf` is also single-use and same-owner. Separately,
+`create_database_build_workspace()` creates a pathless unique marker-owned private
+scratch capability whose `open_writer()` alone exposes the configured DuckDB connection
+to CP7. The final database leaf itself exposes only binary `create_exclusive`,
+`open_verified`, assert, and exact abort operations; it is not precreated/opened as an
+empty DuckDB database. The managed CP7 seal creates the final leaf mode 0600 with
+`O_CREAT | O_EXCL | O_NOFOLLOW`, bounded-copies a closed/WAL-free verified scratch DB,
+fsyncs/closes, and reopens/hash/rescans it. Scratch/final substitution, close/checkpoint/
+WAL/copy/fsync/hash/reopen failure, or cleanup/abort ambiguity blocks; cleanup removes
+only exact owned scratch/final inodes and never an unowned name.
 
 For successful completion, close the DuckDB connection first, enumerate the closed finite set of store-owned working paths, revalidate each nonsymlink inode and exact operation marker, remove children in the fixed safe order, and unlink the store marker last. `close_and_remove_working_state()` is idempotent only after a recorded successful cleanup; missing/partial/ambiguous state raises instead of guessing. It preserves all Parquet files, reports/models in memory, and the separate build-stage marker needed by publication.
 
@@ -1182,7 +1575,13 @@ Expected RED: Bronze iterators/build session/source-audit observations are absen
 
 Resolve, reopen, size-check, and SHA-256 the exact nine direct logical inputs first; validate dataset/rule versions and snapshot; then call `SourceFileManifest.load(...).verify(source_root)`. Recheck direct-input identities immediately before the first workbook open so a changed config/schema/source manifest cannot race into a declared build identity. Stream each verified data workbook exactly once in manifest order. Write catalog once. For each `SourceRow`, `BronzeFanoutSink.consume_source_row` enqueues one complete Bronze row and all of its cells into bounded sinks, updates Bronze observations, and only then invokes the registered `SourceRowConsumer.consume(row)` once. Because the sort key begins with frozen source table order, write final Bronze Parquet in bounded batches without a Python sort. The consumer never owns or iterates the workbook; a consumer exception fails the build without retry. This seam is the only CP5 normalization feed, so no official workbook is rescanned.
 
-Track input/catalog/Bronze observed counts in immutable accumulators and construct only the CP4 `SourceAuditObservations` stage after exact config equality. Do not construct, serialize, hash, or stage a `SourceAuditReport`: the Silver/quarantine/link/evidence observations required by that final report do not exist yet.
+After each Bronze writer closes, reopen only via its owned leaf and create the CP3
+three-table `StagedParquetSet` through the live session owner. Track input/
+catalog/Bronze observed counts in immutable accumulators and construct only the CP4
+`SourceAuditObservations` stage after exact config equality. Do not construct, serialize,
+hash, or stage a `SourceAuditReport`, CP2 inventory, final `VerifiedParquetTable`, or
+`TableVerificationResult`: the remaining Parquets/reports/database/manifest do not yet
+exist.
 
 - [ ] **Step 5: Add external-sort scale RED/GREEN and run checkpoint gates**
 
@@ -1238,12 +1637,12 @@ Fresh review must trace one raw source value through catalog/row/cell/hash, veri
 
 **Interfaces:**
 
-- Owns internal `BoundedRelationVerifier(Protocol)` in `quality_persistence.py`. It exposes only closed operations for quality-to-Bronze joins, exact-evidence-to-Bronze joins, and exact-ID-filtered linked domestic/fund `record_json` scans over already registered `VerifiedParquetTable` handles; it exposes no generic execute method, caller SQL, caller table name, or caller path.
+- Owns internal `BoundedRelationVerifier(Protocol)` in `quality_persistence.py`. Every closed operation accepts and revalidates one CP3 `StagedParquetSet`, then resolves required names through `require_tables`/`require_owned`; it exposes only quality-to-Bronze joins, exact-evidence-to-Bronze joins, and exact-ID-filtered linked domestic/fund `record_json` scans, with no bare handle tuple, generic execute method, caller SQL/table name/path, CP2 inventory, or final handle.
 - Produces CP5's stage-backed `StagedBoundedRelationVerifier` implementation using the marker-owned `ExternalOrderStore` connection with observed `threads=1`, `memory_limit="1GiB"`, static allowlisted SQL, and bounded result batches. CP5 quality verification and CP6 link/evidence verification reuse this concrete implementation while the candidate stage is being built.
 - Produces strict frozen `FundRowKeyClassification(item_key: str | None, issue: DataQualityIssue | None)`.
 - Produces public `classify_public_fund_row(row: SourceRow) -> FundRowKeyClassification`; it invokes only the authoritative key validator and never `normalize_fund_attribute`.
 - Produces public `normalize_public_fund_item_group(rows: Sequence[SourceRow]) -> FundCollapseResult`; it accepts one unique, source-row-ordered item group, invokes `normalize_fund_attribute` exactly once per valid row, and delegates the existing authoritative collapse behavior.
-- Produces: `persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime) -> PersistedQualityIssueRow` and private `verify_quality_bronze_relation(quality: VerifiedParquetTable, bronze_rows: VerifiedParquetTable, bronze_cells: VerifiedParquetTable, *, relation_verifier: BoundedRelationVerifier) -> QualityJoinObservations`; it never constructs a Python Bronze lookup collection.
+- Produces: `persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime) -> PersistedQualityIssueRow` and private `verify_quality_bronze_relation(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> QualityJoinObservations`; it never constructs a Python Bronze lookup collection. Before any relation, CP5 requires the set's timestamp to equal every reopened Bronze `loaded_at` and persisted quality typed/JSON timestamp; there is no manifest yet and CP5 neither fabricates nor validates one.
 - Produces internal `SilverArtifactEmitter.consume(row: SourceRow) -> None`, `finish_fund_groups() -> None`, and `finalize() -> SilverBuildResult`, all bounded and stage-backed. `SilverArtifactEmitter` structurally implements CP4's frozen one-method `SourceRowConsumer`; it receives rows only from `ArtifactBuildSession.ingest_bronze(consumer=emitter)`.
 - Extends a Bronze-valid `SourceAuditObservations` through `observations.with_silver(silver_counts, quarantine_counts) -> SourceAuditObservations`; the returned phase permits only verified Silver/quarantine observations and still cannot construct the final source-audit report before CP6 links/evidence.
 - Produces: `QualitySummaryReport.from_verified_quality(...) -> QualitySummaryReport` with closed lexical group ordering and timestamp-free semantic content.
@@ -1316,13 +1715,19 @@ Assert pure normalizer issues still have `first_detected_at is None`. `persist_q
 
 Build mutation cases for missing Bronze row, wrong cell, wrong raw-payload SHA, typed timestamp versus JSON mismatch, two distinct timestamps, duplicate issue ID, and global sort disorder. Each must block stage verification. Assert exactly two distinct quarantined source rows in the fixture, while total issue count is observed/reportable rather than frozen to 6,032. Install sentinels that raise on `len`, second iteration, `list`/DataFrame construction, or retention of a prior verifier batch; the quality-to-Bronze check must run as an allowlisted typed SQL relation and bounded stream rather than materializing Bronze rows/cells or all quality joins.
 
+In separate focused selectors, pass a bare tuple, a copied set, one handle from another
+live owner, a closed/substituted owner, missing/reordered required names, and a set whose
+timestamp differs from Bronze or persisted quality. Each selector must reach the
+intended owner/completeness/timestamp rejection before the relation verifier reads a
+batch. CP5 explicitly does not require or synthesize a manifest.
+
 For `QualitySummaryReport`, assert lexical arrays/mapping keys, counts by table/rule-version/severity/status/quarantine, distinct affected rows, excluded native grains, and quality logical SHA; moving/pretty-printing the report keeps semantic hash, changing content changes it, and no timestamp/path enters. Assert `with_silver` rejects an observation object not validated at the Bronze phase, expected/observed Silver or quarantine mismatch, repeated extension, and any premature link/evidence or final-report field.
 
 Expected RED: persistence adapter, the closed bounded-relation protocol/stage implementation, streaming Bronze joins, and quality report aggregation are absent.
 
 - [ ] **Step 6: Implement D-021 persistence, global external sort, joins, and reports**
 
-Reconstruct `DataQualityIssue` with `model_validate(issue.model_dump() | {"first_detected_at": timestamp})`; never mutate frozen issues. Validate canonical JSON with the runtime resource schema. Stage all issues under the exact global key and externally order them. During reopened table verification, register only internally supplied verified Parquet handles with `StagedBoundedRelationVerifier`, join the quality relation to Bronze row/cell relations through its closed operation, stream bounded mismatch/count results, compare raw payload hashes, and enforce one timestamp across manifest/Bronze/quality typed/quality JSON. Never load 145,393 Bronze rows, 6,401,851 Bronze cells, or the full join into Python. Build `QualitySummaryReport` only from the verified quality stream and extend the CP4 observations with verified Silver/quarantine counts. Do not construct `SourceAuditReport` yet, and never add dataset-level constant-metric issues.
+Reconstruct `DataQualityIssue` with `model_validate(issue.model_dump() | {"first_detected_at": timestamp})`; never mutate frozen issues. Validate canonical JSON with the runtime resource schema. Stage all issues under the exact global key and externally order them. During reopened verification, pass only the extended same-owner `StagedParquetSet` to `StagedBoundedRelationVerifier`; it revalidates liveness, owner, required handle objects, and set timestamp before joining quality to Bronze row/cell relations. Stream bounded mismatch/count results, compare raw payload hashes, and enforce one timestamp across the set/Bronze/quality typed/quality JSON (manifest comparison is deferred to CP7). Never load 145,393 Bronze rows, 6,401,851 Bronze cells, or the full join into Python. Build `QualitySummaryReport` only from the verified staged quality stream and extend the CP4 observations with verified Silver/quarantine counts. Do not construct `SourceAuditReport`, CP2 final inventory/handles, or a table verification result yet, and never add dataset-level constant-metric issues.
 
 - [ ] **Step 7: Prove fund and writer bounds under scale**
 
@@ -1380,7 +1785,7 @@ Fresh review must compare the public group adapter with every Task 4 edge case, 
 
 - Produces strict frozen `ExactCrossSourceLink` and `ExactCrossSourceLinkEvidence` matching Sections 5.10-5.11 exactly.
 - Produces: `build_exact_links(stage: ExternalOrderStore) -> ExactLinkBuildResult` over closed internally populated left/right candidate relations.
-- Produces: `verify_exact_link_evidence(*, links: VerifiedParquetTable, evidence: VerifiedParquetTable, bronze_cells: VerifiedParquetTable, domestic_records: VerifiedParquetTable, fund_items: VerifiedParquetTable, relation_verifier: BoundedRelationVerifier) -> ExactEvidenceVerificationObservations` with complete bidirectional validation. Inputs are reopened verified Parquet handles/allowlisted relations, not table-sized Python iterables; CP6 passes CP5's `StagedBoundedRelationVerifier` and does not introduce a new or CP7-forward concrete type.
+- Produces: `verify_exact_link_evidence(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> ExactEvidenceVerificationObservations` with complete bidirectional validation. The set must contain/revalidate the required link, evidence, Bronze-cell, domestic, and fund handles under one live owner/timestamp; CP6 passes CP5's `StagedBoundedRelationVerifier` and does not introduce a bare tuple, final-inventory, or CP7-forward concrete type.
 - Produces: `canonical_link_pair_tsv(rows: Iterable[ExactCrossSourceLink]) -> bytes` and `exact_link_pair_sha256(...) -> str`.
 - Completes the phased observations through `observations.with_links(link_count, evidence_count, pair_sha256) -> SourceAuditObservations`, then produces `SourceAuditReport.from_complete_observations(config, observations) -> SourceAuditReport`. Both operations refuse missing/prior-phase, unequal expected/observed, or reordered/recomputed pair data; this is the first checkpoint where the final strict source-audit report can exist.
 - Populates the exact CP2 source-audit model/semantic projection only; report-file
@@ -1413,13 +1818,18 @@ For one link with multiple fund source rows, assert one left evidence at role or
 
 Assert every evidence row joins exactly one complete Bronze cell, `evidence.raw_identifier == bronze.raw_value == parent.matched_raw_identifier`, and the evidence relation is bidirectionally equal to the two authoritative wrapper sources. Permit buffering only the bounded 47 link keys and 371 evidence keys. Require the verifier to select and strict-parse only the linked 47 domestic and 47 fund `record_json` values by exact IDs, and validate all Bronze locator/raw joins through internal allowlisted typed SQL plus bounded mismatch streams. Sentinels must fail on `len`, second iteration, whole-table list/tuple/DataFrame creation, parsing any unrelated wide record, or retaining a previous stream batch.
 
+Repeat the staged-set boundary mutations at CP6: foreign/copied/mixed/closed owner,
+wrong timestamp, missing/reordered required table, and bare handles all fail before a
+link/evidence/Bronze relation is registered. The accepted case uses the exact CP5 set
+extended under the same owner.
+
 In `test_source_audit_report.py`, begin from a CP5 Silver/quarantine-complete observation fixture. Assert the exact-link/evidence counts and canonical pair hash extend it to the complete phase, and only that complete phase can construct the final strict `SourceAuditReport`. Parameterize missing/extra/repeated phases, wrong expected or observed count, wrong source-manifest/catalog hash, changed pair hash, link/evidence relation mismatch, and attempts to copy the tests baseline; each must fail before report serialization. Assert the report is timestamp/path-free and semantically stable across pretty rendering.
 
 Expected RED: evidence construction/verification is absent or incomplete.
 
 - [ ] **Step 4: Implement exact evidence emission and bidirectional validation**
 
-Emit evidence from the staged authoritative candidates, never from inferred adjacent Bronze cells. Validate relation cardinality and order before Parquet writing and again after reopen. Use external stage ordering for links/evidence; no table-sized list or Python sort. The reopened validation registers only trusted verified Parquet handles with the one-thread/1-GiB relation verifier, buffers the closed small link/evidence key sets, filters wide records by those exact IDs before strict JSON parsing, and streams Bronze join mismatches/counts; it never scans wide `record_json` into Python or materializes the Bronze cell table. After the reopened relations establish exact counts and `exact_link_pair_sha256`, advance the CP5 observations once and construct the final `SourceAuditReport` from `config/artifact_build.yaml` expected values plus the fully observed source/catalog/Bronze/Silver/quarantine/link/evidence data. Keep the strict model in the private build session only; CP7 owns writing, reparsing, hashing, manifest declaration, and full verification.
+Emit evidence from the staged authoritative candidates, never from inferred adjacent Bronze cells. Validate relation cardinality and order before Parquet writing and again after reopen. Use external stage ordering for links/evidence; no table-sized list or Python sort. The reopened validation passes only the same live owner-bound `StagedParquetSet` to the one-thread/1-GiB relation verifier, which resolves and revalidates exact required handles; it buffers the closed small link/evidence key sets, filters wide records by those exact IDs before strict JSON parsing, and streams Bronze join mismatches/counts. It never scans wide `record_json` into Python or materializes the Bronze cell table. After the reopened staged relations establish exact counts and `exact_link_pair_sha256`, advance the CP5 observations once and construct the final `SourceAuditReport` from `config/artifact_build.yaml` expected values plus the fully observed source/catalog/Bronze/Silver/quarantine/link/evidence data. Keep the strict model and staged set in the private live build session only; CP7 owns writing reports/database/manifest, checking the set timestamp against the manifest, creating the final CP2 inventory, independently rebuilding final handles, and full verification.
 
 - [ ] **Step 5: Add the official profile acceptance and observe it only after unit behavior is green**
 
@@ -1496,7 +1906,20 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 **Interfaces:**
 
-- Produces private `build_self_contained_database(parquet_root: Path, database_path: Path) -> str`, returning the closed-file SHA-256.
+- Produces private `build_self_contained_database(*, tables: StagedParquetSet,
+  database_leaf: OwnedStageDatabaseLeaf) -> StagedDatabaseVerification`. It requires
+  the complete frozen-order set, revalidates the one live owner/timestamp and every
+  handle, and requires that same owner to accept the exact database leaf. No caller/raw
+  input or output path is accepted; CP4's owner-managed scratch returns only its
+  registered neutral `SealedStageDatabase`, which CP7 validates and wraps. Before manifest construction,
+  `StagedDatabaseVerification.validate_against(owner)` repeats owner/token/liveness/
+  timestamp/leaf identity and physical fact checks.
+- `StagedDatabaseVerification` is created in CP7 `database.py`, not CP3 `parquet_io.py`;
+  its direct constructor is disabled and its sole `from_sealed` factory accepts CP4's
+  direct-init-disabled owner-registered `SealedStageDatabase`. The CP7 result stores the
+  exact `_owner` object and opaque owner/final-leaf tokens plus timestamp, size, and SHA;
+  `validate_against` requires `owner is _owner` and live exact registrations. Foreign/
+  equal-looking seal or owner, copy, `object.__new__`, and token forgery are rejected.
 - Produces public `open_read_only_database(path: Path) -> duckdb.DuckDBPyConnection` for application/runtime reads only.
 - Produces private `verify_database_against_parquet(*, inventory:
   VerifiedPhysicalInventory, database_entry: VerifiedPhysicalEntry, tables:
@@ -1519,10 +1942,19 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
   still-live inventory and never rediscover a table by path or build a second unbound
   handle set.
 - Privately assembles the CP2 `ArtifactVerificationKernel` with CP3's closed table
-  registry/verifier and these CP7 ports. Candidate core order is inventory -> tables ->
+  registry and final `ParquetArtifactTableVerifier` plus these CP7 ports. This is the
+  first production invocation of that adapter: it receives the complete CP2 inventory,
+  independently rebuilds eleven final `VerifiedParquetTable` handles, and accepts no
+  CP4-6 staged handle/fact. Candidate core order is inventory -> tables ->
   reports -> overall -> database -> final rescan. CP7 implements the packaged comparator
   and expected-route assembly shape, but the official resource remains deliberately
   absent, so no production/public expected-route success is possible yet.
+- Before report/database/manifest construction CP7 calls `tables.require_complete()`;
+  the database writer and every staged report relation consume that same set. Once the
+  manifest is written, CP7 requires `tables.persistence_timestamp ==
+  manifest.persistence_timestamp` in addition to CP5's Bronze/quality equality. A
+  copied/mixed/closed/timestamp-mismatched set or foreign database leaf fails before
+  final inventory creation.
 - The already guarded repository-only candidate path calls `verify_candidate_core`,
   projects its `ArtifactCoreVerificationResult` to candidate JSON, never publishes, and
   exposes no package/runtime skip; it does not install a no-op comparator or duplicate
@@ -1538,7 +1970,35 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 - [ ] **Step 1: Write 7A REDs for exact self-contained DuckDB construction**
 
+Author these database-construction selectors one at a time, running each exact node and
+reaching its intended RED before the smallest GREEN:
+
+```text
+test_database_module_skeleton_rejects_complete_owned_stage_fixture
+test_database_builder_requires_canonical_complete_set_and_same_owner_leaf
+test_database_builder_materializes_exact_tables_through_cp4_managed_writer
+test_database_builder_orchestrates_cp4_seal_then_cp7_verified_wrapper
+test_staged_database_verification_wraps_only_exact_owner_registered_seal
+test_staged_database_verification_revalidates_owner_timestamp_identity_and_hash
+test_staged_database_verification_rejects_foreign_equal_copy_object_new_and_token_forge
+```
+
+The skeleton exposes only raising names. CP7's new behaviors are complete-set/owner
+admission, exact eleven-table materialization into the already-frozen CP4 managed
+writer, CP4-seal-to-CP7-wrapper orchestration, and CP7 result identity/revalidation.
+CP4 scratch/checkpoint/WAL/copy/fsync/final-close/reopen/hash/cleanup/abort internals are
+already GREEN and remain regression assertions here; CP7 neither claims new REDs for
+them nor reimplements them.
+
 Build the complete small fixture Parquet set. Assert DuckDB contains exactly the eleven table names, exact information-schema column order/types/nullability, exact counts, and no view/external path. Assert materialization uses explicit frozen column lists and final `ORDER BY`; database close/checkpoint leaves no `.wal`. Reopen it and compare Decimal/date/local timestamp/UTC timestamp/null values without text coercion.
+
+Supply the complete owner-bound set plus its exact same-session database leaf. CP7's
+focused admission/orchestration selectors RED on a
+bare tuple, mixed/copied/closed/timestamp-substituted set, foreign database leaf,
+or forged CP7 wrapper. Rerun CP4 regression cases for pre-existing/symlink/hardlink
+output, inode substitution before/after DuckDB close, WAL, ambiguous abort, exclusive
+no-follow mode 0600 creation, hash/rescan, close-before-exact-cleanup, and no deletion
+of an unowned inode; do not count those already-implemented mechanics as CP7 REDs.
 
 Mutate one DuckDB cell while preserving table schema/count and recompute the physical database hash/manifest entry. The full verifier must reject it through bidirectional typed `EXCEPT ALL`; a count-only verifier is an observed RED. Add deleted/duplicated row variants too.
 
@@ -1554,7 +2014,7 @@ Expected RED: database builder/public reader/private equality verifier and full 
 
 - [ ] **Step 2: Implement separate public-reader and private-verifier connections**
 
-The writer uses `threads=1`, `preserve_insertion_order=true`, `TimeZone=UTC`, static allowlisted DDL, and trusted stage paths only. Insert verified Parquet rows with explicit frozen columns/order; checkpoint/close; reject any WAL; hash the closed file.
+The CP7 writer orchestrator uses `threads=1`, `preserve_insertion_order=true`, `TimeZone=UTC`, static allowlisted DDL, and trusted stage capabilities only. It first revalidates the complete one-owner `StagedParquetSet`, obtains each `verification_for(...)`, and inserts bounded batches with explicit frozen columns/order through CP4's already-verified pathless `ManagedStageDatabaseBuild.open_writer()`. It then invokes CP4's already-GREEN `checkpoint_close_and_seal(leaf=database_leaf)` and wraps the returned owner-registered `SealedStageDatabase` only through `StagedDatabaseVerification.from_sealed(owner=..., sealed=...)`; CP7 does not implement or duplicate scratch/leaf creation, WAL, copy, fsync, close, reopen, hash, or cleanup mechanics. The private equality verifier later uses only CP7's independently rebuilt final handles.
 
 `open_read_only_database` first `lstat`s an existing nonsymlink regular file, then opens `read_only=True` and permanently sets `enable_external_access=false`, `allow_unsigned_extensions=false`, `autoinstall_known_extensions=false`, `autoload_known_extensions=false`, and `lock_configuration=true`. Do not use this hardened connection to call `read_parquet`.
 
@@ -1626,7 +2086,25 @@ output Parquets.
 
 In `test_artifact_verifier_bounds.py`, set `pytestmark = pytest.mark.performance`, build scale relations with 145,393 Bronze rows and 6,401,851 generated Bronze cells (or reuse the fully verified official-size fixture when available), but only 47 links/371 evidence locators. Install `len`/second-iteration/materialization and prior-batch-retention sentinels. Assert `max_verifier_batch_rows <= 65_536`, exactly 47 domestic plus 47 fund strict `record_json` parses, at most 47 link and 371 evidence keys live, one verifier thread/1-GiB spill, and no Python collection proportional to Bronze cells, quality joins, or any full wide table.
 
-The candidate-stage finalizer closes/reopens every Parquet and verifies every logical table first. It then calls `close_and_remove_working_state()` on every registered `ExternalOrderStore` and proves no staging database/WAL/spill/temp/store marker remains before writing either report or beginning the exact-tree inventory. An omitted call, partial cleanup, substituted inode, or ambiguous working path fails pre-manifest and preserves the build stage for guarded diagnostics; it cannot be hidden as an undeclared extra tree entry. Only then does the finalizer write/reparse both reports, materialize/checkpoint/close DuckDB, record all 14 physical sizes/SHA values, write canonical pretty `manifest.json` with one terminal newline, and invoke the private concrete core verifier. A file that merely closed without complete flush/hash/verify/working-state cleanup can never become a candidate.
+The candidate-stage finalizer first requires the exact complete live CP3
+`StagedParquetSet`, validates its timestamp and every owned handle, and uses only that
+set for CP5/6 relations and DuckDB/report construction. It
+then calls `close_and_remove_working_state()` on every registered `ExternalOrderStore`
+and proves no staging database/WAL/spill/temp/store marker remains before writing either
+report or beginning the exact-tree inventory. An omitted call, partial cleanup,
+substituted inode, or ambiguous working path fails pre-manifest and preserves the build
+stage for guarded diagnostics; it cannot be hidden as an undeclared extra tree entry.
+Only then does the finalizer write/reparse both reports, materialize/checkpoint/close
+and seal DuckDB, call `tables.table_declarations()` plus
+`tables.verification_for(name)` for each exact table plus
+`database_verification.validate_against(owner)` to revalidate every registered physical
+fact, build separate Parquet `ArtifactFile` declarations, record all 14 physical
+sizes/SHA values, and write canonical pretty
+`manifest.json` with one terminal newline. It discards no staged owner yet, but invokes
+the private concrete core verifier through a new CP2 final inventory; CP3's final
+adapter independently reopens/rechecks every Parquet and creates new final handles.
+No staged fact is promoted. A file that merely closed or only passed staged checks
+without complete cleanup/final-inventory verification can never become a candidate.
 
 Run:
 
@@ -2137,7 +2615,7 @@ git check-ignore -v artifacts/manifest.json artifacts/reports/source_audit.json 
   artifacts/parquet/bronze_source_row.parquet artifacts/finproof.duckdb \
   .artifacts.finproof-stage-op .artifacts.finproof-backup-op \
   .artifacts.finproof-cleanup-op .artifacts.finproof-build.lock
-find source_material -type f -perm -u=w -print
+find source_material -type f -perm -222 -print
 ```
 
 Expected: every command passes; source audit remains 145,393/`2026-07-11`; handoff remains 61/9/41,384,928; catalog remains 207; ignore probes match; source writable search prints nothing. Record exact observed test counts/times rather than predicting them.
@@ -2204,12 +2682,20 @@ Expected: all gates pass; porcelain is empty; tracked runtime-artifact query pri
 - [x] Installed wheels use `importlib.resources` primary; real isolated standard editable installs prove only the exact distribution-metadata fallback under source-package shadowing; schema and expected-contract bytes/SHA/inventory are CWD-independent with no dev-mode-exact workaround.
 - [x] Every force-included source/mapping change observes its deterministic pre-refresh RED with `uv run --no-sync`, explicitly reinstalls `finproof` in the active editable environment, and reruns outside-CWD byte/SHA equality with ordinary `uv run`; CP2 covers the stale manifest-schema copy and CP8 the new expected contract.
 - [x] The candidate path is repository-only, unpublished, no-write, no-publish, and permanently closed after baseline creation.
-- [x] CP2 has no premature table-aware/full verifier; CP3 freezes specs/Parquet; CP7 completes concrete DuckDB-aware core verification and CP8 alone activates expected-accepted trust.
+- [x] CP2 has no premature table-aware/full verifier; CP3 freezes specs/common checker
+  plus non-interchangeable staged/final adapters; CP4-7 use only one owner-bound staged
+  set before final inventory; CP7 independently invokes the final adapter and completes
+  DuckDB-aware core verification; CP8 alone activates expected-accepted trust.
 - [x] D-024 freezes capability ownership: CP2 models/hashing/held inventory/internal
-  stub kernel; CP3 concrete table port; CP5/6 report/timestamp/link semantic producers;
+  stub kernel; CP3 staged verification plus final table-port implementation; CP4 stage
+  leaf ownership; CP5/6 staged report/timestamp/link semantic producers;
   CP7 concrete report/database ports plus packaged comparator implementation; CP8
   reviewed expected bytes, the activated expected route, and the first public trusted
   result/publication authorization.
+- [x] D-025 clarifies D-024 without rewriting it: CP4 owns the opaque stage token,
+  timestamp, exact Parquet/database leaves, and `StagedParquetSet`; CP5/6/7 reject bare,
+  copied, mixed, closed, incomplete, or timestamp-mismatched sets; CP7 alone transitions
+  to independently rebuilt final inventory handles.
 - [x] CP2 uses the valid `os.scandir(held_dir_fd)` plus
   `DirEntry.stat(follow_symlinks=False)` API, binds `manifest.json` to the retained root,
   and gives CP3 one identity-revalidating entry reopen capability with no lexical

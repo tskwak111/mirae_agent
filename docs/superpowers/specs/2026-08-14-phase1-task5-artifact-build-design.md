@@ -5,7 +5,7 @@
 **Scope:** Reproducible Bronze/Silver/Gold Parquet, self-contained DuckDB, data-artifact
 manifest, reports, exact domestic ETF/public-fund links, and guarded publication
 
-**Governing decisions:** D-014, D-017, D-021, D-022, D-023, D-024
+**Governing decisions:** D-014, D-017, D-021, D-022, D-023, D-024, D-025
 
 ## 1. Purpose and completion boundary
 
@@ -704,11 +704,16 @@ same fail-closed behavior as Task 4.
 
 ### 6.4 Finalize
 
-Each Parquet file is closed, reopened, and checked against its frozen schema, count,
-sort order, uniqueness, and logical hash. Reports are then written. DuckDB tables are
-materialized from verified Parquet in explicit order, closed and reopened read-only,
-and validated. Only after every file hash and manifest invariant passes may publication
-begin.
+Each Parquet writer is closed, then its exact CP4-owned stage leaf is reopened and
+checked by CP3's common bounded checker against frozen schema, count, sort order,
+uniqueness, and logical hash. Those verifications/handles enter only one owner-bound
+`StagedParquetSet`, which remains live inside the marker-owned build session and feeds CP5/6
+relations, reports, and DuckDB construction. Reports/database and then the manifest are
+written from those verified observations. Once the complete declared 14-file tree
+exists, CP7 opens CP2's distinct final `VerifiedPhysicalInventory` and independently
+reruns the same checker to create new manifest-owned `VerifiedParquetTable` handles;
+stage handles are never promoted. Only after every final file hash, logical check, and
+manifest invariant passes may publication begin.
 
 ## 7. Reports and quarantine
 
@@ -1098,7 +1103,362 @@ Task 5 moves `jsonschema` and `rfc3339-validator` from dev-only availability int
 runtime dependencies because artifact and D-021 validation occur in production build
 code.
 
+Parquet verification has two deliberately non-interchangeable capability domains.
+Before reports and the manifest exist, CP4 supplies an exact `OwnedStageParquetLeaf`
+for one frozen `TableSpec`. The leaf is bound to the live marker-owned build stage and
+its retained parent/`parquet` directory descriptors; creation is relative
+`O_CREAT | O_EXCL | O_NOFOLLOW` mode `0600`, and later open/unlink operations accept
+only the exact leaf object and recorded `(st_dev, st_ino, file type, st_nlink)`.
+Substitution, a foreign/copied leaf, closed owner, existing name, symlink/hardlink, or
+owner/marker change fails closed. CP3 defines the protocol and consumes it; CP4 creates
+the production implementation and owns stage cleanup.
+
+```python
+class OwnedStageParquetLeaf(Protocol):
+    @property
+    def table_name(self) -> str: ...
+    @property
+    def relative_path(self) -> PurePosixPath: ...
+    def create_exclusive(self) -> AbstractContextManager[BinaryIO]: ...
+    def open_verified(self) -> AbstractContextManager[BinaryIO]: ...
+    def create_verification_workspace(
+        self,
+    ) -> AbstractContextManager["OwnedParquetVerificationWorkspace"]: ...
+    def assert_unchanged(self) -> None: ...
+    def unlink_if_exact_writer_owned(self) -> None: ...
+
+
+class OwnedStageArtifactOwner(Protocol):
+    @property
+    def persistence_timestamp(self) -> datetime: ...
+    def assert_live(self) -> None: ...
+    def require_owned_parquet_leaf(self, leaf: OwnedStageParquetLeaf) -> None: ...
+    def _register_staged_verification(
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+    ) -> object: ...
+    def _require_registered_staged_verification(
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+        token: object,
+    ) -> None: ...
+    def _require_registered_staged_handle(
+        self, handle: "StagedParquetHandle", token: object
+    ) -> None: ...
+    def _register_staged_set(self, value: "StagedParquetSet") -> object: ...
+    def _replace_registered_staged_set(
+        self, previous: "StagedParquetSet", value: "StagedParquetSet"
+    ) -> object: ...
+    def _require_registered_staged_set(
+        self, value: "StagedParquetSet", token: object
+    ) -> None: ...
+class ManagedUniqueKeyIndex(Protocol):
+    def insert_canonical_batch(self, keys: Sequence[bytes]) -> None: ...
+    def assert_unique(self) -> None: ...
+
+
+class OwnedParquetVerificationWorkspace(Protocol):
+    def create_unique_key_index(
+        self, *, limits: "ParquetVerificationLimits"
+    ) -> AbstractContextManager[ManagedUniqueKeyIndex]: ...
+    def assert_unchanged(self) -> None: ...
+
+
+@dataclass(frozen=True, init=False)
+class StagedParquetHandle:
+    _owner: OwnedStageArtifactOwner
+    _leaf: OwnedStageParquetLeaf
+    _verified_leaf_identity: object
+    _owner_registration_token: object
+    table_name: str
+    row_count: int
+    schema_sha256: str
+    logical_hash: str
+    physical_size_bytes: int
+    physical_sha256: str
+
+    def iter_batches(
+        self, *, batch_size: int = 65_536
+    ) -> AbstractContextManager[Iterator[pyarrow.RecordBatch]]: ...
+
+
+@dataclass(frozen=True, init=False)
+class StagedParquetVerification:
+    _owner: OwnedStageArtifactOwner
+    _owner_registration_token: object
+    logical: ExpectedLogicalTable
+    physical_size_bytes: int
+    physical_sha256: str
+    handle: StagedParquetHandle
+
+
+@dataclass(frozen=True, init=False)
+class StagedParquetSet:
+    _owner: OwnedStageArtifactOwner
+    _registration_token: object
+    verifications: tuple[StagedParquetVerification, ...]
+    handles: tuple[StagedParquetHandle, ...]
+    persistence_timestamp: datetime
+
+    @classmethod
+    def from_verified(
+        cls,
+        *,
+        owner: OwnedStageArtifactOwner,
+        verifications: tuple[StagedParquetVerification, ...],
+    ) -> "StagedParquetSet": ...
+
+    def extend_verified(
+        self,
+        *,
+        owner: OwnedStageArtifactOwner,
+        verifications: tuple[StagedParquetVerification, ...],
+    ) -> "StagedParquetSet": ...
+
+    def require_owned(self, handle: StagedParquetHandle) -> None: ...
+    def verification_for(self, table_name: str) -> StagedParquetVerification: ...
+    def table_declarations(self) -> tuple[ArtifactTable, ...]: ...
+    def require_tables(self, names: tuple[str, ...]) -> None: ...
+    def require_complete(self) -> None: ...
+    def assert_live(self) -> None: ...
+
+def verify_staged_parquet_table(
+    *, owner: OwnedStageArtifactOwner, leaf: OwnedStageParquetLeaf, spec: TableSpec
+) -> StagedParquetVerification: ...
+
+
+class VerifiedParquetTable(VerifiedTableHandle, Protocol):
+    @property
+    def entry(self) -> VerifiedPhysicalEntry: ...
+
+
+class ParquetArtifactTableVerifier(ArtifactTableVerifier):
+    def verify_tables(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        specs: tuple[TableSpecIdentity, ...],
+    ) -> TableVerificationResult: ...
+```
+
+`StagedParquetHandle` retains the exact live stage-leaf owner but deliberately has no
+`VerifiedPhysicalEntry` and cannot implement CP2 `VerifiedTableHandle` or enter
+`TableVerificationResult`. Its direct constructor is disabled. A bare tuple of handles
+is not a cross-stage capability. `StagedParquetSet` also disables direct construction;
+each staged verification/handle retains frozen physical size/SHA plus the opaque
+verification registration token issued only by the owner after the verified read. No
+leaf/public API can mint that token. The common verifier's module-private seal path
+constructs the direct-init-disabled verification and handle together, then atomically
+registers those exact two object identities with the exact owner and stores the returned
+opaque token in both. The set retains
+the ordered verification objects, not only their logical handles; `verification_for`
+revalidates the registered pair and current leaf bytes before returning facts;
+`table_declarations` returns only logical `ArtifactTable` declarations, and CP7 builds
+each physical `ArtifactFile` declaration from the corresponding revalidated
+`verification_for(name)` size/SHA. Its sole factory and extension method
+validate exact frozen table order, exact handle/verification object identities, one
+opaque nonserializable CP4 owner token by object identity, the owner's exact UTC
+persistence timestamp, every leaf through
+`owner.require_owned_parquet_leaf(...)`, and live marker/descriptor state. Every
+consumer first calls `assert_live()`, `require_tables(...)`, and `require_owned(...)`;
+the CP7 construction boundary additionally calls `require_complete()`. A copied/equal-looking
+set, `object.__new__`/equal-field forgery, superseded registered set, mixed-session
+tuple, foreign/unissued handle, reordered/duplicate table, closed owner, or owner/
+timestamp substitution fails. CP4-7 pass only this owner-bound set within one live build
+session. After all eleven Parquets and both
+reports/database have been written and the complete manifest/14-file tree exists, CP7's
+`ParquetArtifactTableVerifier` independently reopens each manifest-owned entry through
+`VerifiedPhysicalInventory.open_verified`, reruns the common checker, compares every
+fact to `ArtifactTable`, creates new final `VerifiedParquetTable` handles, and returns
+only `TableVerificationResult.from_verified(...)`. It never promotes or trusts staged
+verification facts. A final handle has no stage-leaf opener; a staged handle has no
+manifest entry. Runtime checks and typing both reject cross-domain substitution.
+
+`from_verified` registers the newly constructed exact set object with the owner and
+stores the returned opaque registration token. `extend_verified` requires the currently
+registered exact predecessor, constructs the new set, and atomically replaces the
+registration; the predecessor is thereafter superseded and rejected. `assert_live`,
+`require_owned`, `verification_for`, `table_declarations`, `require_tables`, and
+`require_complete` all call the module-private owner registration check before
+using any field. Equality, field copying, or an `object.__new__` forged instance cannot
+manufacture that object-identity registration.
+
+Both adapters call one private bounded stream checker. `pyarrow.parquet.ParquetFile`
+is constructed while the owning `open_verified()` context is live and cannot escape
+it. Every physical/logical pass uses
+`ParquetFile.iter_batches(batch_size=65_536, use_threads=False)`; an internal limits
+object permits a smaller positive batch size only in focused tests and production
+assembly fixes `65_536`. Each yielded batch and all retained state are bounded by that
+limit. The checker validates exact Arrow schema/metadata, row-group maximum, final
+count, canonical sort order, logical header/hash, and exact uniqueness.
+For a staged leaf the checker first streams size/SHA from the held descriptor, rewinds
+or duplicates at offset zero for `ParquetFile`, and after all batches independently
+re-streams size/SHA from that same descriptor before the leaf's name/owner rescan.
+`StagedParquetHandle.iter_batches` repeats those pre/post checks against its frozen
+staged physical size/SHA, verified leaf identity, and owner registration on every use;
+it stores the exact `_owner` and first requires the handle object/token registration
+before opening the leaf. The verification likewise stores that exact owner, and set
+fact lookup requires `verification._owner is set._owner` plus the registered pair.
+`StagedParquetSet.verification_for` and `table_declarations` repeat the same checks.
+Same-inode/same-size mutation during or between
+reads therefore fails. The final adapter receives the equivalent guarantee from CP2
+`inventory.open_verified` and final `assert_unchanged`; neither adapter uses a path
+precheck followed by a lexical reopen.
+
+Sort validation retains only the previous complete sort key. Exact uniqueness does
+**not** use a Python `set`, a table-sized Arrow/Polars object, or previous-key-only
+comparison. For each table it creates a unique mode-`0700`, marker-owned private
+workspace outside the artifact inventory and enters only its managed
+`create_unique_key_index(...)` context; no database/spill path or generic DuckDB
+connection escapes. The context owns exact marker/directory/key-store/spill identities,
+creates a mode-`0600` DuckDB key store, fixes `threads=1`,
+`memory_limit="1GiB"`, disables external access and extension install/load, and confines
+spill below its owned directory. An internal limits seam permits only smaller positive
+memory/batch limits in focused tests; production assembly cannot override 1 GiB/65,536.
+Static allowlisted DDL stores collision-free canonical typed unique-key bytes in bounded
+inserts and an external group/index query rejects any count greater than one, including
+equal keys in nonadjacent batches. Connection close precedes exact marker/directory/
+leaf/inode-checked cleanup and rejects directory/leaf ABA substitution;
+creation, spill, query, close, substitution, marker, or cleanup failure is a typed
+pre-publication/verification failure and never broadens deletion. Stage checks use the
+stage session's separately marker-owned scratch child; final checks use trusted OS temp.
+
+`ParquetBatchWriter` accepts an `OwnedStageParquetLeaf`, never a caller/raw `Path`.
+`close()` flushes and closes exactly once and returns no verification fact or trusted
+handle. Only a later `verify_staged_parquet_table` reopen may create staged verification.
+`abort()` may unlink only the exact inode this writer exclusively created after leaf/
+owner revalidation; a substituted, foreign, already-existing, hardlinked, or ambiguous
+leaf is retained and fails closed for CP4 cleanup. Writer output creation and all
+reopens therefore use descriptor-relative capabilities rather than lexical path checks.
+
+Serialization has two separate timestamp boundaries:
+
+```python
+def serialize_table_row(spec: TableSpec, value: object) -> Mapping[str, object]: ...
+
+def serialize_bronze_source_row(
+    spec: TableSpec,
+    value: SourceRow,
+    *,
+    persistence_timestamp: datetime,
+) -> Mapping[str, object]: ...
+```
+
+Only `serialize_bronze_source_row` accepts/injects the exact UTC persistence timestamp.
+`silver_quality_issue` accepts only the already persisted CP5 strict row and proves its
+typed/JSON timestamp agreement; every other serializer has no timestamp argument.
+Every call revalidates that `spec` is the exact closed registry member for the exact
+model/table pair. `derive_wide_columns(model_type)` has no generic `skip_fields` escape:
+it skips only `FundItem.contributing_rows` when and only when `model_type is FundItem`.
+Forged/equal-looking specs, wrong model/table pairs, subclasses, and attempts to skip
+any other field are rejected.
+
 ### 9.2 DuckDB
+
+These database-stage capabilities are implemented and owned by CP4 `staging.py`, not
+CP3 `parquet_io.py`:
+
+```python
+class OwnedStageDatabaseLeaf(Protocol):
+    @property
+    def relative_path(self) -> PurePosixPath: ...
+    def create_exclusive(self) -> AbstractContextManager[BinaryIO]: ...
+    def open_verified(self) -> AbstractContextManager[BinaryIO]: ...
+    def assert_unchanged(self) -> None: ...
+    def unlink_if_exact_writer_owned(self) -> None: ...
+
+
+class OwnedStageDatabaseOwner(OwnedStageArtifactOwner, Protocol):
+    def claim_database_leaf(self) -> OwnedStageDatabaseLeaf: ...
+    def create_database_build_workspace(
+        self,
+    ) -> AbstractContextManager["ManagedStageDatabaseBuild"]: ...
+    def require_owned_database_leaf(self, leaf: OwnedStageDatabaseLeaf) -> None: ...
+    def _register_sealed_database(
+        self, value: "SealedStageDatabase", leaf: OwnedStageDatabaseLeaf
+    ) -> tuple[object, object]: ...
+    def _require_registered_sealed_database(
+        self,
+        value: "SealedStageDatabase",
+        leaf: OwnedStageDatabaseLeaf,
+        owner_token: object,
+        leaf_token: object,
+    ) -> None: ...
+
+
+@dataclass(frozen=True, init=False)
+class SealedStageDatabase:
+    _owner: OwnedStageDatabaseOwner
+    _leaf: OwnedStageDatabaseLeaf
+    _owner_registration: object
+    _leaf_issuance_token: object
+    persistence_timestamp: datetime
+    physical_size_bytes: int
+    physical_sha256: str
+
+    def validate_against(self, owner: OwnedStageDatabaseOwner) -> None: ...
+
+
+class ManagedStageDatabaseBuild(Protocol):
+    def open_writer(self) -> AbstractContextManager[duckdb.DuckDBPyConnection]: ...
+    def checkpoint_close_and_seal(
+        self, *, leaf: OwnedStageDatabaseLeaf
+    ) -> SealedStageDatabase: ...
+```
+
+CP7 `database.py` owns this direct-construction-disabled result (it is not a CP3
+`parquet_io.py` type):
+
+```python
+@dataclass(frozen=True, init=False)
+class StagedDatabaseVerification:
+    _owner: OwnedStageDatabaseOwner
+    _sealed: SealedStageDatabase
+    _owner_registration: object
+    _leaf_issuance_token: object
+    persistence_timestamp: datetime
+    physical_size_bytes: int
+    physical_sha256: str
+
+    @classmethod
+    def from_sealed(
+        cls, *, owner: OwnedStageDatabaseOwner, sealed: SealedStageDatabase
+    ) -> "StagedDatabaseVerification": ...
+
+    def validate_against(self, owner: OwnedStageDatabaseOwner) -> None: ...
+```
+
+Database construction is two-stage because DuckDB must create/open its own valid
+database, not an empty precreated final file. CP4's owner first enters one pathless
+`ManagedStageDatabaseBuild` backed by a unique mode-`0700` marker-owned private scratch
+directory. `open_writer()` alone gives CP7 a configured connection to an internally
+owned scratch database. CP7 builds/checkpoints/closes it; the managed context then
+rejects a WAL, reopens the exact scratch leaf, and verifies identity/type/link/size/SHA.
+Only after that succeeds does `checkpoint_close_and_seal(leaf=...)` call the same
+owner's `OwnedStageDatabaseLeaf.create_exclusive()` to obtain a binary final-stage fd
+with `O_CREAT | O_EXCL | O_NOFOLLOW` mode `0600`, bounded-copy scratch bytes, `fsync`,
+close, and independently reopen/hash/rescan the final leaf. Scratch connection close
+precedes exact marker/directory/leaf cleanup. Scratch close/checkpoint/WAL/hash,
+copy/fsync/final-close, final substitution/reopen/hash, or scratch cleanup ambiguity
+blocks and deletes neither an unowned scratch entry nor final leaf. No caller sees or
+supplies a scratch/final path.
+
+After the final rescan, the manager constructs `SealedStageDatabase` only through its
+private seal path and atomically registers the exact seal/final-leaf object pair with
+the exact `OwnedStageDatabaseOwner`, storing the returned opaque owner and leaf tokens.
+No leaf or public caller can mint either token.
+
+The managed CP4 operation returns only `SealedStageDatabase`; CP7's sole
+`StagedDatabaseVerification.from_sealed(...)` factory first validates that seal, then
+stores the exact `_owner` object plus opaque owner-registration/final-leaf issuance
+tokens. `validate_against(owner)` requires `owner is self._owner`, a live registered
+seal/leaf/token, exact timestamp, inode/type/link, size, and SHA before manifest
+construction consumes those facts. A foreign/equal-looking owner or seal, copy,
+`object.__new__` forge, or token substitution fails. Abort/cleanup unlinks only the
+exact final inode created by `create_exclusive()`.
 
 Construction uses one writer connection with:
 
@@ -1109,7 +1469,9 @@ TimeZone = UTC
 ```
 
 Static allowlisted DDL creates all eleven tables with explicit column order/types.
-Verified Parquet rows are inserted with an explicit final `ORDER BY`. The builder
+During construction, rows are read only from one live `StagedParquetSet`
+and inserted with an explicit final `ORDER BY`; final CP7 equality uses only the newly
+created inventory-owned handles. The builder
 checkpoints and closes the database, requires no `.wal`, hashes the closed file, and
 reopens it read-only to validate information-schema columns, counts, uniqueness, sort
 probes, link evidence, and manifest agreement.
@@ -1274,8 +1636,10 @@ leaf through retained parents, rechecks identity/type/link, re-streams all fourt
 declared size/SHA values, reparses held `manifest.json`, requires equality with the
 bound manifest, and repeats the exact tree/ancestor inventory. Same-inode, same-size
 in-place mutation therefore fails even if no name or metadata identity changes. It
-fails after inventory close. This is the only CP3 Parquet/report/database
-reopen boundary; later code never reconstructs an absolute artifact path from a string.
+fails after inventory close. This is the only final-artifact Parquet/report/database
+reopen boundary; it becomes usable only after the complete manifest tree exists.
+Pre-manifest CP4-6 Parquet access uses the non-interchangeable stage-leaf capability in
+section 9.1. Later code never reconstructs an absolute artifact path from a string.
 
 Root-to-manifest binding is mandatory. `verify_declared_inventory` opens the supplied
 absolute root through a retained no-follow descriptor chain beginning at the filesystem
@@ -1445,8 +1809,11 @@ Any
 exception aborts immediately, closes the inventory, calls no later port, and returns
 nothing. CP2 uses synthetic stubs only to prove both orders/short-circuit behavior; its
 production assembly deliberately has all five ports set to `None`, so it cannot produce
-even the internal result. CP3 supplies the table registry/verifier, CP5/6 produce the
-report semantics and timestamp/link relation evidence, and CP7 supplies concrete
+even the internal result. CP3 supplies the table registry, common checker, staged
+adapter, and final adapter implementation; CP4-7 carry only D-025's owner-bound staged
+set before final inventory, while CP7 is the first checkpoint that can invoke the final
+adapter after manifest completion.
+CP5/6 produce the report semantics and timestamp/link relation evidence, and CP7 supplies concrete
 report/database ports plus the packaged-comparator implementation and performs the
 final relation rechecks. CP8 installs the reviewed expected bytes, activates the
 expected route, and alone wraps its result as the first public `VerifiedArtifactSet`.
@@ -1469,11 +1836,13 @@ eleven-entry frozen order, one-to-one table-name/count/schema/logical-hash equal
 between each CP1 logical entry and handle, and calls `inventory.require_owned(...)` for
 every handle entry. `validate_against(inventory)` repeats those checks immediately on
 receipt by each downstream port, including live owner identity, so a structurally
-forged/copied handle or result cannot cross a stage boundary. CP3's
+forged/copied handle or result cannot cross a stage boundary. CP3's final-only
 `VerifiedParquetTable` structurally implements
 `VerifiedTableHandle`. CP7 report/timestamp/link/database ports receive the same handles
 and can reopen typed batches only via `inventory.open_verified(handle.entry)`; no port
 reconstructs a path or trusts a second table scan unrelated to CP3's verified identity.
+The distinct `StagedParquetHandle` does not have an `entry`, cannot implement this
+protocol, and is never accepted by the kernel.
 
 The core route is not an expected-accepted/public result. CP7 exposes it only through
 the already guarded, repository-only candidate transform: the CP1 initial/second
@@ -1860,9 +2229,12 @@ reviewable checkpoints are required:
    table/report/database/expected verifier and no public trusted result.
 3. **Table specs and serializers:** exact Arrow/DuckDB schemas, wide projections,
    canonical model round trips, Decimal/date/time behavior, fixed Parquet settings,
-   the exact Bronze/quality timestamp-neutral logical projections, and the concrete
-   reopened-Parquet table-verification port. It still cannot expose a complete artifact
-   verifier.
+   the exact Bronze/quality timestamp-neutral logical projections, the common bounded
+   stream/unique checker, D-025 owner-bound staged set/verification contracts, and the
+   distinct final manifest-inventory adapter implementation. CP4 implements the
+   production owner plus Parquet/database stage leaves; CP5/6/7 consume only its live
+   set, and CP7 is the first checkpoint able to invoke the final adapter. CP3 still
+   cannot expose a complete artifact verifier.
 4. **Bronze streaming:** all three Bronze tables, bounded batches, exact row/cell/
    column reconstruction, phased source-audit observations only, and failed-stage
    isolation; it cannot construct a final report.
@@ -1931,6 +2303,12 @@ At minimum, tests prove:
   the reviewed baseline is created;
 - every table uses exact schema, type, column order, count, unique/sort key, and model
   round trip;
+- staged and final Parquet capabilities are nominally and runtime non-interchangeable:
+  staged reopen uses only CP4's exact exclusive no-follow leaf owner, while the final
+  adapter uses only CP2 inventory entries and independently recomputes every fact;
+- `ParquetFile` and its stream remain inside the owning context, batches are at most
+  65,536 with threads disabled, and a marker-owned one-thread/1-GiB spillable exact-key
+  index catches nonadjacent duplicates without a table-sized Python collection;
 - each of the bond, domestic-listed, overseas-listed, and fund-item wide tables derives
   its complete ordered columns independently from the exact model declaration and
   asserts the frozen sequence; synthetic field insertion/removal/reorder fails instead
