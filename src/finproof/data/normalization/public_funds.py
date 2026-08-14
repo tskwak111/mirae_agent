@@ -29,6 +29,7 @@ from finproof.domain.values import NormalizedValue
 
 _TABLE = "PRFD01N001"
 _RULE_VERSION = "1.0.0"
+_DUPLICATE_SOURCE_LOCATION_MESSAGE = "public-fund source row location is duplicated"
 _COLLAPSE_ISSUE_REASONS = {
     "public_fund.attribute_key.raw_duplicate": (
         "Public-fund raw item-attribute key is duplicated."
@@ -166,12 +167,17 @@ def collapse_fund_items(rows: Iterable[FundAttributeRow]) -> FundCollapseResult:
     """Collapse pre-normalized attribute rows into stable item-grain records."""
     groups: dict[str, list[FundAttributeRow]] = defaultdict(list)
     issue_order: dict[tuple[object, ...], tuple[str, str]] = {}
+    seen_source_locations: set[tuple[object, ...]] = set()
     for row in rows:
+        source_identity = _register_source_location(
+            seen_source_locations,
+            row.source_row,
+        )
         item_key = row.fund_item_id.normalized_value
         if item_key is None:
             raise ValueError("normalized public-fund row must have an item key")
         groups[item_key].append(row)
-        issue_order[_source_issue_identity(row.source_row)] = (item_key, "")
+        issue_order[source_identity] = (item_key, "")
 
     items: list[FundItem] = []
     attributes: list[FundItemAttribute] = []
@@ -197,10 +203,12 @@ def normalize_public_funds(rows: Iterable[SourceRow]) -> FundCollapseResult:
     source_groups: dict[str, list[SourceRow]] = defaultdict(list)
     issues: list[DataQualityIssue] = []
     issue_order: dict[tuple[object, ...], tuple[str, str]] = {}
+    seen_source_locations: set[tuple[object, ...]] = set()
     for row in rows:
         fund_item_id, _attribute_code_value, key_issue = _validate_fund_keys(row)
+        source_identity = _register_source_location(seen_source_locations, row)
         normalized_item_key = fund_item_id.normalized_value
-        issue_order[_source_issue_identity(row)] = (
+        issue_order[source_identity] = (
             normalized_item_key or "",
             "" if normalized_item_key is not None else row.cell("itm_no").raw_value,
         )
@@ -416,8 +424,15 @@ def _collapse_issue_local_sort_key(
     )
 
 
-def _source_issue_identity(row: SourceRow) -> tuple[object, ...]:
-    return (row.source_file, row.source_sheet, row.source_row_number)
+def _register_source_location(
+    seen: set[tuple[object, ...]],
+    row: SourceRow,
+) -> tuple[object, ...]:
+    identity = (row.source_file, row.source_sheet, row.source_row_number)
+    if identity in seen:
+        raise ValueError(_DUPLICATE_SOURCE_LOCATION_MESSAGE)
+    seen.add(identity)
+    return identity
 
 
 def _ordered_issues(

@@ -688,3 +688,72 @@ def test_authoritative_path_propagates_iterator_failure_without_partial_result()
 
     with pytest.raises(RuntimeError, match="synthetic iterator failure"):
         normalize_public_funds(failing_rows())
+
+
+_DUPLICATE_SOURCE_LOCATION_MESSAGE = "public-fund source row location is duplicated"
+
+
+def test_authoritative_rejects_duplicate_location_before_issue_metadata_overwrite() -> None:
+    """A malformed and warning row cannot overwrite one location's issue sort key."""
+    malformed = source_row(
+        "PRFD01N001",
+        {"itm_no": '"', "prfd_attr_cd": "해외"},
+        excel_row=77,
+    )
+    warning = source_row(
+        "PRFD01N001",
+        {"itm_no": "KR5114601001", "prfd_attr_cd": "A101", "or_attr_desc": "06"},
+        excel_row=77,
+    )
+    other_warning = source_row(
+        "PRFD01N001",
+        {
+            "itm_no": "KR5114601000",
+            "prfd_attr_cd": "A101",
+            "fd_mm18_ern_r": "-100.01",
+        },
+        excel_row=50,
+    )
+
+    for order in (
+        (malformed, warning, other_warning),
+        (warning, malformed, other_warning),
+    ):
+        with pytest.raises(ValueError, match=_DUPLICATE_SOURCE_LOCATION_MESSAGE):
+            normalize_public_funds(order)
+
+
+def test_authoritative_rejects_identical_source_row_repetition() -> None:
+    """Repeating the same immutable object is still a duplicate source location."""
+    row = source_row("PRFD01N001", excel_row=7)
+
+    with pytest.raises(ValueError, match=_DUPLICATE_SOURCE_LOCATION_MESSAGE):
+        normalize_public_funds((row, row))
+
+
+def test_standalone_collapse_rejects_identical_normalized_row_repetition() -> None:
+    """Standalone collapse applies the same location uniqueness contract."""
+    row = _normalized(source_row("PRFD01N001", excel_row=7))[0]
+
+    with pytest.raises(ValueError, match=_DUPLICATE_SOURCE_LOCATION_MESSAGE):
+        collapse_fund_items((row, row))
+
+
+def test_standalone_collapse_rejects_distinct_content_at_one_location_in_any_order() -> None:
+    """Different normalized content cannot share one file, sheet, and Excel row."""
+    first, second = _normalized(
+        source_row(
+            "PRFD01N001",
+            {"itm_no": "KR5114601001", "prfd_attr_cd": "A101"},
+            excel_row=7,
+        ),
+        source_row(
+            "PRFD01N001",
+            {"itm_no": "KR5114601002", "prfd_attr_cd": "B101"},
+            excel_row=7,
+        ),
+    )
+
+    for order in ((first, second), (second, first)):
+        with pytest.raises(ValueError, match=_DUPLICATE_SOURCE_LOCATION_MESSAGE):
+            collapse_fund_items(order)
