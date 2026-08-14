@@ -954,15 +954,31 @@ Observed completion evidence on 2026-08-15:
 
 ### Checkpoint 3: Frozen table specs, strict projections, and bounded Parquet I/O
 
+**Clean-redo execution boundary (2026-08-15):** execute this checkpoint from exact
+base `d983f1a`. Commit `065f68a` and the dirty worktree
+`/Users/ss020/Dev/Mirae_Agent/.worktrees/phase1-task5-artifact-build-fifth` are
+reference-only review evidence: prove `065f68a` is not an ancestor of the redo branch,
+and do not cherry-pick it or copy its production/test files wholesale. The selector
+sequence below supersedes that attempt's incomplete TDD evidence. Exactly six selectors
+are labeled derived first-GREEN acceptances: exact-signature/Fund derivation,
+frozen-spec hash metamorphism, serializer fingerprint integration, quality-specific
+duplicate integration, common-checker canonical-JSON integration, and writer/verifier
+fingerprint integration. Every other behavior selector, including every substantive
+review-gap selector added below, is a mandatory newly observed RED on the clean-redo
+lineage. Never alter production code or manufacture a failure to turn one of those six
+derived acceptances into RED evidence.
+
 **Files:**
 
 - Create: `src/finproof/data/artifacts/table_specs.py`
 - Create: `src/finproof/data/artifacts/serialization.py`
 - Create: `src/finproof/data/artifacts/parquet_io.py`
 - Modify: `src/finproof/data/artifacts/hashing.py`
+- Modify: `src/finproof/data/artifacts/manifest.py`
 - Create: `tests/unit/data/artifacts/test_table_specs.py`
 - Create: `tests/unit/data/artifacts/test_serialization.py`
 - Create: `tests/unit/data/artifacts/test_parquet_io.py`
+- Modify: `tests/unit/data/artifacts/test_manifest.py`
 - Create: `tests/integration/__init__.py`
 - Create: `tests/integration/artifacts/__init__.py`
 - Create: `tests/integration/artifacts/test_parquet_verification.py`
@@ -1030,9 +1046,11 @@ Observed completion evidence on 2026-08-15:
   common checker after the complete manifest tree exists, compares every fact with
   `ArtifactTable`, and returns
   `TableVerificationResult.from_verified(inventory=inventory, tables=..., handles=...)`.
-  A staged handle has no final entry and cannot be cast/promoted into this result. CP3
-  implements/tests the adapter with a complete synthetic 14-file tree but does not wire
-  the kernel; CP7 is the first production invocation.
+  The inventory alone issues/registers each exact final handle object, and the result
+  factory requires those exact live registered objects. A staged handle has no final
+  entry and cannot be cast/promoted into this result. CP3 implements/tests the adapter
+  with a complete synthetic 14-file tree but does not wire the kernel; CP7 is the first
+  production invocation.
 
 - [ ] **Step 1: Close exact table-spec behaviors through strict serial selectors**
 
@@ -1050,9 +1068,11 @@ test_bond_wide_spec_matches_independent_model_derivation
 test_domestic_wide_spec_matches_independent_model_derivation
 test_overseas_wide_spec_matches_independent_model_derivation
 test_fund_item_wide_spec_matches_independent_model_derivation
-test_derive_wide_columns_has_only_closed_fund_contributing_rows_skip
+test_derive_wide_columns_exact_signature_and_fund_contributing_rows_absence
+test_derive_wide_columns_rejects_foreign_unregistered_and_subclass_models
 test_model_drift_guard_rejects_insert_remove_and_reorder
 test_registry_rejects_forged_equal_spec_and_wrong_model_pair
+test_registered_spec_fingerprint_rejects_every_scalar_key_and_nested_column_mutation
 ```
 
 The first missing-import RED permits only importable `ColumnSpec`, `TableSpec`, and an
@@ -1061,6 +1081,15 @@ fixture RED before implementing names. Each explicit/wide selector implements on
 named table family. The drift selector is one coherent parameter family only when all
 insert/remove/reorder IDs reach their intended rejection in the same run. No later
 selector may be authored from the first module-missing failure.
+
+The exact-signature/Fund selector is a **derived first-GREEN acceptance**, not RED
+evidence: inspect the exact one-positional-argument signature, prove only exact
+`FundItem.contributing_rows` is absent, and prove every other declared field remains.
+Only after that acceptance is recorded, author the separate mandatory behavioral RED
+for a foreign `BaseModel`, an unregistered model, and subclasses of each registered
+model. Require every parameter ID to reach admission by the permissive exact-one-arg
+helper before adding the smallest closed-registry identity guard. A first-GREEN
+signature assertion cannot authorize or be cited for this admission behavior.
 
 Assert the table order is exactly:
 
@@ -1080,9 +1109,12 @@ EXPECTED_TABLES = (
 )
 ```
 
-For every explicit Bronze/fund-attribute/quality/Gold table, assert the exact column order, nullability, Arrow/DuckDB types, key, grain, and Parquet path from Sections 5.1-5.3 and 5.8-5.11. For each wide table, independently derive its expected sequence from the frozen domain model declaration and assert it equals the hard-coded reviewed `TableSpec`; never generate the production spec at runtime from the same helper used by the test.
+For every explicit Bronze/fund-attribute/quality/Gold table, assert the exact column order, nullability, Arrow/DuckDB types, key, grain, and Parquet path from Sections 5.1-5.3 and 5.8-5.11. In particular,
+`silver_quality_issue.unique_key == ("issue_id",)` while its full source-location sort
+key remains unchanged; the unique key is not the sort key. For each wide table,
+independently derive its expected sequence from the frozen domain model declaration and assert it equals the hard-coded reviewed `TableSpec`; never generate the production spec at runtime from the same helper used by the test.
 
-Add synthetic Pydantic models with one inserted, removed, and reordered field and prove `assert_model_matches_frozen_spec(...)` rejects each. Exact model-to-table registration rejects subclasses, wrong model/table pairs, and structurally equal copied specs. After all behavior selectors are GREEN, add `test_frozen_spec_hash_metamorphisms` as a labeled first-GREEN acceptance: changing only `layer` or `parquet_path` leaves `schema_sha256` unchanged, while name/grain/column/type/nullability/unique/sort changes it. CP2 already RED-drove the generic hash projection; do not manufacture another failure.
+Add synthetic Pydantic models with one inserted, removed, and reordered field and prove `assert_model_matches_frozen_spec(...)` rejects each. Exact model-to-table registration rejects subclasses, wrong model/table pairs, and structurally equal copied specs. At registry construction, capture a deeply immutable canonical fingerprint for each exact `TableSpec` and all nested `ColumnSpec` values. The final mutation family must use `object.__setattr__` to mutate, one reached ID at a time, every table scalar/key field (`table_name`, `layer`, `grain`, `parquet_path`, `columns`, `unique_key`, `sort_key`, and `logical_projection`) and every nested column field (`name`, `logical_type`, `arrow_type`, `duckdb_type`, and `nullable`), and prove identity-only registration is RED before the fingerprint check makes all IDs GREEN. Restore the canonical object in a `finally` block so no case masks the next. `table_spec(...)`, `require_registered_spec(...)`, and every later serializer/writer/verifier boundary must compare both exact identity and this canonical fingerprint. After all behavior selectors are GREEN, add `test_frozen_spec_hash_metamorphisms` as a labeled first-GREEN acceptance: changing only `layer` or `parquet_path` leaves `schema_sha256` unchanged, while name/grain/column/type/nullability/unique/sort changes it. CP2 already RED-drove the generic hash projection; do not manufacture another failure.
 
 Run:
 
@@ -1092,7 +1124,9 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 ```
 
 Expected aggregate GREEN only after every recorded selector RED/GREEN and the derived
-hash acceptance. This grouped command is never module/behavior RED evidence.
+hash acceptance. Record exactly 13 mandatory RED/GREEN selectors plus the two derived
+first-GREEN acceptances (exact-signature/Fund derivation and hash metamorphisms) for
+Step 1. This grouped command is never module/behavior RED evidence.
 
 - [ ] **Step 2: Implement the closed type/spec registry and model-drift guard**
 
@@ -1127,16 +1161,44 @@ test_bronze_source_row_alone_accepts_and_injects_persistence_timestamp
 test_persisted_quality_requires_typed_json_timestamp_agreement
 test_non_bronze_serializers_expose_no_persistence_timestamp_parameter
 test_decimal_date_local_datetime_enum_null_and_utc_encoding
-test_serialization_rejects_nonfinite_overflow_scale_loss_and_noncanonical_json
+test_serialization_rejects_aware_source_local_and_nonexact_utc_timestamps
+test_explicit_gold_decimal_rejects_decimal_38_18_integer_and_fractional_overflow
+test_serialization_rejects_nonfinite_overflow_and_scale_loss
+test_logical_projection_rejects_noncanonical_record_json
 test_serialization_revalidates_exact_registered_spec_and_model_pair
+test_serialization_rejects_mutated_registered_spec_fingerprint
 ```
 
 The skeleton implements only names with raising bodies. Each model selector adds only
 that exact model/table projection. The non-Bronze timestamp selector inspects/calls the
 closed signatures and must fail before the generic timestamp parameter is removed; it
 does not rely only on mypy. The forged-spec selector supplies equal-looking copies,
-subclasses, wrong model/table pairs, and a mutated registry member, and every ID must
-reach the same intended exact-identity rejection.
+subclasses, and wrong model/table pairs only, and every ID must reach the same intended
+exact-identity rejection. It does not mutate a registered object; the Step 1 fingerprint
+family exclusively owns that behavior's RED.
+
+Treat the physical scalar boundary as exact, not coercive. A source-local
+`timestamp[us]` accepts an exact naive `datetime` only and rejects aware values. A UTC
+`timestamp[us, UTC]` accepts an exact timezone-aware `datetime` whose offset is zero and
+rejects naive values, nonzero offsets, strings, and non-datetime values. Exact integer
+columns reject `bool`; exact date columns reject `datetime`; string and Boolean columns
+accept only their exact Python scalar types; null is accepted only when the frozen
+column is nullable. Exercise every frozen physical type, not merely representative
+wide-table columns. Gold confidence is finite exact `Decimal(38,18)`: reject more than
+20 integer digits or more than 18 fractional digits, including `Decimal("1e20")` and
+`Decimal("1e-19")`, without rounding or text coercion.
+
+The noncanonical-JSON selector supplies otherwise physically valid rows whose
+`record_json` has changed key order/spacing, a mismatched typed leaf, an omitted or
+extra model leaf, or a representation that parses but is not the exact canonical JSON
+of the registered model. Require all IDs to RED at the logical-projection boundary,
+then strict-parse through the exact registered model, rebuild canonical JSON, and
+compare exact bytes before hashing or returning a logical row. The final fingerprint
+selector repeats representative canonical registered `TableSpec` and nested
+`ColumnSpec` mutations after Step 1 is GREEN and is a **derived first-GREEN integration
+acceptance**. It proves the serializer reaches the already-RED-driven canonical
+fingerprint guard; do not change production code or manufacture a serializer-specific
+failure for this selector.
 
 Using current complete SourceRow helpers, normalize one bond, domestic-listed, overseas, and two-row fund item. For every model field, assert:
 
@@ -1148,7 +1210,7 @@ assert round_tripped == record
 assert row["record_json"] == payload
 ```
 
-Then assert each wide scalar and quality/as-of field equals its exact wrapper. Add explicit fund assertions that the projected scalar is `item.ksd_id.representative.normalized_value`, the quality is `item.ksd_id.representative.quality_status.value`, and every `equivalent_sources` plus `contributing_rows` survives only in parsed `record_json`. Add raw/padded attribute-code, source-local datetime-without-timezone, Decimal scale-preservation in `record_json`, null scalar, enum string, and UTC terminal-`Z` cases. Reject NaN/Infinity, Decimal overflow/scale loss, mismatched spec/model, and noncanonical model JSON.
+Then assert each wide scalar and quality/as-of field equals its exact wrapper. Add explicit fund assertions that the projected scalar is `item.ksd_id.representative.normalized_value`, the quality is `item.ksd_id.representative.quality_status.value`, and every `equivalent_sources` plus `contributing_rows` survives only in parsed `record_json`. Add raw/padded attribute-code, source-local datetime-without-timezone, Decimal scale-preservation in `record_json`, null scalar, enum string, and UTC terminal-`Z` cases. Reject NaN/Infinity, Decimal overflow/scale loss, mismatched spec/model, and noncanonical model JSON through the separate selectors above.
 
 For `bronze_source_row`, call only `serialize_bronze_source_row` and prove the typed
 physical `loaded_at` is the injected UTC value while its logical projection is null.
@@ -1157,12 +1219,22 @@ CP5 strict row; prove typed/strict JSON timestamps agree physically and both bec
 only through strict model reconstruction for logical hashing. Every other model has no
 timestamp parameter and rejects one at Python call binding.
 
-Expected: every named behavior records its own RED/GREEN; no grouped import failure
-masks a later model, timestamp, numeric, or forged-spec branch.
+Expected: every mandatory named behavior records its own RED/GREEN; no grouped import
+failure masks a later model, timestamp, numeric, or forged-spec branch. Record exactly
+15 mandatory RED/GREEN selectors plus one derived first-GREEN fingerprint-integration
+acceptance for Step 3; do not count that acceptance as RED evidence.
 
 - [ ] **Step 4: Implement canonical strict-model JSON and typed row serializers**
 
 Use `model.model_dump(mode="json")` followed only by sorted keys, compact separators, UTF-8, and JSON escaping. Do not pass payload leaves through `canonical_scalar`. Parse the resulting JSON back through the exact model in tests. Convert wide wrapper values according to `ColumnSpec`; reject any conversion that changes Decimal value/scale beyond `DECIMAL(38,18)` or adds a timezone to a source-local timestamp.
+
+Validate exact Python physical types before Arrow construction: no Pydantic/Arrow
+coercion may establish the contract. Enforce the `Decimal(38,18)` 20-integer/18-scale
+bounds by exact Decimal tuple/value inspection. Require exact UTC offset zero for UTC
+operational values and exact naivety for source-local timestamps. Re-run the registered
+spec's canonical deep fingerprint immediately before each serialization/projection;
+Pydantic `frozen=True` and object identity alone are insufficient against
+`object.__setattr__` mutation.
 
 For quality rows, `serialize_table_row` accepts only an already-persisted strict issue
 with a non-null UTC `first_detected_at`, emits its physical typed/JSON values, and
@@ -1183,16 +1255,28 @@ tests/unit/data/artifacts/test_parquet_io.py::test_parquet_module_skeleton_rejec
 tests/unit/data/artifacts/test_parquet_io.py::test_writer_creates_only_exact_owned_leaf_exclusively_nofollow
 tests/unit/data/artifacts/test_parquet_io.py::test_writer_uses_exact_schema_options_and_row_group_limit
 tests/unit/data/artifacts/test_parquet_io.py::test_writer_enforces_bounded_batches_without_early_logical_hash
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_snapshots_lying_length_and_mutating_sequence_once_with_65537_cap
 tests/unit/data/artifacts/test_parquet_io.py::test_writer_close_flush_failure_and_reuse_lifecycle
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_leaf_enter_failure_is_typed_and_never_writes
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_leaf_exit_failure_is_typed_and_preserves_ambiguous_leaf
 tests/unit/data/artifacts/test_parquet_io.py::test_writer_abort_unlinks_only_exact_writer_created_inode
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_abort_close_exit_and_unlink_faults_are_typed_and_ordered
 tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_keeps_stream_and_parquetfile_inside_owned_context
 tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_checks_exact_schema_metadata_row_groups_and_count
+tests/integration/artifacts/test_parquet_verification.py::test_reopened_rows_enforce_every_exact_physical_type
 tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_hashes_known_count_header_before_bounded_rows
 tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_checks_canonical_sort_with_previous_key_only
 tests/integration/artifacts/test_parquet_verification.py::test_bounded_unique_index_rejects_nonadjacent_duplicate_beyond_two_batches
+tests/integration/artifacts/test_parquet_verification.py::test_quality_issue_unique_index_rejects_same_issue_id_at_nonadjacent_sorted_locations
 tests/integration/artifacts/test_parquet_verification.py::test_staged_unique_index_is_managed_pathless_spillable_and_exact_owned
 tests/integration/artifacts/test_parquet_verification.py::test_final_unique_index_is_managed_pathless_spillable_and_exact_owned
-tests/integration/artifacts/test_parquet_verification.py::test_unique_index_closes_before_cleanup_and_rejects_aba_or_ambiguity
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_disables_external_access_install_and_autoload
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_preserves_external_symlink_victim_bytes_and_mode
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_revalidates_exact_modes_marker_bytes_and_every_identity
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_closes_before_cleanup_and_rejects_aba_or_ambiguity
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_setup_and_close_failures_are_typed_and_retained
+tests/integration/artifacts/test_parquet_verification.py::test_common_checker_rejects_noncanonical_record_json
+tests/integration/artifacts/test_parquet_verification.py::test_writer_and_verifier_reject_mutated_registered_spec_fingerprint
 tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_detects_logical_mutation_but_ignores_physical_reencoding
 tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_rejects_unissued_facts_and_forged_registration_token
 tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_atomically_registers_exact_verification_and_handle_objects
@@ -1203,21 +1287,27 @@ tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_det
 tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_detects_same_inode_same_size_mutation_between_reads
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_skeleton_rejects_valid_verified_fixture
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_factory_binds_owner_timestamp_and_exact_verifications
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_naive_nonzero_offset_and_non_datetime_timestamp
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_extension_supersedes_predecessor_and_preserves_frozen_order
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_reordered_and_duplicate_verified_tables
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_require_methods_revalidate_registration_and_verified_facts
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_copy_object_new_equal_forge_and_mixed_owner
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_rejects_closed_or_substituted_owner_and_leaf
 tests/integration/artifacts/test_parquet_verification.py::test_staged_set_manifest_declarations_revalidate_physical_facts
 tests/integration/artifacts/test_parquet_verification.py::test_final_adapter_requires_complete_manifest_inventory_and_declared_entry
 tests/integration/artifacts/test_parquet_verification.py::test_final_adapter_independently_rechecks_all_facts_and_returns_inventory_owned_result
-tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_cannot_enter_final_table_verification_result
+tests/integration/artifacts/test_parquet_verification.py::test_complete_final_result_requires_inventory_issued_registered_exact_handle_objects
 ```
 
 The first selector permits only exact protocols/types and raising bodies. Every later
-selector is authored after its predecessor is GREEN. Writer schema, bounds, lifecycle,
-abort, reopen metadata, hash, sort, uniqueness, ownership, and final transition are
-independent behaviors; a missing module or the first bad parameter cannot stand in for
-their REDs.
+selector is authored after its predecessor is GREEN. Three Step 5 selectors are
+explicit derived first-GREEN integration acceptances rather than new behavior REDs:
+`test_quality_issue_unique_index_rejects_same_issue_id_at_nonadjacent_sorted_locations`,
+`test_common_checker_rejects_noncanonical_record_json`, and
+`test_writer_and_verifier_reject_mutated_registered_spec_fingerprint`. All other Step 5
+selectors are mandatory RED/GREEN. Writer schema, bounds, lifecycle, abort, reopen
+metadata, hash, sort, uniqueness, ownership, and final transition are independent
+behaviors; a missing module or the first bad parameter cannot stand in for their REDs.
 
 Use a test-only internal limit of two, write two batches through an exact test
 `OwnedStageParquetLeaf`, close, and assert `close() is None`: closing never creates a
@@ -1227,6 +1317,22 @@ and values. Include all-null Decimal/date/local-time/UTC/bool columns. Assert ov
 rows, wrong/missing/extra columns, incompatible Decimal, write/flush/close failure, and
 reuse-after-close fail typed. The writer neither counts/hash-verifies by reopening nor
 attempts a final logical hash before close.
+
+`write_batch` never trusts `len()` and never iterates caller rows twice. Consume the
+outer iterable exactly once into a bounded ordinary snapshot, stop after at most 65,537
+items, reject empty or more than 65,536, then validate and write that same snapshot.
+The dedicated mandatory RED family uses a lying-`len` sequence, a sequence whose first
+iteration yields one row and any later iteration yields two, a one-pass iterator, and
+exact 65,536/65,537 boundaries; assert the caller iterator count and that no second
+caller access can alter the written batch.
+
+All capability/context lifecycle failures are typed
+`ArtifactContractError(SERIALIZATION_FAILED)`: failure entering
+`leaf.create_exclusive()`, Parquet writer create/write/close, sink `__exit__`, and abort
+close/exit/unlink. Exercise them as the separate selectors above. Close the Parquet
+writer and sink before exact-inode unlink; if close/exit makes ownership ambiguous,
+retain the leaf and fail closed rather than attempting unsafe cleanup. No error leaks a
+raw `OSError`, permits reuse, or lets `abort()` delete a substituted inode.
 
 The staged handle's context-managed `iter_batches(batch_size=2)` test holds the leaf
 stream and `ParquetFile` live until iterator/context exit, observes `use_threads=False`,
@@ -1258,6 +1364,14 @@ facts and pair every table with `verification_for(name)` to revalidate physical 
 SHA before producing CP7's separate table/file manifest entries; between-verification
 physical mutation must fail rather than emit either declaration.
 
+The set's persistence timestamp must be an exact `datetime`, timezone-aware with UTC
+offset zero, and exactly equal to the live owner's timestamp. The dedicated family
+must reach naive, nonzero-offset, string, and non-datetime IDs before the exact validator
+is added. Revalidate this timestamp at factory, extension, and every live consumer
+method. The explicit reorder/duplicate selector must reach those domain branches with
+otherwise live, same-owner registered handles; a prior length, copy, or foreign-owner
+failure cannot mask them.
+
 For exact uniqueness, choose a frozen table whose `unique_key` is not the sort-key
 prefix (quality `issue_id`), place the duplicate in batch 1 and after more than two full
 test batches while maintaining valid sort order, and require rejection. Sentinels fail
@@ -1271,12 +1385,59 @@ create, insert, query, close, marker/directory/store/spill substitution, ABA rep
 and cleanup. Every failure closes before exact cleanup and never deletes an ambiguous
 workspace or leaf.
 
+The quality duplicate fixture must use two distinct, canonically sorted source rows
+with the same `issue_id`, including a nonadjacent placement after more than two batches;
+it proves the exact one-column unique key rather than a full-sort-key surrogate. This
+selector is authored only after Step 1 froze `unique_key == ("issue_id",)` and the
+generic bounded unique-index selector drove nonadjacent duplicate rejection; it must be
+recorded as first-GREEN integration acceptance with no production change. The managed
+uniqueness implementation must never call `duckdb.connect`, `chmod`, or open a
+caller/mutable filesystem path before exclusive no-follow ownership is established.
+Use a pathless database or an owner-created exclusive leaf/capability. The private root
+is exact mode `0700`, marker/store leaves exact mode `0600`, and spill directories exact
+mode `0700`; retain and revalidate every dev/inode/type/link/mode identity plus exact
+marker bytes and marker SHA before cleanup. Same-inode marker-byte mutation, chmod,
+component/leaf ABA replacement, symlink substitution, and a symlink to an external
+victim must reject while preserving the victim's bytes and mode.
+
+Configure DuckDB through supported configuration/SQL so external access,
+`allow_unsigned_extensions`, `autoinstall_known_extensions`, and
+`autoload_known_extensions` are disabled; neither `INSTALL` nor `LOAD` may succeed.
+Temp-root, marker, store, and spill setup failures are typed. A connection-close failure
+makes cleanup ambiguous: record the retained workspace, prevent any outer/finally
+cleanup from deleting it, and raise only after attempting the exact close-before-clean
+order. Successful cleanup enumerates only registered owned leaves, revalidates them,
+removes them in fixed order, and removes the marker last.
+
+Likewise, the common-checker canonical-JSON selector is authored only after Step 3's
+`test_logical_projection_rejects_noncanonical_record_json` is GREEN, and the
+writer/verifier fingerprint selector is authored only after Step 1's mutation family
+and Step 3's serializer integration acceptance are GREEN. Both must pass on first run
+through the already-driven shared boundaries. Record them as derived integration
+acceptances and make no production change; deliberately bypassing the shared guard to
+obtain RED is prohibited.
+
 The final adapter fixture is a complete CP2-valid root with `manifest.json`, eleven
 Parquets, two reports, DuckDB, and no extras. It opens each exact manifest entry through
 the live CP2 inventory, reruns the common checker rather than copying staged facts,
 compares schema/count/sort/unique/logical/physical declarations, and creates final
 handles only through the CP2 result factory. Missing report/database/manifest, partial
 tree, staged handle, foreign entry, and declared mismatch all fail before a result.
+
+The final mandatory RED is one complete-eleven-table parameter family, authored before
+the final registration implementation. It first proves the verifier can create the
+real control handles, then requires the live final inventory to be the sole issuer and
+registrar of each exact `VerifiedParquetTable` object after the common checker succeeds.
+`TableVerificationResult.from_verified(...)` must call back into that inventory to
+require every exact registered object, not merely compare its entry and public facts.
+The reached invalid IDs are a `copy.copy` final handle, an `object.__new__` final handle
+with injected matching facts, a real staged handle with an injected final `entry`, a
+copied staged handle, and a relabeled staged handle. All invalid IDs must be observed
+accepted in the RED run; tuple-length validation cannot mask them. Add only the
+inventory issuer/register/require-exact-object mechanism and result-factory call for
+GREEN. Staged and final handles remain runtime- and typing-noninterchangeable under
+D-025; slots alone are not the trust boundary. Extend CP2's manifest contract test with
+the same complete-result exact-object requirement so later adapters cannot regress it.
 
 Run:
 
@@ -1287,8 +1448,13 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/integration/artifacts/test_parquet_verification.py -q
 ```
 
-Expected aggregate GREEN only after every selector's own RED/GREEN. This grouped command
-is never evidence for the individual writer/reopen/uniqueness/ownership behaviors.
+Expected aggregate GREEN only after every mandatory selector's RED/GREEN and every
+derived acceptance's observed first-GREEN. This grouped command is never evidence for
+the individual writer/reopen/uniqueness/ownership behaviors. Record exactly 43
+mandatory RED/GREEN selectors plus the three derived first-GREEN integration
+acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 71 mandatory
+RED/GREEN selectors and six explicitly derived first-GREEN acceptances; report the two
+categories separately and never inflate the RED count with an acceptance.
 
 - [ ] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
 
@@ -1330,6 +1496,7 @@ Run:
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_hashing.py \
+  tests/unit/data/artifacts/test_manifest.py \
   tests/unit/data/artifacts/test_table_specs.py \
   tests/unit/data/artifacts/test_serialization.py \
   tests/unit/data/artifacts/test_parquet_io.py \
@@ -1356,6 +1523,7 @@ or name CP4 as next yet. Then run all gates on the exact implementation tree:
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_hashing.py \
+  tests/unit/data/artifacts/test_manifest.py \
   tests/unit/data/artifacts/test_table_specs.py \
   tests/unit/data/artifacts/test_serialization.py \
   tests/unit/data/artifacts/test_parquet_io.py \
@@ -1386,18 +1554,21 @@ Required observations: full suite and all focused/static gates pass; source audi
 145,393 at `2026-07-11`; handoff stays 61/9/41,384,928; catalog stays 207; both expected
 contract paths and runtime `artifacts/` remain absent; writable-source output is empty.
 Before commit, `git diff --name-only` contains exactly the CP3 file map and
-`docs/implementation/STATUS.md`: no `manifest.py`, config, schema, source material, or
-later-checkpoint module. Formatting/pre-commit may make only mechanical changes inside
-that exact list and must be rerun if they do.
+`docs/implementation/STATUS.md`: the only CP2-owned source file admitted is
+`manifest.py` for final-handle issuance/registration enforcement; there is no config,
+schema, source material, or later-checkpoint module. Formatting/pre-commit may make
+only mechanical changes inside that exact list and must be rerun if they do.
 
 Commit only:
 
 ```bash
 git add src/finproof/data/artifacts/hashing.py \
+  src/finproof/data/artifacts/manifest.py \
   src/finproof/data/artifacts/table_specs.py \
   src/finproof/data/artifacts/serialization.py \
   src/finproof/data/artifacts/parquet_io.py \
   tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_manifest.py \
   tests/unit/data/artifacts/test_table_specs.py \
   tests/unit/data/artifacts/test_serialization.py \
   tests/unit/data/artifacts/test_parquet_io.py \
@@ -1413,9 +1584,12 @@ Expected post-commit status is empty. Dispatch a fresh reviewer against the comm
 Review must enumerate all table columns independently, test model insertion/removal/
 reorder and forged pairs, verify fund representative/record-only lineage, inspect exact
 Decimal/timestamp APIs, attack exclusive leaf/abort/substitution boundaries, prove
-stage/final capabilities cannot cross, force a nonadjacent duplicate beyond two batches
-with spill/cleanup faults, inspect stream lifetime and `use_threads=False`, and confirm
-no table-sized collection. Require 0 Critical / 0 Important. Any correction begins with
+stage/final capabilities cannot cross even in a complete eleven-table result, attack
+copied/object-new/injected handles against final-inventory object registration, force a
+nonadjacent quality `issue_id` duplicate beyond two batches with spill/cleanup faults,
+mutate every registered spec/nested-column field, inspect stream lifetime and
+`use_threads=False`, and confirm one-pass 65,537-bounded ingestion with no table-sized
+collection. Require 0 Critical / 0 Important. Any correction begins with
 one focused observed RED, gets a separate `fix: close Task 5 checkpoint 3 review gaps`
 commit, reruns the complete Step 8 gates, and receives another independent 0/0 review.
 
