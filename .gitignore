@@ -40,7 +40,9 @@ htmlcov/
 /tmp/
 *.tmp
 
-# Rebuildable large data artifacts; manifests and reports remain trackable
-/artifacts/parquet/
-/artifacts/*.duckdb
-/artifacts/*.duckdb.wal
+# Rebuildable artifact outputs and publication-state siblings
+/artifacts/
+/.artifacts.finproof-build.lock
+/.artifacts.finproof-stage-*
+/.artifacts.finproof-backup-*
+/.artifacts.finproof-cleanup-*

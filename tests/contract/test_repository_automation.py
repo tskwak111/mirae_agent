@@ -24,6 +24,26 @@ def test_environment_example_loads_without_secrets(
     assert "API_KEY" not in example
 
 
+def test_artifact_paths_are_names_only_and_runtime_outputs_are_ignored() -> None:
+    example = (ROOT / ".env.example").read_text(encoding="utf-8")
+    assert "FINPROOF_REPOSITORY_ROOT=." in example
+    assert "FINPROOF_SOURCE_ROOT=source_material" in example
+    assert "FINPROOF_ARTIFACT_BUILD_CONFIG_PATH=config/artifact_build.yaml" in example
+    assert (
+        "FINPROOF_EXPECTED_ARTIFACT_CONTRACT_PATH=config/expected_phase1_artifacts.json" in example
+    )
+    assert "not auto-loaded" in example
+    assert "source/export" in example
+
+    ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert "/artifacts/" in ignored
+    assert "/.artifacts.finproof-build.lock" in ignored
+    assert "/.artifacts.finproof-stage-*" in ignored
+    assert "/.artifacts.finproof-backup-*" in ignored
+    assert "/.artifacts.finproof-cleanup-*" in ignored
+    assert "config/expected_phase1_artifacts.json" not in ignored
+
+
 def test_pre_commit_configuration_pins_ruff() -> None:
     configuration = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
 

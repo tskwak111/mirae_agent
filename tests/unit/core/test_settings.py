@@ -12,7 +12,9 @@ def test_settings_use_frozen_evaluation_defaults(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     settings = Settings(
-        data_dir=tmp_path / "source",
+        repository_root=tmp_path,
+        source_root=tmp_path / "source",
+        data_dir=tmp_path / "source/data",
         artifact_dir=tmp_path / "artifacts",
         database_path=tmp_path / "artifacts/finproof.duckdb",
     )
