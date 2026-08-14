@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, official acceptance,
-independent whole-branch review, final reviewed-tree gate, and local fast-forward are
-verified; Phase 1 Task 5 design/implementation remains incomplete.
+**Last updated:** 2026-08-14 — Phase 1 Task 4 is integrated; the Phase 1 Task 5
+artifact-build design and eight-checkpoint implementation plan are independently
+approved, and Task 5 production implementation has not started.
 
 ## Frozen baseline
 
@@ -60,20 +60,22 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5: freeze and implement the reproducible Parquet/DuckDB artifact
-contract, inject quality persistence time, and create exact identifier links.** Task 4
-is already integrated locally. Keep Task 5 and the Phase 1 gate unchecked until the
-artifact design/plan, implementation, reproduction evidence, and independent review
-exist.
+**Phase 1 Task 5 Checkpoint 1: implement artifact-build foundations under focused
+RED-GREEN TDD.** The approved detailed plan is
+`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5 and the
+Phase 1 gate unchecked until all eight checkpoints, two-candidate reproduction,
+official artifact acceptance, and independent whole-branch review exist.
 
-## Phase 1 Task 5 design record
+## Phase 1 Task 5 design and plan record
 
-The artifact-build contract is approved for implementation planning in
+The artifact-build contract is approved for implementation in
 `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`. D-022 and
 D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
-The legacy Task 5 body now contains only the approved-spec/dedicated-plan pointer and
-eight unchecked checkpoint boundaries; production implementation has not started.
+The authoritative detailed plan is
+`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
+body points to it and retains eight unchecked checkpoint boundaries. Production
+implementation has not started.
 
 Observed design-gate evidence on 2026-08-14:
 
@@ -85,10 +87,15 @@ Observed design-gate evidence on 2026-08-14:
 - `uv run pre-commit run --all-files`: Ruff check and Ruff format passed;
 - `git diff --check`: passed.
 
-The exact next step is to write and independently review
-`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Do not create the
-official expected logical baseline or write Task 5 production code before that plan is
-approved.
+The detailed plan contains eight checkpoints and passed independent final review with
+Critical 0 / Important 0 / Minor 0 after its executable resource-loading, stale
+editable-copy, first-publication rollback, bounded-memory, packaging, and strict TDD
+boundaries were corrected. The narrow resource design correction was independently
+approved with Critical 0 / Important 0 / Minor 0 and committed as `0dec136`.
+
+The exact next step is Checkpoint 1 in the dedicated plan. Do not create the official
+expected logical baseline before Checkpoint 8's two independently verified candidate
+builds and review.
 
 ## Handoff validation record — not production implementation
 

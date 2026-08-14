@@ -408,7 +408,7 @@ families, query/API behavior, or eligibility rules.
 > **Approved specification:**
 > `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`
 >
-> **Forthcoming authoritative detailed plan:**
+> **Authoritative detailed plan:**
 > `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`
 
 D-022 and D-023 supersede the removed legacy two-argument builder, undeclared
@@ -438,6 +438,7 @@ The dedicated plan must implement the approved specification under strict RED ->
   official expected-contract creation plus wheel-byte test, acceptance, bounded-memory
   evidence, all Phase 1 gates, status, review, and clean tree**
 
-No Task 5 production code starts until the dedicated plan replaces this pointer as the
-execution authority and passes plan review. Runtime files under `artifacts/` remain
-generated and untracked; only the timestamp-free official logical contract is tracked.
+The dedicated plan is the sole Task 5 execution authority after independent plan
+review. No Task 5 production code starts before that review passes. Runtime files under
+`artifacts/` remain generated and untracked; only the timestamp-free official logical
+contract is tracked.
