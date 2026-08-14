@@ -419,7 +419,7 @@ execute those examples from Git history.
 The dedicated plan must implement the approved specification under strict RED -> GREEN
 -> REFACTOR with these eight reviewer-worthy checkpoints:
 
-- [ ] **Checkpoint 1: build settings/options, runtime schema resources, artifact config,
+- [x] **Checkpoint 1: build settings/options, runtime schema resources, artifact config,
   expected-contract types/comparison and synthetic bootstrap boundary, dependencies,
   and typed errors; no official baseline content**
 - [ ] **Checkpoint 2: strict manifest/load/verify, exact input inventory, canonical

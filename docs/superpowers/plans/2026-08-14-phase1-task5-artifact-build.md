@@ -121,7 +121,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 - Produces: `artifact_manifest_schema_bytes() -> bytes`, `quality_issue_schema_bytes() -> bytes`, and, only after Checkpoint 8, `expected_phase1_contract_bytes() -> bytes`. Each calls one internal closed loader that uses `importlib.resources` as the installed-wheel primary. Its sole fallback calls `importlib.metadata.distribution("finproof").locate_file(exact_frozen_destination)` for standard Hatch editable shadowing, then requires that the distribution-relative destination is unchanged, every existing component from the distribution root through the destination is nonsymlink, and the leaf is an existing regular file opened through a held no-follow descriptor with before/opened/after identity checks. Neither route uses CWD, repository/source parent discovery, caller paths, or a path search.
 - Produces internal `CandidateBaselineProbe(Protocol)` with `source_exists() -> bool`, `resource_exists() -> bool`, and `second_check() -> None`, plus a production probe that checks the real repository expected source and packaged expected resource without exposing their paths. CP1's repository-only `assert_candidate_bootstrap_allowed(probe: CandidateBaselineProbe) -> None` performs only the initial absent/source-present/resource-present guard; Checkpoint 7's actual wrapper owns the post-transform `second_check` race boundary.
 
-- [ ] **Step 1: Establish clean preconditions and prove the official baseline is absent**
+- [x] **Step 1: Establish clean preconditions and prove the official baseline is absent**
 
 Run:
 
@@ -135,7 +135,7 @@ git status --short
 
 Expected: handoff reports 61 required files, 9 official inputs, and 41,384,928 bytes; source audit reports 145,393 rows at `2026-07-11`; both expected-contract paths are absent; only the approved Task 5 plan commit is present before implementation starts.
 
-- [ ] **Step 2: Write focused REDs for repository anchoring, path safety, options, and safe errors**
+- [x] **Step 2: Write focused REDs for repository anchoring, path safety, options, and safe errors**
 
 Introduce the named tests below one selector/one behavior at a time under the global execution rule; the command at the end of the step is only their aggregate gate.
 
@@ -209,7 +209,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected aggregate GREEN. The execution report records the earlier per-selector RED reasons (`Settings` rejects the new keyword fields and the artifact options/error symbols are missing or behaviorally permissive) separately; this multi-file command is never RED evidence.
 
-- [ ] **Step 3: Confirm the accumulated serial settings/options/error boundary**
+- [x] **Step 3: Confirm the accumulated serial settings/options/error boundary**
 
 The implementations described here are the accumulated results of Step 2's completed selector-by-selector RED/GREEN loops, not a later bulk production step. Add the four Settings fields with the exact defaults from the approved design and a single model validator that resolves `repository_root` once, validates existing source/config ancestors without following symlinks, validates lexical containment, and assigns the resolved absolute paths. Set the Pydantic settings source configuration to `env_file=None`; accept only explicit initialization plus the existing `FINPROOF_*` process-environment source, independent of CWD. Preserve existing Settings defaults, environment precedence, and query consumers, but do not preserve an invalid path fixture or invent a query-only exception inside this shared model: every construction must satisfy `data_dir == source_root / "data"`. Update the existing frozen-default test fixture to pass a matching explicit `source_root`/`data_dir` pair while leaving its assertions unchanged.
 
@@ -250,7 +250,7 @@ class ArtifactErrorCode(StrEnum):
 
 Cap `safe_message` at 512 Unicode code points. Validate the operation ID as an opaque bounded token and never derive it from a source path or raw data value.
 
-- [ ] **Step 4: Write REDs for the exact artifact config, expected model, packaged schemas, and candidate refusal**
+- [x] **Step 4: Write REDs for the exact artifact config, expected model, packaged schemas, and candidate refusal**
 
 Add tests that require `config/artifact_build.yaml` to declare version `1.0.0`, the exact four source table row/column/cell counts, the five Silver counts, two quarantine rows, 47 links, 371 evidence rows, the exact pair hash, Parquet options, writer batch maximum 65,536, and staging `threads=1`/`memory_limit=1GiB`. `ArtifactBuildConfig.load` accepts only the exact `repository_root/config/artifact_build.yaml`; its independently supplied anchor is an existing nonsymlink directory and the config is read through the shared held no-follow descriptor chain. First parameterize a nonexistent repository root, regular-file root, symlink root, outside-root byte-identical file, leaf symlink alias, and intermediate-parent swap performed after validation but before leaf open; all must RED against the permissive loader before the anchored reader is implemented. Mutation fixtures must create a complete synthetic `repository_root/config/artifact_build.yaml` and edit that exact file rather than passing an unrelated temp path. Then mutate every version/count/hash and add unknown/duplicate YAML keys; each load must fail closed.
 
@@ -307,7 +307,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected aggregate GREEN. The earlier exact selectors separately record the missing config/model/protocol/guard, wheel inventory, primary loader, editable fallback, and runtime-dependency REDs; this multi-file command is never RED evidence.
 
-- [ ] **Step 5: Finish the serial foundations and synchronize their assembled dependency/resource state**
+- [x] **Step 5: Finish the serial foundations and synchronize their assembled dependency/resource state**
 
 The implementations named here are the accumulated results of the Step 2/Step 4 serial selector loops, not authorization for one bulk change. Use a duplicate-key-rejecting YAML loader and strict frozen Pydantic models. Encode the exact production config values from the approved design, including source rows `42_394/1_734/5_646/95_619`, source columns `40/73/49/45`, source cells `1_695_760/126_582/276_654/4_302_855`, Silver counts `42_394/1_733/5_646/11_138/95_618`, quarantine rows `2`, links `47`, evidence `371`, and pair SHA-256 `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`. The coherent exhaustive config selector must show every one of its 43 parameter IDs failing before the exact validator is added; a first failing mutation does not satisfy the RED.
 
@@ -325,7 +325,7 @@ Add names-only safe `.env.example` defaults for `FINPROOF_REPOSITORY_ROOT=.`, `F
 
 Implement only the probe plus initial candidate absence guard in `tools/build_candidate_artifacts.py`; it must not call `second_check` yet, expose a transformation/output API, write a file, or publish. The production probe knows how to recheck real source/resource state later, but CP7C is the first code allowed to invoke that post-transform method.
 
-- [ ] **Step 6: Run GREEN and checkpoint gates**
+- [x] **Step 6: Run GREEN and checkpoint gates**
 
 Run:
 
@@ -353,7 +353,7 @@ git check-ignore artifacts/manifest.json .artifacts.finproof-stage-op123
 
 Expected GREEN: focused tests pass; an actual isolated standard editable outside the checkout proves the exact distribution-metadata fallback while `src/finproof` shadows data; the isolated wheel proves `importlib.resources` primary, exact inventory, source-byte/SHA equality, and no fallback call; neither package contains expected contract or candidate tool; no dev-mode-exact workaround exists; type/lint checks pass; runtime artifacts/transients are ignored; official baseline remains absent.
 
-- [ ] **Step 7: Run regressions, commit, and obtain a fresh review**
+- [x] **Step 7: Run regressions, commit, and obtain a fresh review**
 
 Run the unchanged Task 1-4 regression command, `git diff --check`, and verify `find source_material -type f -perm -u=w -print` returns no path. Commit:
 
@@ -367,6 +367,21 @@ git commit -m "feat: add artifact build foundations"
 ```
 
 Fresh review must specifically check protected-path aliases/symlinks, error-path leakage, duplicate YAML keys, runtime dependency/resource loading outside the checkout CWD, deep immutability, baseline absence, and candidate non-publication/non-packaging. Do not start Checkpoint 2 until review is 0 Critical / 0 Important.
+
+Observed completion evidence on 2026-08-15:
+
+- Reviewed CP1 commits: `2546833`, `fa7b98e`, and final correction `756a791`.
+- Final independent review at `756a791`: Critical 0 / Important 0 / Minor 0.
+- Exact CP1 focused suite: 277 passed; unchanged Task 1–4 regression: 533 passed;
+  reviewer-selected focused regression: 12 passed.
+- Full implementation suite: 920 passed in 574.36 seconds. Ruff format/check and
+  mypy passed over 91 source files.
+- Source audit remained 145,393 rows at `2026-07-11`; handoff remained 61 required
+  files, 9 official inputs, and 41,384,928 bytes; schema catalog remained 207 columns.
+- The final worktree was clean, official source files remained read-only, and the
+  official expected-contract source remained absent.
+- Exact next task: Checkpoint 2, strict manifest, recursive inventory, and canonical
+  logical hashing. Task 5, the Phase 1 gate, and Checkpoints 2–8 remain incomplete.
 
 ---
 

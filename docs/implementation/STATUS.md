@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 4 is integrated; the Phase 1 Task 5
-artifact-build design and eight-checkpoint implementation plan are independently
-approved, and Task 5 production implementation has not started.
+**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoint 1 is implemented and
+independently approved at Critical 0 / Important 0 / Minor 0. Task 5 and the Phase 1
+gate remain incomplete; Checkpoint 2 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,11 +60,12 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 1: implement artifact-build foundations under focused
-RED-GREEN TDD.** The approved detailed plan is
-`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5 and the
-Phase 1 gate unchecked until all eight checkpoints, two-candidate reproduction,
-official artifact acceptance, and independent whole-branch review exist.
+**Phase 1 Task 5 Checkpoint 2: implement the strict manifest, recursive inventory,
+and canonical logical hashing under focused RED-GREEN TDD.** The approved detailed
+plan is `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
+and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
+reproduction, official artifact acceptance, and independent whole-branch review
+exist.
 
 ## Phase 1 Task 5 design and plan record
 
@@ -74,8 +75,8 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and retains eight unchecked checkpoint boundaries. Production
-implementation has not started.
+body points to it and records Checkpoint 1 complete while Checkpoints 2–8 remain
+unchecked.
 
 Observed design-gate evidence on 2026-08-14:
 
@@ -93,7 +94,22 @@ editable-copy, first-publication rollback, bounded-memory, packaging, and strict
 boundaries were corrected. The narrow resource design correction was independently
 approved with Critical 0 / Important 0 / Minor 0 and committed as `0dec136`.
 
-The exact next step is Checkpoint 1 in the dedicated plan. Do not create the official
+Checkpoint 1 implementation and review evidence on 2026-08-15:
+
+- reviewed commit series: `2546833` (`feat: add artifact build foundations`),
+  `fa7b98e` (`fix: close Task 5 checkpoint 1 review gaps`), and `756a791`
+  (`fix: verify missing-resource ancestor identity`);
+- final independent review at `756a791`: Critical 0 / Important 0 / Minor 0;
+- exact CP1 focused suite: 277 passed; unchanged Task 1–4 regression: 533 passed;
+  reviewer-selected focused regression: 12 passed;
+- full implementation suite: 920 passed in 574.36 seconds;
+- Ruff format/check and mypy passed over 91 source files;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required
+  files, 9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- final worktree was clean, official source files were read-only, and the official
+  expected-contract source remained absent.
+
+The exact next step is Checkpoint 2 in the dedicated plan. Do not create the official
 expected logical baseline before Checkpoint 8's two independently verified candidate
 builds and review.
 
@@ -739,12 +755,12 @@ Decision boundaries and remaining procedures:
 - A-003 remains open; Task 4 derives no overseas/public-fund eligibility.
 - A-011 remains open only for later evidence, golden-case, and metric contracts.
 - Independent whole-branch review, the final reviewed-tree gate, and the authorized
-  local fast-forward are complete. Task 5 remains unimplemented.
+  local fast-forward are complete. Task 5 Checkpoint 1 is now implemented and
+  independently approved; Checkpoints 2–8 remain.
 - Phase 1 Task 5 and the Phase 1 gate remain unchecked.
 
 Exact next development task:
 
-**Phase 1 Task 5: freeze an implementation-complete artifact-build design and detailed
-TDD plan, then build reproducible Parquet/DuckDB artifacts, inject quality persistence
-time, and create exact identifier links.** Do not mark Task 5 or the Phase 1 gate
-complete before official reproduction and review evidence exists.
+**Phase 1 Task 5 Checkpoint 2: implement the strict manifest, recursive inventory,
+and canonical logical hashing from the approved dedicated plan.** Do not mark Task 5
+or the Phase 1 gate complete before official reproduction and review evidence exists.
