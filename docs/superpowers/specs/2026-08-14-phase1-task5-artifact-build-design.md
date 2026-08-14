@@ -1094,21 +1094,29 @@ finproof/resources/schemas/artifact_manifest.schema.json
 finproof/resources/schemas/quality_issue.schema.json
 ```
 
-Runtime loaders use `importlib.resources`, not `Path.cwd()` or a source-tree parent
-calculation. A wheel contract test builds the wheel, opens both packaged resources, and
-proves byte/SHA equality with the root schema files. Editable-install tests prove the
-same public loader works. Installed-wheel artifact verification uses only the caller's
-artifact root plus package resources; it neither requires nor synthesizes a
-`repository_root`. The explicit repository anchor is an offline-build input boundary.
+Installed-wheel loaders use `importlib.resources`. Hatch editable installs place
+force-included data in the installed distribution while the regular `src/finproof`
+package can shadow that data path, so the same public loader has one explicit editable
+fallback: `importlib.metadata.distribution("finproof").locate_file(...)` for the exact
+closed force-included destination. It accepts only an existing nonsymlink regular file
+whose distribution-relative path is the frozen resource path. It never uses
+`Path.cwd()`, a source-tree parent calculation, or a caller-supplied resource path. A
+wheel contract test builds the wheel, opens both packaged resources through
+`importlib.resources`, and proves byte/SHA equality with the root schema files. A real
+standard editable-install test proves the distribution-metadata fallback returns the
+same bytes while the source package shadows the copied data. Installed-wheel artifact
+verification uses only the caller's artifact root plus package resources; it neither
+requires nor synthesizes a `repository_root`. The explicit repository anchor is an
+offline-build input boundary.
 
 The separately tracked official logical contract has one repository source of truth,
 `config/expected_phase1_artifacts.json`, and is force-included byte-for-byte as
 `finproof/resources/contracts/expected_phase1_artifacts.json`. Evaluation readiness
-loads it with `importlib.resources`; no production code reads a path below `tests/`.
-Wheel tests prove source/resource byte and SHA equality for this contract too. The
-production package also declares `jsonschema` and `rfc3339-validator` as runtime
-dependencies. Other artifact config and official sources remain offline build inputs
-and are not silently copied into the runtime wheel.
+loads it through the same wheel/editable resource boundary; no production code reads a
+path below `tests/`. Wheel and real editable tests prove source/resource byte and SHA
+equality for this contract too. The production package also declares `jsonschema` and
+`rfc3339-validator` as runtime dependencies. Other artifact config and official sources
+remain offline build inputs and are not silently copied into the runtime wheel.
 
 ## 11. Guarded transactional publication
 
