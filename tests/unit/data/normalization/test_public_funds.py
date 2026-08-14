@@ -15,6 +15,7 @@ from finproof.domain.public_funds import (
     FUND_ITEM_FIELD_COLUMNS,
 )
 from finproof.domain.quality import IssueSeverity, QualityStatus
+from finproof.domain.source import SourceRow
 from tests.helpers.source_rows import source_row
 
 EXPECTED_FUND_ATTRIBUTE_FIELD_COLUMNS = MappingProxyType(
@@ -101,6 +102,29 @@ def test_malformed_item_quarantines_before_shifted_payload_is_parsed() -> None:
     assert issue.source.source_column_name == "itm_no"
     assert issue.source.source_row_number == 84563
     assert '"' not in issue.reason
+
+
+def test_malformed_item_returns_before_attribute_cell_lookup() -> None:
+    """Invalid item identity is sufficient even when no later payload cell exists."""
+    complete = source_row("PRFD01N001", {"itm_no": '"'}, excel_row=84_563)
+    item_cell = complete.cell("itm_no").model_copy(
+        update={"excel_column_number": 1, "excel_column_letter": "A"}
+    )
+    identity_only = SourceRow(
+        source_table=complete.source_table,
+        source_file=complete.source_file,
+        source_sheet=complete.source_sheet,
+        source_row_number=complete.source_row_number,
+        source_checksum=complete.source_checksum,
+        source_snapshot_date=complete.source_snapshot_date,
+        raw_payload=('"',),
+        cells=(item_cell,),
+    )
+
+    result = normalize_fund_attribute(identity_only)
+
+    assert result.record is None
+    assert [issue.rule_id for issue in result.issues] == ["public_fund.malformed_item"]
 
 
 @pytest.mark.parametrize("raw", ["", " ", "\t"])

@@ -9,9 +9,17 @@ from typing import Literal
 import pytest
 from pydantic import ValidationError
 
-from finproof.data.normalization.public_funds import normalize_fund_attribute
+from finproof.data.normalization.public_funds import (
+    normalize_fund_attribute,
+    normalize_public_funds,
+)
 from finproof.domain.locators import SourceCellLocator
-from finproof.domain.public_funds import FundAttributeRow, FundItemValue
+from finproof.domain.public_funds import (
+    FUND_ITEM_FIELD_COLUMNS,
+    FundAttributeRow,
+    FundItem,
+    FundItemValue,
+)
 from finproof.domain.quality import QualityStatus
 from finproof.domain.source import SourceRow
 from finproof.domain.values import NormalizedValue
@@ -467,3 +475,52 @@ def test_fund_attribute_row_rejects_noncanonical_json_nested_lineage() -> None:
 
     with pytest.raises(ValidationError):
         FundAttributeRow.model_validate_json(_mutated_fund_json(mutate))
+
+
+def test_fund_item_python_boundary_accepts_exact_type_and_rejects_mapping() -> None:
+    """Item construction accepts exact SourceRows without coercing Python mappings."""
+    row = source_row("PRFD01N001", excel_row=2)
+    item = normalize_public_funds((row,)).items[0]
+    payload = {name: getattr(item, name) for name in type(item).model_fields}
+    reconstructed = SourceRow.model_validate(row.model_dump())
+
+    restored = FundItem.model_validate(payload | {"contributing_rows": (reconstructed,)})
+
+    assert restored.contributing_rows[0] is reconstructed
+    with pytest.raises(ValidationError, match="exact SourceRow instance"):
+        FundItem.model_validate(payload | {"contributing_rows": (row.model_dump(),)})
+
+
+def test_fund_item_python_boundary_rejects_source_row_subclass() -> None:
+    """A SourceRow subclass cannot weaken the item lineage boundary."""
+
+    class SourceRowSubclass(SourceRow):
+        pass
+
+    row = source_row("PRFD01N001", excel_row=2)
+    item = normalize_public_funds((row,)).items[0]
+    payload = {name: getattr(item, name) for name in type(item).model_fields}
+    subclass = SourceRowSubclass.model_validate(row.model_dump())
+
+    with pytest.raises(ValidationError, match="exact SourceRow instance"):
+        FundItem.model_validate(payload | {"contributing_rows": (subclass,)})
+
+
+def test_fund_item_json_round_trip_preserves_all_rows_values_and_locators() -> None:
+    """Structural JSON preserves all repeated evidence without inventing provenance."""
+    item = normalize_public_funds(
+        (
+            source_row("PRFD01N001", {"prfd_attr_cd": "A101"}, excel_row=2),
+            source_row("PRFD01N001", {"prfd_attr_cd": "B101"}, excel_row=9),
+        )
+    ).items[0]
+    encoded = item.model_dump_json()
+
+    restored = FundItem.model_validate_json(encoded)
+
+    assert restored == item
+    assert restored.model_dump_json() == encoded
+    assert len(restored.contributing_rows) == 2
+    assert all(
+        len(getattr(restored, name).equivalent_sources) == 2 for name in FUND_ITEM_FIELD_COLUMNS
+    )
