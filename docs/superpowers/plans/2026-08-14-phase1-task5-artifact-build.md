@@ -194,7 +194,7 @@ Expected RED: `Settings` rejects the new keyword fields, and `finproof.data.arti
 
 - [ ] **Step 3: Implement the smallest strict settings/options/error boundary**
 
-Add the four Settings fields with the exact defaults from the approved design and a single model validator that resolves `repository_root` once, validates existing source/config ancestors without following symlinks, validates lexical containment, and assigns the resolved absolute paths. Set the Pydantic settings source configuration to `env_file=None`; accept only explicit initialization plus the existing `FINPROOF_*` process-environment source, independent of CWD. Keep the existing Settings/env override tests and query-only behavior unchanged.
+Add the four Settings fields with the exact defaults from the approved design and a single model validator that resolves `repository_root` once, validates existing source/config ancestors without following symlinks, validates lexical containment, and assigns the resolved absolute paths. Set the Pydantic settings source configuration to `env_file=None`; accept only explicit initialization plus the existing `FINPROOF_*` process-environment source, independent of CWD. Preserve existing Settings defaults, environment precedence, and query consumers, but do not preserve an invalid path fixture or invent a query-only exception inside this shared model: every construction must satisfy `data_dir == source_root / "data"`. Update the existing frozen-default test fixture to pass a matching explicit `source_root`/`data_dir` pair while leaving its assertions unchanged.
 
 Define the closed codes used by all later checkpoints:
 
