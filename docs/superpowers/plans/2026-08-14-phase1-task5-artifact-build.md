@@ -528,7 +528,7 @@ test_canonical_mapping_and_array_order_utf8_and_newline
 test_canonical_scalar_rejects_float_subclasses_and_unsupported_values
 test_column_and_table_identity_protocols_reject_every_wrong_shape
 test_schema_hash_uses_exact_identity_projection
-test_schema_hash_changes_only_for_identity_fields
+test_schema_hash_changes_only_for_identity_fields  # derived first-GREEN acceptance
 test_table_hash_writes_exact_header_before_first_row
 test_table_hash_requires_exact_logical_projection_keys
 test_table_hash_consumes_rows_once_and_requires_exact_final_count
@@ -536,7 +536,7 @@ test_report_hash_uses_only_closed_semantic_projection
 test_manifest_hash_uses_only_closed_logical_projection
 ```
 
-For each selector, run exactly
+For each selector except the explicitly labeled derived acceptance selector, run exactly
 `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest
 tests/unit/data/artifacts/test_hashing.py::<selector> -q`, observe every parameter ID
 fail for the one missing branch/invariant, implement only that branch, and rerun the
@@ -545,6 +545,12 @@ asserts exact bytes for all design-section-8.1 scalars. The Decimal family inclu
 nonfinite, >18 fractional digits, >20 integer digits, exponent expansion, and no-
 rounding failures. The temporal family requires six microseconds, naive local time with
 no suffix, exact-zero-offset aware time with `Z`, and rejects every nonzero offset.
+
+`test_schema_hash_changes_only_for_identity_fields` is authored only after
+`test_schema_hash_uses_exact_identity_projection` is GREEN. It must pass on its first
+run because it is a derived metamorphic acceptance of that already RED-driven generic
+projection algorithm; it is never cited as new-behavior RED evidence and production
+code must not be weakened or special-cased to manufacture a failure.
 
 The protocol selector uses synthetic objects to require exact tuples, exact strings,
 exact bool nullability, unique columns, existing unique/sort/projection columns, and a
