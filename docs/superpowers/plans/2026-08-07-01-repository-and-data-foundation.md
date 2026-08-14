@@ -388,12 +388,12 @@ fund normalization, artifact building, or Phase 1 gate closure.
   global item grouping, and deterministic issue/result ordering
 - No `src/finproof/data/quarantine.py` utility bucket; focused persistence belongs to Task 5
 
-- [ ] **Checkpoint 1: D-021 canonical quality schema and partial A-011 resolution**
-- [ ] **Checkpoint 2: complete fixtures, shared listed type, exact helpers, and `FundItemValue`**
-- [ ] **Checkpoint 3: complete 49-field overseas model/normalizer with no eligibility inference**
-- [ ] **Checkpoint 4: complete 45-field fund row, identity/exact-type Python boundary, and canonical JSON**
-- [ ] **Checkpoint 5: global item collapse, completeness, exact failure cardinalities/order, and bounded-order invariance**
-- [ ] **Checkpoint 6: verified official 101,265-row acceptance**
+- [x] **Checkpoint 1: D-021 canonical quality schema and partial A-011 resolution**
+- [x] **Checkpoint 2: complete fixtures, shared listed type, exact helpers, and `FundItemValue`**
+- [x] **Checkpoint 3: complete 49-field overseas model/normalizer with no eligibility inference**
+- [x] **Checkpoint 4: complete 45-field fund row, identity/exact-type Python boundary, and canonical JSON**
+- [x] **Checkpoint 5: global item collapse, completeness, exact failure cardinalities/order, and bounded-order invariance**
+- [x] **Checkpoint 6: verified official 101,265-row acceptance**
 - [ ] **Checkpoint 7: repository gates, status evidence, independent whole-branch review, and clean tree**
 
 Do not mark Task 4 complete until the dedicated plan records every focused RED/GREEN,

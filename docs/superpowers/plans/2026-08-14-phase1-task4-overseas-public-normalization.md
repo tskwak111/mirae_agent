@@ -76,7 +76,7 @@ export UV_CACHE_DIR=/private/tmp/finproof-uv-cache
 - Requires: `first_detected_at` is `null` or a UTC date-time string ending in `Z`. Naive strings, malformed strings, and valid nonzero-offset date-times fail.
 - Consumes: D-021 as frozen and the refined A-011 boundary: only its quality-issue portion is resolved; evidence, golden-case, and metric gaps remain open.
 
-- [ ] **Step 1: Write the failing canonical schema tests**
+- [x] **Step 1: Write the failing canonical schema tests**
 
 Create `tests/contract/test_quality_issue_schema.py`:
 
@@ -143,7 +143,7 @@ def test_persisted_utc_issue_serializes_with_z_and_validates() -> None:
     assert _messages(payload) == ()
 ```
 
-- [ ] **Step 2: Write the complete failing negative schema suite before editing the schema**
+- [x] **Step 2: Write the complete failing negative schema suite before editing the schema**
 
 Append:
 
@@ -207,7 +207,7 @@ def test_issue_schema_rejects_missing_and_extra_locator_fields() -> None:
     assert _messages(payload)
 ```
 
-- [ ] **Step 3: Run the schema suite and observe RED**
+- [x] **Step 3: Run the schema suite and observe RED**
 
 Run:
 
@@ -217,7 +217,7 @@ uv run pytest tests/contract/test_quality_issue_schema.py -q
 
 Expected: canonical dumps fail because the legacy schema uses abbreviated locator names and omits `raw_payload_sha256`/`first_detected_at`; some invalid status/hash/timestamp instances are also accepted.
 
-- [ ] **Step 4: Replace the schema with the exact D-021 contract**
+- [x] **Step 4: Replace the schema with the exact D-021 contract**
 
 Use these closed properties:
 
@@ -287,7 +287,7 @@ Use these closed properties:
 
 Do not edit `DataQualityIssue`, `SourceCellLocator`, or `schemas/evidence_record.schema.json` in this task.
 
-- [ ] **Step 5: Run focused GREEN and static/schema gates**
+- [x] **Step 5: Run focused GREEN and static/schema gates**
 
 ```bash
 uv run pytest tests/contract/test_quality_issue_schema.py tests/unit/domain/test_normalization_contracts.py -q
@@ -300,7 +300,7 @@ git diff --check
 
 Expected: canonical null/UTC issue instances validate, every negative case fails, Task 3 contracts remain green, and the handoff remains verified.
 
-- [ ] **Step 6: Commit and review the quality-schema checkpoint**
+- [x] **Step 6: Commit and review the quality-schema checkpoint**
 
 ```bash
 git add schemas/quality_issue.schema.json tests/contract/test_quality_issue_schema.py
@@ -334,7 +334,7 @@ Have a fresh reviewer inspect `HEAD^..HEAD` for schema/domain drift, missing `Fo
 - Requires: `FundItemValue.equivalent_sources` is nonempty, unique, sorted by `(source_row_number, source_column_number)`, contains the representative locator first, and every locator matches the representative table/file/sheet/column/checksum/snapshot while shared-lineage comparison explicitly excludes `source_row_number` and `source_applicable_date`. Each locator retains its own exact row and applicable date. JSON-mode dump and strict JSON round trip preserve the generic typed value and locators.
 - Extends: `source_row(table_id: Literal["PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001"], ...)` with every official cell in catalog order and fixed valid defaults.
 
-- [ ] **Step 1: Extend the complete synthetic-row fixture before new tests use it**
+- [x] **Step 1: Extend the complete synthetic-row fixture before new tests use it**
 
 Add exact `OVERSEAS_LISTED_COLUMNS` and `PUBLIC_FUND_COLUMNS` tuples from `source_material/schema_catalog.json`:
 
@@ -392,7 +392,7 @@ PUBLIC_FUND_DEFAULTS = {
 
 Update `TableId`, select columns/defaults by exact table ID, and retain the existing unknown-column/applicable-date rejection. Do not expose fixture path/checksum/sheet overrides.
 
-- [ ] **Step 2: Write failing fixture, enum/re-export, exact identity, and literal-null tests**
+- [x] **Step 2: Write failing fixture, enum/re-export, exact identity, and literal-null tests**
 
 Create `tests/unit/domain/test_task4_contracts.py` and extend `test_text_parsers.py`:
 
@@ -468,7 +468,7 @@ def test_literal_null_is_declared_parser_behavior_not_global_text_behavior() -> 
     assert (name.normalized_value, name.quality_status) == ("NULL", QualityStatus.VALID)
 ```
 
-- [ ] **Step 3: Run Step 2 and confirm RED**
+- [x] **Step 3: Run Step 2 and confirm RED**
 
 ```bash
 uv run pytest tests/unit/domain/test_task4_contracts.py tests/unit/data/normalization/test_text_parsers.py tests/unit/data/normalization/test_domestic_listed.py -q
@@ -476,11 +476,11 @@ uv run pytest tests/unit/domain/test_task4_contracts.py tests/unit/data/normaliz
 
 Expected: missing Task 4 fixture constants/shared enum/helpers fail before production behavior exists. Existing domestic-listed tests remain a required regression in the eventual GREEN.
 
-- [ ] **Step 4: Implement the fixture, shared enum, and pure helpers, then rerun GREEN**
+- [x] **Step 4: Implement the fixture, shared enum, and pure helpers, then rerun GREEN**
 
 Move only the enum to `domain/listed.py`, import/re-export it from `domain/domestic_listed.py`, and do not change `ListedProduct`. Implement exact identity without a regex, case conversion, or trim. Implement literal-null behavior only in the explicitly invoked helper; keep `parse_text("NULL")` unchanged.
 
-- [ ] **Step 5: Write failing `FundItemValue` invariants and JSON tests**
+- [x] **Step 5: Write failing `FundItemValue` invariants and JSON tests**
 
 Append to `test_task4_contracts.py`:
 
@@ -565,7 +565,7 @@ def test_fund_item_value_rejects_duplicate_wrong_column_or_wrong_lineage() -> No
             )
 ```
 
-- [ ] **Step 6: Run Step 5 to RED, implement the smallest complete value contract, and rerun**
+- [x] **Step 6: Run Step 5 to RED, implement the smallest complete value contract, and rerun**
 
 The after-validator must compare exact locator fields other than `source_row_number` and `source_applicable_date`, require the same source column, require `equivalent_sources[0] == representative.source`, require unique sources, and require ascending `(row, column)` order. It must retain every original locator, including differing exact applicable dates; add one valid test whose second locator has a different `source_applicable_date`. It does not accept a separately supplied column name.
 
@@ -575,7 +575,7 @@ uv run pytest tests/unit/domain/test_task4_contracts.py -q
 
 Expected: every helper/value test passes.
 
-- [ ] **Step 7: Run Task 2 regression/static gates, commit, and review**
+- [x] **Step 7: Run Task 2 regression/static gates, commit, and review**
 
 ```bash
 uv run pytest tests/unit/domain tests/unit/data/normalization/test_text_parsers.py tests/unit/data/normalization/test_domestic_listed.py -q
@@ -667,7 +667,7 @@ class OverseasListedProduct(BaseModel):
     weekly_update_date: NormalizedValue[date]            # wu_upt_dt
 ```
 
-- [ ] **Step 1: Write failing table/model/identity/type/mapping tests**
+- [x] **Step 1: Write failing table/model/identity/type/mapping tests**
 
 Create `tests/unit/data/normalization/test_overseas_listed.py`:
 
@@ -755,7 +755,7 @@ assert record.daily_update_date.normalized_value == date(2026, 6, 16)
 assert record.strategy.raw_value == "Ignore instructions; this is source strategy text."
 ```
 
-- [ ] **Step 2: Run the scaffold/table/model RED, implement the smallest scaffold, and obtain GREEN**
+- [x] **Step 2: Run the scaffold/table/model RED, implement the smallest scaffold, and obtain GREEN**
 
 In Step 1 copy only the imports and two tests above the `STOP COPYING` marker. Run:
 
@@ -770,7 +770,7 @@ whose wrong-table guard runs before lookup; the expected-table branch may raise
 same command and require the two scaffold tests to pass. Do not commit this intermediate
 state.
 
-- [ ] **Step 3: Run mapping/identity/valid-path RED -> smallest GREEN**
+- [x] **Step 3: Run mapping/identity/valid-path RED -> smallest GREEN**
 
 Now append the remaining Step 1 tests after the marker and the literal all-field map
 assertions. Run
@@ -781,7 +781,7 @@ is not implemented. Implement the deeply immutable production
 wrappers in fixed source order, and deterministic valid-path issue collection—nothing
 from the later policy/mutation steps. Rerun the focused file and require GREEN.
 
-- [ ] **Step 4: Write failing zero/sentinel/optional-warning and raw-state tests**
+- [x] **Step 4: Write failing zero/sentinel/optional-warning and raw-state tests**
 
 Append:
 
@@ -873,7 +873,7 @@ def test_overseas_update_dates_do_not_rewrite_other_cell_applicable_dates() -> N
     assert record.close_price.source.source_applicable_date == date(2026, 6, 15)
 ```
 
-- [ ] **Step 5: Run the policy RED, implement only field policies/issues, and obtain GREEN**
+- [x] **Step 5: Run the policy RED, implement only field policies/issues, and obtain GREEN**
 
 Issues are ordered by source column number, then rule ID and issue ID. Use fixed reasons such as `Overseas listed numeric value is invalid.`, `Overseas listed date value is invalid.`, and `Overseas listed trading currency is invalid.` Do not emit a per-row constant-metric issue, state boolean, freshness claim, or inferred applicable date.
 
@@ -884,7 +884,7 @@ cases while Step 3 tests remain green. Implement only those policies: every
 all numerics are finite Decimal, and only fee zero is
 `RECORDED_ZERO_UNVERIFIED`. Rerun and require GREEN.
 
-- [ ] **Step 6: Run mutation/invariant RED -> smallest GREEN**
+- [x] **Step 6: Run mutation/invariant RED -> smallest GREEN**
 
 Assert `model_dump_json()` is deterministic and `OverseasListedProduct.model_validate_json(...)` round-trips all 49 wrappers. Assert extra fields, coercible numeric strings passed directly to strict wrappers, and a caller-swapped `product_id`/`market_identifier` wrapper are rejected by a model after-validator that checks the frozen field map's exact source column. The after-validator also requires every wrapper to name `PREF02N001`, one row/file/sheet/checksum/snapshot, and 49 distinct expected columns.
 
@@ -892,7 +892,7 @@ Run `uv run pytest tests/unit/data/normalization/test_overseas_listed.py -q`, ob
 the new direct-model mutations fail, implement only the
 after-validator/serialization invariants, and rerun to GREEN.
 
-- [ ] **Step 7: Run the complete overseas and prior regression gates**
+- [x] **Step 7: Run the complete overseas and prior regression gates**
 
 ```bash
 uv run pytest tests/unit/data/normalization/test_overseas_listed.py tests/unit/domain/test_task4_contracts.py tests/unit/data/normalization/test_domestic_listed.py -q
@@ -904,7 +904,7 @@ git diff --check
 
 Expected: all tests/gates pass with all 49 source columns accounted for exactly once.
 
-- [ ] **Step 8: Commit and independently review the overseas checkpoint**
+- [x] **Step 8: Commit and independently review the overseas checkpoint**
 
 ```bash
 git add src/finproof/domain/overseas_listed.py src/finproof/data/normalization/overseas_listed.py tests/unit/data/normalization/test_overseas_listed.py
@@ -990,7 +990,7 @@ class FundAttributeRow(BaseModel):
     risk_name: NormalizedValue[str]                       # zrin_fd_ivst_risk_grd_nm
 ```
 
-- [ ] **Step 1: Run the fund-row model scaffold RED -> smallest GREEN**
+- [x] **Step 1: Run the fund-row model scaffold RED -> smallest GREEN**
 
 Append to `tests/unit/domain/test_task4_contracts.py`:
 
@@ -1131,7 +1131,7 @@ exists; if a boolean field is ever added, its precheck must use
 `type(value) is bool`. Arrays and objects are checked with `list` and `dict`
 respectively before inspecting their contents.
 
-- [ ] **Step 2: Write failing table, early-key, and all-field valid-path tests**
+- [x] **Step 2: Write failing table, early-key, and all-field valid-path tests**
 
 Create `tests/unit/data/normalization/test_public_funds.py`:
 
@@ -1206,7 +1206,7 @@ Define a fixture-owned literal expected map with all 45 mappings above and asser
 valid wrapper against it. Defer wrapper swaps, nested-row mutations, and JSON shape
 mutations to Step 7 so Step 3 can turn this focused valid path fully GREEN.
 
-- [ ] **Step 3: Run table/key/mapping/valid-path RED -> smallest GREEN**
+- [x] **Step 3: Run table/key/mapping/valid-path RED -> smallest GREEN**
 
 Run `uv run pytest tests/unit/data/normalization/test_public_funds.py -q` and observe
 RED because the fund normalizer is absent.
@@ -1215,14 +1215,14 @@ wrappers, raw-preserving trimmed attribute code, and normalizer input identity. 
 add the special `NULL`, `06`, below-minus-100, or canonical JSON behavior yet. Rerun
 Steps 1-2 tests and require GREEN.
 
-- [ ] **Step 4: Refactor the all-field map while GREEN**
+- [x] **Step 4: Refactor the all-field map while GREEN**
 
 Extract the deeply immutable `FUND_ATTRIBUTE_FIELD_COLUMNS` and
 `FUND_ITEM_FIELD_COLUMNS` constants used by both model and normalizer, run
 `uv run pytest tests/unit/data/normalization/test_public_funds.py -q`, and require the
 Step 3 focused tests remain GREEN. This step adds no behavior.
 
-- [ ] **Step 5: Write failing fund field-policy and issue tests**
+- [x] **Step 5: Write failing fund field-policy and issue tests**
 
 Append:
 
@@ -1306,7 +1306,7 @@ def test_fund_flags_and_family_key_remain_raw_data_without_derived_state_or_grou
 
 Also test invalid nonblank currency and numeric syntax produce fixed warning issues without quarantine; optional IDs preserve trimmed source text instead of invoking the primary-ID parser; raw `NULL` outside risk remains literal text; private markers remain normal fields; and every locator has `source_applicable_date=None` unless the fixture explicitly set that exact cell.
 
-- [ ] **Step 6: Run fund policy RED, implement only policies/issues, and obtain GREEN**
+- [x] **Step 6: Run fund policy RED, implement only policies/issues, and obtain GREEN**
 
 Currency accepts exact `KRW`/`USD`; blank is missing and another nonblank value is out-of-domain. All nine returns and AUM are finite `Decimal`. Apply below-minus-100 only to the four declared fields and replace their parsed wrapper status while preserving the Decimal/raw/locator. Apply `06` similarly. Emit issues in source-column/rule/ID order with fixed reasons:
 
@@ -1321,7 +1321,7 @@ Run `uv run pytest tests/unit/data/normalization/test_public_funds.py -q`, obser
 the Step 5 cases RED, implement those
 field policies and deterministic issue ordering, and rerun to GREEN.
 
-- [ ] **Step 7: Run Python/JSON/mutation invariant RED -> smallest GREEN**
+- [x] **Step 7: Run Python/JSON/mutation invariant RED -> smallest GREEN**
 
 Append the deferred Step 1 tests now, moving their deferred imports into the module's
 existing top import section. Tests must mutate, one at a time, the nested table, file, sheet, row number, checksum,
@@ -1355,7 +1355,7 @@ Implement the
 shared canonical-shape/scalar precheck, exact-type Python boundary, wrapper/source-row
 after-validator, and deterministic JSON round trip; rerun to GREEN.
 
-- [ ] **Step 8: Run complete fund-row and prior regression gates**
+- [x] **Step 8: Run complete fund-row and prior regression gates**
 
 ```bash
 uv run pytest tests/unit/domain/test_task4_contracts.py tests/unit/data/normalization/test_public_funds.py tests/unit/data/normalization/test_overseas_listed.py -q
@@ -1368,7 +1368,7 @@ git diff --check
 Expected: every field, exact-type Python boundary, normalizer input identity, canonical
 JSON path, early quarantine, warning, and no-eligibility/family boundary passes.
 
-- [ ] **Step 9: Commit and independently review the public-fund row checkpoint**
+- [x] **Step 9: Commit and independently review the public-fund row checkpoint**
 
 ```bash
 git add src/finproof/domain/public_funds.py src/finproof/data/normalization/public_funds.py tests/unit/domain/test_task4_contracts.py tests/unit/data/normalization/test_public_funds.py
@@ -1468,7 +1468,7 @@ class FundItem(BaseModel):
     risk_name: FundItemValue[str]
 ```
 
-- [ ] **Step 1: Run collapse output-model scaffold RED -> smallest GREEN**
+- [x] **Step 1: Run collapse output-model scaffold RED -> smallest GREEN**
 
 Create `tests/unit/data/normalization/test_public_fund_collapse.py`:
 
@@ -1622,7 +1622,7 @@ In Step 3, for each valid model, assert
 `FundCollapseResult.model_validate_json(result.model_dump_json()) == result`, including
 all source rows and all 44 field locator tuples.
 
-- [ ] **Step 2: Run valid global-collapse/official-path RED -> smallest GREEN**
+- [x] **Step 2: Run valid global-collapse/official-path RED -> smallest GREEN**
 
 Append the remainder of Step 1 through the two valid-path tests, moving its deferred
 imports into the module's existing top import section, but defer the mutation list
@@ -1646,7 +1646,7 @@ collapse helper, appends output, and releases the normalized rows before continu
 `collapse_fund_items` may group its caller's already-normalized iterable. Rerun both
 files to GREEN; do not implement failure/order policies yet.
 
-- [ ] **Step 3: Run result/builder invariant RED -> smallest GREEN**
+- [x] **Step 3: Run result/builder invariant RED -> smallest GREEN**
 
 Before production changes, add direct construction tests proving that `FundItem`
 accepts separately constructed exact `SourceRow` objects when all values/locators
@@ -1682,7 +1682,7 @@ def test_fund_item_python_boundary_accepts_exact_type_and_rejects_mapping() -> N
         )
 ```
 
-- [ ] **Step 4: Run duplicate/collision cardinality RED -> smallest GREEN**
+- [x] **Step 4: Run duplicate/collision cardinality RED -> smallest GREEN**
 
 Append:
 
@@ -1753,7 +1753,7 @@ observe only these duplicate/collision tests RED.
 Implement raw-duplicate and trimmed normalized-collision detection, their additive
 cardinalities, group exclusion, and per-cell issue locations; rerun to GREEN.
 
-- [ ] **Step 5: Run all-column disagreement RED -> smallest GREEN**
+- [x] **Step 5: Run all-column disagreement RED -> smallest GREEN**
 
 ```python
 def test_two_disagreeing_columns_emit_rows_times_columns_issues_and_exclude_group() -> None:
@@ -1802,7 +1802,7 @@ observe only disagreement tests RED. Implement exact
 raw comparison across all 44 non-attribute columns, rows-times-columns issues, and one
 group exclusion; rerun to GREEN.
 
-- [ ] **Step 6: Refactor the exact issue builder while GREEN**
+- [x] **Step 6: Refactor the exact issue builder while GREEN**
 
 Use exactly:
 
@@ -1824,7 +1824,7 @@ private collapse-issue builder without changing behavior, rerun
 `uv run pytest tests/unit/data/normalization/test_public_fund_collapse.py -q`, and
 require GREEN. Do not introduce a new issue field or defer a producer contract here.
 
-- [ ] **Step 7: Run issue-order/bounded-order orchestration RED -> smallest GREEN**
+- [x] **Step 7: Run issue-order/bounded-order orchestration RED -> smallest GREEN**
 
 Construct one input tuple containing:
 
@@ -1855,7 +1855,7 @@ the mixed bounded-order test RED. Implement one total issue sort, unique issue
 ID enforcement, malformed-key ordering metadata, and exception propagation; rerun to
 GREEN without changing the earlier failure cardinalities.
 
-- [ ] **Step 8: Rerun the authoritative-path lifetime/slope gate**
+- [x] **Step 8: Rerun the authoritative-path lifetime/slope gate**
 
 This is the exact test module already authored, run RED, and made GREEN in Step 2; it
 is printed here as the checkpoint's review reference, not as a later authoring step:
@@ -1955,7 +1955,7 @@ temporary call frames, never 512. Record both observed byte values from the JUni
 properties. Do not relax the bound without an explained allocator/runtime change and
 a reviewed replacement measurement.
 
-- [ ] **Step 9: Run collapse/result completeness and all prior Task 4 gates**
+- [x] **Step 9: Run collapse/result completeness and all prior Task 4 gates**
 
 ```bash
 uv run pytest tests/unit/data/normalization/test_public_fund_collapse.py tests/unit/data/normalization/test_public_funds.py tests/unit/domain/test_task4_contracts.py -q
@@ -1971,7 +1971,7 @@ Expected: valid collapse, direct model invariants, all 44-column agreement check
 exact issue counts/messages/locations/order, full orchestration, and every exact bounded
 mixed order pass.
 
-- [ ] **Step 10: Commit and independently review the complete collapse checkpoint**
+- [x] **Step 10: Commit and independently review the complete collapse checkpoint**
 
 ```bash
 git add src/finproof/domain/public_funds.py src/finproof/data/normalization/public_funds.py tests/unit/data/normalization/test_public_fund_collapse.py tests/unit/domain/test_task4_contracts.py tests/performance/test_public_fund_collapse_scale.py
@@ -2006,7 +2006,7 @@ reruns Step 9, gets a separate commit, and receives re-review.
   complete `FundAttributeRow` tuple or renormalizing emitted attributes.
 - Does not: introduce new production behavior, manufacture a RED, or freeze unspecified optional-warning totals.
 
-- [ ] **Step 1: Write the complete verified-source acceptance test**
+- [x] **Step 1: Write the complete verified-source acceptance test**
 
 Create `tests/source_contract/test_official_overseas_public_normalization.py` with module marks `source_contract` and `slow`. Define literal all-field maps by importing the frozen maps exported by the two domain modules and assert their values equal the official catalog column sets, not merely subsets.
 
@@ -2272,7 +2272,7 @@ Prove exhaustive item/attribute/raw/locator completeness independently of the Py
 
 Finally assert no `family`, `family_candidate`, `product_type`, `saleable`, or `is_eligible_at_as_of` output field exists on `FundItem`, and that all 175 raw item names containing `ETF` or `상장지수` remain ordinary fund items. Do not assert an optional warning grand total.
 
-- [ ] **Step 2: Add official multi-attribute bounded-order acceptance**
+- [x] **Step 2: Add official multi-attribute bounded-order acceptance**
 
 From the same verified rows, select exact item IDs `KR5116450039` and `KR5153450333`.
 Each must contain 16 source rows. Set `canonical` to the 32 selected rows sorted by
@@ -2291,7 +2291,7 @@ Assert all four produce byte-identical result JSON, 2 items, 32 attributes, and 
 same contributing rows/locators. Do not dump the full 95,619-row result to compare
 bytes.
 
-- [ ] **Step 3: Run the acceptance test; immediate GREEN is valid**
+- [x] **Step 3: Run the acceptance test; immediate GREEN is valid**
 
 ```bash
 uv run pytest tests/source_contract/test_official_overseas_public_normalization.py -q -m source_contract --junitxml=/private/tmp/finproof-task4-official-profile.xml
@@ -2307,7 +2307,7 @@ table/row/field, add one focused failing unit regression to the owning Task 2-5 
 file, make the smallest correction, rerun the owning task gate and this acceptance
 command, and never weaken a frozen official count.
 
-- [ ] **Step 4: Run the complete official source-contract marker gate**
+- [x] **Step 4: Run the complete official source-contract marker gate**
 
 ```bash
 uv run pytest tests/source_contract -q -m source_contract
@@ -2318,7 +2318,7 @@ uv run python tools/extract_schema_catalog.py --check
 
 Expected: all official tests pass; overall audit remains 145,393 rows at `2026-07-11`, handoff remains 61 required files/9 official inputs/41,384,928 bytes, and schema catalog remains 207 columns.
 
-- [ ] **Step 5: Commit and review the official acceptance checkpoint**
+- [x] **Step 5: Commit and review the official acceptance checkpoint**
 
 ```bash
 git add tests/source_contract/test_official_overseas_public_normalization.py
@@ -2351,7 +2351,7 @@ focused RED correction path from Step 3 and re-review.
 - Names: exact next task `Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality persistence time, and create exact identifier links`.
 - Preserves: A-003 open; A-011 open only for evidence/golden/metric gaps; no artifact or query/API implementation.
 
-- [ ] **Step 1: Run the complete implementation and repository gate on the reviewed implementation tree**
+- [x] **Step 1: Run the complete implementation and repository gate on the reviewed implementation tree**
 
 From the isolated Task 4 worktree, export the required cache path and run and observe
 every command in this same shell session:
@@ -2377,7 +2377,7 @@ git diff --cached --check
 
 Expected source evidence remains exactly 145,393 official rows, snapshot `2026-07-11`, 207 schema columns, 61 required files, 9 official inputs, and 41,384,928 source bytes. Any unexplained regression is a hard stop, not permission to weaken a test.
 
-- [ ] **Step 2: Update status and both plans only from observed evidence**
+- [x] **Step 2: Update status and both plans only from observed evidence**
 
 In `docs/implementation/STATUS.md`:
 
@@ -2397,7 +2397,7 @@ In `docs/implementation/STATUS.md`:
 
 In the legacy Phase 1 plan, mark Task 4's seven checkpoints complete only after evidence exists. In this dedicated plan, check a box only after the specified command/review exists. Do not change Task 5 behavior or prose.
 
-- [ ] **Step 3: Commit the Task 4 evidence checkpoint**
+- [x] **Step 3: Commit the Task 4 evidence checkpoint**
 
 ```bash
 git add docs/implementation/STATUS.md docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md docs/superpowers/plans/2026-08-14-phase1-task4-overseas-public-normalization.md

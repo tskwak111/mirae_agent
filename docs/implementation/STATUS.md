@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 3 implementation, official acceptance, independent whole-branch review, and final reviewed-tree gate are verified; Phase 1 Task 4 is the next development task.
+**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, checkpoint reviews, official acceptance, and the pre-whole-branch repository gate are verified; the independent whole-branch review and final reviewed-tree gate are the remaining Task 4 closure procedures before Task 5 starts.
 
 ## Frozen baseline
 
@@ -18,7 +18,7 @@ Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 - [x] Task 1: bootstrap settings, version bundle, CLI, and handoff/source checks in tests/CI
 - [x] Task 2: implement source manifest and streaming workbook reader with row lineage
 - [x] Task 3: normalize domestic bonds and domestic listed products
-- [ ] Task 4: normalize overseas listed products and public funds with quarantine
+- [x] Task 4: normalize overseas listed products and public funds with quarantine
 - [ ] Task 5: build Parquet/DuckDB artifacts, exact links, quality report, and reproducibility check
 - [ ] Phase 1 gate passed
 
@@ -58,7 +58,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 4: normalize overseas listed products and public funds with quarantine.** Resolve A-011 at the first later quality/evidence artifact producer or consumer, then begin with the overseas zero/tie preservation RED in the Phase 1 plan. Keep artifact building and the Phase 1 gate outside that change.
+**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality persistence time, and create exact identifier links.** Before implementation, complete Task 4's independent whole-branch review, final reviewed-tree gate, and local fast-forward. Keep the Phase 1 gate unchecked until Task 5's artifact and reproducibility evidence exists.
 
 ## Handoff validation record — not production implementation
 
@@ -545,3 +545,118 @@ Exact next development task:
 quarantine.** Resolve A-011 before its first persisted quality/evidence consumer and
 start with the overseas zero/tie preservation RED. Do not start artifact building in
 the same uncontrolled change.
+
+### 2026-08-14 — Phase 1 Task 4: overseas listed and public-fund normalization
+
+Scope implemented:
+
+- Aligned the canonical quality-issue JSON schema to the frozen
+  `DataQualityIssue.model_dump(mode="json")` contract, including all issue/locator
+  fields, explicit Draft 2020-12 `FormatChecker` use, and UTC terminal-`Z` validation.
+- Added complete 49-column overseas and 45-column public-fund synthetic rows, a shared
+  exact ETF/ETN enum, exact unpadded overseas identity parsing, opt-in literal-`NULL`
+  parsing, and strict `FundItemValue` repeated-locator invariants.
+- Added a strict all-field `OverseasListedProduct` and pure normalizer. Product type
+  comes only from `pd_grp_no`; trading currency comes only from `pd_trd_ccy`; source
+  zero/date/timestamp/flag states remain field-specific; no eligibility, staleness, or
+  dataset-level constant state is inferred.
+- Added a strict all-field `FundAttributeRow` and pure normalizer. The exact input
+  `SourceRow` instance is retained; Python accepts only exact `SourceRow` objects;
+  canonical JSON is structurally prechecked before validation; every wrapper is
+  cross-checked against its exact raw cell and locator.
+- Added global public-fund collapse to `itm_no` grain with one sibling attribute per
+  contributing source row, complete 44-field representative/equivalent-locator
+  evidence, exact raw agreement, stable output, and fail-closed duplicate,
+  normalized-collision, and disagreement rules.
+- Added the verified official acceptance for 5,646 overseas rows and 95,619 public-
+  fund rows. No official input, expected audit, persisted artifact, exact link,
+  family, query, API, HCX, or eligibility behavior changed.
+
+Focused RED/GREEN evidence:
+
+| Checkpoint | Observed RED before behavior | Observed GREEN / review result |
+|---|---|---|
+| quality schema (`d8a6500`, `6f5c93f`) | legacy schema: `2 failed, 17 passed`; review regression: malformed terminal-`Z` values were accepted, `2 failed, 19 passed` | schema `21 passed`; combined contract gate `42 passed`; initial review 0 Critical/1 Important/0 Minor, then approved 0/0/0 after the dev-only RFC3339 checker correction |
+| foundations (`8c60cad`) | exact helper import and `FundItemValue` module were absent; a guard-disabled later-source-order mutation failed to raise | fixture/parser cycle `88 passed`; value cycle `16 passed`; regression suite `130 passed`; independent review approved 0/0/0 |
+| overseas (`23f02a5`) | missing module; then missing mapping/valid path; policy `6 failed, 14 passed`; model invariants `7 failed, 23 passed` | model scaffold `2 passed`; valid mapping `8 passed`; policy `20 passed`; final model file `30 passed`; regression `105 passed`; independent review approved 0/0/0 |
+| fund row (`687a8a5`) | missing model/module; policy `7 failed, 13 passed`; Python/JSON/invariants `44 failed, 38 passed`; padded-currency self-review exposed two failures | scaffold `17 passed`; mapping `23 passed`; policy `20 passed`; invariant suite `82 passed`; final fund/overseas regression `137 passed`; independent review approved 0/0/0 |
+| fund collapse (`b554b48`, `cc55153`) | missing models/callables; invariants `20 failed, 75 passed`; duplicate/collision `3 failed, 25 passed`; disagreement `44 failed, 28 passed`; mixed ordering one failure; malformed-key and short-row regressions failed at unsafe lookup; independent review added four duplicate-location failures | scaffold `3 passed`; valid/scale `7 passed`; invariant `95 passed`; producer suites `28` then `72 passed`; final corrected focused suite `190 passed`; initial review 0 Critical/1 Important/0 Minor, then approved 0/0/0 after duplicate source-location rejection |
+| official acceptance (`ba2122d`) | no synthetic RED was manufactured because Tasks 1-5 already introduced the production behavior | first run `2 passed in 383.99s`; checkpoint review approved 0/0/0; no production correction was required |
+
+Official acceptance evidence:
+
+- Overseas: 5,646 source rows produced 5,646 unique records and zero quarantines;
+  5,587 ETF and 59 ETN; all trading currencies were the source `pd_trd_ccy=USD`;
+  363 fee zeroes and 5,283 positive fees; 5,388 recorded-zero and 258 blank one-day
+  returns; 5,451 positive, 8 zero, and 187 blank AUM values; 5,638 nonblank values for
+  each core text field; 2,360 replication methods; 8 listing-date zero sentinels; and
+  10 blank sale plus 10 blank trade flags. Every one of the 49 wrappers retained the
+  exact raw cell and complete locator.
+- Public funds: 95,619 rows contained 11,139 raw IDs and produced 11,138 item records,
+  95,618 attributes, and one malformed-item blocker at Excel row 84,563 for raw
+  `itm_no='"'`. The source had 95,619 unique raw pairs, zero raw duplicates, 228 raw
+  and 228 trimmed attribute codes, 1,670 padded rows, zero normalized collisions, and
+  zero non-attribute disagreement groups.
+- Item facts were 11,067 KRW and 71 USD items; 18,416 literal-`NULL` risk-code rows
+  across 2,573 items; 5,436 type-`06` rows across 686 items; and exactly 20 below-minus-
+  100 cells on five source rows for item `KR515303001M`. Maximum attribute cardinality
+  was 16. Every item retained all contributing rows, the lowest-row representative,
+  and every agreeing field locator; no family or name-based ETF conversion occurred.
+- The selected 32 official multi-attribute rows produced byte-identical two-item,
+  32-attribute results in canonical, reverse, even-then-odd, and odd-then-even orders.
+
+Checkpoint reviews and commits:
+
+- `c47e011463c55124f47cba17e048ff3a21857394` — approved Task 4 design.
+- `500926afd02f8448916014f88c48e3d772d347ed` — approved detailed plan and frozen
+  D-021/refined A-011 decision boundary.
+- `d8a6500c96b87001a0b5f709a4560815288a62ee` and
+  `6f5c93f601a3bbbea0a7a3077e61bd40c80f5fd6` — quality schema and review correction.
+- `8c60cade794f0131e3a5ee68cde28096dd365fa5` — Task 4 foundations.
+- `23f02a5ae7d595cd44f8b429655807777c758999` — overseas normalization.
+- `687a8a502dafd2386963aa5e9cdc2e867d817bcb` — public-fund row normalization.
+- `b554b48c71c1381c249c465ae9a47a89d5c7d0ee` and
+  `cc55153c20bffa0fbed40eb50c589ba6d0d9324d` — fund collapse and review correction.
+- `ba2122d73f51cc12db014aad8a1e0b538c74ec4d` — official acceptance.
+- The Task 4 verification-document commit is recorded in the subsequent whole-branch
+  review update because a Git commit cannot embed its own final object hash.
+
+Observed pre-whole-branch repository gate on implementation HEAD `ba2122d`:
+
+- `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv sync --frozen --all-groups` — PASS:
+  68 packages checked in 2 ms.
+- focused quality/domain/normalization command — PASS: 442 tests in 1.97 s.
+- bounded collapse scale command — PASS: 2 tests in 10.29 s; JUnit measured 98,240
+  transient bytes at 256 rows, 223,424 at 512 rows, and peak live normalized rows 1.
+- official Task 4 acceptance — PASS: 2 tests in 364.89 s; the fund normalization body
+  measured 261.755902 s and peak RSS 4,963,942,400 before versus 7,303,561,216 bytes
+  after (increase 2,339,618,816 bytes).
+- all source-contract tests with the marker — PASS: 6 tests, 113 deselected in
+  532.19 s.
+- `uv run ruff format --check .` — PASS: 77 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 77 source files.
+- `uv run pytest -q` — PASS: 642 tests in 575.03 s.
+- source audit — PASS: 145,393 rows, snapshot `2026-07-11`.
+- handoff — PASS: 61 required files, 9 official inputs, 41,384,928 source bytes.
+- schema catalog — PASS: 207 columns.
+- pre-commit — PASS: Ruff check and Ruff format hooks.
+- both diff checks — PASS with no output; official writable-file count remained zero;
+  the implementation HEAD worktree was clean before this documentation update.
+
+Decision boundaries and remaining procedures:
+
+- D-021 is implemented: pure issues keep `first_detected_at=None`; Task 5 injects a
+  timezone-aware UTC persistence time whose JSON form ends in `Z`, outside logical
+  reproducibility hashes.
+- A-003 remains open; Task 4 derives no overseas/public-fund eligibility.
+- A-011 remains open only for later evidence, golden-case, and metric contracts.
+- Independent whole-branch review, final reviewed-tree gate, and the authorized local
+  fast-forward remain Task 7 Steps 4-6 and must occur before Task 5 implementation.
+- Phase 1 Task 5 and the Phase 1 gate remain unchecked.
+
+Exact next development task:
+
+**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality
+persistence time, and create exact identifier links.** Before its first code change,
+complete the remaining Task 4 whole-branch review, final gate, and local integration.
