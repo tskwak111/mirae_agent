@@ -422,7 +422,7 @@ The dedicated plan must implement the approved specification under strict RED ->
 - [x] **Checkpoint 1: build settings/options, runtime schema resources, artifact config,
   expected-contract types/comparison and synthetic bootstrap boundary, dependencies,
   and typed errors; no official baseline content**
-- [ ] **Checkpoint 2: strict manifest/load, descriptor-bound physical inventory,
+- [x] **Checkpoint 2: strict manifest/load, descriptor-bound physical inventory,
   canonical schema/table/report/overall hash primitives, exact report contracts,
   exhaustive expected-contract comparison, and an internal synthetic-port kernel; no
   public trusted verifier/result**

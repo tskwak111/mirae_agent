@@ -500,7 +500,7 @@ accepts no caller projection. The canonical hash sorts JSON object keys, so decl
 order is an independently tested model/API contract rather than a hidden source of hash
 variation.
 
-- [ ] **Step 1: Execute the exact serial hashing skeleton/behavior selector loop**
+- [x] **Step 1: Execute the exact serial hashing skeleton/behavior selector loop**
 
 Create `test_hashing.py` with a test-only canonical encoder that imports no production
 hashing. Author and close only one selector before adding the next. For the first
@@ -571,7 +571,7 @@ the row iterator is requested before the header, iterated twice, measured with `
 or retained/materialized. Use only synthetic rows; CP3 owns operational table
 projections.
 
-- [ ] **Step 2: Run the hashing aggregate only after every selector is GREEN**
+- [x] **Step 2: Run the hashing aggregate only after every selector is GREEN**
 
 Run:
 
@@ -585,7 +585,7 @@ manifest hashes contain no path, layer, writer option, persistence timestamp, ph
 size/hash, database bytes, or arbitrary model dump. Record this only as an aggregate
 gate, never as RED evidence.
 
-- [ ] **Step 3: Execute exact strict-report, manifest, inventory, and kernel selector loops**
+- [x] **Step 3: Execute exact strict-report, manifest, inventory, and kernel selector loops**
 
 Author and close each selector below in exactly this order. Each command is
 `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest <file>::<selector> -q`;
@@ -734,7 +734,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 Expected GREEN: all strict structural, report, inventory, root-binding, kernel, and
 expected-comparator behaviors are present. This aggregate is not RED evidence.
 
-- [ ] **Step 4: Implement the exact schema, strict models, load, and all-or-nothing inventory**
+- [x] **Step 4: Implement the exact schema, strict models, load, and all-or-nothing inventory**
 
 This step is the implementation summary for the serial GREEN changes above, not
 permission for batch implementation after one RED. Replace the legacy schema with the
@@ -773,7 +773,7 @@ candidate-core route skips only that comparison. Both rescan before their distin
 internal result type escapes. CP2 production wiring intentionally cannot call either
 route under D-024.
 
-- [ ] **Step 5: Reconfirm the already-closed editable resource boundary**
+- [x] **Step 5: Reconfirm the already-closed editable resource boundary**
 
 The stale-resource RED/reinstall/GREEN occurred inline at its exact serial position in
 Step 3. Run the two resource selectors again as regression only:
@@ -789,7 +789,7 @@ metadata fallback resolves only the frozen schema destinations, and both bytes/S
 values equal their root sources. This is regression evidence, not a second behavior
 cycle.
 
-- [ ] **Step 6: Close new expected-difference selectors, then run independent mutation acceptance**
+- [x] **Step 6: Close new expected-difference selectors, then run independent mutation acceptance**
 
 Author and close only these two still-new production behaviors one at a time:
 
@@ -836,7 +836,7 @@ mutations are deliberate CP3/CP5 REDs. Concrete report-file verification, exact-
 relation recheck, same-count/different-value DuckDB, and packaged expected comparison
 are deliberate CP7 REDs under D-024.
 
-- [ ] **Step 7: Run the complete CP2 focused GREEN gate**
+- [x] **Step 7: Run the complete CP2 focused GREEN gate**
 
 Do not add any later capability here. Run:
 
@@ -864,7 +864,7 @@ physical inventory/reopen capability verifies immutably; exhaustive expected
 differences are stable; and the orchestration refuses a missing later port and never
 returns or exports a prematurely trusted artifact set.
 
-- [ ] **Step 8: Run full checkpoint/repository gates, commit, and obtain a fresh review**
+- [x] **Step 8: Run full checkpoint/repository gates, commit, and obtain a fresh review**
 
 Run the exact checkpoint gate plus unchanged behavior and repository gates:
 
@@ -926,6 +926,24 @@ invalid keyword API or lexical fallback, recompute exact report projections, exe
 RFC 6901 difference paths, and verify D-024 ownership. After review is 0 Critical /
 0 Important, require `git status --porcelain` empty, both expected-contract paths and
 `artifacts/` absent, and official sources still read-only before Checkpoint 3 starts.
+
+Observed completion evidence on 2026-08-15:
+
+- Reviewed CP2 commits: implementation `0db3e79`, review correction `ac5d4ee`, and
+  residual Mapping-snapshot correction `75a2bfc`.
+- Final independent review at `75a2bfc`: Critical 0 / Important 0 / Minor 0.
+- Hashing regression: 46 passed; exact CP2 focused suite: 341 passed; CP1+CP2
+  aggregate: 576 passed; unchanged Task 1–4 regression: 533 passed.
+- Full implementation suite: 1,248 passed and 1 explicit AF_UNIX-unavailable skip in
+  578.71 seconds. Ruff format/check and mypy passed over 98 source files.
+- Source audit remained 145,393 rows at `2026-07-11`; handoff remained 61 required
+  files, 9 official inputs, and 41,384,928 bytes; schema catalog remained 207 columns.
+- Wheel/resource checks passed with byte-identical manifest and quality schemas and no
+  expected-contract resource or candidate tooling. Both expected-contract paths and
+  `artifacts/` remained absent, official sources remained read-only, and the final
+  worktree was clean.
+- Exact next task: Checkpoint 3, frozen table specs, strict projections, and bounded
+  Parquet I/O. Task 5, the Phase 1 gate, and Checkpoints 3–8 remain incomplete.
 
 ---
 
