@@ -589,7 +589,8 @@ gate, never as RED evidence.
 
 Author and close each selector below in exactly this order. Each command is
 `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest <file>::<selector> -q`;
-every parameter ID must reach the intended assertion. A missing module/symbol permits
+every parameter ID must reach the intended assertion. Except for the one selector
+explicitly labeled derived first-GREEN acceptance, a missing module/symbol permits
 only a raising skeleton, followed by the same selector's narrower behavioral RED.
 The one force-included schema transition has an inline pause described immediately
 after the ordered list; it is closed RED -> GREEN before the next selector begins.
@@ -606,7 +607,7 @@ tests/unit/data/artifacts/test_manifest.py::test_artifact_file_requires_explicit
 tests/unit/data/artifacts/test_manifest.py::test_artifact_manifest_rejects_each_inventory_path_version_and_scalar_mutation
 tests/contract/test_artifact_manifest_schema.py::test_artifact_manifest_schema_accepts_only_exact_model_shape
 tests/contract/test_artifact_resources.py::test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd
-tests/contract/test_artifact_manifest_schema.py::test_artifact_manifest_schema_checks_every_format_error
+tests/contract/test_artifact_manifest_schema.py::test_artifact_manifest_schema_checks_every_format_error  # derived first-GREEN acceptance
 tests/unit/data/artifacts/test_manifest.py::test_manifest_load_parses_only_without_opening_declared_files
 tests/unit/data/artifacts/test_manifest.py::test_verified_inventory_exact_tree_and_entry_identities
 tests/unit/data/artifacts/test_manifest.py::test_verified_inventory_rejects_every_unsafe_tree_shape_without_mutation
@@ -642,6 +643,13 @@ Expected GREEN: manifest and unchanged quality schema bytes/SHA match outside th
 checkout CWD. Only then resume the list with the format-error selector using ordinary
 `uv run`. Thus no RED remains open while another behavior is authored, and no ordinary
 `uv run` can auto-refresh away the required stale-resource RED.
+
+The format-error selector is a derived first-GREEN acceptance, not new-behavior RED
+evidence: the preceding exact-root-schema selector freezes the complete schema,
+including every SHA/path/date-time `format` and pattern rule from design Section 10.1.
+After resource refresh, the format-error selector independently mutates each frozen
+format and must pass on its first run. Do not omit and later re-add a format rule or
+special-case production/schema content merely to manufacture a RED.
 
 The first source-audit selector gets only an importable symbol skeleton that rejects the
 otherwise-valid full fixture; rerun that same fields/order selector to prove the
