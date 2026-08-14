@@ -1,6 +1,6 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, checkpoint reviews, official acceptance, and independent whole-branch review are verified; the final reviewed-tree gate and local integration remain before Task 5 starts.
+**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, official acceptance, independent whole-branch review, and the final reviewed-tree gate are verified; local integration remains before Task 5 starts.
 
 ## Frozen baseline
 
@@ -58,7 +58,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality persistence time, and create exact identifier links.** Before implementation, complete Task 4's independent whole-branch review, final reviewed-tree gate, and local fast-forward. Keep the Phase 1 gate unchecked until Task 5's artifact and reproducibility evidence exists.
+**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality persistence time, and create exact identifier links.** Before implementation, locally fast-forward the reviewed Task 4 branch. Keep the Phase 1 gate unchecked until Task 5's artifact and reproducibility evidence exists.
 
 ## Handoff validation record — not production implementation
 
@@ -620,6 +620,8 @@ Checkpoint reviews and commits:
 - `ba2122d73f51cc12db014aad8a1e0b538c74ec4d` — official acceptance.
 - `70e017c95525969aadd90c9022eadbf5c93d78a7` — Task 4 verification evidence and
   plan/status checkpoint.
+- `baf0c21dc83210057003bb545cc127c33882c495` — independent whole-branch review
+  evidence; this is the exact reviewed HEAD used by the final gate below.
 
 Observed pre-whole-branch repository gate on implementation HEAD `ba2122d`:
 
@@ -665,6 +667,33 @@ Independent whole-branch review evidence:
 - This review-evidence commit is recorded in the subsequent final-gate update because
   a Git commit cannot embed its own final object hash.
 
+Final reviewed-tree gate evidence on exact clean HEAD
+`baf0c21dc83210057003bb545cc127c33882c495`:
+
+- `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv sync --frozen --all-groups` — PASS:
+  68 packages checked in 2 ms.
+- focused quality/domain/normalization command — PASS: 442 tests in 2.03 s.
+- bounded collapse scale command — PASS: 2 tests in 10.26 s; JUnit suite time
+  10.194 s, 98,240 transient bytes at 256 rows, 223,424 at 512 rows, and peak live
+  normalized rows 1.
+- official Task 4 acceptance — PASS: 2 tests in 375.23 s; JUnit suite time
+  375.122 s and fund-test time 367.262 s. The fund normalization body measured
+  270.740757 s; peak RSS was 5,015,289,856 before versus 7,035,207,680 bytes after,
+  an increase of 2,019,917,824 bytes.
+- all source-contract tests with the marker — PASS: 6 tests, 113 deselected in
+  533.72 s.
+- `uv run ruff format --check .` — PASS: 77 files already formatted.
+- `uv run ruff check .` — PASS: all checks passed.
+- `uv run mypy src tests tools` — PASS: no issues in 77 source files.
+- `uv run pytest -q` — PASS: 642 tests in 591.54 s.
+- source audit — PASS: 145,393 rows, snapshot `2026-07-11`.
+- handoff — PASS: 61 required files, 9 official inputs, 41,384,928 source bytes.
+- schema catalog — PASS: 207 columns.
+- pre-commit — PASS: Ruff check and Ruff format hooks.
+- both diff checks — PASS with no output; `git status --short --branch` showed only
+  the feature-branch header, the porcelain emptiness assertion passed, and the
+  official writable-file search returned zero paths before this documentation update.
+
 Decision boundaries and remaining procedures:
 
 - D-021 is implemented: pure issues keep `first_detected_at=None`; Task 5 injects a
@@ -672,8 +701,8 @@ Decision boundaries and remaining procedures:
   reproducibility hashes.
 - A-003 remains open; Task 4 derives no overseas/public-fund eligibility.
 - A-011 remains open only for later evidence, golden-case, and metric contracts.
-- Independent whole-branch review is approved. The final reviewed-tree gate and the
-  authorized local fast-forward remain Task 7 Steps 5-6 and must occur before Task 5
+- Independent whole-branch review and the final reviewed-tree gate are approved. The
+  authorized local fast-forward remains Task 7 Step 6 and must occur before Task 5
   implementation.
 - Phase 1 Task 5 and the Phase 1 gate remain unchecked.
 
@@ -681,4 +710,4 @@ Exact next development task:
 
 **Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality
 persistence time, and create exact identifier links.** Before its first code change,
-complete the remaining Task 4 final gate and local integration.
+complete the remaining Task 4 local integration.

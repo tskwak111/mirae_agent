@@ -394,7 +394,7 @@ fund normalization, artifact building, or Phase 1 gate closure.
 - [x] **Checkpoint 4: complete 45-field fund row, identity/exact-type Python boundary, and canonical JSON**
 - [x] **Checkpoint 5: global item collapse, completeness, exact failure cardinalities/order, and bounded-order invariance**
 - [x] **Checkpoint 6: verified official 101,265-row acceptance**
-- [ ] **Checkpoint 7: repository gates, status evidence, independent whole-branch review, and clean tree**
+- [x] **Checkpoint 7: repository gates, status evidence, independent whole-branch review, and clean tree**
 
 Do not mark Task 4 complete until the dedicated plan records every focused RED/GREEN,
 per-checkpoint review, official count/fidelity assertion, final whole-branch review,

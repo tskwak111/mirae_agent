@@ -2427,7 +2427,7 @@ no official input, expected audit, artifact, exact-link, family, query, API, or 
 
 Classify findings as Critical, Important, or Minor. Every Critical or Important behavior finding must receive one focused failing regression, the smallest correction, the owning task gate plus Step 1 rerun, a separate correction commit, status evidence, and re-review. Repeat until no Critical or Important finding remains.
 
-- [ ] **Step 5: Run the final reviewed-tree gate and prove cleanliness**
+- [x] **Step 5: Run the final reviewed-tree gate and prove cleanliness**
 
 On the final reviewed HEAD, rerun every Step 1 command, then:
 
