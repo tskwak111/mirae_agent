@@ -245,11 +245,15 @@ closed algorithm:
 3. skip only frozen structural lineage-only fields that are represented inside
    `record_json` rather than query projection (`FundItem.contributing_rows` in the
    current models);
-4. for each `NormalizedValue`, immediately emit `<field>`, then
-   `<field>__quality_status`;
-5. for each `DerivedValue`, immediately emit `<field>`,
+4. for each `NormalizedValue`, immediately emit `<field>` from its
+   `normalized_value`, then `<field>__quality_status` from its `quality_status`;
+5. for each public-fund `FundItemValue`, immediately emit `<field>` from
+   `representative.normalized_value`, then `<field>__quality_status` from
+   `representative.quality_status`; its `equivalent_sources` remain only in
+   `record_json` and may not create extra wide rows or columns;
+6. for each `DerivedValue`, immediately emit `<field>`,
    `<field>__quality_status`, then `<field>__as_of_date`;
-6. emit `record_json` last.
+7. emit `record_json` last.
 
 No alphabetical or type-group reordering is permitted. The type-group bullets in
 sections 5.4 through 5.7 are complete type inventories only; they do not define column
@@ -1303,6 +1307,9 @@ At minimum, tests prove:
   its complete ordered columns independently from the exact model declaration and
   asserts the frozen sequence; synthetic field insertion/removal/reorder fails instead
   of regenerating a table spec or expected baseline;
+- every fund-item wide value and quality column equals its `FundItemValue`
+  representative value/status, while all equivalent locators remain recoverable from
+  `record_json` and never multiply the item-grain row;
 - all-null columns retain declared physical type;
 - Decimal values never round and source-local timestamps gain no invented timezone;
 - Bronze reconstructs every D-017 row/cell and retains both malformed rows;
