@@ -2,19 +2,12 @@
 
 from datetime import date, datetime
 from decimal import Decimal
-from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
+from finproof.domain.listed import ListedProductType as ListedProductType
 from finproof.domain.values import DerivedValue, NormalizedValue
-
-
-class ListedProductType(StrEnum):
-    """Exact domestic listed product groups kept distinct by the source."""
-
-    ETF = "ETF"
-    ETN = "ETN"
 
 
 class ListedProduct(BaseModel):

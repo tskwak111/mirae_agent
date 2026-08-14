@@ -63,3 +63,56 @@ def parse_identifier(
         rule_id=rule_id,
         rule_version=rule_version,
     )
+
+
+def parse_exact_source_identity(
+    row: SourceRow,
+    column_name: str,
+    *,
+    rule_id: str,
+    rule_version: str,
+) -> NormalizedValue[str]:
+    """Preserve an exact nonblank identity and reject implicit trimming."""
+    raw_value = row.cell(column_name).raw_value
+    if not raw_value.strip() or raw_value != raw_value.strip():
+        return make_normalized_value(
+            row,
+            column_name,
+            normalized_value=None,
+            quality_status=QualityStatus.MALFORMED_SOURCE_ROW,
+            rule_id=rule_id,
+            rule_version=rule_version,
+        )
+    return make_normalized_value(
+        row,
+        column_name,
+        normalized_value=raw_value,
+        quality_status=QualityStatus.VALID,
+        rule_id=rule_id,
+        rule_version=rule_version,
+    )
+
+
+def parse_literal_null_text(
+    row: SourceRow,
+    column_name: str,
+    *,
+    rule_id: str,
+    rule_version: str,
+) -> NormalizedValue[str]:
+    """Treat exact uppercase NULL as missing only for opted-in source fields."""
+    if row.cell(column_name).raw_value == "NULL":
+        return make_normalized_value(
+            row,
+            column_name,
+            normalized_value=None,
+            quality_status=QualityStatus.MISSING_LITERAL_NULL,
+            rule_id=rule_id,
+            rule_version=rule_version,
+        )
+    return parse_text(
+        row,
+        column_name,
+        rule_id=rule_id,
+        rule_version=rule_version,
+    )

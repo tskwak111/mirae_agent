@@ -36,6 +36,17 @@ def test_domestic_listed_keeps_etf_and_etn_distinct(
     assert result.record.product_type.normalized_value is product_type
 
 
+def test_domestic_listed_shared_type_keeps_existing_json_round_trip() -> None:
+    """Moving the enum must not change the Task 3 model's JSON contract."""
+    record = normalize_domestic_listed(source_row("PREF01N001"), AS_OF).record
+    assert record is not None
+
+    restored = ListedProduct.model_validate_json(record.model_dump_json())
+
+    assert restored == record
+    assert restored.product_type.normalized_value is ListedProductType.ETF
+
+
 def test_valid_domestic_listed_maps_every_declared_source_column() -> None:
     values = {
         "pd_itm_no": "KR7000000001",

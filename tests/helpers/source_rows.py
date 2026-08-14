@@ -130,7 +130,138 @@ DOMESTIC_LISTED_COLUMNS = (
     "wu_upt_dt",
 )
 
-TableId = Literal["PRBD01N001", "PREF01N001"]
+OVERSEAS_LISTED_COLUMNS = (
+    "cu_base_index",
+    "cu_charge_rt",
+    "cu_etn_yn",
+    "cu_fund_mgmt_co",
+    "cu_index_repl_mthd",
+    "cu_index_tracking_yn",
+    "cu_inverse_short_yn",
+    "cu_lev_fector",
+    "cu_strtegy",
+    "cu_upt_dt",
+    "du_base_dt_match_yn",
+    "du_bpr",
+    "du_clpr",
+    "du_clpr_base_dt",
+    "du_clpr_src",
+    "du_diff_rt",
+    "du_er_1d",
+    "du_hpr",
+    "du_last_aum",
+    "du_last_nav",
+    "du_lpr",
+    "du_nav_base_dt",
+    "du_opr",
+    "du_upt_dt",
+    "du_val_1d",
+    "du_vol_1d",
+    "pd_abrv_nm",
+    "pd_curr_cd",
+    "pd_exg_mkt_cd",
+    "pd_grp_no",
+    "pd_isin_cd",
+    "pd_itm_no",
+    "pd_itm_no_ma",
+    "pd_lipper_id",
+    "pd_lstg_dt",
+    "pd_lst_price",
+    "pd_lst_stk_cnt",
+    "pd_mkt_id",
+    "pd_nm",
+    "pd_sale_yn",
+    "pd_trd_ccy",
+    "pd_tr_yn",
+    "pd_us_cik",
+    "ru_mkt_price",
+    "ru_mkt_volume",
+    "wu_core_yn",
+    "wu_inv_ast_type",
+    "wu_inv_rgn",
+    "wu_upt_dt",
+)
+
+PUBLIC_FUND_COLUMNS = (
+    "bmrk_eng_nm",
+    "bmrk_nm",
+    "curr_cd",
+    "exchdg_yn",
+    "fd_estb_ctry_cd",
+    "fd_ivst_rgn_desc",
+    "fd_mm18_ern_r",
+    "fd_mm1_ern_r",
+    "fd_mm3_ern_r",
+    "fd_mm6_ern_r",
+    "fd_nast_suma",
+    "fd_set_pcd",
+    "fd_wk1_ern_r",
+    "fd_yr1_ern_r",
+    "fd_yr2_ern_r",
+    "fd_yr3_ern_r",
+    "fd_yr5_ern_r",
+    "frc_bpr_itm_yn",
+    "fss_itm_no",
+    "hdge_fd_yn",
+    "int_dvd_desc",
+    "itm_abrv_nm",
+    "itm_eabrv_nm",
+    "itm_eng_nm",
+    "itm_nm",
+    "itm_no",
+    "kofia_fd_ccd",
+    "ksd_itm_no",
+    "mtco_itm_no",
+    "ofsfd_yn",
+    "or_attr_desc",
+    "or_co_xtn_itt_cd",
+    "ovrs_fd_desc",
+    "pers_corp_desc",
+    "pfiv_sale_cntl_tcd",
+    "prfd_attr_cd",
+    "prvo_fd_desc",
+    "prvo_pbff_desc",
+    "rptt_ksd_itm_no",
+    "sale_yn",
+    "std_itm_no",
+    "thco_sale_yn",
+    "trusc_xtn_itt_cd",
+    "zrin_fd_ivst_risk_gcd",
+    "zrin_fd_ivst_risk_grd_nm",
+)
+
+OVERSEAS_DEFAULTS = {
+    "pd_itm_no": "BND.O",
+    "pd_itm_no_ma": "BND.O",
+    "pd_abrv_nm": "BND",
+    "pd_grp_no": "ETF",
+    "pd_nm": "Test Overseas ETF",
+    "pd_trd_ccy": "USD",
+    "pd_lstg_dt": "20070403",
+    "cu_charge_rt": "0.020000",
+    "du_last_aum": "157396600000.00",
+    "du_er_1d": "0.000000",
+    "cu_upt_dt": "20260614",
+    "du_clpr_base_dt": "20260616",
+    "du_nav_base_dt": "2026-06-14 00:00:00",
+    "du_upt_dt": "20260616",
+    "wu_upt_dt": "20260614",
+}
+
+PUBLIC_FUND_DEFAULTS = {
+    "itm_no": "KR5114601001",
+    "prfd_attr_cd": "C101",
+    "itm_nm": "테스트 공모펀드",
+    "itm_abrv_nm": "테스트펀드",
+    "curr_cd": "KRW",
+    "fd_nast_suma": "1000000.0000",
+    "or_attr_desc": "주식형",
+    "sale_yn": "판매중",
+    "thco_sale_yn": "Y",
+    "ksd_itm_no": "KR5114601001",
+}
+
+TableId = Literal["PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001"]
 
 
 def _excel_column_letter(number: int) -> str:
@@ -150,9 +281,11 @@ def source_row(
     applicable_dates: Mapping[str, date | None] | None = None,
 ) -> SourceRow:
     """Return a complete source row with only safe, fixed fixture lineage."""
-    columns = BOND_COLUMNS if table_id == "PRBD01N001" else DOMESTIC_LISTED_COLUMNS
-    defaults = (
-        {
+    columns: tuple[str, ...]
+    defaults: Mapping[str, str]
+    if table_id == "PRBD01N001":
+        columns = BOND_COLUMNS
+        defaults = {
             "PD_NO": "KR0000000001",
             "PD_NM": "테스트 채권",
             "PD_ABRV_NM": "채권",
@@ -163,8 +296,9 @@ def source_row(
             "BUYABLE_QUANTITY": "1",
             "REMAINING_DAYS": "365",
         }
-        if table_id == "PRBD01N001"
-        else {
+    elif table_id == "PREF01N001":
+        columns = DOMESTIC_LISTED_COLUMNS
+        defaults = {
             "pd_itm_no": "KR7000000001",
             "pd_itm_no_ma": "A000001",
             "pd_grp_no": "ETF",
@@ -176,7 +310,12 @@ def source_row(
             "pd_lstg_dt": "20200101",
             "pd_lste_dt": "99991231",
         }
-    )
+    elif table_id == "PREF02N001":
+        columns = OVERSEAS_LISTED_COLUMNS
+        defaults = OVERSEAS_DEFAULTS
+    else:
+        columns = PUBLIC_FUND_COLUMNS
+        defaults = PUBLIC_FUND_DEFAULTS
     supplied = dict(values or {})
     unknown = set(supplied) - set(columns)
     if unknown:
