@@ -5,6 +5,7 @@ from __future__ import annotations
 import builtins
 import json
 import os
+from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -917,6 +918,110 @@ def test_expected_models_reject_direct_python_coercion_and_wrong_containers(
         ExpectedPhase1ArtifactContract.model_validate(payload)
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "artifact-version",
+        "artifact-set",
+        "input-uppercase-hash",
+        "input-malformed-hash",
+        "input-negative-size",
+        "input-bool-size",
+        "table-uppercase-schema",
+        "table-malformed-schema",
+        "table-uppercase-logical",
+        "table-malformed-logical",
+        "table-negative-count",
+        "table-bool-count",
+        "table-wrong-grain",
+        "table-wrong-known-count",
+        "report-uppercase-hash",
+        "report-malformed-hash",
+        "overall-uppercase-hash",
+        "overall-malformed-hash",
+        "pair-uppercase-hash",
+        "pair-malformed-hash",
+        "pair-wrong-hash",
+        "evidence-negative-count",
+        "evidence-bool-count",
+        "evidence-wrong-count",
+    ],
+)
+def test_expected_contract_enforces_literals_hashes_counts_and_grains(case: str) -> None:
+    from finproof.data.artifacts.expected_contract import (
+        ExpectedPhase1ArtifactContract,
+    )
+
+    contract = ExpectedPhase1ArtifactContract.model_validate(
+        expected_contract_payload(), strict=True
+    )
+    update: dict[str, object] = {}
+    if case == "artifact-version":
+        update["artifact_contract_version"] = "2.0.0"
+    elif case == "artifact-set":
+        update["artifact_set_id"] = "other/v1"
+    elif case.startswith("input-"):
+        field = "size_bytes" if case.endswith(("size", "count")) else "sha256"
+        value: object
+        if case == "input-uppercase-hash":
+            value = "A" * 64
+        elif case == "input-malformed-hash":
+            value = "a" * 63
+        elif case == "input-negative-size":
+            value = -1
+        else:
+            value = True
+        update["logical_inputs"] = (
+            contract.logical_inputs[0].model_copy(update={field: value}),
+            *contract.logical_inputs[1:],
+        )
+    elif case.startswith("table-"):
+        if case == "table-uppercase-schema":
+            field, value = "schema_hash", "A" * 64
+        elif case == "table-malformed-schema":
+            field, value = "schema_hash", "a" * 63
+        elif case == "table-uppercase-logical":
+            field, value = "logical_hash", "A" * 64
+        elif case == "table-malformed-logical":
+            field, value = "logical_hash", "a" * 63
+        elif case == "table-negative-count":
+            field, value = "row_count", -1
+        elif case == "table-bool-count":
+            field, value = "row_count", True
+        elif case == "table-wrong-grain":
+            field, value = "grain", "other"
+        else:
+            field, value = "row_count", contract.tables[0].row_count + 1
+        update["tables"] = (
+            contract.tables[0].model_copy(update={field: value}),
+            *contract.tables[1:],
+        )
+    elif case.startswith("report-"):
+        value = "A" * 64 if "uppercase" in case else "a" * 63
+        update["reports"] = (
+            contract.reports[0].model_copy(update={"semantic_hash": value}),
+            contract.reports[1],
+        )
+    elif case.startswith("overall-"):
+        update["overall_manifest_logical_hash"] = "A" * 64 if "uppercase" in case else "a" * 63
+    elif case.startswith("pair-"):
+        update["exact_link_pair_sha256"] = {
+            "pair-uppercase-hash": "A" * 64,
+            "pair-malformed-hash": "a" * 63,
+            "pair-wrong-hash": "d" * 64,
+        }[case]
+    else:
+        update["exact_link_evidence_count"] = {
+            "evidence-negative-count": -1,
+            "evidence-bool-count": True,
+            "evidence-wrong-count": 370,
+        }[case]
+    forged = contract.model_copy(update=update)
+
+    with pytest.raises(ValidationError):
+        ExpectedPhase1ArtifactContract.model_validate(forged, strict=True)
+
+
 def test_expected_comparator_accepts_equal_structural_contract() -> None:
     from finproof.data.artifacts.expected_contract import (
         ExpectedPhase1ArtifactContract,
@@ -991,6 +1096,7 @@ def test_expected_comparator_rejects_every_deterministic_difference(
 ) -> None:
     from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
     from finproof.data.artifacts.expected_contract import (
+        ArtifactLogicalContractPayload,
         ExpectedPhase1ArtifactContract,
         compare_expected_artifact_contract,
     )
@@ -1019,11 +1125,105 @@ def test_expected_comparator_rejects_every_deterministic_difference(
         payload["exact_link_pair_sha256"] = "e" * 64
     else:
         payload["exact_link_evidence_count"] += 1
-    actual = ExpectedPhase1ArtifactContract.model_validate(payload)
+    actual: ArtifactLogicalContractView
+    if difference in {"contract-version", "set-id"}:
+        actual = SimpleNamespace(
+            artifact_contract_version=payload["artifact_contract_version"],
+            artifact_set_id=payload["artifact_set_id"],
+            dataset_version=expected.dataset_version,
+            logical_inputs=expected.logical_inputs,
+            tables=expected.tables,
+            reports=expected.reports,
+            overall_manifest_logical_hash=expected.overall_manifest_logical_hash,
+            exact_link_pair_sha256=expected.exact_link_pair_sha256,
+            exact_link_evidence_count=expected.exact_link_evidence_count,
+        )
+    else:
+        actual = ArtifactLogicalContractPayload.model_validate(payload)
 
     with pytest.raises(ArtifactContractError) as caught:
         compare_expected_artifact_contract(actual, expected)
     assert caught.value.code is ArtifactErrorCode.REPRODUCIBILITY_MISMATCH
+
+
+def test_expected_comparator_reports_every_nested_difference_without_writeback(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.expected_contract import (
+        ExpectedPhase1ArtifactContract,
+        compare_expected_artifact_contract,
+    )
+
+    expected_path = tmp_path / "expected.json"
+    expected_path.write_text(
+        json.dumps(expected_contract_payload(json_compatible=True), separators=(",", ":")),
+        encoding="utf-8",
+    )
+    expected = ExpectedPhase1ArtifactContract.load(expected_path)
+    file_before = expected_path.read_bytes()
+    logical_inputs = list(expected.logical_inputs)
+    logical_inputs[0] = logical_inputs[0].model_copy(
+        update={"size_bytes": logical_inputs[0].size_bytes + 1}
+    )
+    logical_inputs[1] = logical_inputs[1].model_copy(update={"sha256": "e" * 64})
+    tables = list(expected.tables)
+    tables[0] = tables[0].model_copy(update={"schema_hash": "e" * 64})
+    tables[1] = tables[1].model_copy(update={"row_count": tables[1].row_count + 1})
+    tables[2] = tables[2].model_copy(update={"logical_hash": "e" * 64})
+    reports = list(expected.reports)
+    reports[0] = reports[0].model_copy(update={"semantic_hash": "e" * 64})
+    actual = SimpleNamespace(
+        artifact_contract_version=expected.artifact_contract_version,
+        artifact_set_id=expected.artifact_set_id,
+        dataset_version=expected.dataset_version,
+        logical_inputs=tuple(logical_inputs),
+        tables=tuple(tables),
+        reports=tuple(reports),
+        overall_manifest_logical_hash="e" * 64,
+        exact_link_pair_sha256="e" * 64,
+        exact_link_evidence_count=370,
+    )
+    actual_before = deepcopy(actual.__dict__)
+    expected_before = expected.model_dump(mode="python")
+
+    with pytest.raises(ArtifactContractError) as caught:
+        compare_expected_artifact_contract(actual, expected)
+
+    assert caught.value.code is ArtifactErrorCode.REPRODUCIBILITY_MISMATCH
+    paths = (
+        "/exact_link_evidence_count",
+        "/exact_link_pair_sha256",
+        "/logical_inputs/0/size_bytes",
+        "/logical_inputs/1/sha256",
+        "/overall_manifest_logical_hash",
+        "/reports/0/semantic_hash",
+        "/tables/0/schema_hash",
+        "/tables/1/row_count",
+        "/tables/2/logical_hash",
+    )
+    assert caught.value.internal_context == {
+        "reason": "contract_mismatch",
+        "difference_paths": json.dumps(paths, ensure_ascii=False, separators=(",", ":")),
+    }
+    assert all(value not in str(caught.value.internal_context) for value in ("e" * 64, "370"))
+    assert actual.__dict__ == actual_before
+    assert expected.model_dump(mode="python") == expected_before
+    assert expected_path.read_bytes() == file_before
+
+
+def test_internal_difference_paths_escapes_tokens_and_root_pointer() -> None:
+    from finproof.data.artifacts.expected_contract import _difference_paths
+
+    actual = {"a/b": {"a~b": ("same", "actual")}}
+    expected = {"a/b": {"a~b": ("same", "expected")}}
+    actual_before = deepcopy(actual)
+    expected_before = deepcopy(expected)
+
+    assert _difference_paths(actual, expected) == ("/a~1b/a~0b/1",)
+    assert _difference_paths("actual", "expected") == ("",)
+    assert actual == actual_before
+    assert expected == expected_before
 
 
 def test_expected_comparator_rejects_missing_structural_property() -> None:

@@ -650,6 +650,22 @@ def test_runtime_schema_resources_equal_repository_bytes() -> None:
     assert quality_issue_schema_bytes() == (ROOT / "schemas/quality_issue.schema.json").read_bytes()
 
 
+def test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts.resources import artifact_manifest_schema_bytes
+
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+    source = ROOT / "schemas/artifact_manifest.schema.json"
+    loaded = artifact_manifest_schema_bytes()
+
+    assert loaded == source.read_bytes()
+    assert hashlib.sha256(loaded).hexdigest() == hashlib.sha256(source.read_bytes()).hexdigest()
+
+
 def test_active_standard_editable_schema_loader_matches_current_repository_sources_outside_cwd(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

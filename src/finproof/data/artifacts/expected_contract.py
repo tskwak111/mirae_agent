@@ -1,64 +1,78 @@
 """Timestamp-free Phase 1 artifact reproducibility contracts."""
 
+import json
 from datetime import date
 from pathlib import Path
-from typing import Protocol, Self
+from typing import Annotated, Literal, Protocol, Self
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 from finproof.data.artifacts.safe_files import SafeFileReadError, read_held_regular_file
+
+NonNegativeInt = Annotated[int, Field(ge=0)]
+Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
 class ExpectedLogicalInput(BaseModel):
     """One logical build-input identity."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, revalidate_instances="always"
+    )
 
-    namespace: str
+    namespace: Literal["source_root", "repository"]
     path: str
     kind: str
-    size_bytes: int
-    sha256: str
+    size_bytes: NonNegativeInt
+    sha256: Sha256
 
 
 class ExpectedLogicalTable(BaseModel):
     """One logical table identity."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, revalidate_instances="always"
+    )
 
     name: str
     grain: str
-    schema_hash: str
-    row_count: int
+    schema_hash: Sha256
+    row_count: NonNegativeInt
     sort_key: tuple[str, ...]
     unique_key: tuple[str, ...]
-    logical_hash: str
+    logical_hash: Sha256
 
 
 class ExpectedSemanticReport(BaseModel):
     """One deterministic semantic-report identity."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, revalidate_instances="always"
+    )
 
-    report_id: str
-    semantic_hash: str
+    report_id: Literal["source_audit", "quality_summary"]
+    semantic_hash: Sha256
 
 
 class ExpectedPhase1ArtifactContract(BaseModel):
     """Expected logical identity of a complete Phase 1 artifact set."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, revalidate_instances="always"
+    )
 
-    artifact_contract_version: str
-    artifact_set_id: str
+    artifact_contract_version: Literal["1.0.0"]
+    artifact_set_id: Literal["finproof-data-artifacts/v1"]
     dataset_version: date
     logical_inputs: tuple[ExpectedLogicalInput, ...]
     tables: tuple[ExpectedLogicalTable, ...]
     reports: tuple[ExpectedSemanticReport, ...]
-    overall_manifest_logical_hash: str
-    exact_link_pair_sha256: str
-    exact_link_evidence_count: int
+    overall_manifest_logical_hash: Sha256
+    exact_link_pair_sha256: Literal[
+        "8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962"
+    ]
+    exact_link_evidence_count: Literal[371]
 
     @classmethod
     def load(cls, path: Path) -> Self:
@@ -84,6 +98,53 @@ class ExpectedPhase1ArtifactContract(BaseModel):
             raise ValueError("logical_inputs must use the exact closed order")
         if tuple(table.name for table in self.tables) != _EXPECTED_TABLE_NAMES:
             raise ValueError("tables must use the exact closed order")
+        if tuple(table.grain for table in self.tables) != _EXPECTED_TABLE_GRAINS:
+            raise ValueError("tables must use the exact closed grains")
+        for table, expected_count in zip(
+            self.tables,
+            _EXPECTED_TABLE_COUNTS,
+            strict=True,
+        ):
+            if expected_count is not None and table.row_count != expected_count:
+                raise ValueError("known table count differs from the official baseline")
+        if tuple(report.report_id for report in self.reports) != (
+            "source_audit",
+            "quality_summary",
+        ):
+            raise ValueError("reports must use the exact closed order")
+        return self
+
+
+class ArtifactLogicalContractPayload(BaseModel):
+    """Strict structural twin for actual logical results without baseline values."""
+
+    model_config = ConfigDict(
+        extra="forbid", frozen=True, strict=True, revalidate_instances="always"
+    )
+
+    artifact_contract_version: Literal["1.0.0"]
+    artifact_set_id: Literal["finproof-data-artifacts/v1"]
+    dataset_version: date
+    logical_inputs: tuple[ExpectedLogicalInput, ...]
+    tables: tuple[ExpectedLogicalTable, ...]
+    reports: tuple[ExpectedSemanticReport, ...]
+    overall_manifest_logical_hash: Sha256
+    exact_link_pair_sha256: Sha256
+    exact_link_evidence_count: NonNegativeInt
+
+    @model_validator(mode="after")
+    def require_closed_shape(self) -> Self:
+        if self.dataset_version != date(2026, 7, 11):
+            raise ValueError("dataset_version must be 2026-07-11")
+        observed_inputs = tuple(
+            (entry.namespace, entry.path, entry.kind) for entry in self.logical_inputs
+        )
+        if observed_inputs != _EXPECTED_LOGICAL_INPUTS:
+            raise ValueError("logical_inputs must use the exact closed order")
+        if tuple(table.name for table in self.tables) != _EXPECTED_TABLE_NAMES:
+            raise ValueError("tables must use the exact closed order")
+        if tuple(table.grain for table in self.tables) != _EXPECTED_TABLE_GRAINS:
+            raise ValueError("tables must use the exact closed grains")
         if tuple(report.report_id for report in self.reports) != (
             "source_audit",
             "quality_summary",
@@ -141,7 +202,7 @@ def compare_expected_artifact_contract(
             raise TypeError("exact_link_pair_sha256")
         if type(actual.exact_link_evidence_count) is not int:
             raise TypeError("exact_link_evidence_count")
-        reconstructed = ExpectedPhase1ArtifactContract.model_validate(
+        reconstructed = ArtifactLogicalContractPayload.model_validate(
             {
                 "artifact_contract_version": actual.artifact_contract_version,
                 "artifact_set_id": actual.artifact_set_id,
@@ -159,8 +220,54 @@ def compare_expected_artifact_contract(
         )
     except (AttributeError, TypeError, ValueError) as exc:
         raise _reproducibility_error("invalid_actual_contract") from exc
-    if reconstructed != expected:
-        raise _reproducibility_error("contract_mismatch")
+    expected_payload = ArtifactLogicalContractPayload.model_validate(
+        expected.model_dump(mode="python", warnings="none"),
+        strict=True,
+    )
+    differences = _difference_paths(
+        reconstructed.model_dump(mode="python", warnings="none"),
+        expected_payload.model_dump(mode="python", warnings="none"),
+    )
+    if differences:
+        raise ArtifactContractError(
+            ArtifactErrorCode.REPRODUCIBILITY_MISMATCH,
+            operation_id="compare-artifact-contract",
+            internal_context={
+                "reason": "contract_mismatch",
+                "difference_paths": json.dumps(
+                    differences,
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                ),
+            },
+        )
+
+
+def _difference_paths(actual: object, expected: object, pointer: str = "") -> tuple[str, ...]:
+    differences: set[str] = set()
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        for key in set(actual) | set(expected):
+            child = f"{pointer}/{_escape_pointer_token(key)}"
+            if key not in actual or key not in expected:
+                differences.add(child)
+            else:
+                differences.update(_difference_paths(actual[key], expected[key], child))
+    elif isinstance(actual, (list, tuple)) and isinstance(expected, (list, tuple)):
+        for index in range(max(len(actual), len(expected))):
+            child = f"{pointer}/{index}"
+            if index >= len(actual) or index >= len(expected):
+                differences.add(child)
+            else:
+                differences.update(_difference_paths(actual[index], expected[index], child))
+    elif actual != expected:
+        differences.add(pointer)
+    return tuple(sorted(differences))
+
+
+def _escape_pointer_token(value: object) -> str:
+    if type(value) is not str:
+        raise TypeError("JSON object keys must be exact strings")
+    return value.replace("~", "~0").replace("/", "~1")
 
 
 def _strict_actual_entries[EntryModel: BaseModel](
@@ -215,4 +322,32 @@ _EXPECTED_TABLE_NAMES = (
     "silver_quality_issue",
     "gold_exact_cross_source_link",
     "gold_exact_cross_source_link_evidence",
+)
+
+_EXPECTED_TABLE_GRAINS = (
+    "source_column",
+    "source_row",
+    "source_cell",
+    "instrument",
+    "listed_product",
+    "listed_product",
+    "fund_item",
+    "fund_attribute",
+    "quality_issue",
+    "exact_cross_source_link",
+    "exact_cross_source_link_evidence",
+)
+
+_EXPECTED_TABLE_COUNTS: tuple[int | None, ...] = (
+    207,
+    145_393,
+    6_401_851,
+    42_394,
+    1_733,
+    5_646,
+    11_138,
+    95_618,
+    None,
+    47,
+    371,
 )

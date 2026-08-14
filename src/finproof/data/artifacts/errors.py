@@ -30,6 +30,7 @@ class ArtifactErrorCode(StrEnum):
     REPORT_MISMATCH = "report_mismatch"
     TIMESTAMP_MISMATCH = "timestamp_mismatch"
     EXACT_TREE_MISMATCH = "exact_tree_mismatch"
+    VERIFICATION_INCOMPLETE = "verification_incomplete"
     LOCK_HELD = "lock_held"
     STAGING_CLEANUP_FAILED = "staging_cleanup_failed"
     PUBLICATION_ROLLBACK_FAILED = "publication_rollback_failed"

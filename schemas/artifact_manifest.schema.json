@@ -4,56 +4,202 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "manifest_version",
+    "artifact_contract_version",
+    "artifact_set_id",
     "dataset_version",
-    "source_manifest_sha256",
-    "registry_versions",
+    "persistence_timestamp",
+    "source_inputs",
+    "versions",
+    "files",
     "database_path",
     "database_sha256",
     "tables",
     "logical_hash"
   ],
   "properties": {
-    "dataset_version": {
+    "manifest_version": {"const": "1.0.0"},
+    "artifact_contract_version": {"const": "1.0.0"},
+    "artifact_set_id": {"const": "finproof-data-artifacts/v1"},
+    "dataset_version": {"const": "2026-07-11", "format": "date"},
+    "persistence_timestamp": {
       "type": "string",
-      "format": "date"
+      "format": "date-time",
+      "pattern": "Z$"
     },
-    "source_manifest_sha256": {
-      "type": "string"
+    "source_inputs": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {"$ref": "#/$defs/artifactInput"}
     },
-    "registry_versions": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      }
+    "versions": {"$ref": "#/$defs/artifactVersions"},
+    "files": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "items": {"$ref": "#/$defs/artifactFile"}
     },
     "database_path": {
-      "type": "string"
+      "const": "finproof.duckdb",
+      "format": "artifact-relative-path"
     },
-    "database_sha256": {
-      "type": "string"
-    },
+    "database_sha256": {"$ref": "#/$defs/sha256"},
     "tables": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "required": [
-          "row_count",
-          "logical_hash"
-        ],
-        "properties": {
-          "row_count": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "logical_hash": {
-            "type": "string"
-          }
+      "minProperties": 11,
+      "maxProperties": 11,
+      "propertyNames": {
+        "enum": [
+          "bronze_source_cell",
+          "bronze_source_column",
+          "bronze_source_row",
+          "gold_exact_cross_source_link",
+          "gold_exact_cross_source_link_evidence",
+          "silver_bond_instrument",
+          "silver_domestic_listed_product",
+          "silver_fund_item",
+          "silver_fund_item_attribute",
+          "silver_overseas_listed_product",
+          "silver_quality_issue"
+        ]
+      },
+      "additionalProperties": {"$ref": "#/$defs/artifactTable"}
+    },
+    "logical_hash": {"$ref": "#/$defs/sha256"}
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*\\\\)(?!.*%)(?!.*\\u0000)[^/]+(?:/[^/]+)*$"
+    },
+    "artifactInput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespace", "path", "kind", "size_bytes", "sha256"],
+      "properties": {
+        "namespace": {"enum": ["source_root", "repository"]},
+        "path": {"$ref": "#/$defs/safePath"},
+        "kind": {
+          "enum": [
+            "source_manifest",
+            "source_schema_catalog",
+            "artifact_build_config",
+            "dataset_registry",
+            "quality_rule_registry",
+            "rating_scale_registry",
+            "state_rule_registry",
+            "artifact_manifest_schema",
+            "quality_issue_schema"
+          ]
         },
-        "additionalProperties": false
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
       }
     },
-    "logical_hash": {
-      "type": "string"
+    "artifactVersions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_version",
+        "metric_registry_version",
+        "state_rule_version",
+        "quality_rule_version",
+        "rating_rule_version",
+        "answer_policy_version",
+        "planner_version"
+      ],
+      "properties": {
+        "dataset_version": {"const": "2026-07-11", "format": "date"},
+        "metric_registry_version": {"const": "1.0.0"},
+        "state_rule_version": {"const": "1.0.0"},
+        "quality_rule_version": {"const": "1.0.0"},
+        "rating_rule_version": {"const": "1.0.0"},
+        "answer_policy_version": {"const": "1.0.0"},
+        "planner_version": {"const": "1.0.0"}
+      }
+    },
+    "artifactFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "kind",
+        "size_bytes",
+        "sha256",
+        "report_id",
+        "logical_hash"
+      ],
+      "properties": {
+        "path": {"$ref": "#/$defs/safePath"},
+        "kind": {"enum": ["parquet", "report", "duckdb"]},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "report_id": {
+          "type": ["string", "null"]
+        },
+        "logical_hash": {
+          "anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "report"}}, "required": ["kind"]},
+          "then": {
+            "properties": {
+              "report_id": {"enum": ["source_audit", "quality_summary"]},
+              "logical_hash": {"$ref": "#/$defs/sha256"}
+            }
+          },
+          "else": {
+            "properties": {
+              "report_id": {"type": "null"},
+              "logical_hash": {"type": "null"}
+            }
+          }
+        }
+      ]
+    },
+    "artifactTable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "table_name",
+        "layer",
+        "grain",
+        "parquet_path",
+        "row_count",
+        "schema_sha256",
+        "sort_key",
+        "unique_key",
+        "logical_hash"
+      ],
+      "properties": {
+        "table_name": {"type": "string", "minLength": 1},
+        "layer": {"enum": ["bronze", "silver", "gold"]},
+        "grain": {"type": "string", "minLength": 1},
+        "parquet_path": {"$ref": "#/$defs/safePath"},
+        "row_count": {"type": "integer", "minimum": 0},
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
+        "sort_key": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "unique_key": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "logical_hash": {"$ref": "#/$defs/sha256"}
+      }
     }
   }
 }
