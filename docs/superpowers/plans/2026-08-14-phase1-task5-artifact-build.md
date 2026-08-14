@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, and D-023. Stop and log any conflict instead of reconciling it in code.
+- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, D-023, and D-024. Stop and log any conflict instead of reconciling it in code.
 - Official source files, `source_material/input_manifest.json`, `source_material/schema_catalog.json`, and `tests/contracts/expected_source_audit.json` are immutable. Snapshot date is exactly `2026-07-11`.
 - Task 5 creates exactly three Bronze, six Silver, and two Gold logical tables. It creates no metric, family, eligibility/state, alias/fuzzy, search, runtime-evidence, QueryPlan, API, HCX, or release behavior.
 - Public funds are persisted at `fund_item` and `fund_attribute` grains. Artifact construction orders staged canonical `SourceRow` payloads and collapses one complete item group at a time; it never calls `normalize_public_funds` on all 95,619 rows.
@@ -34,9 +34,13 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 - `safe_files.py`: one descriptor-relative, no-follow regular-file reader used by the config, expected-contract, and filesystem-backed resource trust boundaries. It records `(st_dev, st_ino, file type)` for every opened ancestor and leaf, holds the entire descriptor chain through the read, re-stats every child name relative to its held parent after the read, compares every recorded identity/type, and closes descriptors in reverse order on every path. If descriptor-relative open, directory/no-follow flags, or identity revalidation are unavailable, it fails closed rather than using a lexical/precheck fallback.
 - `config.py`: strict immutable `ArtifactBuildConfig` and exact production baseline loader.
 - `resources.py`: checkout-independent closed runtime-resource loader: installed-wheel `importlib.resources` primary plus the one standard-editable `importlib.metadata.distribution("finproof").locate_file(...)` fallback required by the frozen destinations.
-- `expected_contract.py`: strict timestamp-free expected-contract model, loader, and exhaustive comparator.
+- `expected_contract.py`: private strict baseline-neutral structural payload, stricter
+  timestamp-free official expected-contract model, held-file loader, and exhaustive
+  comparator with canonical RFC 6901 difference paths.
 - `hashing.py`: canonical scalar/JSON/row/schema/table/report/manifest hash primitives.
-- `manifest.py`: strict manifest models, JSON-schema load, recursive inventory verification, and `VerifiedArtifactSet`.
+- `manifest.py`: strict manifest models/schema load, held-root recursive physical
+  inventory and entry reopen capability, internal staged verification kernel, and—only
+  after CP8 installs the reviewed expected resource—public `VerifiedArtifactSet`.
 - `table_specs.py`: the sole frozen eleven-table schema/name/type/key/path registry.
 - `serialization.py`: exact strict-model `record_json`, wide projections, Bronze/quality/Gold row projections.
 - `parquet_io.py`: fixed-schema incremental writer and reopened Parquet verifier.
@@ -44,7 +48,8 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 - `bronze.py`: source-catalog/row/cell emission and source-audit observations.
 - `silver.py`: non-fund normalization staging and one-item-at-a-time public-fund collapse.
 - `quality_persistence.py`: D-021 timestamp injection, schema validation, and Bronze joins.
-- `reports.py`: strict source-audit and quality-summary contracts and semantic hashes.
+- `reports.py`: the sole exact source-audit and quality-summary models, nested contracts,
+  semantic projections/hashes, and later phased producers/verifier port.
 - `links.py`: exact link/evidence models, raw join, conflicts, pair hash, and bidirectional evidence checks.
 - `database.py`: self-contained DuckDB construction, read-only open, and bounded typed `EXCEPT ALL` verification.
 - `publication.py`: lock/marker ownership, guarded rename/rollback, tombstone cleanup, and remnant recovery.
@@ -116,7 +121,20 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 - Produces: `validate_build_registry_versions(settings: Settings, versions: VersionBundle) -> None`, requiring datasets snapshot `2026-07-11` and exact dataset/quality/rating/state versions before source ingestion.
 - Produces: `ArtifactContractError(code: ArtifactErrorCode, *, operation_id: str, target_basename: str | None = None, published: bool = False, internal_context: Mapping[str, str] | None = None)` with bounded `safe_message`. `operation_id` must be an exact `str` of 1-128 ASCII code points matching `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`; non-strings, non-ASCII, leading punctuation, whitespace/control/path characters, and 129+ code points are refused. Runtime validation requires exact-string context keys/values and copies them into an immutable mapping. The public basename must be an exact `str` of 1-128 Unicode code points, must pass `str.isprintable()`, must be neither `.` nor `..`, and contains no slash/backslash; C0/C1, CR/LF, U+2028/U+2029, bidi/format controls, separators, ANSI escapes, and 129+ code points are refused.
 - Produces the exact read-only `ArtifactLogicalContractView(Protocol)` owned by `expected_contract.py`, with properties for artifact contract/set/dataset identities, the ordered exact-nine logical-input contract entries, ordered exact-eleven table schema/count/sort/unique/logical-hash entries, ordered two semantic report-ID/hash entries, overall manifest logical hash, link pair hash, and evidence count. Its property types are the strict expected-contract entry models defined in the same CP1 module; it contains no path, timestamp, physical hash, database bytes, or forward reference to later manifest types.
-- Produces: `ExpectedPhase1ArtifactContract.load(path: Path) -> ExpectedPhase1ArtifactContract` and `compare_expected_artifact_contract(actual: ArtifactLogicalContractView, expected: ExpectedPhase1ArtifactContract) -> None`; the expected dataset version is exactly `2026-07-11`, the loader rejects every symlink path component and reads through a held no-follow descriptor chain with identity checks, and the comparator first reconstructs the complete actual structural payload through the same strict JSON model before comparing. Thus `bool`/`int`, wrong nested scalar/container types, missing properties, and reordered inventories fail as `invalid_actual_contract`. Checkpoint 7's `VerifiedArtifactSet` structurally conforms to this CP1-owned protocol.
+- Produces private `ArtifactLogicalContractPayload`, which has the exact strict
+  baseline-neutral structural shape, and public/internal
+  `ExpectedPhase1ArtifactContract` as its official-value-constrained subtype. Produces
+  `ExpectedPhase1ArtifactContract.load(path: Path) -> ExpectedPhase1ArtifactContract`
+  and `compare_expected_artifact_contract(actual: ArtifactLogicalContractView,
+  expected: ExpectedPhase1ArtifactContract) -> None`; the expected dataset version is
+  exactly `2026-07-11`, the loader rejects every symlink path component and reads
+  through a held no-follow descriptor chain with identity checks, and the comparator
+  first reconstructs actual through `ArtifactLogicalContractPayload` before canonical
+  comparison. Thus `bool`/`int`, wrong nested scalar/container types, missing
+  properties, and reordered inventories fail as `invalid_actual_contract`, while every
+  well-shaped wrong baseline value—including a row count—appears in complete RFC 6901
+  difference paths. Checkpoint 8's `VerifiedArtifactSet` structurally conforms to this
+  CP1-owned protocol.
 - Produces closed `RuntimeArtifactResource(StrEnum)` values for exactly `finproof/resources/schemas/artifact_manifest.schema.json`, `finproof/resources/schemas/quality_issue.schema.json`, and, only after Checkpoint 8, `finproof/resources/contracts/expected_phase1_artifacts.json`; no public or internal loader accepts a caller-supplied path.
 - Produces: `artifact_manifest_schema_bytes() -> bytes`, `quality_issue_schema_bytes() -> bytes`, and, only after Checkpoint 8, `expected_phase1_contract_bytes() -> bytes`. Each calls one internal closed loader that uses `importlib.resources` as the installed-wheel primary. Its sole fallback calls `importlib.metadata.distribution("finproof").locate_file(exact_frozen_destination)` for standard Hatch editable shadowing, then requires that the distribution-relative destination is unchanged, every existing component from the distribution root through the destination is nonsymlink, and the leaf is an existing regular file opened through a held no-follow descriptor with before/opened/after identity checks. Neither route uses CWD, repository/source parent discovery, caller paths, or a path search.
 - Produces internal `CandidateBaselineProbe(Protocol)` with `source_exists() -> bool`, `resource_exists() -> bool`, and `second_check() -> None`, plus a production probe that checks the real repository expected source and packaged expected resource without exposing their paths. CP1's repository-only `assert_candidate_bootstrap_allowed(probe: CandidateBaselineProbe) -> None` performs only the initial absent/source-present/resource-present guard; Checkpoint 7's actual wrapper owns the post-transform `second_check` race boundary.
@@ -390,12 +408,15 @@ Observed completion evidence on 2026-08-15:
 **Files:**
 
 - Modify: `schemas/artifact_manifest.schema.json`
+- Modify: `src/finproof/data/artifacts/errors.py`
+- Modify: `src/finproof/data/artifacts/expected_contract.py`
 - Create: `src/finproof/data/artifacts/hashing.py`
 - Create: `src/finproof/data/artifacts/manifest.py`
 - Create: `src/finproof/data/artifacts/reports.py`
 - Create: `tests/unit/data/artifacts/test_hashing.py`
 - Create: `tests/unit/data/artifacts/test_manifest.py`
 - Create: `tests/unit/data/artifacts/test_reports.py`
+- Modify: `tests/unit/data/artifacts/test_foundations.py`
 - Create: `tests/contract/test_artifact_manifest_schema.py`
 - Modify: `tests/contract/test_artifact_resources.py`
 - Modify: `tests/helpers/artifacts.py`
@@ -403,19 +424,131 @@ Observed completion evidence on 2026-08-15:
 **Interfaces:**
 
 - Produces: `canonical_json_bytes(value: object, *, terminal_newline: bool = True) -> bytes` and `canonical_scalar(value: object) -> object`.
-- Produces internal `TableSpecIdentity` protocol with exact `table_name`, `grain`, ordered column identity, `unique_key`, and `sort_key` attributes, plus `schema_sha256(spec: TableSpecIdentity) -> str`, `table_logical_hash(spec, *, row_count: int, rows: Iterable[Mapping[str, object]]) -> str`, `report_logical_hash(report) -> str`, and `manifest_logical_hash(manifest) -> str`. Checkpoint 3's frozen `TableSpec` implements this protocol.
-- Produces strict frozen `ArtifactInput`, `ArtifactVersions`, `ArtifactFile`, `ArtifactTable`, `ArtifactManifest`, and `VerifiedPhysicalInventory`. It imports CP1's `ArtifactLogicalContractView` only where orchestration/comparator typing requires it and does not define a competing verification-result protocol or a forward reference to CP7's trusted result.
+- Produces internal `ColumnSpecIdentity` with exact `name`, `logical_type`,
+  `arrow_type`, `duckdb_type`, and `nullable` properties. Produces internal
+  `TableSpecIdentity` with exact `table_name`, `grain`, ordered
+  `tuple[ColumnSpecIdentity, ...]`, `unique_key`, `sort_key`, and
+  `logical_projection`. Checkpoint 3's frozen `ColumnSpec`/`TableSpec` implement these
+  protocols directly.
+- Produces exact `schema_sha256(spec: TableSpecIdentity) -> str`,
+  `table_logical_hash(spec: TableSpecIdentity, *, row_count: int,
+  rows: Iterable[Mapping[str, object]]) -> str`,
+  `report_logical_hash(report: SemanticReportIdentity) -> str`, and
+  `manifest_logical_hash(manifest: ManifestLogicalIdentity) -> str`.
+- Produces strict frozen `ArtifactInput`, `ArtifactVersions`, `ArtifactFile`,
+  `ArtifactTable`, and `ArtifactManifest`, plus the live internal
+  `VerifiedPhysicalEntry`/`VerifiedPhysicalInventory` capability from design section
+  10.2. It imports CP1's exact `ExpectedLogicalInput`, `ExpectedLogicalTable`,
+  `ExpectedSemanticReport`, and `ArtifactLogicalContractView`; it defines no competing
+  expected-entry types and no CP7 `VerifiedArtifactSet`.
 - Produces: `ArtifactManifest.load(path: Path) -> ArtifactManifest`.
-- Produces internal `verify_declared_inventory(manifest: ArtifactManifest, root: Path) -> VerifiedPhysicalInventory` plus `ArtifactVerificationKernel` orchestration protocols exercised with synthetic stub specs. The public `ArtifactManifest.verify(root) -> VerifiedArtifactSet` is intentionally not introduced here: Checkpoint 3 supplies frozen table-aware Parquet verification and Checkpoint 7 closes DuckDB equality before the trusted public result exists.
-- Produces strict frozen `SourceAuditReport` with `report_id="source_audit"` and `QualitySummaryReport` with `report_id="quality_summary"`.
+- Produces internal `verify_declared_inventory(manifest: ArtifactManifest, root: Path)
+  -> VerifiedPhysicalInventory`, which reparses `root/manifest.json` through the held
+  root and whose `open_verified` is the only CP3+ artifact-file reopen boundary.
+- Produces internal `ClosedTableSpecRegistry`, `ArtifactTableVerifier`,
+  `VerifiedTableHandle`, `TableVerificationResult`, `ArtifactReportVerifier`, `ArtifactDatabaseVerifier`,
+  `ArtifactExpectedComparator`, `ReportVerificationResult`,
+  `ArtifactCoreVerificationResult`, `ArtifactExpectedVerificationResult`, and
+  `ArtifactVerificationKernel` with the exact design-section-10.2 signatures.
+  `verify_candidate_core` orders inventory -> tables -> reports -> overall -> database
+  -> final rescan; `verify_expected` inserts expected between database and final rescan.
+  Missing required ports fail before filesystem work. CP2 production leaves all five
+  ports unavailable and therefore cannot return an internal result; no caller-supplied port
+  enters a public API.
+- `TableVerificationResult` disables direct construction and exposes only
+  `from_verified(*, inventory, tables, handles)` plus `validate_against(inventory)`.
+  Its exact CP1 logical entries and eleven handles must match one-to-one, and every
+  handle entry must be the exact object-identity-owned member of that still-live
+  inventory through `inventory.require_owned(entry)`. Report/overall/database stages
+  revalidate that same immutable result; CP3's `VerifiedParquetTable` implements the
+  handle and CP7 may reopen it only through `inventory.open_verified(handle.entry)`.
+- Adds exact error code `ArtifactErrorCode.VERIFICATION_INCOMPLETE`; missing kernel
+  ports fail before filesystem work with `reason=missing_verification_ports` and unique
+  sorted port names as compact canonical JSON in string-only internal context.
+- Produces the exact strict `SourceAuditReport`/`QualitySummaryReport` field inventories,
+  nested entry models, tuple order, equality/group invariants, and
+  `semantic_projection()` contracts from design section 7. CP2 constructs only
+  synthetic report fixtures; CP5/6 own real semantic producers and CP7 owns report-file
+  reparse/verification.
+- Tightens CP1 expected models to literal artifact identity, exact official date,
+  lowercase SHA-256, exact tuple entry types/order/grains, nonnegative exact-int
+  sizes/counts, known non-quality counts, frozen pair hash, and evidence 371. Updates
+  `compare_expected_artifact_contract` to include every unique sorted RFC 6901 pointer
+  in canonical JSON `internal_context["difference_paths"]` without any differing value.
 
-- [ ] **Step 1: Write canonical hashing REDs from an independent encoder**
+The CP2 report implementation uses these exact top-level declaration orders (nested
+models and invariants are copied verbatim from design section 7):
 
-Introduce each scalar family, header-order/count behavior, and invariance family serially with its own named selector and expected behavioral RED; do not implement all dispatch/hash cases after the first missing import.
+```text
+SourceAuditReport:
+  report_id, report_contract_version, artifact_contract_version,
+  source_snapshot_date, source_manifest_sha256, schema_catalog_sha256,
+  source_tables, silver_tables, quarantine_source_rows, exact_links,
+  exact_link_evidence, exact_link_pair_sha256
 
-In `test_hashing.py`, implement a small test-only encoder that does not import production hashing. Assert exact bytes for null/bool/int/text, `Decimal("0.000") -> "0"`, `Decimal("12.3400") -> "12.34"`, dates, naive source datetimes, UTC operational datetimes with six microseconds and terminal `Z`, `PurePosixPath`, enums, sorted Unicode keys, preserved array order, UTF-8, and one newline. Assert NaN/Infinity, non-UTC aware datetimes, unsupported objects, Decimal precision overflow, and `repr`-dependent objects fail.
+QualitySummaryReport:
+  report_id, report_contract_version, artifact_contract_version, total_issues,
+  distinct_affected_source_rows, by_source_table, by_rule, by_severity,
+  by_quality_status, by_quarantine_flag, quarantined_issue_count,
+  quarantined_source_row_count, excluded_silver_records,
+  quality_table_logical_hash
+```
 
-Require the table stream header to be exactly:
+For both, `semantic_projection()` contains every top-level field exactly once in that
+order and recursively uses the exact nested declaration order; it has no parameter and
+accepts no caller projection. The canonical hash sorts JSON object keys, so declaration
+order is an independently tested model/API contract rather than a hidden source of hash
+variation.
+
+- [ ] **Step 1: Execute the exact serial hashing skeleton/behavior selector loop**
+
+Create `test_hashing.py` with a test-only canonical encoder that imports no production
+hashing. Author and close only one selector before adding the next. For the first
+selector, run:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_hashing.py::test_canonical_json_bytes_null -q
+```
+
+Expected skeleton RED: import of `finproof.data.artifacts.hashing` fails. Add only the
+six public function names (`canonical_scalar`, `canonical_json_bytes`, and the four
+hash functions) plus the four exact internal identity protocols; only the function
+bodies raise `NotImplementedError("canonical hashing unavailable")`. Rerun the same
+selector.
+Expected narrower RED: that exact `NotImplementedError`. Implement only the null case
+and terminal-newline switch, rerun to GREEN, then execute this exact one-selector-at-a-
+time order:
+
+```text
+test_canonical_json_bytes_exact_bool_int_and_text
+test_canonical_decimal_zero_trailing_scale_and_decimal_38_18_bounds
+test_canonical_datetime_date_enum_and_pure_posix_path
+test_canonical_mapping_and_array_order_utf8_and_newline
+test_canonical_scalar_rejects_float_subclasses_and_unsupported_values
+test_column_and_table_identity_protocols_reject_every_wrong_shape
+test_schema_hash_uses_exact_identity_projection
+test_schema_hash_changes_only_for_identity_fields
+test_table_hash_writes_exact_header_before_first_row
+test_table_hash_requires_exact_logical_projection_keys
+test_table_hash_consumes_rows_once_and_requires_exact_final_count
+test_report_hash_uses_only_closed_semantic_projection
+test_manifest_hash_uses_only_closed_logical_projection
+```
+
+For each selector, run exactly
+`UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest
+tests/unit/data/artifacts/test_hashing.py::<selector> -q`, observe every parameter ID
+fail for the one missing branch/invariant, implement only that branch, and rerun the
+same selector to GREEN before authoring the next selector. The independent encoder
+asserts exact bytes for all design-section-8.1 scalars. The Decimal family includes
+nonfinite, >18 fractional digits, >20 integer digits, exponent expansion, and no-
+rounding failures. The temporal family requires six microseconds, naive local time with
+no suffix, exact-zero-offset aware time with `Z`, and rejects every nonzero offset.
+
+The protocol selector uses synthetic objects to require exact tuples, exact strings,
+exact bool nullability, unique columns, existing unique/sort/projection columns, and a
+nonempty unique logical projection. The exact table header is:
 
 ```python
 expected_header = {
@@ -425,7 +558,14 @@ expected_header = {
 }
 ```
 
-Prove path/layer/compression changes do not affect schema/table hashes, while table name, grain, ordered name/type/nullability, unique key, sort key, logical row, or the explicitly supplied final count changes do. Assert the encoder emits the known header before the first logical row, consumes the reopened-row iterator exactly once, and rejects a negative count or a stream whose observed count differs from `row_count`. Use only synthetic stub identities/projections here; Bronze/quality operational projections begin in Checkpoint 3 after their frozen specs/serializers exist.
+Path/layer/compression mutations stay invariant; table name, grain, ordered column
+name/logical/Arrow/DuckDB/nullability, unique key, or sort key changes schema identity.
+Logical-projection/header/count/row changes alter table identity. A sentinel raises if
+the row iterator is requested before the header, iterated twice, measured with `len`,
+or retained/materialized. Use only synthetic rows; CP3 owns operational table
+projections.
+
+- [ ] **Step 2: Run the hashing aggregate only after every selector is GREEN**
 
 Run:
 
@@ -434,56 +574,55 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_hashing.py -q
 ```
 
-Expected RED: `finproof.data.artifacts.hashing` and every canonical hash callable are missing.
+Expected GREEN: production bytes match the independent encoder; schema/table/report/
+manifest hashes contain no path, layer, writer option, persistence timestamp, physical
+size/hash, database bytes, or arbitrary model dump. Record this only as an aggregate
+gate, never as RED evidence.
 
-- [ ] **Step 2: Implement canonical encoding and hashing without filesystem/database bytes**
+- [ ] **Step 3: Execute exact strict-report, manifest, inventory, and kernel selector loops**
 
-Implement explicit type dispatch; reject `float` entirely so NaN/Infinity cannot enter by accident. `schema_sha256` hashes only table name, grain, ordered column identity, unique key, and sort key. `table_logical_hash` receives the already-known final `row_count`, hashes the exact three-key header first, then consumes a logical-row iterator once in frozen order while checking the observed count; it never materializes all rows. This primitive is not a while-writing Parquet hash API. `report_logical_hash` uses only the report model's semantic projection. `manifest_logical_hash` includes exact inputs, versions, table metadata, and closed report pairs while excluding persistence/output/physical metadata.
+Author and close each selector below in exactly this order. Each command is
+`UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest <file>::<selector> -q`;
+every parameter ID must reach the intended assertion. A missing module/symbol permits
+only a raising skeleton, followed by the same selector's narrower behavioral RED.
+The one force-included schema transition has an inline pause described immediately
+after the ordered list; it is closed RED -> GREEN before the next selector begins.
 
-- [ ] **Step 3: Write REDs for the exact manifest/schema/inventory trust boundary**
-
-Create a complete synthetic artifact tree helper with root `manifest.json`, 11 Parquet-named regular files, two reports, `finproof.duckdb`, and only `parquet/` and `reports/` directories. Add tests for exact 9-input order/kinds, exact 14-file order/kinds, exact 11-table order, lowercase SHA-256, UTC terminal-`Z`, deep immutable mappings, database file identity, report conditional fields, extra fields, wrong versions, duplicate canonical paths, unsafe POSIX paths, and schema format errors with explicit `FormatChecker`.
-
-Parameterize recursive inventory rejection for extra file, extra directory, symlink file/directory, FIFO/socket, hardlink with `st_nlink != 1`, missing file, `.wal`, case/canonical duplicate, size mismatch, and physical checksum mismatch. Capture every target byte before `verify_declared_inventory`; failure must not mutate any byte. Add report tests that prove semantic ID, not report path, drives the report hash/order.
-
-In `test_artifact_resources.py`, add the single selector `test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd`. It requires the new Section 10.1 structural signature in the repository schema and then requires the active standard-editable metadata-fallback bytes/SHA to equal that source from an unrelated CWD. Before schema implementation or reinstall, run:
-
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run --no-sync pytest \
-  tests/contract/test_artifact_resources.py::test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd -q
+```text
+tests/unit/data/artifacts/test_reports.py::test_source_audit_report_exact_fields_and_declaration_order
+tests/unit/data/artifacts/test_reports.py::test_source_audit_report_exact_semantic_projection
+tests/unit/data/artifacts/test_reports.py::test_source_audit_report_rejects_every_inventory_and_inequality
+tests/unit/data/artifacts/test_reports.py::test_quality_summary_report_exact_fields_and_declaration_order
+tests/unit/data/artifacts/test_reports.py::test_quality_summary_report_exact_semantic_projection
+tests/unit/data/artifacts/test_reports.py::test_quality_summary_rejects_group_order_duplicates_and_aggregate_mismatch
+tests/unit/data/artifacts/test_manifest.py::test_artifact_manifest_exact_valid_shape
+tests/unit/data/artifacts/test_manifest.py::test_artifact_file_requires_explicit_report_null_policy
+tests/unit/data/artifacts/test_manifest.py::test_artifact_manifest_rejects_each_inventory_path_version_and_scalar_mutation
+tests/contract/test_artifact_manifest_schema.py::test_artifact_manifest_schema_accepts_only_exact_model_shape
+tests/contract/test_artifact_resources.py::test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd
+tests/contract/test_artifact_manifest_schema.py::test_artifact_manifest_schema_checks_every_format_error
+tests/unit/data/artifacts/test_manifest.py::test_manifest_load_parses_only_without_opening_declared_files
+tests/unit/data/artifacts/test_manifest.py::test_verified_inventory_exact_tree_and_entry_identities
+tests/unit/data/artifacts/test_manifest.py::test_verified_inventory_rejects_every_unsafe_tree_shape_without_mutation
+tests/unit/data/artifacts/test_manifest.py::test_verified_inventory_binds_manifest_to_held_root
+tests/unit/data/artifacts/test_manifest.py::test_verified_entry_reopen_rejects_forged_foreign_or_copied_entry
+tests/unit/data/artifacts/test_manifest.py::test_verified_entry_reopen_rejects_each_leaf_parent_and_root_swap
+tests/unit/data/artifacts/test_manifest.py::test_inventory_detects_same_inode_same_size_byte_mutation_between_stages
+tests/unit/data/artifacts/test_manifest.py::test_inventory_fails_closed_without_descriptor_scandir_or_nofollow_support
+tests/unit/data/artifacts/test_manifest.py::test_verification_kernel_requires_every_port_before_filesystem_work
+tests/unit/data/artifacts/test_manifest.py::test_table_verification_result_requires_exact_live_inventory_owned_entries
+tests/unit/data/artifacts/test_manifest.py::test_verification_kernel_exact_expected_order_and_short_circuit
+tests/unit/data/artifacts/test_manifest.py::test_verification_kernel_candidate_core_skips_only_expected
+tests/unit/data/artifacts/test_foundations.py::test_expected_contract_enforces_literals_hashes_counts_and_grains
 ```
 
-Expected first RED: the repository schema still has the legacy shape. Do not reinstall yet.
-
-Run:
-
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/unit/data/artifacts/test_manifest.py \
-  tests/unit/data/artifacts/test_reports.py \
-  tests/contract/test_artifact_manifest_schema.py -q
-```
-
-Expected RED: the legacy artifact schema rejects the approved shape; manifest/report models, load/inventory verification, and semantic report contracts are absent.
-
-- [ ] **Step 4: Implement the exact schema, strict models, load, and all-or-nothing inventory**
-
-Replace the legacy schema with the exact Section 10.1 shape. Call `Draft202012Validator.check_schema`, construct it with `FormatChecker`, collect every error, and reject before opening declared files. `load` parses JSON/domain/schema only. `verify_declared_inventory` uses descriptor-relative `os.scandir(..., follow_symlinks=False)`/`lstat`, opens regular files with `O_NOFOLLOW` where available, compares `fstat` device/inode/link count to the inventoried entry, hashes/reads that held descriptor, and rescans before return. Never follow links or validate one path and reopen it by name without identity comparison.
-
-Define the verification orchestration as internal typed protocols for a closed table-spec registry, table verifier, report verifier, database verifier, and expected-contract comparator. CP2 tests use synthetic stub specs only to prove call order and all-or-nothing propagation. No caller-supplied verifier enters a public API, and CP2 must not claim table-aware, Parquet-aware, DuckDB-aware, or operational timestamp verification before the required CP3/CP7 dependencies exist.
-
-Immediately rerun:
-
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run --no-sync pytest \
-  tests/contract/test_artifact_resources.py::test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd -q
-```
-
-Expected narrower RED: the root schema now has the approved shape, but CP1's installed editable fallback copy returns the previous bytes/SHA.
-
-- [ ] **Step 5: Rebuild active editable force-included data and close the stale-resource RED**
-
-Run the syntax supported by the repository's current uv (`uv sync --help` exposes `--reinstall-package <PACKAGE>`):
+For `test_artifact_manifest_schema_accepts_only_exact_model_shape`, the first ordinary
+`uv run` is RED because the legacy schema rejects the approved valid fixture. Implement
+the exact root schema, then rerun that same selector with `uv run --no-sync` to GREEN.
+Before any other selector or command, author the immediately following resource
+selector and run it with `uv run --no-sync`; expected RED is now only that the active
+standard-editable metadata fallback still returns the old bytes/SHA while the root
+schema is valid. Run exactly:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv sync --frozen --all-groups \
@@ -493,17 +632,199 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/contract/test_artifact_resources.py::test_active_standard_editable_schema_loader_matches_current_repository_sources_outside_cwd -q
 ```
 
-Expected GREEN: from an unrelated CWD, the source package still shadows copied data, the metadata fallback resolves only the frozen manifest-schema destination, and its bytes/SHA now equal the newly implemented root schema; the unchanged quality schema also remains equal. Do not proceed to mutation tests while either selector is stale.
+Expected GREEN: manifest and unchanged quality schema bytes/SHA match outside the
+checkout CWD. Only then resume the list with the format-error selector using ordinary
+`uv run`. Thus no RED remains open while another behavior is authored, and no ordinary
+`uv run` can auto-refresh away the required stale-resource RED.
 
-- [ ] **Step 6: Add mutation-boundary REDs and exhaustive expected-contract comparison**
+The first source-audit selector gets only an importable symbol skeleton that rejects the
+otherwise-valid full fixture; rerun that same fields/order selector to prove the
+narrower RED, then implement only its exact fields/nested types/declaration order and
+rerun GREEN. Only then author the semantic-projection selector: its first RED is the
+still-raising `NotImplementedError("report projection unavailable")`; implement the
+exact projection and rerun GREEN before authoring the invariant selector. Repeat that
+same three-selector sequence independently for quality summary. Thus no report's field
+inventory/order or projection is implemented without its own focused RED. The
+first manifest selector gets only importable strict model skeletons that reject the
+valid fixture; rerun before implementing shape validation. The first inventory selector
+gets only `verify_declared_inventory` raising
+`NotImplementedError("physical inventory unavailable")`; rerun before any traversal.
+The first kernel selector gets the exact protocols/signatures with both
+`verify_candidate_core` and `verify_expected` raising
+`NotImplementedError("verification kernel unavailable")`; rerun before dependency or
+order behavior. Do not add a later selector until its predecessor is GREEN.
+The expected-constraint RED parameter family contains only CP2-missing cases (wrong
+artifact/set literal, uppercase/malformed hash, negative/bool count, wrong grain, wrong
+known non-quality count, pair hash, and evidence count), and every ID must fail by
+being accepted before the GREEN. CP1's already-rejected dataset date/inventory reorder/
+wrong entry type cases run afterward as regression assertions, not claimed REDs.
 
-Mutate one physical byte, one report value, one overall input hash, and one expected-contract field in separate tests. Assert distinct codes for checksum, report, overall, and expected-baseline mismatch. The expected comparator must return no partial success and must report all sorted field paths without updating its input file. Parquet logical-row and operational timestamp mutations are deliberate CP3 REDs; same-count/different-value DuckDB mutation is a deliberate CP7 RED.
+`tests/helpers/artifacts.py` creates one complete synthetic tree: held-root
+`manifest.json`, eleven Parquet-named regular files, two strict reports,
+`finproof.duckdb`, and only `parquet/`/`reports/` directories. Manifest tests cover exact
+9-input, 14-file, and 11-table order/kinds; exact versions/literals; deep immutability;
+safe canonical POSIX paths; lowercase SHA-256; nonnegative exact-int sizes/counts;
+terminal-`Z`; database/file identity; and the required explicit `report_id`/
+`logical_hash` nulls. Inventory attack IDs are extra-file, extra-directory, file-
+symlink, directory-symlink, FIFO, socket, device when supported, hardlink,
+missing-file, WAL, canonical/case duplicate, size mismatch, checksum mismatch,
+manifest-from-other-root, root swap, parent swap, leaf swap, and post-read rescan swap.
+Snapshot every target byte first and require byte identity after every refusal.
+The dedicated same-inode selector mutates one byte in place without changing length
+after initial inventory, once during an `open_verified` consumer and once between the
+database/expected stages and final rescan. It requires post-consumer and final
+`assert_unchanged()` SHA rejection respectively, with no result escape.
 
-Expected RED: at least the report/overall/expected mutations cross the initial structural implementation.
+The report fixtures use every exact field and nested type from design section 7. They
+prove source table order, Silver order, expected=observed construction, lexical report
+groups, `False` then `True`, aggregate equality, strict no-extra/no-omission, and
+semantic-path invariance. They do not create real build observations.
 
-- [ ] **Step 7: Complete logical/operational verification and run GREEN**
+The expected-route order spy records exactly:
 
-Implement manifest-shape/input/report/overall invariants, the complete expected-contract comparator over the protocol shape, and the CP2 verification orchestration. Do not yet add quality/Bronze operational timestamp checks because their exact table projections are frozen in CP3. Run:
+```python
+["inventory", "tables", "reports", "overall", "database", "expected", "rescan"]
+```
+
+The candidate-core spy records exactly the same list without `"expected"`. Inject one
+failure at every reachable element of both routes and assert no later call, no returned
+core/expected result, and closed inventory descriptors. Synthetic table
+port returns a factory-created live-inventory-owned `TableVerificationResult`; the
+synthetic report port returns `ReportVerificationResult` containing only CP1 expected
+report-entry types. A valid all-stub run may return
+the route-specific internal result for orchestration testing, but production CP2 assembly has
+missing later ports and cannot run.
+
+The table-result selector first proves the direct constructor is unavailable, then
+uses `from_verified` with one forged structurally equal entry, one entry from another
+live inventory, one copied handle, one closed owner, and each table/handle identity
+mismatch. Every case is rejected. The valid result calls `validate_against` at each
+downstream boundary and becomes invalid immediately when its owner closes; structural
+dataclass equality is never an ownership check.
+
+After every serial behavior selector is GREEN, add
+`test_cp2_exports_no_public_manifest_verify_or_verified_artifact_set` and run it once as
+a negative-capability regression fence. It must be first-GREEN because CP2 has never
+introduced either public symbol; it is acceptance evidence, not a production behavior
+RED/GREEN cycle.
+
+After the serial loops, run this aggregate only:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/contract/test_artifact_manifest_schema.py -q
+```
+
+Expected GREEN: all strict structural, report, inventory, root-binding, kernel, and
+expected-comparator behaviors are present. This aggregate is not RED evidence.
+
+- [ ] **Step 4: Implement the exact schema, strict models, load, and all-or-nothing inventory**
+
+This step is the implementation summary for the serial GREEN changes above, not
+permission for batch implementation after one RED. Replace the legacy schema with the
+exact Section 10.1 model and explicit report null policy. Call
+`Draft202012Validator.check_schema`, construct it with `FormatChecker`, collect every
+error, and reject before opening declared files. `load` reads only its manifest leaf
+through the held-file reader and parses schema/domain; it does not touch a declared
+artifact file.
+
+Implement descriptor traversal only as `os.scandir(held_directory_fd)` followed by
+`DirEntry.stat(follow_symlinks=False)`; `os.scandir` itself receives no
+`follow_symlinks` keyword. Open required child directories/leaves relative to retained
+parent descriptors with `O_DIRECTORY`/`O_NOFOLLOW`, compare `DirEntry.stat` to `fstat`,
+require regular-file `st_nlink == 1`, stream size/SHA through the held leaf, then
+after every consumer re-stream exact size/SHA from that same held descriptor before
+descriptor-relative restat and rescan. Retain root/required-directory descriptors in
+the live `VerifiedPhysicalInventory` through every `open_verified` call. Reach the
+absolute root from the filesystem anchor through a retained no-follow directory-
+descriptor chain, and identity-revalidate every ancestor/root through its held parent.
+Reparse held-root `manifest.json`, require it be a nonsymlink regular file with
+`st_nlink == 1`, and require exact manifest-model equality. Reject unavailable fd-
+scandir/no-follow support and every close/revalidation failure; do not fall back to
+`Path.iterdir`, lexical `resolve`, or precheck/reopen.
+
+Implement `assert_unchanged()` as a content check, not merely an inode/tree scan: reopen
+all fourteen exact-owned entries through retained parents, recheck identity/type/link,
+stream declared size/SHA, reparse/equality-check held `manifest.json`, and only then
+repeat ancestor/exact-tree inventory. It runs immediately before every stage reopen and
+at both kernel routes' final rescan.
+
+Implement the exact design-section-10.2 kernel ports/result/order. Overall reconstruction
+uses declared logical inputs/versions, verified CP1 table/report entries, and only the
+report result's pair hash/evidence count. It compares the recomputed overall hash with
+the manifest before database. The expected route compares after database; the guarded
+candidate-core route skips only that comparison. Both rescan before their distinct
+internal result type escapes. CP2 production wiring intentionally cannot call either
+route under D-024.
+
+- [ ] **Step 5: Reconfirm the already-closed editable resource boundary**
+
+The stale-resource RED/reinstall/GREEN occurred inline at its exact serial position in
+Step 3. Run the two resource selectors again as regression only:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/contract/test_artifact_resources.py::test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd \
+  tests/contract/test_artifact_resources.py::test_active_standard_editable_schema_loader_matches_current_repository_sources_outside_cwd -q
+```
+
+Expected GREEN: from an unrelated CWD, the source package shadows copied data, the
+metadata fallback resolves only the frozen schema destinations, and both bytes/SHA
+values equal their root sources. This is regression evidence, not a second behavior
+cycle.
+
+- [ ] **Step 6: Close new expected-difference selectors, then run independent mutation acceptance**
+
+Author and close only these two still-new production behaviors one at a time:
+
+```text
+test_expected_comparator_reports_every_nested_difference_without_writeback
+test_internal_difference_paths_escapes_tokens_and_root_pointer
+```
+
+The expected selector rewrites/reloads only its temporary expected
+file with valid outer syntax/hashes, so strict reconstruction succeeds before comparison.
+The public comparator selector mutates reachable fixed contract fields in multiple
+arrays/objects at once and requires their complete unique Unicode-sorted RFC 6901 paths
+in compact canonical JSON; input objects and expected file bytes remain unchanged. Its
+first GREEN may implement only the fixed-contract object/array paths reachable from two
+strict models. Only then author the internal pure-difference helper selector, directly
+supplying arbitrary mapping tokens and root scalars; its RED proves `~0`/`~1`, array
+indices, or `""` root behavior is still missing, and its smallest GREEN extends the same
+helper used by the comparator. No differing scalar value appears in error context.
+Both failures use `REPRODUCIBILITY_MISMATCH` and return no partial logical result.
+
+After those RED/GREEN cycles, independently author and run these three acceptance/
+regression selectors:
+
+```text
+test_verified_inventory_detects_physical_byte_mutation_without_mutating_tree
+test_closed_report_semantic_mutation_changes_only_report_logical_hash
+test_manifest_input_mutation_changes_only_overall_logical_hash
+```
+
+They are deliberately **not** new RED evidence. Physical checksum behavior was first
+driven by the Step 3 inventory attack matrix; report semantic hashing and manifest
+logical hashing were first driven by their exact Step 1 selectors. The physical
+acceptance mutates one byte and expects `CHECKSUM_MISMATCH` with byte-identical refusal.
+The report acceptance independently recomputes canonical bytes and proves path/pretty
+rendering invariant while one semantic value changes only `report_logical_hash`; it
+does not invent a CP2 concrete report port or `REPORT_MISMATCH`. The overall acceptance
+changes one logical input hash, recomputes all earlier inputs, and proves only the
+overall logical hash changes. These tests cross-check already-GREEN primitives without
+forcing an artificial temporary error, a synthetic production error code, or a second
+behavior cycle.
+
+Parquet logical-row/schema/sort/unique and Bronze/quality operational timestamp
+mutations are deliberate CP3/CP5 REDs. Concrete report-file verification, exact-link
+relation recheck, same-count/different-value DuckDB, and packaged expected comparison
+are deliberate CP7 REDs under D-024.
+
+- [ ] **Step 7: Run the complete CP2 focused GREEN gate**
+
+Do not add any later capability here. Run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
@@ -522,11 +843,58 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   tests/contract/test_artifact_resources.py
 ```
 
-Expected GREEN: canonical independent bytes/hashes agree; all structural/path/mutation cases fail at their intended boundary; a valid synthetic manifest loads and its declared physical inventory verifies immutably; the orchestration refuses a missing later verifier and never returns a prematurely trusted artifact set.
+Expected GREEN: canonical independent bytes/hashes agree; both report shapes and
+semantic projections are exact; all structural/path/mutation cases fail at their
+intended CP2 boundary; a valid synthetic manifest loads and its descriptor-bound
+physical inventory/reopen capability verifies immutably; exhaustive expected
+differences are stable; and the orchestration refuses a missing later port and never
+returns or exports a prematurely trusted artifact set.
 
-- [ ] **Step 8: Commit and obtain a fresh review**
+- [ ] **Step 8: Run full checkpoint/repository gates, commit, and obtain a fresh review**
 
-Run regressions and diff checks, then commit:
+Run the exact checkpoint gate plus unchanged behavior and repository gates:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_hashing.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/contract/test_artifact_manifest_schema.py \
+  tests/contract/test_artifact_resources.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/core tests/unit/domain tests/unit/registry \
+  tests/unit/data/normalization tests/contract/test_quality_issue_schema.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv build --wheel \
+  --out-dir /private/tmp/finproof-task5-cp2-wheel
+git diff --check
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+git check-ignore -v artifacts/manifest.json artifacts/finproof.duckdb \
+  .artifacts.finproof-stage-op .artifacts.finproof-backup-op \
+  .artifacts.finproof-cleanup-op .artifacts.finproof-build.lock
+find source_material -type f -perm -u=w -print
+git status --short
+```
+
+Expected: full suite passes; source audit is 145,393 at `2026-07-11`; handoff is
+61/9/41,384,928; catalog is 207; wheel contains byte-identical manifest/quality schema
+resources and no expected contract/candidate tooling; both expected-contract paths and
+runtime artifact root are absent; all ignore probes match; writable-source search and
+pre-commit/diff output contain no failure. Inspect `git diff --stat` and confirm only
+the CP2 file map plus these governing docs changed before commit.
+
+Then commit implementation files only:
 
 ```bash
 git add schemas/artifact_manifest.schema.json src/finproof/data/artifacts \
@@ -537,6 +905,13 @@ git commit -m "feat: add strict artifact manifest and logical hashing"
 ```
 
 Fresh review must independently reproduce canonical bytes, inspect every manifest/schema conditional, attack recursive inventory without following links, verify no physical/report/path/timestamp field leaks into logical identity, and confirm no incomplete verifier can return a trusted set. Require 0 Critical / 0 Important.
+
+The reviewer must also inspect held-root manifest binding and every retained descriptor/
+reopen identity, confirm the implementation uses `os.scandir(dir_fd)` rather than an
+invalid keyword API or lexical fallback, recompute exact report projections, exercise
+RFC 6901 difference paths, and verify D-024 ownership. After review is 0 Critical /
+0 Important, require `git status --porcelain` empty, both expected-contract paths and
+`artifacts/` absent, and official sources still read-only before Checkpoint 3 starts.
 
 ---
 
@@ -563,7 +938,17 @@ Fresh review must independently reproduce canonical bytes, inspect every manifes
 - Produces: `derive_wide_columns(model_type: type[BaseModel], *, skip_fields: frozenset[str] = frozenset()) -> tuple[ColumnSpec, ...]`.
 - Produces: `canonical_record_json(model: BaseModel) -> str` and `serialize_table_row(spec: TableSpec, value: object, *, persistence_timestamp: datetime | None = None) -> Mapping[str, object]`.
 - Produces: `ParquetBatchWriter(spec: TableSpec, path: Path)` with `write_batch(rows: Sequence[Mapping[str, object]])`, `close()`, `abort()`, and metrics `max_batch_rows`/`rows_written`.
-- Produces private `verify_parquet_table(path: Path, spec: TableSpec, declared: ArtifactTable) -> VerifiedParquetTable`, consumed later by the full verifier.
+- Produces private `verify_parquet_table(*, inventory: VerifiedPhysicalInventory,
+  entry: VerifiedPhysicalEntry, spec: TableSpec, declared: ArtifactTable) ->
+  VerifiedParquetTable`. It consumes the Parquet stream only through
+  `inventory.open_verified(entry)` and never reopens a reconstructed absolute path.
+- Produces CP3's private concrete `ParquetArtifactTableVerifier`, implementing CP2's
+  exact `ArtifactTableVerifier.verify_tables(...)` port over the closed `TABLE_SPECS`
+  and returning only
+  `TableVerificationResult.from_verified(inventory=inventory, tables=..., handles=...)`
+  with CP1 `ExpectedLogicalTable` entries plus corresponding `VerifiedParquetTable`
+  handles in exact order. Direct result construction or a second/unbound entry set is
+  impossible. It does not wire the CP2 kernel or create a public verification result.
 
 - [ ] **Step 1: Write REDs for all eleven exact immutable table specs**
 
@@ -657,7 +1042,17 @@ Expected RED: the bounded writer and table-aware verifier are missing.
 
 Construct `pyarrow.parquet.ParquetWriter` with only the exact explicit Arrow schema and supported constructor options `compression="zstd"`, `compression_level=3`, `write_statistics=True`, and `data_page_size=1_048_576`. Reject any input batch above 65,536 before constructing its Arrow table, then call `writer.write_table(arrow_batch, row_group_size=65_536)` for each bounded batch; `row_group_size` is deliberately a `write_table` argument, not a `ParquetWriter` constructor keyword. The writer only writes bounded typed batches and tracks the prospective count/key bounds needed for early failures; it does not compute the table logical hash while writing and never collects the full table in Polars/Python. Reopened metadata tests require every row group to contain at most 65,536 rows.
 
-On close, flush and close once, then reopen the file. Obtain and validate the final Parquet row count and exact schema first. Initialize the logical hash with the now-known exact header `{schema_sha256, logical_projection, row_count}`, then bounded-stream reopened typed logical rows while validating count/sort/unique keys and updating the hash. Never use serialized Arrow buffers, Parquet row bytes, row-group encoding, compression bytes, or the outer file SHA as logical identity. Return `VerifiedParquetTable` only after the reopened stream and count agree. Integrate this private verifier into the CP2 orchestration, but still do not expose the full public artifact verifier before DuckDB comparison exists.
+On close, flush and close once, then reopen the file through the live CP2 inventory
+entry capability. Obtain and validate the final Parquet row count and exact schema
+first. Initialize the logical hash with the now-known exact header
+`{schema_sha256, logical_projection, row_count}`, then bounded-stream reopened typed
+logical rows while validating count/sort/unique keys and updating the hash. Never use
+serialized Arrow buffers, Parquet row bytes, row-group encoding, compression bytes, or
+the outer file SHA as logical identity. Return `VerifiedParquetTable` only after the
+reopened stream/count, post-consumer same-descriptor physical size/SHA, and entry/
+ancestor/content rescans agree. Implement the CP2
+table-verifier port, but under D-024 do not assemble the kernel or expose a complete
+artifact verifier before the concrete report/database/expected ports exist in CP7.
 
 - [ ] **Step 7: Run GREEN, focused gates, and model coverage probes**
 
@@ -820,6 +1215,10 @@ Fresh review must trace one raw source value through catalog/row/cell/hash, veri
 - Produces internal `SilverArtifactEmitter.consume(row: SourceRow) -> None`, `finish_fund_groups() -> None`, and `finalize() -> SilverBuildResult`, all bounded and stage-backed. `SilverArtifactEmitter` structurally implements CP4's frozen one-method `SourceRowConsumer`; it receives rows only from `ArtifactBuildSession.ingest_bronze(consumer=emitter)`.
 - Extends a Bronze-valid `SourceAuditObservations` through `observations.with_silver(silver_counts, quarantine_counts) -> SourceAuditObservations`; the returned phase permits only verified Silver/quarantine observations and still cannot construct the final source-audit report before CP6 links/evidence.
 - Produces: `QualitySummaryReport.from_verified_quality(...) -> QualitySummaryReport` with closed lexical group ordering and timestamp-free semantic content.
+- Populates the exact CP2 `QualitySummaryReport` model and its frozen
+  `semantic_projection`; it does not implement CP2's artifact-file
+  `ArtifactReportVerifier` port or wire the full kernel. CP7 reparses the written report
+  through the retained inventory capability and supplies that concrete port.
 
 - [ ] **Step 1: Write the public fund classifier/group-adapter equivalence REDs first**
 
@@ -952,6 +1351,8 @@ Fresh review must compare the public group adapter with every Task 4 edge case, 
 - Produces: `verify_exact_link_evidence(*, links: VerifiedParquetTable, evidence: VerifiedParquetTable, bronze_cells: VerifiedParquetTable, domestic_records: VerifiedParquetTable, fund_items: VerifiedParquetTable, relation_verifier: BoundedRelationVerifier) -> ExactEvidenceVerificationObservations` with complete bidirectional validation. Inputs are reopened verified Parquet handles/allowlisted relations, not table-sized Python iterables; CP6 passes CP5's `StagedBoundedRelationVerifier` and does not introduce a new or CP7-forward concrete type.
 - Produces: `canonical_link_pair_tsv(rows: Iterable[ExactCrossSourceLink]) -> bytes` and `exact_link_pair_sha256(...) -> str`.
 - Completes the phased observations through `observations.with_links(link_count, evidence_count, pair_sha256) -> SourceAuditObservations`, then produces `SourceAuditReport.from_complete_observations(config, observations) -> SourceAuditReport`. Both operations refuse missing/prior-phase, unequal expected/observed, or reordered/recomputed pair data; this is the first checkpoint where the final strict source-audit report can exist.
+- Populates the exact CP2 source-audit model/semantic projection only; report-file
+  write/reparse/hash comparison remains the CP7 concrete `ArtifactReportVerifier` port.
 
 - [ ] **Step 1: Write rule-boundary REDs that reject every non-exact link path**
 
@@ -1040,13 +1441,13 @@ Fresh review must independently recompute the 47-pair TSV/hash and 371 locator p
 
 ---
 
-### Checkpoint 7: Self-contained DuckDB, full verification, guarded publication, and safe CLI
+### Checkpoint 7: Self-contained DuckDB, complete core verification, guarded publication mechanics, and safe CLI
 
 Keep one checkpoint number but make three independently reviewable commits, 7A/7B/7C. Obtain one fresh checkpoint review over all three commits; any review correction gets a fourth dedicated fix commit.
 
 The global single-selector RED/smallest-GREEN loop applies independently to every named mutation, security boundary, fault-injection state, candidate guard, and CLI behavior in 7A/7B/7C. The grouped commands below are aggregate gates and cannot substitute for the recorded per-selector REDs.
 
-#### Checkpoint 7A: Database construction and the first complete artifact verifier
+#### Checkpoint 7A: Database construction and the first complete concrete core verifier
 
 **Files:**
 
@@ -1065,9 +1466,43 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 - Produces private `build_self_contained_database(parquet_root: Path, database_path: Path) -> str`, returning the closed-file SHA-256.
 - Produces public `open_read_only_database(path: Path) -> duckdb.DuckDBPyConnection` for application/runtime reads only.
-- Produces private `verify_database_against_parquet(database_path, verified_tables, *, runtime_tmp_root: Path | None = None) -> None` using its own trusted internally allowlisted verification connection and marker-owned OS temp.
-- Completes public `ArtifactManifest.verify(root: Path) -> VerifiedArtifactSet`; only this CP7 implementation can return the trusted type.
-- Produces internal `build_verified_candidate_stage(settings, versions, options) -> CandidateArtifactSet`, which fully verifies but does not compare expected, publish, or expose its stage path publicly.
+- Produces private `verify_database_against_parquet(*, inventory:
+  VerifiedPhysicalInventory, database_entry: VerifiedPhysicalEntry, tables:
+  TableVerificationResult, runtime_tmp_root: Path | None = None) -> None`. It accepts no
+  published/raw database path and uses its own trusted internally allowlisted
+  verification connection and marker-owned OS temp.
+- Produces the private concrete CP2 ports `StrictArtifactReportVerifier`,
+  `DuckDBArtifactDatabaseVerifier`, and `PackagedArtifactExpectedComparator`; each reads
+  only through the retained inventory/resource boundary and accepts no caller path,
+  verifier, SQL, or expected payload.
+- `StrictArtifactReportVerifier` independently rebuilds both complete semantic
+  projections from strict manifest inputs and the same owned verified table handles,
+  compares parsed-vs-rebuilt models before hash acceptance, binds
+  `quality_table_logical_hash` to the verified quality handle, and enforces quality
+  `quarantined_source_row_count ==` source-audit
+  `quarantine_source_rows.observed`. It never treats two mutually edited report files or
+  attacker-recomputed outer hashes as observations.
+- The report/timestamp/link and database ports consume CP3's exact
+  `TableVerificationResult`; they register/reopen only its eleven handles through the
+  still-live inventory and never rediscover a table by path or build a second unbound
+  handle set.
+- Privately assembles the CP2 `ArtifactVerificationKernel` with CP3's closed table
+  registry/verifier and these CP7 ports. Candidate core order is inventory -> tables ->
+  reports -> overall -> database -> final rescan. CP7 implements the packaged comparator
+  and expected-route assembly shape, but the official resource remains deliberately
+  absent, so no production/public expected-route success is possible yet.
+- The already guarded repository-only candidate path calls `verify_candidate_core`,
+  projects its `ArtifactCoreVerificationResult` to candidate JSON, never publishes, and
+  exposes no package/runtime skip; it does not install a no-op comparator or duplicate
+  the kernel. CP8 alone activates `verify_expected`, exposes
+  `ArtifactManifest.verify`, and wraps `ArtifactExpectedVerificationResult` as
+  `VerifiedArtifactSet` after the reviewed resource exists.
+- Produces private live direct-construction-disabled `CandidateArtifactSet`, binding one
+  exact marker-owned sibling stage `(parent identity, basename, st_dev, st_ino)`, its
+  manifest, and `ArtifactCoreVerificationResult`; it is nonserializable and not trusted
+  for publication. Produces internal `build_verified_candidate_stage(settings,
+  versions, options) -> CandidateArtifactSet`, which fully core-verifies but does not
+  compare expected, publish, or expose its stage path publicly.
 
 - [ ] **Step 1: Write 7A REDs for exact self-contained DuckDB construction**
 
@@ -1091,7 +1526,7 @@ The writer uses `threads=1`, `preserve_insertion_order=true`, `TimeZone=UTC`, st
 
 `open_read_only_database` first `lstat`s an existing nonsymlink regular file, then opens `read_only=True` and permanently sets `enable_external_access=false`, `allow_unsigned_extensions=false`, `autoinstall_known_extensions=false`, `autoload_known_extensions=false`, and `lock_configuration=true`. Do not use this hardened connection to call `read_parquet`.
 
-The private verifier creates one unique mode-0700 marker-owned directory below trusted OS temp or a containment-validated `FINPROOF_RUNTIME_TMP_ROOT`, places private spill there, uses `threads=1`/`memory_limit=1GiB`, and runs internally generated typed `EXCEPT ALL` in both directions using only `TABLE_SPECS`. Its `RuntimeBoundedRelationVerifier` is the second concrete implementation of CP5's closed `BoundedRelationVerifier`, separate from the stage-backed implementation: quality/Bronze and evidence/Bronze checks are allowlisted SQL relations over internally registered verified handles whose mismatch/count output is bounded; link/evidence validation buffers only the closed 47/371 keys and strict-parses only exact-ID-filtered 47 domestic plus 47 fund records. It never accepts caller SQL/table/path, materializes full Bronze/wide relations in Python, or writes in artifact root or its parent.
+The private verifier creates one unique mode-0700 marker-owned directory below trusted OS temp or a containment-validated `FINPROOF_RUNTIME_TMP_ROOT`. It creates mode-0600 `database-copy.duckdb` with `O_CREAT | O_EXCL | O_NOFOLLOW`, bounded-stream-copies only from `inventory.open_verified(database_entry)`, closes it, and requires held-fd/lstat identity, regular type, `st_nlink == 1`, exact bytes, and SHA equality with the owned entry/manifest before DuckDB receives the private-copy path. The source context must first finish leaf/ancestor/tree revalidation. It places private spill in the same owned directory, uses `threads=1`/`memory_limit=1GiB`, and runs internally generated typed `EXCEPT ALL` in both directions using only `TABLE_SPECS`. After DuckDB closes, it repeats private-copy identity/size/SHA verification before marker-owned cleanup. Source swap during copy, private-copy substitution, mismatch, ambiguous ownership, close, or cleanup failure blocks; there is no fallback reopen of the published path. Its `RuntimeBoundedRelationVerifier` is the second concrete implementation of CP5's closed `BoundedRelationVerifier`, separate from the stage-backed implementation: quality/Bronze and evidence/Bronze checks are allowlisted SQL relations over internally registered verified handles whose mismatch/count output is bounded; link/evidence validation buffers only the closed 47/371 keys and strict-parses only exact-ID-filtered 47 domestic plus 47 fund records. It never accepts caller SQL/table/path, materializes full Bronze/wide relations in Python, or writes in artifact root or its parent.
 
 - [ ] **Step 3: Write 7A REDs for read-only security and runtime-temp failures**
 
@@ -1099,11 +1534,37 @@ Through the public reader, require persistent `INSERT`, `UPDATE`, `DELETE`, `CRE
 
 Make artifact root and its parent read-only and verify successfully using the private OS temp. Assert mode 0700, one thread, 1-GiB limit, spill actually occurs under forced low synthetic limits, and no artifact-parent entry appears. Fault-inject temp creation/marker/close/spill/removal failure; close before cleanup, delete only exact marker-owned temp, retain ambiguous temp, and raise a bounded typed verification error.
 
+Also swap the source database inode during the bounded copy, substitute the private-copy
+inode before DuckDB open and after DuckDB close, mutate a copied byte, change its link
+count, and fault each source-context revalidation/hash/close boundary. Every case must
+fail before equality acceptance, never reopen the published path, close DuckDB before
+cleanup when it was opened, and remove only an exact marker-owned temp directory.
+
 Expected RED: public hardening or private temp ownership/settings/cleanup is incomplete.
 
-- [ ] **Step 4: Assemble the complete public verifier and mutation matrix**
+- [ ] **Step 4: Assemble the complete concrete core verifier and mutation matrix**
 
-`ArtifactManifest.verify(root)` now executes, all-or-nothing:
+Before assembly, author and close these report-port behaviors in exact order, one
+selector RED/smallest-GREEN at a time:
+
+```text
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_rebuilds_source_inputs_and_bronze_counts
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_rebuilds_silver_and_quarantine_counts
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_rebuilds_exact_link_and_evidence_semantics
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_rebuilds_quality_groups_and_aggregates
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_binds_quality_table_logical_hash
+tests/integration/artifacts/test_artifact_tampering.py::test_report_verifier_rejects_cross_report_quarantine_mismatch_with_all_outer_hashes_recomputed
+```
+
+Each selector changes only its named parsed field family while recomputing report bytes,
+physical hashes, report logical hashes, and overall manifest hash; the rebuilt table-
+derived projection must still reject before the next selector is authored. The last edits both
+otherwise locally valid reports so their quarantine counts disagree, recomputes every
+attacker-controlled outer field, and requires rejection before a report result or later
+kernel port. Smallest GREEN reuses the CP5/6 pure observation/grouping functions over
+bounded reopened handles; it does not add a second report rule implementation.
+
+The private candidate-core verifier now executes the frozen kernel, all-or-nothing:
 
 1. strict load/schema and exact recursive inventory;
 2. every physical size/SHA;
@@ -1112,13 +1573,28 @@ Expected RED: public hardening or private temp ownership/settings/cleanup is inc
 5. overall manifest logical hash;
 6. manifest/Bronze/quality typed/quality-JSON timestamp consistency;
 7. exact link/evidence/bidirectional Bronze relation;
-8. exact DuckDB information schema/count and typed bidirectional `EXCEPT ALL` equality.
+8. exact DuckDB information schema/count and typed bidirectional `EXCEPT ALL` equality;
+9. final descriptor-bound tree rescan.
 
-Only after all eight return `VerifiedArtifactSet`. In boundary 6/7, pass reopened verified Parquet handles to the private relation verifier; never expose raw table iterators to a materializing helper. Add adversarial fixtures that mutate one boundary and recompute every attacker-controlled outer field; each deeper boundary must still reject. Recheck the tree immediately before each file open/hash and immediately before returning to close inventory/hash TOCTOU windows; a swapped inode, newly added file, or symlink replacement blocks. Add finalizer selectors for one omitted `ExternalOrderStore.close_and_remove_working_state`, each partially removed working-state member, an ambiguous marker/path, and inode replacement between cleanup validation/removal; all must block before report/manifest creation and preserve declared output Parquets.
+Only after all nine does the private logical result become the strict
+`ArtifactCoreVerificationResult`; it is never a `VerifiedArtifactSet`. In boundary 6/7,
+pass reopened verified Parquet handles to the private relation verifier;
+never expose raw table iterators to a materializing helper. Add adversarial fixtures
+that mutate one boundary and recompute every attacker-controlled outer field; each
+deeper boundary must still reject. Recheck the tree through
+`VerifiedPhysicalInventory.assert_unchanged()` immediately before each reopen and
+immediately before returning; a swapped inode, newly added file, or symlink replacement
+blocks. That call re-streams size/SHA for every declared file and reparses/equality-
+checks held `manifest.json`, so a same-inode/same-size byte mutation between any two
+stages also blocks. Add finalizer selectors for one omitted
+`ExternalOrderStore.close_and_remove_working_state`, each partially removed working-
+state member, an ambiguous marker/path, and inode replacement between cleanup
+validation/removal; all must block before report/manifest creation and preserve declared
+output Parquets.
 
 In `test_artifact_verifier_bounds.py`, set `pytestmark = pytest.mark.performance`, build scale relations with 145,393 Bronze rows and 6,401,851 generated Bronze cells (or reuse the fully verified official-size fixture when available), but only 47 links/371 evidence locators. Install `len`/second-iteration/materialization and prior-batch-retention sentinels. Assert `max_verifier_batch_rows <= 65_536`, exactly 47 domestic plus 47 fund strict `record_json` parses, at most 47 link and 371 evidence keys live, one verifier thread/1-GiB spill, and no Python collection proportional to Bronze cells, quality joins, or any full wide table.
 
-The candidate-stage finalizer closes/reopens every Parquet and verifies every logical table first. It then calls `close_and_remove_working_state()` on every registered `ExternalOrderStore` and proves no staging database/WAL/spill/temp/store marker remains before writing either report or beginning the exact-tree inventory. An omitted call, partial cleanup, substituted inode, or ambiguous working path fails pre-manifest and preserves the build stage for guarded diagnostics; it cannot be hidden as an undeclared extra tree entry. Only then does the finalizer write/reparse both reports, materialize/checkpoint/close DuckDB, record all 14 physical sizes/SHA values, write canonical pretty `manifest.json` with one terminal newline, and invoke this public verifier. A file that merely closed without complete flush/hash/verify/working-state cleanup can never become a candidate.
+The candidate-stage finalizer closes/reopens every Parquet and verifies every logical table first. It then calls `close_and_remove_working_state()` on every registered `ExternalOrderStore` and proves no staging database/WAL/spill/temp/store marker remains before writing either report or beginning the exact-tree inventory. An omitted call, partial cleanup, substituted inode, or ambiguous working path fails pre-manifest and preserves the build stage for guarded diagnostics; it cannot be hidden as an undeclared extra tree entry. Only then does the finalizer write/reparse both reports, materialize/checkpoint/close DuckDB, record all 14 physical sizes/SHA values, write canonical pretty `manifest.json` with one terminal newline, and invoke the private concrete core verifier. A file that merely closed without complete flush/hash/verify/working-state cleanup can never become a candidate.
 
 Run:
 
@@ -1164,13 +1640,29 @@ git commit -m "feat: verify self-contained artifact databases"
 **Interfaces:**
 
 - Produces `PublicationState` as the closed enum `STAGE_VERIFIED`, `BACKUP_VERIFIED`, `TARGET_RENAMED_UNCOMMITTED`, `PUBLISHED`, `BACKUP_WITH_MARKER`, `BACKUP_WITH_PREPARED_TOMBSTONE_MARKER`, `TOMBSTONE_WITH_BOTH_MARKERS`, `BOTH_MARKERS_ONLY`, `BACKUP_MARKER_ONLY`, and `NO_REMNANT`.
-- Produces: `publish_verified_stage(stage: CandidateArtifactSet, *, settings: Settings, clean: bool, filesystem: ArtifactFilesystem) -> ArtifactManifest`.
-- Produces: `recover_owned_remnants(settings: Settings, *, filesystem: ArtifactFilesystem) -> None` under the same exclusive lock.
+- Produces only package-private `_PublicationStateMachine` transition/rollback/recovery
+  mechanics. CP7 has no production constructor, `publish_verified_stage`, target-
+  recognition wrapper, or builder call site. Tests drive the machine through a
+  test-helper-only sealed synthetic authorization and synthetic recognized-target
+  fact; neither type exists under `src/` and neither accepts a core verification result.
+  CP8 adds sole `authorize_candidate_for_publication(candidate: CandidateArtifactSet)
+  -> ExpectedAcceptedPublicationStage`, which reruns expected verification while
+  retaining and binding the exact stage identity, and
+  `publish_verified_stage(authorized: ExpectedAcceptedPublicationStage, *, settings:
+  Settings, clean: bool, filesystem: ArtifactFilesystem) -> ArtifactManifest`. It never
+  accepts a separate result/stage pair. CP8 also adds
+  `recover_owned_remnants(settings: Settings, *, filesystem: ArtifactFilesystem) ->
+  None`, with recognition obtained only from public expected verification.
 - `ArtifactFilesystem` exposes only exact-path `lstat`, exclusive marker create/read, same-filesystem rename, exact unlink, and marker-owned tombstone deletion; no glob/broad resolved delete method exists.
 
 - [ ] **Step 6: Write 7B REDs for no-clean/clean recognition and both rename rollback boundaries**
 
-Assert absent target publishes by stage rename only after full verification. Existing target without clean raises `EXISTING_TARGET` byte-identically. With clean, symlink/non-directory/empty/unrecognized/extra-entry/special/hardlink/WAL/invalid-manifest targets refuse before rename/chmod/unlink; snapshot every inode/byte/mode.
+Through only the test-helper sealed authorization, assert the absent-target transition
+renames the stage only after the synthetic expected-accepted fact. Existing target
+without clean raises `EXISTING_TARGET` byte-identically. With clean, synthetic
+recognition refusal for symlink/non-directory/empty/unrecognized/extra-entry/special/
+hardlink/WAL/invalid-manifest targets occurs before rename/chmod/unlink; snapshot every
+inode/byte/mode. These cases test mechanics, not a CP7 production publication path.
 
 Freeze the target-absent first-publication rollback branch with three selectors separate from every existing-target/backup case:
 
@@ -1184,7 +1676,14 @@ Expected RED: no publication state machine exists.
 
 - [ ] **Step 7: Implement pre-commit recognition, rename, verification, and rollback**
 
-Hold `.<target>.finproof-build.lock` exclusively for build/clean/recovery. Recognize target only by the complete public verifier and exact recursive inventory. Use exact same-filesystem sibling stage/backup markers and `lstat` immediately before every rename. The commit point is successful reopened target verification plus stage-marker removal. Never recursively delete before it.
+Hold `.<target>.finproof-build.lock` exclusively for build/clean/recovery. CP7 tests the
+authorization-independent rename/rollback/tombstone state machine directly with sealed
+synthetic filesystem states; it creates no production recognition/publish wrapper and
+no core result can authorize a rename. CP8 adds the sole wrapper and requires
+expected-accepted `ArtifactManifest.verify` both before the first rename and for
+reopened-target recognition. Use exact same-filesystem sibling stage/backup markers and
+`lstat` immediately before every rename. The commit point is successful reopened target
+verification plus stage-marker removal. Never recursively delete before it.
 
 Implement target-absent rollback without inventing a backup: after `stage -> target`, either target verification or stage-marker removal failure moves only that recognized target back to the exact marker-owned stage name and revalidates it, leaving target absent. If that move fails, preserve `TARGET_RENAMED_UNCOMMITTED` and raise the one typed rollback error without deleting target/marker or claiming a backup. Keep this branch distinct from existing-target rollback, which additionally restores its verified backup.
 
@@ -1258,26 +1757,52 @@ git commit -m "feat: guard artifact publication and recovery"
 
 - Produces internal strict frozen `ArtifactPhysicalFileHash(path, kind, size_bytes, sha256)`, `ArtifactManifestIdentity(manifest_version, artifact_contract_version, artifact_set_id, dataset_version, logical_hash)`, and path-free `ArtifactWorkspaceTelemetry(mode, marker_owned, containment_verified, cleanup_completed, threads, memory_limit)`.
 - Produces internal strict frozen `ArtifactBuildTelemetry(persistence_timestamp, max_live_fund_group_rows, max_writer_batch_rows, max_verifier_batch_rows, max_bronze_reconstruction_cells, linked_domestic_record_json_parses, linked_fund_record_json_parses, max_live_link_keys, max_live_evidence_keys, staging_workspace, verifier_workspace, physical_files, manifest_identity)`. `persistence_timestamp` is emitted only after manifest/Bronze/quality typed/quality-JSON consistency verification. Each workspace record requires mode `0o700`, marker/containment/cleanup booleans true, observed `threads=1`, and `memory_limit="1GiB"`; it contains no absolute/relative temp path. `physical_files` is the exact ordered 14-entry manifest physical inventory with lowercase verified SHA-256. All values are observed verified facts, not caller/config claims.
-- Produces internal strict frozen `ArtifactBuildOutcome(manifest: ArtifactManifest, logical_contract: ExpectedPhase1ArtifactContract, telemetry: ArtifactBuildTelemetry)`. Closed `_build_evaluation_artifacts_with_outcome(...)` and candidate-transform functions return this outcome so the public wrapper/official child and repository candidate tool consume the same verified counters/identities without changing evaluation behavior.
-- Completes public `build_artifacts(settings: Settings, versions: VersionBundle, *, options: ArtifactBuildOptions) -> ArtifactManifest`.
-- Completes repository-only `build_candidate_artifacts(settings: Settings, versions: VersionBundle, *, options: ArtifactBuildOptions) -> ExpectedPhase1ArtifactContract`.
+- Produces internal strict frozen `ArtifactCoreBuildOutcome(manifest:
+  ArtifactManifest, logical_contract: ArtifactCoreVerificationResult, telemetry:
+  ArtifactBuildTelemetry)`. The official baseline validators are not applied to this
+  core carrier, so complete small fixtures remain testable. CP8 adds the distinct
+  expected-accepted `ArtifactBuildOutcome` only after comparison.
+- Defines public `build_artifacts(settings: Settings, versions: VersionBundle, *,
+  options: ArtifactBuildOptions) -> ArtifactManifest`, but while CP8's official
+  resource is absent it deterministically fails before transform/publication; its first
+  success is owned and tested by CP8.
+- Completes repository-only `build_candidate_artifacts(settings: Settings, versions:
+  VersionBundle, *, options: ArtifactBuildOptions) ->
+  ArtifactCoreVerificationResult`. The official CP8 candidate outputs parse as
+  `ExpectedPhase1ArtifactContract` because official counts/identities satisfy that
+  separate baseline model; small core fixtures need not.
 - CLI adds only `finproof build-data [--clean]`.
 
 - [ ] **Step 11: Write 7C REDs for candidate non-publication and production expected comparison**
 
-In `test_real_candidate_default_builds_before_baseline`, build the complete small fixture once through the real-default candidate wrapper while the repository source/resource are absent and assert it performs the production transform/full verify, returns canonical expected-contract data, removes its private candidate artifacts, does not publish, and does not write the expected file. This real-default success integration is explicitly a pre-baseline CP7/CP8-Step-2 test and will be converted in CP8 after the reviewed resource is installed.
+Use a complete small fixture only through the private transform with an explicitly
+constructed strict hermetic test config/closed inputs; assert full core verification,
+canonical core logical-contract data, cleanup, and no publication/write. Test the CP7
+repository wrapper's orchestration with an instrumented synthetic private transform:
+initial absence guard, exactly one transform call, cleanup, second check, then output.
+Do not call that a real-default success—the real default is bound to exact official
+inputs/counts and is first executed by CP8's two official candidate processes.
 
 In a separate permanent hermetic test, inject a synthetic `CandidateBaselineProbe` that reports both absent at the initial guard, allows one instrumented private transform, then flips source or resource present in `second_check()`. Assert `BASELINE_ALREADY_EXISTS`, zero stdout/contract return, complete marker-owned candidate-stage cleanup, and no publication/write. This is the authoritative post-transform race test before and after baseline creation; do not attempt to reach the second boundary through the real default once the packaged resource exists.
 
-Separately test the private production transform directly and require a complete `ArtifactBuildOutcome`: exact manifest/logical-contract identity agreement, the verified injected persistence timestamp, observed fund/writer/verifier/reconstruction/key/parse maxima, staging/verifier workspace mode `0o700`, true marker/containment/cleanup facts, actual `threads=1` and `memory_limit="1GiB"`, and exact ordered 14 path/kind/size/SHA physical entries. Missing/duplicate/reordered physical entries, unverified hash/timestamp, false workspace fact, unexpected mode/settings, config-only counter values, path-bearing telemetry, or logical manifest identity mismatch fail strict construction. These internal transform tests remain permanently valid after baseline creation.
+Separately test the private production transform directly and require a complete
+`ArtifactCoreBuildOutcome`: exact manifest/logical-contract identity agreement, the
+verified injected persistence timestamp, observed fund/writer/verifier/reconstruction/
+key/parse maxima, staging/verifier workspace mode `0o700`, true marker/containment/
+cleanup facts, actual `threads=1` and `memory_limit="1GiB"`, and exact ordered 14 path/
+kind/size/SHA physical entries. Missing/duplicate/reordered physical entries, unverified
+hash/timestamp, false workspace fact, unexpected mode/settings, config-only counter
+values, path-bearing telemetry, or logical manifest identity mismatch fail strict
+construction. These internal transform tests remain permanently valid after baseline
+creation.
 
-Reuse CP1's injected read-only `CandidateBaselineProbe`; its synthetic source/resource states cover absent, source present, packaged present, both present, and the post-transform flip described above. The production default probe is not injectable through CLI/public APIs. Assert candidate callable is absent from installed package modules, `finproof` exports, project scripts, and wheel. Once a synthetic expected source or resource exists at the initial guard, every candidate invocation refuses with zero transform calls. In evaluation mode, `build_artifacts` must fully verify the stage, load packaged expected contract, compare it, then publish; missing/mismatch blocks before publication. Extended-demo may receive only an explicitly different expected object through a separate typed internal tooling API and cannot alter evaluation behavior.
+Reuse CP1's injected read-only `CandidateBaselineProbe`; its synthetic source/resource states cover absent, source present, packaged present, both present, and the post-transform flip described above. The production default probe is not injectable through CLI/public APIs. Assert candidate callable is absent from installed package modules, `finproof` exports, project scripts, and wheel. Once a synthetic expected source or resource exists at the initial guard, every candidate invocation refuses with zero transform calls. In CP7 evaluation mode, `build_artifacts` detects the absent packaged expected contract and blocks before transform/publication; CP8 first tests and implements its expected-accepted success. Extended-demo may receive only an explicitly different expected object through a separate typed internal tooling API and cannot alter evaluation behavior.
 
 Expected RED: exact candidate wrapper/production expected-before-publish boundary is incomplete.
 
 - [ ] **Step 12: Implement the two non-bypassable build modes**
 
-Factor one private production transform that always creates and fully verifies a private stage and returns `ArtifactBuildOutcome`. The repository candidate sequence is exact: initial probe guard; private transform; retain only strict outcome/contract data in memory; marker-owned candidate-root cleanup and verification; `probe.second_check()`; then and only then emit one canonical compact contract JSON line to stdout and one canonical compact bounded/path-free telemetry JSON line to stderr/return the expected contract. Any transform, cleanup, or second-check failure emits no contract/telemetry and leaves no guessed cleanup. `_build_evaluation_artifacts_with_outcome` loads only packaged expected bytes, compares the fully verified stage, calls the guarded publisher, and returns the strict outcome; public `build_artifacts` is a no-option wrapper over that exact function and returns only `outcome.manifest`. The official subprocess helper is the sole test-side consumer of the internal evaluation outcome for telemetry. Neither mode accepts a public/private skip/update/accept/write-back flag, and no test seam can disable comparison in the public builder.
+Factor one private production transform that always creates and fully core-verifies a private stage and returns `ArtifactCoreBuildOutcome`. The repository candidate sequence is exact: initial probe guard; private transform; retain only strict outcome/contract data in memory; marker-owned candidate-root cleanup and verification; `probe.second_check()`; then and only then emit one canonical compact contract JSON line to stdout and one canonical compact bounded/path-free telemetry JSON line to stderr/return the core contract. Any transform, cleanup, or second-check failure emits no contract/telemetry and leaves no guessed cleanup. CP7's `_build_evaluation_artifacts_with_outcome` first requires packaged expected bytes and therefore blocks without transformation while they are absent. CP8 completes its expected comparison, private expected-accepted outcome, guarded publication, and public return. Neither mode accepts a public/private skip/update/accept/write-back flag, and no test seam can disable comparison in the public builder.
 
 Export only `ArtifactManifest`, `ArtifactBuildOptions`, `build_artifacts`, and `open_read_only_database` from `finproof.data.artifacts`; do not export the private transform, publication filesystem, candidate wrapper, or recovery paths.
 
@@ -1285,7 +1810,10 @@ Export only `ArtifactManifest`, `ArtifactBuildOptions`, `build_artifacts`, and `
 
 Assert parser accepts only `build-data` and optional `--clean`; reject timestamp, source, output, SQL, table, version, and expected-path arguments with argparse exit 2. Inject a clock seam and assert it is called once, UTC, then the exact timestamp reaches `ArtifactBuildOptions`.
 
-Success stdout must be one compact sorted JSON line with only target basename, `manifest.json`, database-relative path, and logical hash. Typed failure returns 2 and exactly one `error: ...` stderr line with no stdout, stack trace, raw payload, absolute/source/stage/backup/recovery path. Post-commit cleanup failure returns 2 and explicitly says the new target was published and verified while marked old-generation cleanup remains incomplete, without claiming a complete backup.
+CP7 proves the absent-baseline CLI failure only: return 2 and exactly one bounded
+`error: ...` stderr line with no stdout, stack trace, raw payload, absolute/source/
+stage/backup/recovery path and zero transform/publication calls. CP8 owns the first
+success stdout and post-commit cleanup wording after expected acceptance is available.
 
 Expected RED: CLI has no `build-data`, and current checkout-discovery bootstrap path is unsafe for this command.
 
@@ -1313,7 +1841,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
 test ! -e config/expected_phase1_artifacts.json
 ```
 
-Expected GREEN: candidate is full-transform/full-verify but unpublished/unpackaged/no-write; evaluation build cannot skip expected comparison; CLI arguments/output/errors are closed and safe; the existing installed `verify-handoff`/`audit-source` CLI contracts remain unchanged; official baseline is still absent.
+Expected GREEN: candidate is full-transform/full-core-verify but unpublished/unpackaged/no-write; evaluation build refuses the missing baseline before transform and cannot skip expected comparison; CP7 CLI arguments and bounded absent-baseline error are closed and safe; the existing installed `verify-handoff`/`audit-source` CLI contracts remain unchanged; official baseline is still absent.
 
 - [ ] **Step 15: Commit 7C, run aggregate Checkpoint 7 gates, and obtain a fresh review**
 
@@ -1335,6 +1863,11 @@ Then run all Checkpoint 7 focused commands, including `tests/contract/test_hando
 
 - Create after candidate review only: `config/expected_phase1_artifacts.json`
 - Modify after candidate review only: `pyproject.toml`
+- Modify after candidate review only: `src/finproof/data/artifacts/manifest.py`
+- Modify after candidate review only: `src/finproof/data/artifacts/builder.py`
+- Modify after candidate review only: `src/finproof/data/artifacts/publication.py`
+- Modify after candidate review only: `src/finproof/data/artifacts/__init__.py`
+- Modify after candidate review only: `src/finproof/cli/main.py`
 - Modify: `src/finproof/data/artifacts/resources.py`
 - Modify: `tests/contract/test_artifact_resources.py`
 - Modify after baseline creation: `tests/integration/artifacts/test_candidate_builder.py`
@@ -1349,12 +1882,24 @@ Then run all Checkpoint 7 focused commands, including `tests/contract/test_hando
 **Interfaces:**
 
 - Produces the sole reviewed official `ExpectedPhase1ArtifactContract` source and byte-identical packaged resource.
+- Activates the already-frozen expected route only after those bytes exist: public
+  `ArtifactManifest.verify(root: Path) -> VerifiedArtifactSet` calls
+  `verify_expected`, normal target recognition/publication requires that trusted type,
+  and public `build_artifacts` returns only after expected acceptance. Defines the
+  distinct strict `ArtifactBuildOutcome(manifest: ArtifactManifest, logical_contract:
+  ArtifactExpectedVerificationResult, telemetry: ArtifactBuildTelemetry)`; CP7's core
+  outcome cannot be substituted.
+- Produces the internal context-managed `ExpectedAcceptedPublicationStage` only through
+  `authorize_candidate_for_publication(candidate)`. It binds that candidate's exact
+  held parent/name/inode plus expected result; publisher accepts only this single
+  capability. Mixing verified stage A with candidate stage B, copying/forging a
+  capability, closing it, or swapping its bound entry blocks before rename.
 - Produces a session-scoped official artifact fixture that launches one fresh child through the same closed `_build_evaluation_artifacts_with_outcome` called by public `build_artifacts`, first calls `ArtifactManifest.load(...).verify(root)`, then `compare_expected_artifact_contract`, and shares that verified generation plus child telemetry across all assertions in the process.
 - Consumes the frozen internal `ArtifactBuildOutcome`/`ArtifactBuildTelemetry` from the fresh child and adds only externally measured wall duration, platform-normalized peak RSS bytes, and `sys.platform`; it does not infer counters from logs or expose a public telemetry/skip flag.
 
 - [ ] **Step 1: Write the final resource/acceptance RED without creating or guessing baseline bytes**
 
-Add a contract test that requires source `config/expected_phase1_artifacts.json`, packaged `finproof/resources/contracts/expected_phase1_artifacts.json`, runtime loader availability outside checkout CWD, byte/SHA equality, strict parse, and exact wheel inclusion. Add `test_active_standard_editable_expected_contract_loader_matches_source_outside_cwd`, which runs in the active uv editable from an unrelated CWD and compares the frozen metadata-fallback destination bytes/SHA to the repository expected-contract source. Add `test_standard_editable_expected_contract_loader_uses_distribution_fallback_when_src_shadows`, using a fresh real isolated normal editable install: the regular source package must shadow copied contract data while the exact metadata-located frozen destination supplies source-identical bytes/SHA, with no dev-mode-exact behavior. Add `test_built_wheel_expected_contract_loader_uses_importlib_resources_primary`: install the built wheel alone with dependencies, make metadata fallback fail if called, change to an unrelated CWD, assert exact three-resource inventory/no candidate module, copy in a synthetic artifact root, and successfully call the public manifest verifier/expected loader without a repository root. In new `tests/source_contract/test_official_artifact_build.py`, declare `pytestmark = pytest.mark.source_contract`; its missing-contract fixture refuses to run without the expected contract and its first assertion loads/verifies the artifact before comparing expected.
+Add a contract test that requires source `config/expected_phase1_artifacts.json`, packaged `finproof/resources/contracts/expected_phase1_artifacts.json`, runtime loader availability outside checkout CWD, byte/SHA equality, strict parse, and exact wheel inclusion. Add `test_active_standard_editable_expected_contract_loader_matches_source_outside_cwd`, which runs in the active uv editable from an unrelated CWD and compares the frozen metadata-fallback destination bytes/SHA to the repository expected-contract source. Add `test_standard_editable_expected_contract_loader_uses_distribution_fallback_when_src_shadows`, using a fresh real isolated normal editable install: the regular source package must shadow copied contract data while the exact metadata-located frozen destination supplies source-identical bytes/SHA, with no dev-mode-exact behavior. Add `test_built_wheel_expected_contract_loader_uses_importlib_resources_primary`: install the built wheel alone with dependencies, make metadata fallback fail if called, change to an unrelated CWD, assert exact three-resource inventory/no candidate module, copy the already session-verified official artifact generation (not a small synthetic contract-incompatible tree), and successfully call the public manifest verifier/expected loader without a repository root. In new `tests/source_contract/test_official_artifact_build.py`, declare `pytestmark = pytest.mark.source_contract`; its missing-contract fixture refuses to run without the expected contract and its first assertion loads/verifies the artifact before comparing expected.
 
 Run only the missing-resource tests:
 
@@ -1428,14 +1973,59 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected GREEN: outside the checkout CWD, the active metadata fallback now returns bytes/SHA equal to the reviewed source.
 
-The new real packaged resource intentionally invalidates CP7's pre-baseline real-default candidate-success selector. After the reinstall, run:
+Only after that stale-resource RED/reinstall/GREEN is closed, activate the frozen
+production assembly: `ArtifactManifest.verify` uses only the packaged comparator and
+expected route; target recognition/publication accepts only the bound expected-accepted
+capability; `_build_evaluation_artifacts_with_outcome` converts the core outcome to
+`ArtifactBuildOutcome` only after expected comparison and reopened final rescan;
+`build_artifacts`/`finproof build-data` gain their first success path. Add serial
+selectors for public small-fixture refusal against the official baseline, official
+fixture success, core-result substitution rejection, exact-stage binding, expected
+mismatch before rename, normal target recognition, compact success stdout, and
+post-commit cleanup wording. Each selector observes its own pre-activation/missing-
+behavior RED and smallest GREEN; no expected comparator skip/injection seam enters a
+public or production assembly.
+
+Use this exact order, running only
+`UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest <file>::<selector> -q` for
+each RED and its GREEN before authoring the next selector:
+
+```text
+tests/integration/artifacts/test_artifact_tampering.py::test_public_manifest_verify_rejects_small_core_against_official_expected
+tests/unit/data/artifacts/test_publication.py::test_publisher_rejects_core_result_substitution_before_filesystem_work
+tests/unit/data/artifacts/test_publication.py::test_publication_authorization_binds_one_exact_live_candidate_stage
+tests/integration/artifacts/test_publication_faults.py::test_expected_mismatch_blocks_before_first_rename
+tests/source_contract/test_official_artifact_build.py::test_evaluation_build_accepts_official_expected_and_publishes
+tests/integration/artifacts/test_publication_recovery.py::test_normal_target_recognition_requires_reopened_expected_acceptance
+tests/unit/cli/test_build_data.py::test_build_data_success_emits_only_compact_verified_manifest_summary
+tests/unit/cli/test_build_data.py::test_build_data_postcommit_cleanup_error_states_published_verified_target
+```
+
+The first selector's RED is the still-absent public method, not expected mismatch; add
+only the public expected-route wrapper and make the valid small core fail at the
+official comparator. The second freezes the nominal trusted-result gate before any
+rename. The next selector rejects result-A/stage-B mixing, structural copies/forgeries,
+closed capabilities, and parent/name/inode swaps before authorizing a rename. The
+official success selector is the first behavior allowed to construct a
+`VerifiedArtifactSet`/`ArtifactBuildOutcome` and must use the reviewed official resource
+and exact source inputs; no small fixture is called official. The remaining selectors
+then close reopened recognition and CLI outcomes serially.
+
+After the reinstall, add and run this real-default post-baseline acceptance selector:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/integration/artifacts/test_candidate_builder.py::test_real_candidate_default_builds_before_baseline -q
+  tests/integration/artifacts/test_candidate_builder.py::test_real_candidate_default_permanently_refuses_after_baseline -q
 ```
 
-Expected RED: `BASELINE_ALREADY_EXISTS` occurs at the initial real probe with zero transform calls. Then replace only that integration case with `test_real_candidate_default_permanently_refuses_after_baseline`, asserting the initial production guard refuses with zero transform calls, no stdout/stage/publication, and no attempt to reach the now-unreachable second boundary. Do not weaken or remove the permanent synthetic `CandidateBaselineProbe` post-transform flip/race tests or the private full-transform `ArtifactBuildOutcome` tests; run both families and prove they still cover the second check, cleanup, all guard branches, complete transformation, telemetry, and logical-contract extraction without a public bypass.
+Expected GREEN regression: CP1/CP7's already RED-driven initial production guard raises
+`BASELINE_ALREADY_EXISTS` with zero transform calls, no stdout/stage/publication, and no
+attempt to reach the now-unreachable second boundary. This is a new real-environment
+acceptance fixture, not new production RED evidence. Do not weaken or remove the permanent synthetic `CandidateBaselineProbe`
+post-transform flip/race tests or the private full-transform
+`ArtifactCoreBuildOutcome` tests; run both families and prove they still cover the
+second check, cleanup, all guard branches, complete transformation, telemetry, and
+logical-contract extraction without a public bypass.
 
 Run:
 
@@ -1582,7 +2172,19 @@ Expected: all gates pass; porcelain is empty; tracked runtime-artifact query pri
 - [x] Installed wheels use `importlib.resources` primary; real isolated standard editable installs prove only the exact distribution-metadata fallback under source-package shadowing; schema and expected-contract bytes/SHA/inventory are CWD-independent with no dev-mode-exact workaround.
 - [x] Every force-included source/mapping change observes its deterministic pre-refresh RED with `uv run --no-sync`, explicitly reinstalls `finproof` in the active editable environment, and reruns outside-CWD byte/SHA equality with ordinary `uv run`; CP2 covers the stale manifest-schema copy and CP8 the new expected contract.
 - [x] The candidate path is repository-only, unpublished, no-write, no-publish, and permanently closed after baseline creation.
-- [x] CP2 has no premature table-aware/full verifier; CP3 freezes specs/Parquet; CP7 alone completes trusted DuckDB-aware verification.
+- [x] CP2 has no premature table-aware/full verifier; CP3 freezes specs/Parquet; CP7 completes concrete DuckDB-aware core verification and CP8 alone activates expected-accepted trust.
+- [x] D-024 freezes capability ownership: CP2 models/hashing/held inventory/internal
+  stub kernel; CP3 concrete table port; CP5/6 report/timestamp/link semantic producers;
+  CP7 concrete report/database ports plus packaged comparator implementation; CP8
+  reviewed expected bytes, the activated expected route, and the first public trusted
+  result/publication authorization.
+- [x] CP2 uses the valid `os.scandir(held_dir_fd)` plus
+  `DirEntry.stat(follow_symlinks=False)` API, binds `manifest.json` to the retained root,
+  and gives CP3 one identity-revalidating entry reopen capability with no lexical
+  fallback.
+- [x] CP2 freezes every report field/order/nested invariant/semantic projection and
+  every expected-contract literal/hash/count boundary; exhaustive comparator failures
+  carry unique Unicode-sorted RFC 6901 pointers as canonical JSON.
 - [x] `FundItemValue` projects only its representative normalized value/quality, with all equivalent/contributing lineage retained in strict `record_json`.
 - [x] Public fund key classification and one-group adapter avoid private imports, SQL policy, and full/double normalization.
 - [x] Incremental PyArrow produces one Parquet file from bounded batches, passes row-group size only to `write_table`, and computes header-first logical identity only from reopened typed rows after final count is known.

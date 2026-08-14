@@ -411,7 +411,7 @@ families, query/API behavior, or eligibility rules.
 > **Authoritative detailed plan:**
 > `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`
 
-D-022 and D-023 supersede the removed legacy two-argument builder, undeclared
+D-022, D-023, and D-024 supersede the removed legacy two-argument builder, undeclared
 `table_hashes`, generic atomic-directory replacement, count-only DuckDB validation,
 trim-ambiguous link, and tracked runtime-artifact examples. Do not reconstruct or
 execute those examples from Git history.
@@ -422,21 +422,28 @@ The dedicated plan must implement the approved specification under strict RED ->
 - [x] **Checkpoint 1: build settings/options, runtime schema resources, artifact config,
   expected-contract types/comparison and synthetic bootstrap boundary, dependencies,
   and typed errors; no official baseline content**
-- [ ] **Checkpoint 2: strict manifest/load/verify, exact input inventory, canonical
-  schema/table/report/overall hashes, and expected-contract comparison**
+- [ ] **Checkpoint 2: strict manifest/load, descriptor-bound physical inventory,
+  canonical schema/table/report/overall hash primitives, exact report contracts,
+  exhaustive expected-contract comparison, and an internal synthetic-port kernel; no
+  public trusted verifier/result**
 - [ ] **Checkpoint 3: frozen table specs, wide projection/strict `record_json`
-  serializers, exact Decimal/time behavior, and Parquet writers**
+  serializers, exact Decimal/time behavior, Parquet writers, and the concrete reopened-
+  Parquet table-verifier port**
 - [ ] **Checkpoint 4: complete generic Bronze streaming and bounded external staging,
   ordering, spill, and cleanup behavior**
 - [ ] **Checkpoint 5: wide Silver products/attributes, bounded fund-item collapse,
   D-021 quality persistence, quarantine, and deterministic reports**
 - [ ] **Checkpoint 6: exact raw-identifier links, full bidirectional locator evidence,
   pair hash, and conflict rejection**
-- [ ] **Checkpoint 7: self-contained DuckDB exact-content verification, guarded
-  publication/rollback/recovery, read-only access, and safe CLI**
+- [ ] **Checkpoint 7: concrete report/database ports and packaged-comparator
+  implementation, complete private core verification, self-contained DuckDB exact-
+  content verification, authorization-independent publication/rollback/recovery state
+  mechanics, read-only access, guarded unpublished candidate, and safe absent-baseline
+  CLI behavior**
 - [ ] **Checkpoint 8: two-build official logical reproduction, independently reviewed
-  official expected-contract creation plus wheel-byte test, acceptance, bounded-memory
-  evidence, all Phase 1 gates, status, review, and clean tree**
+  official expected-contract creation plus wheel-byte test, activation of the sole
+  public expected-accepted verifier/result and publication recognition, acceptance,
+  bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

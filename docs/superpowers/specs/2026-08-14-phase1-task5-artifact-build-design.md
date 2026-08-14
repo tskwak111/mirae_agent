@@ -5,7 +5,7 @@
 **Scope:** Reproducible Bronze/Silver/Gold Parquet, self-contained DuckDB, data-artifact
 manifest, reports, exact domestic ETF/public-fund links, and guarded publication
 
-**Governing decisions:** D-014, D-017, D-021, D-022, D-023
+**Governing decisions:** D-014, D-017, D-021, D-022, D-023, D-024
 
 ## 1. Purpose and completion boundary
 
@@ -198,6 +198,11 @@ Absolute stage/backup/recovery paths may appear only in access-controlled struct
 internal diagnostics. Exception `safe_message` values and CLI output contain at most
 the managed target basename plus the opaque operation ID; they never print parent,
 stage, backup, source, or operator-recovery paths.
+
+Checkpoint 2 adds the closed internal-assembly code
+`VERIFICATION_INCOMPLETE="verification_incomplete"`. It is emitted only when a private
+verification kernel port is missing, before any filesystem work; it never downgrades an
+artifact/input failure or becomes a public option to skip a verification stage.
 
 ## 4. Storage type system and naming
 
@@ -719,6 +724,53 @@ written only when they are equal.
 It does not copy a file from `tests/`, and it does not replace the independent detailed
 `tools/audit_source_data.py --check` gate.
 
+The strict declaration order and complete field inventory are:
+
+```text
+SourceAuditReport
+  report_id                     literal "source_audit"
+  report_contract_version       literal "1.0.0"
+  artifact_contract_version     literal "1.0.0"
+  source_snapshot_date          literal date(2026, 7, 11)
+  source_manifest_sha256        lowercase SHA-256
+  schema_catalog_sha256         lowercase SHA-256
+  source_tables                 tuple[SourceTableAudit, ...]  # exact four-table order
+  silver_tables                 tuple[NamedExpectedObservedCount, ...]  # exact five-table order
+  quarantine_source_rows        ExpectedObservedCount
+  exact_links                   ExpectedObservedCount
+  exact_link_evidence           ExpectedObservedCount
+  exact_link_pair_sha256        ExpectedObservedSha256
+
+SourceTableAudit
+  source_table                  closed table literal
+  expected_rows                 nonnegative integer
+  observed_rows                 nonnegative integer
+  expected_columns              nonnegative integer
+  observed_columns              nonnegative integer
+  expected_cells                nonnegative integer
+  observed_cells                nonnegative integer
+
+NamedExpectedObservedCount
+  name                          closed Silver table literal
+  expected                      nonnegative integer
+  observed                      nonnegative integer
+
+ExpectedObservedCount
+  expected                      nonnegative integer
+  observed                      nonnegative integer
+
+ExpectedObservedSha256
+  expected                      lowercase SHA-256
+  observed                      lowercase SHA-256
+```
+
+`source_tables` is exactly `PRBD01N001`, `PREF01N001`, `PREF02N001`,
+`PRFD01N001`. `silver_tables` is exactly `bond_instrument`,
+`domestic_listed_product`, `overseas_listed_product`, `fund_item`,
+`fund_item_attribute`. Every expected/observed pair must be equal before the model can
+be constructed. The report does not contain the observed, nonfrozen quality-issue
+total; that belongs to the quality summary.
+
 ### 7.2 Quality summary
 
 `reports/quality_summary.json` deterministically contains:
@@ -733,6 +785,64 @@ Arrays and mapping keys use lexical order. No persistence timestamp enters repor
 logical content. The two quarantined rows remain recoverable through their complete
 Bronze rows and cells.
 
+The strict declaration order and complete field inventory are:
+
+```text
+QualitySummaryReport
+  report_id                     literal "quality_summary"
+  report_contract_version       literal "1.0.0"
+  artifact_contract_version     literal "1.0.0"
+  total_issues                  nonnegative integer
+  distinct_affected_source_rows nonnegative integer
+  by_source_table               tuple[SourceTableCount, ...]
+  by_rule                       tuple[RuleCount, ...]
+  by_severity                   tuple[SeverityCount, ...]
+  by_quality_status             tuple[QualityStatusCount, ...]
+  by_quarantine_flag            tuple[BooleanCount, BooleanCount]
+  quarantined_issue_count       nonnegative integer
+  quarantined_source_row_count  nonnegative integer
+  excluded_silver_records       tuple[ExcludedSilverCount, ...]
+  quality_table_logical_hash    lowercase SHA-256
+
+SourceTableCount
+  source_table                  one of the four closed source-table literals
+  count                         positive integer
+
+RuleCount
+  rule_id                       nonempty exact string
+  rule_version                  nonempty exact string
+  count                         positive integer
+
+SeverityCount
+  severity                      exact IssueSeverity value
+  count                         positive integer
+
+QualityStatusCount
+  quality_status                exact QualityStatus value
+  count                         positive integer
+
+BooleanCount
+  value                         exact boolean
+  count                         nonnegative integer
+
+ExcludedSilverCount
+  grain                         instrument | listed_product | fund_item | fund_attribute
+  count                         positive integer
+```
+
+All tuple entries are unique and contain only observed positive groups except the
+always-present two quarantine-flag entries. `by_source_table` is sorted by
+`source_table`; `by_severity` by `severity`; `by_quality_status` by `quality_status`;
+`excluded_silver_records` by `grain`, all in Unicode code-point order; `by_rule` is
+sorted by `(rule_id, rule_version)`; and
+`by_quarantine_flag` is exactly `False`, then `True`. Aggregate fields must equal their
+grouped counts: each of the source-table, rule, severity, quality-status, and quarantine
+families independently sums to `total_issues`; the `True` entry equals
+`quarantined_issue_count`; affected/quarantined source-row counts cannot exceed their
+corresponding issue counts; and `quarantined_source_row_count` must equal the source-audit
+quarantine observation. No report model accepts an omitted observed group, duplicate group,
+mapping-shaped substitute, float count, or boolean-as-integer.
+
 ### 7.3 Report logical identity
 
 Both reports have strict, versioned Pydantic contracts. Their canonical
@@ -740,6 +850,40 @@ logical bytes are compact sorted-key JSON plus one terminal newline. They contai
 wall-clock or output-path field. Each report receives a canonical SHA-256 independent
 of its pretty on-disk rendering. The report models carry closed semantic IDs:
 `source_audit` and `quality_summary` respectively.
+
+Each model exposes `semantic_projection() -> Mapping[str, object]`. That projection is
+the exact complete field inventory above in declaration order, including `report_id`
+and both contract versions. It excludes only rendering/path/operational metadata,
+because none of those fields may exist on either strict model. `report_logical_hash`
+accepts only this closed report protocol, requires the projection keys to equal the
+model's declared fields exactly, canonicalizes the projection once, and hashes those
+bytes. A second ad-hoc report DTO or a caller-supplied projection is prohibited.
+
+```python
+class SemanticReportIdentity(Protocol):
+    @property
+    def report_id(self) -> str: ...
+    def semantic_projection(self) -> Mapping[str, object]: ...
+
+
+def report_logical_hash(report: SemanticReportIdentity) -> str: ...
+```
+
+Model validation proves each report's local invariants; concrete verification must also
+prove provenance and cross-report meaning. CP7's `StrictArtifactReportVerifier` reparses
+both files only through the live inventory, then independently rebuilds their complete
+semantic projections from the manifest's strict input identities and the same eleven
+live-inventory-owned verified table handles. It bounded-streams/group-counts Bronze and
+quality rows and uses verified table counts/hashes plus exact link/evidence relations;
+it does not trust report aggregates or a manifest-declared report hash as observations.
+The rebuilt source-audit expected values must equal its rebuilt observed values, the
+rebuilt quality group/aggregate inventories must equal the parsed quality report, and
+`quality_table_logical_hash` must equal the verified quality-table handle. Finally,
+`QualitySummaryReport.quarantined_source_row_count` must equal
+`SourceAuditReport.quarantine_source_rows.observed`. Parsed-vs-rebuilt model equality
+and this cross-report equality are checked before either report logical hash is accepted.
+Changing both report payloads and every attacker-controlled outer hash cannot bypass
+this relation.
 
 The manifest `ArtifactFile.logical_hash` is required and non-null for exactly the two
 `kind=report` entries, together with the matching `report_id`. Both fields are null for
@@ -775,6 +919,27 @@ to typed scalar/table/hash values. They never rewrite strings or leaf values ins
 strict model's exact JSON-mode payload. A `record_json` column enters a logical row hash
 as its exact string. Canonical JSON bytes use compact separators and one `\n` terminator
 per row.
+
+Canonical dispatch is closed and ordered: `None`, exact `bool`, exact `int`, exact
+`str`, `Decimal`, `datetime`, `date`, `StrEnum`/string-valued `Enum`,
+`PurePosixPath`, exact `list`/`tuple`, then `Mapping` with exact-string keys. It does
+not coerce subclasses through an earlier branch (`bool` is never an integer count),
+and does not accept `float`, bytes, sets, arbitrary iterables, dataclasses, Pydantic
+models, or objects with only a useful `repr`. Mapping keys are sorted by Unicode code
+point and must be unique exact strings; arrays keep their supplied order.
+
+Decimal canonicalization first rejects nonfinite values, expands exponent notation,
+and removes only insignificant trailing fractional zeroes. It then proves exact fit in
+`DECIMAL(38,18)`: at most 18 remaining fractional digits and at most 20 integer digits,
+with no nonzero digit discarded or rounded. `-0`, `0E-18`, and every other numerical
+zero become the JSON string `"0"`.
+A naive `datetime` is rendered with exactly six fractional digits and no suffix. An
+aware `datetime` is accepted only when its UTC offset is exactly zero and is rendered
+with exactly six fractional digits plus `Z`; another offset is rejected rather than
+silently converted. `date` dispatch occurs after `datetime`. Enum values must be exact
+strings. `canonical_json_bytes` uses `ensure_ascii=False`, `allow_nan=False`, sorted
+keys, compact separators, UTF-8, and either exactly one terminal newline or none as
+selected by its keyword argument.
 
 ### 8.2 Schema and table hashes
 
@@ -814,6 +979,61 @@ column contracts, and sort/unique keys are already committed by `schema_sha256` 
 not duplicated in the header. Independent hash-implementation tests must reproduce the
 same bytes and prove path/layer invariance.
 
+Checkpoint 2 freezes the narrow structural protocols consumed by those hash
+primitives; Checkpoint 3's concrete `ColumnSpec` and `TableSpec` must implement them
+without an adapter:
+
+```python
+class ColumnSpecIdentity(Protocol):
+    @property
+    def name(self) -> str: ...
+    @property
+    def logical_type(self) -> str: ...
+    @property
+    def arrow_type(self) -> str: ...
+    @property
+    def duckdb_type(self) -> str: ...
+    @property
+    def nullable(self) -> bool: ...
+
+
+class TableSpecIdentity(Protocol):
+    @property
+    def table_name(self) -> str: ...
+    @property
+    def grain(self) -> str: ...
+    @property
+    def columns(self) -> tuple[ColumnSpecIdentity, ...]: ...
+    @property
+    def unique_key(self) -> tuple[str, ...]: ...
+    @property
+    def sort_key(self) -> tuple[str, ...]: ...
+    @property
+    def logical_projection(self) -> tuple[str, ...]: ...
+```
+
+Every protocol property is runtime-validated as its exact declared scalar/tuple type.
+Column names are unique; unique/sort/logical-projection names must exist in `columns`;
+and `logical_projection` itself is ordered, unique, and nonempty. The schema identity
+projection is exactly `table_name`, `grain`, the ordered five-field column projections,
+`unique_key`, and `sort_key`. `logical_projection` deliberately does not enter the
+schema hash, but enters the table header exactly once. Each logical row must be a
+mapping whose exact key set equals `logical_projection`; the iterator is consumed once,
+its observed count must equal `row_count`, which is an exact non-boolean nonnegative
+`int`, and no rows are
+materialized. The signatures are:
+
+```python
+def schema_sha256(spec: TableSpecIdentity) -> str: ...
+
+def table_logical_hash(
+    spec: TableSpecIdentity,
+    *,
+    row_count: int,
+    rows: Iterable[Mapping[str, object]],
+) -> str: ...
+```
+
 Rows are in the table's frozen sort order. For `bronze_source_row`, `loaded_at` becomes
 null in the logical projection. For `silver_quality_issue`, `first_detected_at` becomes
 null and the logical `record_json` is reconstructed with a null timestamp. No other
@@ -838,6 +1058,15 @@ It excludes persistence time, stage/output paths, artifact file sizes, compressi
 bytes, physical file hashes, and database SHA-256. Verified logical-input paths, sizes,
 and hashes remain covered. Changing any logical row, schema, source, rule/config
 version, or table count changes it.
+
+`manifest_logical_hash(manifest: ManifestLogicalIdentity) -> str` accepts one internal
+structural protocol with exact properties `manifest_version`,
+`artifact_contract_version`, `artifact_set_id`, `dataset_version`, ordered
+`logical_inputs: tuple[ExpectedLogicalInput, ...]`, exact seven-field
+`ArtifactVersions`, ordered `tables: tuple[ExpectedLogicalTable, ...]`, and ordered
+`reports: tuple[ExpectedSemanticReport, ...]`. It validates these through their strict
+models and hashes exactly the projection listed above. It accepts no arbitrary mapping,
+file inventory, physical manifest bytes, output path, or timestamp.
 
 ### 8.4 Physical integrity
 
@@ -887,6 +1116,14 @@ probes, link evidence, and manifest agreement.
 
 ```python
 def open_read_only_database(path: Path) -> duckdb.DuckDBPyConnection: ...
+
+def verify_database_against_parquet(
+    *,
+    inventory: VerifiedPhysicalInventory,
+    database_entry: VerifiedPhysicalEntry,
+    tables: TableVerificationResult,
+    runtime_tmp_root: Path | None = None,
+) -> None: ...
 ```
 
 The function accepts only an existing nonsymlink regular file and calls DuckDB with
@@ -895,6 +1132,20 @@ persistent INSERT, UPDATE, DELETE, and CREATE attempts against the artifact data
 plus external ATTACH and COPY attempts, to fail. DuckDB session-local TEMP objects are
 outside this persistence contract; the public FinProof query path never exposes raw SQL
 or creates them.
+
+The private equality verifier never gives DuckDB a path below the published artifact
+root. DuckDB cannot consume the retained file descriptor as its database, so the
+verifier first creates one unique mode-`0700`, marker-owned directory below trusted OS
+temp (or a containment-validated runtime-temp root), creates a mode-`0600` regular
+`database-copy.duckdb` with `O_CREAT | O_EXCL | O_NOFOLLOW`, and bounded-stream-copies
+the source only through `inventory.open_verified(database_entry)`. The source context
+must complete its leaf/ancestor/tree revalidation. After the destination closes, its
+`lstat`/held-`fstat` identity, type, `st_nlink == 1`, byte count, and SHA-256 must still
+match both the retained source entry and manifest declaration before DuckDB opens the
+private copy. The verifier repeats the copy identity/size/hash checks after closing
+DuckDB and before marker-owned cleanup. Source swap during copy, private-copy
+substitution, ambiguous marker/identity, close/hash failure, or cleanup failure fails
+closed. There is no fallback that reopens `root / database_path` after inventory.
 
 ## 10. Artifact manifest
 
@@ -947,6 +1198,14 @@ the parsed report, and is prohibited otherwise. Exactly one report entry has
 semantic identity. `ArtifactFile.kind` is the closed literal `parquet`, `report`, or
 `duckdb` and must agree with the exact path inventory.
 
+Both `report_id` and `logical_hash` are required JSON object members on every
+`ArtifactFile`; they are not optional/omittable fields. Their value is non-null on a
+`kind="report"` entry and exact JSON `null` on every `parquet` or `duckdb` entry. A
+missing key, an omitted-on-serialization default, a non-report string value, or a
+report null is schema/model invalid. This explicit-null policy is part of the canonical
+manifest shape even though physical file entries are excluded from the overall logical
+hash.
+
 `schemas/artifact_manifest.schema.json` is updated to match this model exactly,
 including terminal-`Z` UTC validation. Runtime and contract consumers call
 `Draft202012Validator.check_schema`, supply `FormatChecker`, and inspect every error.
@@ -959,6 +1218,276 @@ def ArtifactManifest.load(path: Path) -> ArtifactManifest: ...
 
 def ArtifactManifest.verify(root: Path) -> VerifiedArtifactSet: ...
 ```
+
+Checkpoint 2 implements only `load`, the descriptor-bound physical inventory, and the
+internal orchestration kernel below. Under D-024 the public `verify` method and
+`VerifiedArtifactSet` do not exist until Checkpoint 8 installs the independently
+approved official expected source/resource. Checkpoint 7 completes the concrete core
+ports and packaged-comparator implementation, but the absent resource leaves the
+expected route unavailable outside synthetic kernel orchestration.
+
+```python
+@dataclass(frozen=True)
+class VerifiedPhysicalEntry:
+    path: PurePosixPath
+    kind: Literal["manifest", "parquet", "report", "duckdb"]
+    size_bytes: int
+    sha256: str
+    st_dev: int
+    st_ino: int
+    file_type: int
+    st_nlink: int
+
+
+class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventory"]):
+    @property
+    def manifest_entry(self) -> VerifiedPhysicalEntry: ...
+    @property
+    def declared_entries(self) -> tuple[VerifiedPhysicalEntry, ...]: ...
+    def open_verified(
+        self, entry: VerifiedPhysicalEntry
+    ) -> AbstractContextManager[BinaryIO]: ...
+    def require_owned(self, entry: VerifiedPhysicalEntry) -> None: ...
+    def assert_unchanged(self) -> None: ...
+
+
+def verify_declared_inventory(
+    manifest: ArtifactManifest,
+    root: Path,
+) -> VerifiedPhysicalInventory: ...
+```
+
+The inventory is a live, single-owner capability, not a serializable DTO. It retains
+the full filesystem-anchor-to-root directory descriptor chain plus the root's
+`parquet` and `reports` descriptors and every `(st_dev, st_ino, file type)` identity
+until context exit. It has exactly one `manifest_entry` plus the
+fourteen `declared_entries` in manifest order. `require_owned` and `open_verified`
+accept only the exact entry instance owned by that live inventory (object identity,
+not structural equality); both fail after inventory close. `open_verified` opens its leaf relative to the retained
+parent descriptor with `O_NOFOLLOW`, requires the new `fstat` identity/type/link count
+to equal the recorded values, independently streams exact size/SHA from that held
+descriptor before yielding (then resets/duplicates at offset zero), yields the binary
+stream, and after consumer close independently re-streams exact size/SHA from the same
+held descriptor before revalidating the leaf name, opened descriptor, every retained
+ancestor, and exact directory inventory. `assert_unchanged()` reopens every exact-owned
+leaf through retained parents, rechecks identity/type/link, re-streams all fourteen
+declared size/SHA values, reparses held `manifest.json`, requires equality with the
+bound manifest, and repeats the exact tree/ancestor inventory. Same-inode, same-size
+in-place mutation therefore fails even if no name or metadata identity changes. It
+fails after inventory close. This is the only CP3 Parquet/report/database
+reopen boundary; later code never reconstructs an absolute artifact path from a string.
+
+Root-to-manifest binding is mandatory. `verify_declared_inventory` opens the supplied
+absolute root through a retained no-follow descriptor chain beginning at the filesystem
+anchor; every ancestor and the root must be a nonsymlink directory and is identity-
+revalidated through its retained parent. It reads `manifest.json` relative to that held root,
+parses it through the same strict schema/model loader, and requires equality with the
+passed `manifest` before it trusts any declaration. Thus a model loaded from another
+tree or a replaced root cannot authorize this tree. The manifest leaf is identity-
+checked like every other file, must be a nonsymlink regular file with `st_nlink == 1`,
+and is revalidated after parsing although it is not one of the fourteen self-declared
+hashes.
+
+Recursive traversal uses the valid descriptor API `os.scandir(held_directory_fd)`;
+there is no nonexistent `follow_symlinks` argument on `os.scandir`. Each returned
+`DirEntry` is classified with `entry.stat(follow_symlinks=False)`. Required child
+directories are opened relative to the held parent using
+`O_DIRECTORY | O_NOFOLLOW`, and their `fstat` identities must match the `DirEntry`
+snapshot. Regular leaves require `st_nlink == 1`, are opened with `O_NOFOLLOW`, and are
+size/hash checked through that descriptor. After hashing, the implementation repeats
+descriptor-relative `os.stat(name, dir_fd=parent_fd, follow_symlinks=False)` and a full
+`os.scandir(held_directory_fd)` name/identity inventory before returning. Unsupported
+descriptor-relative open/stat/scandir semantics, an unavailable no-follow flag, any
+close/revalidation error, or any identity change fails closed; there is no Path-based
+precheck-and-reopen fallback.
+
+Checkpoint 2 also freezes the internal port signatures and exact order used by the
+eventual public verifier:
+
+```python
+class ClosedTableSpecRegistry(Protocol):
+    def ordered_specs(self) -> tuple[TableSpecIdentity, ...]: ...
+
+
+class VerifiedTableHandle(Protocol):
+    @property
+    def table_name(self) -> str: ...
+    @property
+    def entry(self) -> VerifiedPhysicalEntry: ...
+    @property
+    def row_count(self) -> int: ...
+    @property
+    def schema_sha256(self) -> str: ...
+    @property
+    def logical_hash(self) -> str: ...
+
+
+@dataclass(frozen=True, init=False)
+class TableVerificationResult:
+    tables: tuple[ExpectedLogicalTable, ...]
+    handles: tuple[VerifiedTableHandle, ...]
+
+    @classmethod
+    def from_verified(
+        cls,
+        *,
+        inventory: VerifiedPhysicalInventory,
+        tables: tuple[ExpectedLogicalTable, ...],
+        handles: tuple[VerifiedTableHandle, ...],
+    ) -> "TableVerificationResult": ...
+
+    def validate_against(self, inventory: VerifiedPhysicalInventory) -> None: ...
+
+
+class ArtifactTableVerifier(Protocol):
+    def verify_tables(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        specs: tuple[TableSpecIdentity, ...],
+    ) -> TableVerificationResult: ...
+
+
+class ReportVerificationResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    reports: tuple[ExpectedSemanticReport, ...]
+    exact_link_pair_sha256: str
+    exact_link_evidence_count: int
+
+
+class ArtifactReportVerifier(Protocol):
+    def verify_reports(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        tables: TableVerificationResult,
+    ) -> ReportVerificationResult: ...
+
+
+class ArtifactDatabaseVerifier(Protocol):
+    def verify_database(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        specs: tuple[TableSpecIdentity, ...],
+        tables: TableVerificationResult,
+        logical: "ArtifactCoreVerificationResult",
+    ) -> None: ...
+
+
+class ArtifactExpectedComparator(Protocol):
+    def compare(self, *, actual: ArtifactLogicalContractView) -> None: ...
+
+
+class ArtifactCoreVerificationResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    artifact_contract_version: str
+    artifact_set_id: str
+    dataset_version: date
+    logical_inputs: tuple[ExpectedLogicalInput, ...]
+    tables: tuple[ExpectedLogicalTable, ...]
+    reports: tuple[ExpectedSemanticReport, ...]
+    overall_manifest_logical_hash: str
+    exact_link_pair_sha256: str
+    exact_link_evidence_count: int
+
+
+class ArtifactExpectedVerificationResult(ArtifactCoreVerificationResult):
+    pass
+
+
+class ArtifactVerificationKernel:
+    def __init__(
+        self,
+        *,
+        table_registry: ClosedTableSpecRegistry | None,
+        table_verifier: ArtifactTableVerifier | None,
+        report_verifier: ArtifactReportVerifier | None,
+        database_verifier: ArtifactDatabaseVerifier | None,
+        expected_comparator: ArtifactExpectedComparator | None,
+    ) -> None: ...
+
+    def verify_candidate_core(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        root: Path,
+    ) -> ArtifactCoreVerificationResult: ...
+
+    def verify_expected(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        root: Path,
+    ) -> ArtifactExpectedVerificationResult: ...
+```
+
+All five ports are private fixed production dependencies, not public/caller-supplied
+arguments. `verify_candidate_core` requires the registry/table/report/database ports;
+`verify_expected` requires all five. A required missing port is an incomplete assembly and raises
+`ArtifactContractError(VERIFICATION_INCOMPLETE)` before filesystem work, with
+`reason=missing_verification_ports` and the unique sorted missing port names stored as
+compact canonical JSON in string-only internal context;
+no partial result is returned. `verify_expected` performs exactly:
+descriptor-bound inventory, tables, reports, overall-manifest logical reconstruction,
+database, expected-contract comparison, final inventory revalidation, then result.
+`verify_candidate_core` performs the identical first five stages, skips only expected
+comparison, then performs final inventory revalidation and returns the strict core type.
+The table result flows to report, overall, and database ports; the report result joins
+it to construct the strict logical result at the overall stage; database receives that
+same logical result; and expected comparison receives it only after database succeeds.
+Any
+exception aborts immediately, closes the inventory, calls no later port, and returns
+nothing. CP2 uses synthetic stubs only to prove both orders/short-circuit behavior; its
+production assembly deliberately has all five ports set to `None`, so it cannot produce
+even the internal result. CP3 supplies the table registry/verifier, CP5/6 produce the
+report semantics and timestamp/link relation evidence, and CP7 supplies concrete
+report/database ports plus the packaged-comparator implementation and performs the
+final relation rechecks. CP8 installs the reviewed expected bytes, activates the
+expected route, and alone wraps its result as the first public `VerifiedArtifactSet`.
+
+Both result types structurally implement the CP1 `ArtifactLogicalContractView`; they do
+not duplicate its entry models and contain no
+root, descriptor, artifact path, timestamp, physical hash, database handle, or trust
+flag. Both internal result models apply strict types, frozen exact field/order/name/
+grain inventories, lowercase hashes, non-boolean nonnegative counts, and their own
+cross-field consistency checks; they are not unchecked dataclass transport containers.
+The official known row counts, frozen exact-link pair hash/evidence count, and other
+baseline-specific values belong only to `ExpectedPhase1ArtifactContract` and its
+comparator. Core results may therefore represent a complete hermetic small fixture,
+while only expected comparison can accept the official evaluation baseline.
+
+`TableVerificationResult` is the one deliberate internal capability carrier between
+stages, not a trusted public result. Its direct constructor is disabled; the sole
+`from_verified(...)` factory runtime-validates exact tuples,
+eleven-entry frozen order, one-to-one table-name/count/schema/logical-hash equality
+between each CP1 logical entry and handle, and calls `inventory.require_owned(...)` for
+every handle entry. `validate_against(inventory)` repeats those checks immediately on
+receipt by each downstream port, including live owner identity, so a structurally
+forged/copied handle or result cannot cross a stage boundary. CP3's
+`VerifiedParquetTable` structurally implements
+`VerifiedTableHandle`. CP7 report/timestamp/link/database ports receive the same handles
+and can reopen typed batches only via `inventory.open_verified(handle.entry)`; no port
+reconstructs a path or trusts a second table scan unrelated to CP3's verified identity.
+
+The core route is not an expected-accepted/public result. CP7 exposes it only through
+the already guarded, repository-only candidate transform: the CP1 initial/second
+baseline probes must both permit the call, no publication occurs, and only a canonical
+`ExpectedPhase1ArtifactContract` projection escapes before cleanup. No installed
+package, readiness path, `finproof` CLI, or normal builder can call
+`verify_candidate_core`. CP7 publication/recovery state-machine mechanics are tested
+below the authorization boundary with synthetic filesystem states; no production
+recognition/publisher accepts a core result and the D-022 candidate remains strictly
+unpublished/no-write. CP8 wires public/evaluation `ArtifactManifest.verify` only to
+`verify_expected`; only that route may construct `VerifiedArtifactSet` or authorize
+target recognition/publication.
+This avoids a no-op expected comparator, an unreviewed generated baseline, and
+duplicated verification orchestration.
 
 `load` performs safe JSON/domain/schema validation without trusting paths or opening
 artifact files. `verify` resolves each declared path under one root without following
@@ -1014,13 +1543,15 @@ boundary; artifact-only verification cannot silently substitute current checkout
 The tracked logical baseline has a separate strict interface:
 
 ```python
-class ExpectedPhase1ArtifactContract(BaseModel): ...
+class ArtifactLogicalContractPayload(BaseModel): ...
+
+class ExpectedPhase1ArtifactContract(ArtifactLogicalContractPayload): ...
 
 @classmethod
 def ExpectedPhase1ArtifactContract.load(path: Path) -> ExpectedPhase1ArtifactContract: ...
 
 def compare_expected_artifact_contract(
-    verified: VerifiedArtifactSet,
+    actual: ArtifactLogicalContractView,
     expected: ExpectedPhase1ArtifactContract,
 ) -> None: ...
 ```
@@ -1034,6 +1565,54 @@ persistence timestamp, artifact output path, artifact size, or physical hash.
 Comparison reports every deterministic field difference and fails closed; it never
 updates the expected file.
 
+`ArtifactLogicalContractPayload` is the private strict structural twin used to
+reconstruct the `actual` protocol: exact field types, inventories, declaration order,
+names/grains, non-boolean nonnegative integers, and hash shapes, but no official known
+count/pair/evidence value assertions. `ExpectedPhase1ArtifactContract` adds those
+baseline-specific validators. The comparator strict-reconstructs actual through the
+payload type, serializes both payloads canonically, and computes all RFC 6901
+differences. Thus a well-shaped wrong official count is reported at its deterministic
+path rather than mislabeled `invalid_actual_contract`; only malformed structure/types
+use that reason.
+
+Its scalar boundary is also closed before the first official baseline exists:
+`artifact_contract_version` is literal `1.0.0`, `artifact_set_id` is literal
+`finproof-data-artifacts/v1`, and `dataset_version` is exactly `2026-07-11`; every hash
+is lowercase 64-hex; input sizes and counts are exact nonnegative integers (never
+booleans); the nine input, eleven table, and two report tuples have their frozen order,
+names, kinds, and grains; the known ten non-quality table counts are
+207/145,393/6,401,851, 42,394/1,733/5,646/11,138/95,618, and 47/371; the quality-table
+count remains a nonnegative reviewed value rather than a pre-baseline `6,032` literal;
+the pair hash is the frozen 64-hex value in section 5.10; and evidence count is exactly
+371. `ExpectedLogicalInput`, `ExpectedLogicalTable`, and `ExpectedSemanticReport` in
+`expected_contract.py` remain the only entry types used by the CP1 protocol and the
+later verified result.
+
+The exact expected table `(name, grain)` sequence is:
+
+```text
+bronze_source_column                  source_column
+bronze_source_row                     source_row
+bronze_source_cell                    source_cell
+silver_bond_instrument                instrument
+silver_domestic_listed_product        listed_product
+silver_overseas_listed_product        listed_product
+silver_fund_item                      fund_item
+silver_fund_item_attribute            fund_attribute
+silver_quality_issue                  quality_issue
+gold_exact_cross_source_link          exact_cross_source_link
+gold_exact_cross_source_link_evidence exact_cross_source_link_evidence
+```
+
+On mismatch, `compare_expected_artifact_contract` first reconstructs the actual value
+through `ArtifactLogicalContractPayload`, then recursively compares its JSON-mode payload with
+the expected payload. It reports the complete sorted tuple of differing RFC 6901 JSON
+Pointers. Object tokens escape `~` as `~0` and `/` as `~1`; array positions are decimal
+indices; a whole-root scalar mismatch is `""`. The error's string-only internal context
+stores `difference_paths` as compact UTF-8 canonical JSON, for example
+`["/reports/0/semantic_hash","/tables/3/row_count"]`. Paths are unique and sorted by
+Unicode code point; no raw differing value, absolute path, or input payload is exposed.
+
 The initial baseline has one review-only bootstrap boundary outside the installed
 package and `finproof` CLI:
 
@@ -1043,14 +1622,14 @@ def build_candidate_artifacts(
     versions: VersionBundle,
     *,
     options: ArtifactBuildOptions,
-) -> ExpectedPhase1ArtifactContract: ...
+) -> ArtifactCoreVerificationResult: ...
 ```
 
 This interface lives only in repository review tooling, is not exported by the package,
 has no console entry point, and is unavailable to runtime/readiness. It refuses to run
 if either the repository expected-contract file or its packaged resource already
 exists. It builds with the exact production transformation into a fresh private
-temporary target, performs full manifest/Parquet/report/DuckDB verification, never
+temporary target, performs full core manifest/Parquet/report/DuckDB verification, never
 calls publication, and omits only the impossible expected-contract comparison. It
 returns/prints canonical candidate-contract JSON for review but cannot write, update,
 accept, or publish `config/expected_phase1_artifacts.json`; its temporary artifacts are
@@ -1123,6 +1702,22 @@ remain offline build inputs and are not silently copied into the runtime wheel.
 Portable filesystems cannot atomically replace a non-empty directory with one
 `os.replace`. Task 5 therefore promises offline transactional publication with rollback,
 not simultaneous-reader atomicity.
+
+`CandidateArtifactSet` is a private, live, direct-construction-disabled stage
+capability created by the builder. It binds one exact marker-owned sibling stage
+directory `(parent identity, basename, st_dev, st_ino)`, its manifest, and its
+`ArtifactCoreVerificationResult`; it is not trusted for publication and the repository
+candidate can only clean it. After the reviewed expected resource exists, CP8's sole
+`authorize_candidate_for_publication(candidate: CandidateArtifactSet) ->
+ExpectedAcceptedPublicationStage` factory reruns the expected route against that exact
+held stage, preserves the stage/parent descriptor identity, and binds the resulting
+`VerifiedArtifactSet` into one nonserializable context-managed capability. The publisher
+accepts only that single capability—never separate `verified` and `stage` arguments—so
+a result for stage A cannot authorize stage B. It revalidates the bound parent/name/
+inode immediately before rename and closes the capability on every exit. Reopened
+target recognition independently reruns public expected verification. CP7 contains
+only the authorization-independent state-machine mechanics; neither capability has a
+CP7 production publication call site.
 
 1. Build and fully verify a private sibling staging directory on the same filesystem.
 2. If target is absent, rename stage to target.
@@ -1258,26 +1853,40 @@ reviewable checkpoints are required:
    containment, `ArtifactBuildOptions`, artifact config, expected-contract typed
    model/loader/comparator, packaging configuration, synthetic-fixture candidate
    bootstrap boundary, and typed errors; no official baseline content.
-2. **Manifest and hashing:** strict schema/model/load/verify, canonical value/table/
-   semantic-report/manifest hashes, operational timestamp cross-checks, format checking,
-   mutation and path attacks.
+2. **Manifest and hashing:** strict schema/model/load, canonical scalar/schema/table/
+   semantic-report/manifest hash primitives, exact strict report shapes, descriptor-
+   bound recursive physical inventory, exhaustive expected-contract differences, and
+   manifest UTC shape plus the internal synthetic-port kernel. It has no concrete
+   table/report/database/expected verifier and no public trusted result.
 3. **Table specs and serializers:** exact Arrow/DuckDB schemas, wide projections,
-   canonical model round trips, Decimal/date/time behavior, fixed Parquet settings.
+   canonical model round trips, Decimal/date/time behavior, fixed Parquet settings,
+   the exact Bronze/quality timestamp-neutral logical projections, and the concrete
+   reopened-Parquet table-verification port. It still cannot expose a complete artifact
+   verifier.
 4. **Bronze streaming:** all three Bronze tables, bounded batches, exact row/cell/
-   column reconstruction, source audit report, and failed-stage isolation.
+   column reconstruction, phased source-audit observations only, and failed-stage
+   isolation; it cannot construct a final report.
 5. **Silver and quality:** domestic/overseas wide records, bounded item-group fund
-   collapse, attribute relation, two quarantines, D-021 injection/schema/joins, and no
-   new metric/family/eligibility behavior.
+   collapse, attribute relation, two quarantines, D-021 injection/schema/joins,
+   operational timestamp relation, quality-summary semantic production, and no new
+   metric/family/eligibility behavior.
 6. **Exact links:** raw identifier rule v1.0.0, one-to-one conflict rejection, 47-pair
    TSV hash, 371 locators, no trimming/name/fuzzy/family links.
-7. **DuckDB, reports, publication, CLI:** self-contained tables, read-only rejection,
-   bounded OS-temp equality verification, physical inventory/checksums, guarded
-   clean/rollback/tombstone failures, safe exit/output.
+7. **DuckDB, reports, pre-baseline publication mechanics, CLI:** write/reparse and
+   verify both completed report payloads, perform the complete operational timestamp/
+   link rechecks, materialize self-contained tables, enforce read-only rejection, run
+   bounded OS-temp equality verification, implement (but do not yet activate) packaged
+   expected comparison, exercise authorization-independent guarded clean/rollback/
+   tombstone state-machine failures without a publish-capable core token, and provide
+   safe absent-baseline exit/output. It has
+   no public trusted result while official expected bytes are absent.
 8. **Official reproduction and Phase 1 gate:** two different-time logical builds, one
    generation-integrity verification per build, bounded-memory evidence, all
    counts/hashes, independent candidate review, creation/commit of the official expected
-   contract and wheel-byte identity test, all mandatory repository/source gates,
-   independent whole-branch review, status evidence, and clean tree.
+   contract and wheel-byte identity test, activation of expected-accepted
+   `ArtifactManifest.verify`/`VerifiedArtifactSet` and normal publication recognition,
+   all mandatory repository/source gates, independent whole-branch review, status
+   evidence, and clean tree.
 
 An official acceptance test may reuse a session-scoped artifact build, but no production
 behavior is introduced only through an acceptance test that is already green.
@@ -1289,6 +1898,14 @@ At minimum, tests prove:
 - strict manifest/config/schema versions, extra-field rejection, explicit format
   checking, exact nine-input namespace/path inventory, safe paths, deep immutability,
   and all-or-nothing verification;
+- CP2 inventory reparses and binds the exact held-root `manifest.json`, uses
+  `os.scandir(dir_fd)` plus no-follow `DirEntry.stat`, rejects unsupported descriptor
+  semantics, and revalidates every directory/name/inode before each CP3+ reopen and
+  before close;
+- the internal kernel rejects a missing port before filesystem work and, with synthetic
+  ports, calls exactly inventory -> tables -> reports -> overall -> database -> expected
+  -> final inventory revalidation, short-circuiting without a result after every
+  injected failure; CP2 exports neither public `verify` nor `VerifiedArtifactSet`;
 - fixture builds started from two different current working directories resolve every
   relative input/output/config path against the same explicit repository root and
   produce the same canonical input identities; absolute spellings produce those same
@@ -1306,6 +1923,9 @@ At minimum, tests prove:
 - report logical identity uses closed semantic report IDs, not output paths;
 - the separately tracked expected contract detects any source/table/report/overall
   logical baseline drift without consulting an operational timestamp or physical hash;
+- expected-contract mismatches expose every unique sorted RFC 6901 path as canonical
+  JSON in bounded internal context, including escaped `~`/`/` tokens and array indices,
+  without differing values or paths from the host filesystem;
 - initial candidate bootstrap performs full transform/verification without publication
   or write-back, refuses an existing expected file/resource, and is unavailable after
   the reviewed baseline is created;
