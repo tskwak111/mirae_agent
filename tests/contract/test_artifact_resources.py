@@ -550,6 +550,71 @@ def test_resource_adapters_never_downgrade_invalid_or_racy_paths_to_missing(
     assert fallback_calls == 0
 
 
+@pytest.mark.parametrize("operation", ["primary", "editable-read", "editable-exists"])
+def test_resource_adapters_reject_missing_leaf_after_ancestor_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    from finproof.data.artifacts import resources
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    resource = resources.RuntimeArtifactResource.ARTIFACT_MANIFEST_SCHEMA
+    fallback_calls = 0
+    if operation == "primary":
+        root = tmp_path / "package/finproof"
+        candidate = root / "resources/schemas/artifact_manifest.schema.json"
+        monkeypatch.setattr(importlib_resources, "files", lambda _package: root)
+
+        def editable_fallback(_resource: object) -> bytes:
+            nonlocal fallback_calls
+            fallback_calls += 1
+            return b"fallback"
+
+        monkeypatch.setattr(resources, "_editable_read", editable_fallback)
+        invalid_reason = "invalid_primary_resource"
+    else:
+        root = tmp_path / "distribution"
+        candidate = root / resource.value
+        distribution = _SyntheticDistribution(root)
+        monkeypatch.setattr(importlib_metadata, "distribution", lambda _name: distribution)
+        invalid_reason = "invalid_editable_resource"
+
+    candidate.parent.mkdir(parents=True)
+    resources_parent = candidate.parent.parent
+    swapped = False
+    real_os_stat = os.stat
+
+    def racing_os_stat(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> os.stat_result:
+        nonlocal swapped
+        if dir_fd is not None and not swapped and path == "artifact_manifest.schema.json":
+            swapped = True
+            resources_parent.rename(resources_parent.with_name("resources-held"))
+            resources_parent.mkdir()
+            (resources_parent / "schemas").mkdir()
+        return real_os_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr("finproof.data.artifacts.safe_files.os.stat", racing_os_stat)
+
+    def invoke_operation() -> object:
+        if operation == "primary":
+            return resources._resource_bytes(resource)
+        if operation == "editable-read":
+            return resources._editable_read(resource)
+        return resources._editable_exists(resource)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        invoke_operation()
+    assert swapped
+    assert caught.value.internal_context == {"reason": invalid_reason}
+    assert fallback_calls == 0
+
+
 @pytest.mark.parametrize(
     "requirement",
     [

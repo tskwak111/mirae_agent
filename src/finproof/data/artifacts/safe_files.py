@@ -64,6 +64,27 @@ def _read_all(file_descriptor: int) -> bytes:
     return b"".join(chunks)
 
 
+def _validate_open_chain(
+    descriptors: list[int],
+    root_identity: tuple[int, int, int],
+    child_records: list[tuple[int, str, tuple[int, int, int]]],
+    *,
+    expected_directory_seen: bool,
+) -> None:
+    if not expected_directory_seen:
+        raise SafeFileReadError("expected directory was not opened")
+    if _identity(os.fstat(descriptors[0])) != root_identity:
+        raise SafeFileReadError("filesystem root identity changed during read")
+    for descriptor, (parent, component, expected) in zip(
+        descriptors[1:], child_records, strict=True
+    ):
+        if _identity(os.fstat(descriptor)) != expected:
+            raise SafeFileReadError("opened path component identity changed")
+        after = os.stat(component, dir_fd=parent, follow_symlinks=False)
+        if _identity(after) != expected:
+            raise SafeFileReadError("path component changed during read")
+
+
 def read_held_regular_file(
     path: Path,
     *,
@@ -123,6 +144,12 @@ def inspect_held_regular_file(
                 )
             except FileNotFoundError:
                 if is_leaf:
+                    _validate_open_chain(
+                        descriptors,
+                        root_identity,
+                        child_records,
+                        expected_directory_seen=expected_directory_seen,
+                    )
                     result = SafeFileReadResult(SafeFileReadState.MISSING)
                     break
                 raise
@@ -149,20 +176,13 @@ def inspect_held_regular_file(
             child_records.append((parent_descriptor, component, opened_identity))
             parent_descriptor = child_descriptor
         else:
-            if not expected_directory_seen:
-                raise SafeFileReadError("expected directory was not opened")
             payload = _read_all(descriptors[-1])
-
-            if _identity(os.fstat(root_descriptor)) != root_identity:
-                raise SafeFileReadError("filesystem root identity changed during read")
-            for descriptor, (parent, component, expected) in zip(
-                descriptors[1:], child_records, strict=True
-            ):
-                if _identity(os.fstat(descriptor)) != expected:
-                    raise SafeFileReadError("opened path component identity changed")
-                after = os.stat(component, dir_fd=parent, follow_symlinks=False)
-                if _identity(after) != expected:
-                    raise SafeFileReadError("path component changed during read")
+            _validate_open_chain(
+                descriptors,
+                root_identity,
+                child_records,
+                expected_directory_seen=expected_directory_seen,
+            )
             result = SafeFileReadResult(SafeFileReadState.PRESENT, payload)
     except (OSError, SafeFileReadError):
         result = SafeFileReadResult(SafeFileReadState.INVALID)
