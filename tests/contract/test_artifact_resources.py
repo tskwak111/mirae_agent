@@ -369,6 +369,10 @@ def test_editable_adapter_reports_missing_leaf_as_typed_error(
     from finproof.data.artifacts.errors import ArtifactContractError
 
     distribution = _SyntheticDistribution(tmp_path / "distribution")
+    missing_leaf = (
+        tmp_path / "distribution/finproof/resources/schemas/artifact_manifest.schema.json"
+    )
+    missing_leaf.parent.mkdir(parents=True)
     monkeypatch.setattr(importlib_metadata, "distribution", lambda _name: distribution)
 
     with pytest.raises(ArtifactContractError) as caught:
@@ -448,6 +452,102 @@ def test_filesystem_resource_adapters_reject_atomic_parent_swap(
     with pytest.raises(ArtifactContractError) as caught:
         operation(resource)
     assert caught.value.internal_context == {"reason": f"invalid_{adapter}_resource"}
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "primary-leaf-removed-after-lookup",
+        "primary-parent-replaced-after-lookup",
+        "generic-primary-directory-exists",
+        "editable-read-leaf-removed-after-lookup",
+        "editable-exists-leaf-removed-after-lookup",
+    ],
+)
+def test_resource_adapters_never_downgrade_invalid_or_racy_paths_to_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.data.artifacts import resources
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    resource = resources.RuntimeArtifactResource.ARTIFACT_MANIFEST_SCHEMA
+    if case == "generic-primary-directory-exists":
+        directory = ("resources", "schemas", "artifact_manifest.schema.json")
+        monkeypatch.setattr(
+            importlib_resources,
+            "files",
+            lambda _package: _MemoryTraversable({}, {directory}),
+        )
+        with pytest.raises(ArtifactContractError) as caught:
+            resources._primary_exists(resource)
+        assert caught.value.internal_context == {"reason": "invalid_primary_resource"}
+        return
+
+    fallback_calls = 0
+    if case.startswith("primary"):
+        root = tmp_path / "package/finproof"
+        candidate = root / "resources/schemas/artifact_manifest.schema.json"
+        monkeypatch.setattr(importlib_resources, "files", lambda _package: root)
+
+        def editable_fallback(_resource: object) -> bytes:
+            nonlocal fallback_calls
+            fallback_calls += 1
+            return b"fallback"
+
+        monkeypatch.setattr(resources, "_editable_read", editable_fallback)
+        invalid_reason = "invalid_primary_resource"
+    else:
+        root = tmp_path / "distribution"
+        candidate = root / resource.value
+        distribution = _SyntheticDistribution(root)
+        monkeypatch.setattr(importlib_metadata, "distribution", lambda _name: distribution)
+        invalid_reason = "invalid_editable_resource"
+
+    candidate.parent.mkdir(parents=True)
+    candidate.write_bytes(b"trusted")
+    raced = False
+    real_os_stat = os.stat
+
+    def racing_os_stat(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> os.stat_result:
+        nonlocal raced
+        result = real_os_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+        should_replace_parent = (
+            case == "primary-parent-replaced-after-lookup" and path == "resources"
+        )
+        should_remove_leaf = (
+            case != "primary-parent-replaced-after-lookup"
+            and path == "artifact_manifest.schema.json"
+        )
+        if dir_fd is not None and not raced and (should_replace_parent or should_remove_leaf):
+            raced = True
+            if should_replace_parent:
+                parent = root / "resources"
+                parent.rename(root / "resources-held")
+                parent.mkdir()
+            else:
+                candidate.unlink()
+        return result
+
+    monkeypatch.setattr("finproof.data.artifacts.safe_files.os.stat", racing_os_stat)
+
+    def invoke_operation() -> object:
+        if case.startswith("primary"):
+            return resources._resource_bytes(resource)
+        if "-read-" in case:
+            return resources._editable_read(resource)
+        return resources._editable_exists(resource)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        invoke_operation()
+    assert caught.value.internal_context == {"reason": invalid_reason}
+    assert fallback_calls == 0
 
 
 @pytest.mark.parametrize(

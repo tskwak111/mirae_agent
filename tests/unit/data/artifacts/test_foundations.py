@@ -641,6 +641,47 @@ def test_artifact_build_config_rejects_unsafe_anchor_path_and_parent_race(
     assert caught.value.code is ArtifactErrorCode.CONFIG_INVALID
 
 
+def test_artifact_build_config_rejects_repository_root_replacement_before_held_read(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import config as artifact_config
+    from finproof.data.artifacts import safe_files
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    repository_root = tmp_path / "repository"
+    config_path = _write_valid_artifact_config(repository_root)
+    moved_root = tmp_path / "repository-held"
+    real_read = safe_files.read_held_regular_file
+    swapped = False
+
+    def replace_root_before_read(
+        path: Path,
+        *,
+        expected_directory: safe_files.ExpectedDirectoryIdentity | None = None,
+    ) -> bytes:
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            repository_root.rename(moved_root)
+            _write_valid_artifact_config(repository_root)
+        return real_read(path, expected_directory=expected_directory)
+
+    monkeypatch.setattr(
+        "finproof.data.artifacts.config.read_held_regular_file",
+        replace_root_before_read,
+    )
+
+    with pytest.raises(ArtifactContractError) as caught:
+        artifact_config.ArtifactBuildConfig.load(
+            config_path,
+            repository_root=repository_root,
+            versions=VersionBundle(),
+        )
+    assert caught.value.code is ArtifactErrorCode.CONFIG_INVALID
+
+
 @pytest.mark.parametrize("case", _CONFIG_MUTATION_IDS)
 def test_artifact_build_config_rejects_all_43_frozen_mutations(
     case: str,

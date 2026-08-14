@@ -14,7 +14,11 @@ from pydantic import BaseModel, ConfigDict, model_validator
 from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
-from finproof.data.artifacts.safe_files import SafeFileReadError, read_held_regular_file
+from finproof.data.artifacts.safe_files import (
+    ExpectedDirectoryIdentity,
+    SafeFileReadError,
+    read_held_regular_file,
+)
 
 
 class _UniqueKeyLoader(yaml.SafeLoader):
@@ -158,10 +162,15 @@ class ArtifactBuildConfig(BaseModel):
                 raise SafeFileReadError("repository root is not an absolute directory")
             if stat.S_IFMT(repository_stat.st_mode) != stat.S_IFDIR:
                 raise SafeFileReadError("repository root is not a nonsymlink directory")
+            repository_identity = ExpectedDirectoryIdentity.from_stat(
+                repository_root, repository_stat
+            )
             if path != repository_root / "config/artifact_build.yaml":
                 raise SafeFileReadError("config path is not the frozen repository path")
             payload = yaml.load(
-                read_held_regular_file(path).decode("utf-8"),
+                read_held_regular_file(path, expected_directory=repository_identity).decode(
+                    "utf-8"
+                ),
                 Loader=_UniqueKeyLoader,  # noqa: S506
             )
             model_payload = payload
