@@ -20,6 +20,7 @@
 - `config/expected_phase1_artifacts.json` must not exist during Checkpoints 1-7. It is created only in Checkpoint 8 after two independently verified official candidate builds and a fresh candidate-contract review.
 - The candidate interface stays in repository tooling, is absent from `finproof.__init__`, package exports, project scripts, and the runtime wheel, never publishes, never writes the expected contract, and permanently refuses once either expected-contract source or packaged resource exists.
 - Every behavior change follows focused RED -> observed expected failure -> smallest GREEN -> focused/regression gates -> commit -> fresh independent review. A review correction begins with its own focused RED and receives a separate correction commit and re-review.
+- A parameterized trust-boundary family proves RED only when the same run reaches every parameter ID and every case fails for the intended missing behavior; one early exception or one first failing parameter does not prove the remaining cases. Split unrelated assertions into named selectors so operation IDs, printable basenames, immutable internal context, each ordered expected-contract family, and each path-safety case cannot mask one another.
 - Every newly created `tests/source_contract/test_*.py` declares module-level `pytestmark = pytest.mark.source_contract`; every newly created `tests/performance/test_*.py` declares `pytestmark = pytest.mark.performance`. Directory naming, command-line selection, or conftest inference does not substitute for the explicit file mark.
 - After any checkpoint changes a root file or destination mapping covered by Hatch `force-include`, the active standard-editable distribution data is presumed stale. Every pre-refresh legacy/stale RED selector must run through `uv run --no-sync` so uv cannot auto-sync/rebuild the editable copy before the failure is observed. Then, before any resource equality GREEN gate or commit, run exactly `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv sync --frozen --all-groups --reinstall-package finproof` and rerun the active-editable outside-CWD byte/SHA selector with ordinary `uv run`. A plain `uv sync`, a fresh isolated editable alone, a wheel-only test, or a pre-refresh `uv run` without `--no-sync` does not satisfy this refresh rule.
 - Use an isolated Task 5 worktree created with `superpowers:using-git-worktrees`. Run `python3 tools/verify_handoff.py` and `python3 tools/audit_source_data.py --check` before the first production edit.
@@ -109,9 +110,9 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 - Produces: `ArtifactBuildConfig.load(path: Path, *, repository_root: Path, versions: VersionBundle) -> ArtifactBuildConfig`.
 - Produces: `resolve_logical_inputs(settings: Settings) -> tuple[ResolvedArtifactInput, ...]` with the exact closed nine-entry namespace/path/kind order; it canonicalizes paths without hashing them, while the builder reopens/re-hashes every entry immediately before ingestion.
 - Produces: `validate_build_registry_versions(settings: Settings, versions: VersionBundle) -> None`, requiring datasets snapshot `2026-07-11` and exact dataset/quality/rating/state versions before source ingestion.
-- Produces: `ArtifactContractError(code: ArtifactErrorCode, *, operation_id: str, target_basename: str | None = None, published: bool = False, internal_context: Mapping[str, str] | None = None)` with bounded `safe_message`.
+- Produces: `ArtifactContractError(code: ArtifactErrorCode, *, operation_id: str, target_basename: str | None = None, published: bool = False, internal_context: Mapping[str, str] | None = None)` with bounded `safe_message`. `operation_id` must be an exact `str` of 1-128 ASCII code points matching `^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$`; non-strings, non-ASCII, leading punctuation, whitespace/control/path characters, and 129+ code points are refused. Runtime validation requires exact-string context keys/values and copies them into an immutable mapping. The public basename must be an exact `str` of 1-128 Unicode code points, must pass `str.isprintable()`, must be neither `.` nor `..`, and contains no slash/backslash; C0/C1, CR/LF, U+2028/U+2029, bidi/format controls, separators, ANSI escapes, and 129+ code points are refused.
 - Produces the exact read-only `ArtifactLogicalContractView(Protocol)` owned by `expected_contract.py`, with properties for artifact contract/set/dataset identities, the ordered exact-nine logical-input contract entries, ordered exact-eleven table schema/count/sort/unique/logical-hash entries, ordered two semantic report-ID/hash entries, overall manifest logical hash, link pair hash, and evidence count. Its property types are the strict expected-contract entry models defined in the same CP1 module; it contains no path, timestamp, physical hash, database bytes, or forward reference to later manifest types.
-- Produces: `ExpectedPhase1ArtifactContract.load(path: Path) -> ExpectedPhase1ArtifactContract` and `compare_expected_artifact_contract(actual: ArtifactLogicalContractView, expected: ExpectedPhase1ArtifactContract) -> None`; Checkpoint 7's `VerifiedArtifactSet` structurally conforms to this CP1-owned protocol.
+- Produces: `ExpectedPhase1ArtifactContract.load(path: Path) -> ExpectedPhase1ArtifactContract` and `compare_expected_artifact_contract(actual: ArtifactLogicalContractView, expected: ExpectedPhase1ArtifactContract) -> None`; the expected dataset version is exactly `2026-07-11`, the loader rejects every symlink path component and reads a held regular-file descriptor with identity checks, and the comparator first reconstructs the complete actual structural payload through the same strict JSON model before comparing. Thus `bool`/`int`, wrong nested scalar/container types, missing properties, and reordered inventories fail as `invalid_actual_contract`. Checkpoint 7's `VerifiedArtifactSet` structurally conforms to this CP1-owned protocol.
 - Produces closed `RuntimeArtifactResource(StrEnum)` values for exactly `finproof/resources/schemas/artifact_manifest.schema.json`, `finproof/resources/schemas/quality_issue.schema.json`, and, only after Checkpoint 8, `finproof/resources/contracts/expected_phase1_artifacts.json`; no public or internal loader accepts a caller-supplied path.
 - Produces: `artifact_manifest_schema_bytes() -> bytes`, `quality_issue_schema_bytes() -> bytes`, and, only after Checkpoint 8, `expected_phase1_contract_bytes() -> bytes`. Each calls one internal closed loader that uses `importlib.resources` as the installed-wheel primary. Its sole fallback calls `importlib.metadata.distribution("finproof").locate_file(exact_frozen_destination)` for standard Hatch editable shadowing, then requires that the distribution-relative destination is unchanged and `lstat` identifies an existing nonsymlink regular file before reading. Neither route uses CWD, repository/source parent discovery, caller paths, or a path search.
 - Produces internal `CandidateBaselineProbe(Protocol)` with `source_exists() -> bool`, `resource_exists() -> bool`, and `second_check() -> None`, plus a production probe that checks the real repository expected source and packaged expected resource without exposing their paths. CP1's repository-only `assert_candidate_bootstrap_allowed(probe: CandidateBaselineProbe) -> None` performs only the initial absent/source-present/resource-present guard; Checkpoint 7's actual wrapper owns the post-transform `second_check` race boundary.
@@ -150,11 +151,11 @@ def test_build_settings_require_the_exact_database_location(tmp_path: Path) -> N
         Settings(repository_root=tmp_path, database_path=tmp_path / "other.duckdb")
 ```
 
-Parameterize separate cases for artifact root equal to repository/filesystem/home, inside source root, a symlink component, database outside artifact root, `data_dir` other than `source_root/data`, and source/config paths outside their declared namespace. Add a two-CWD test proving relative and absolute spellings serialize to the same namespace/path identities.
+Parameterize separate cases for artifact root equal to repository/filesystem/home, inside source root, a symlink component at every build-path field (including `data_dir` itself), database outside artifact root, `data_dir` other than `source_root/data`, source/config paths outside their declared namespace, and every equality among source root, artifact root, and database path. The one parameterized RED run must report every case ID rather than stopping at the first invalid construction. Add a two-CWD test proving relative and absolute spellings serialize to the same namespace/path identities.
 
 Create two unrelated CWDs, each with a conflicting `.env` that tries to change repository/source/artifact/config/expected paths. Instantiate identical explicit `Settings` from each CWD and assert every value/serialized logical input remains identical and neither `.env` value appears. In separate selectors, preserve the existing explicit-initializer precedence and `FINPROOF_*` process-environment override behavior. Assert `.env.example` is never opened automatically; a value becomes active only when the caller explicitly exports/sources it into the process environment.
 
-In `tests/unit/data/artifacts/test_foundations.py`, add:
+In `tests/unit/data/artifacts/test_foundations.py`, add the options selector below. Use the shown safe-message selector as the first coherent error behavior: give it very long internal path/raw-payload values, require exact string `artifact error unsafe_target for artifacts (op-0123456789abcdef)`, require `str(error) == error.safe_message`, exclude every context key/value substring, and require length at most 512. After a missing-symbol skeleton, rerun it to the narrower missing/unsafe `safe_message` behavioral RED before implementing rendering. The length bound is an acceptance consequence of the exact format plus already bounded public fields. Then add three separate validation selectors so no earlier assertion masks another: one parameterized selector for non-string, empty, leading hyphen/underscore, whitespace, slash/backslash, NUL/C0/C1, non-ASCII, and 129-code-point operation IDs while proving 1- and 128-character regex-matching boundary values succeed; one parameterized selector for non-string/empty/dot/dot-dot, path separators, C0/C1/CR/LF/U+2028/U+2029/ANSI/bidi/format/non-printable, and 129-code-point basenames while proving printable 1- and 128-code-point boundary values succeed; and one for exact-string-only copied immutable `internal_context` that rejects non-string keys/values and nested mutable values. Every invalid parameter ID must be reached in the same RED run.
 
 ```python
 def test_options_require_one_aware_utc_timestamp() -> None:
@@ -176,13 +177,23 @@ def test_artifact_error_safe_message_never_exposes_parent_paths(tmp_path: Path) 
         ArtifactErrorCode.UNSAFE_TARGET,
         operation_id="op-0123456789abcdef",
         target_basename="artifacts",
-        internal_context={"stage": str(tmp_path / "private/stage")},
+        internal_context={
+            "stage": str(tmp_path / "private/stage") * 256,
+            "raw": "untrusted-payload" * 256,
+        },
     )
+    assert error.safe_message == (
+        "artifact error unsafe_target for artifacts (op-0123456789abcdef)"
+    )
+    assert str(error) == error.safe_message
     assert "private" not in error.safe_message
     assert "stage" not in error.safe_message
+    assert "raw" not in error.safe_message
+    assert "untrusted-payload" not in error.safe_message
+    assert len(error.safe_message) <= 512
 ```
 
-Run:
+For each selector above, run its exact node ID and observe RED before its smallest GREEN. Only after all Step 2 loops are green, run this aggregate regression gate:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
@@ -190,11 +201,11 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_foundations.py -q
 ```
 
-Expected RED: `Settings` rejects the new keyword fields, and `finproof.data.artifacts`/`ArtifactBuildOptions`/`ArtifactContractError` imports are missing.
+Expected aggregate GREEN. The execution report records the earlier per-selector RED reasons (`Settings` rejects the new keyword fields and the artifact options/error symbols are missing or behaviorally permissive) separately; this multi-file command is never RED evidence.
 
-- [ ] **Step 3: Implement the smallest strict settings/options/error boundary**
+- [ ] **Step 3: Confirm the accumulated serial settings/options/error boundary**
 
-Add the four Settings fields with the exact defaults from the approved design and a single model validator that resolves `repository_root` once, validates existing source/config ancestors without following symlinks, validates lexical containment, and assigns the resolved absolute paths. Set the Pydantic settings source configuration to `env_file=None`; accept only explicit initialization plus the existing `FINPROOF_*` process-environment source, independent of CWD. Preserve existing Settings defaults, environment precedence, and query consumers, but do not preserve an invalid path fixture or invent a query-only exception inside this shared model: every construction must satisfy `data_dir == source_root / "data"`. Update the existing frozen-default test fixture to pass a matching explicit `source_root`/`data_dir` pair while leaving its assertions unchanged.
+The implementations described here are the accumulated results of Step 2's completed selector-by-selector RED/GREEN loops, not a later bulk production step. Add the four Settings fields with the exact defaults from the approved design and a single model validator that resolves `repository_root` once, validates existing source/config ancestors without following symlinks, validates lexical containment, and assigns the resolved absolute paths. Set the Pydantic settings source configuration to `env_file=None`; accept only explicit initialization plus the existing `FINPROOF_*` process-environment source, independent of CWD. Preserve existing Settings defaults, environment precedence, and query consumers, but do not preserve an invalid path fixture or invent a query-only exception inside this shared model: every construction must satisfy `data_dir == source_root / "data"`. Update the existing frozen-default test fixture to pass a matching explicit `source_root`/`data_dir` pair while leaving its assertions unchanged.
 
 Define the closed codes used by all later checkpoints:
 
@@ -229,9 +240,9 @@ class ArtifactErrorCode(StrEnum):
     BASELINE_ALREADY_EXISTS = "baseline_already_exists"
 ```
 
-`ArtifactContractError.__str__` returns `safe_message`; `internal_context` is retained as a deeply immutable mapping for access-controlled logs and never rendered. Normalize the UTC options timestamp only for JSON output; do not call `datetime.now` in this model or module.
+`ArtifactContractError.__str__` returns `safe_message`; after exact runtime key/value validation, `internal_context` is copied into an immutable string-to-string mapping for access-controlled logs and never rendered. `target_basename` must pass `str.isprintable()`, contain no path separator, and remain one line. Normalize the UTC options timestamp only for JSON output; do not call `datetime.now` in this model or module.
 
-Add a long-context/raw-payload test and cap `safe_message` at 512 Unicode code points. Validate the operation ID as an opaque bounded token and never derive it from a source path or raw data value.
+Cap `safe_message` at 512 Unicode code points. Validate the operation ID as an opaque bounded token and never derive it from a source path or raw data value.
 
 - [ ] **Step 4: Write REDs for the exact artifact config, expected model, packaged schemas, and candidate refusal**
 
@@ -241,9 +252,18 @@ Assert `resolve_logical_inputs` returns exactly the nine source-root/repository 
 
 Mutate the top-level `version` of datasets/quality/rating/state, the datasets snapshot, `VersionBundle.dataset_version`, and each corresponding VersionBundle rule field. `validate_build_registry_versions` must reject each before any workbook descriptor is opened. Use duplicate-key-rejecting YAML parsing for these trust-boundary fields; do not invent Task 5 policy models for their deferred rule bodies.
 
-Construct a synthetic `ExpectedPhase1ArtifactContract` fixture and assert strict extra-field rejection, lexical table/report ordering, deep immutability, and a comparator error that lists every deterministic difference in sorted field-path order. The synthetic contract contains no timestamp, output path, size, or physical hash.
+Construct a synthetic `ExpectedPhase1ArtifactContract` fixture with dataset version exactly `2026-07-11`. Use separate focused selectors, each observed RED before its implementation, for strict extra-field rejection; wrong dataset date; each of input/table/report ordering; top-level and nested deep immutability; all deterministic difference paths; a missing structural property; and strict actual-payload validation. The strict-actual selector parameterizes `bool` in every integer position plus wrong nested scalar/container types and requires every case to raise `ArtifactErrorCode.REPRODUCIBILITY_MISMATCH` with the fixed internal reason `invalid_actual_contract`; this reason is not a new error-code member, and Python equality is never the validation boundary. The synthetic contract contains no timestamp, output path, size, or physical hash. Add a loader selector whose file itself is regular but whose parent directory is a symlink; it must RED before component-wise/descriptor-safe loading is implemented.
 
-In `tests/contract/test_artifact_resources.py`, assert:
+In `tests/contract/test_artifact_resources.py`, freeze this exact resource TDD order; do not collapse it into one loader/dependency change:
+
+1. Before any Hatch force-include exists, add `test_built_wheel_archive_contains_exact_schema_sources` that inspects the wheel ZIP directly and requires the two frozen schema destinations, exact root bytes/SHA, and absence of expected contract/candidate tooling. Observe the missing-resource RED, add only the two schema force-includes, rebuild, and make this selector GREEN.
+2. With force-includes already GREEN, add a primary-loader unit selector that supplies an installed-wheel-shaped `importlib.resources` Traversable and makes the metadata fallback raise if touched. Observe the missing public-loader RED, then implement only the closed primary path and make this selector GREEN. Do not use the active editable environment for this primary-only unit because its regular `src/finproof` package shadows force-included distribution data.
+3. Add four forged-resource operations (primary read, primary exists, editable read, editable exists) as one parameterized family and require all four IDs to RED before the enum guard is implemented. Add invalid-primary and editable-fallback families separately; every parameter ID must be reached in its RED run.
+4. Add `test_artifact_runtime_dependencies_are_declared` before moving dependencies. Observe its own metadata RED, then move `jsonschema`, `rfc3339-validator`, and `pyarrow` and update the lock.
+5. Add `test_runtime_schema_resources_equal_repository_bytes` in the active editable environment only after the primary exists but before the editable fallback. Observe the missing-primary/fallback behavioral RED, implement only the exact metadata fallback, reinstall the active editable distribution, and make it GREEN. The fresh standard-editable selector then proves the same fallback from an unrelated CWD.
+6. Only after the lower-level behaviors above are RED-driven may the real installed-wheel primary-only selector be first-GREEN as an integration/acceptance proof; its report may not cite a dependency failure as a wheel-resource RED.
+
+The public loader selector asserts:
 
 ```python
 def test_runtime_schema_resources_equal_repository_bytes() -> None:
@@ -261,13 +281,13 @@ Add the named selector `test_standard_editable_schema_loader_uses_distribution_f
 
 Add `test_active_standard_editable_schema_loader_matches_current_repository_sources_outside_cwd`. It runs in the active uv environment from an unrelated CWD, proves `finproof` resolves to the regular `src/` editable package while both primary resource paths are shadowed, and asserts the metadata-fallback bytes and SHA-256 equal the current two repository schema sources. This is the reusable stale-copy sentinel required immediately after every later force-included schema edit.
 
-Add the named selector `test_built_wheel_schema_loader_uses_importlib_resources_primary`. Build/install the wheel into another isolated venv, run outside the checkout, and assert exact wheel inventory contains the two frozen schema destinations but neither candidate tooling nor expected contract. Make any call to the metadata fallback raise, then prove both public loaders still read via `importlib.resources` and match repository source bytes/SHA-256. Parameterize the internal fallback boundary separately for a wrong destination, missing file, symlink, directory, FIFO/special file, and a distribution object that returns a different relative path; every case fails closed without CWD, parent, glob, or caller-path fallback.
+Add the named acceptance selector `test_built_wheel_schema_loader_uses_importlib_resources_primary`. Build/install the already inventory-proven wheel into another isolated venv, run outside the checkout, and assert exact wheel inventory contains the two frozen schema destinations but neither candidate tooling nor expected contract. Make any call to the metadata fallback raise, then prove both public loaders still read via `importlib.resources` and match repository source bytes/SHA-256. Parameterize the internal fallback boundary separately for a wrong destination, missing file, symlink, directory, FIFO/special file, and a distribution object that returns a different relative path; every case fails closed without CWD, parent, glob, or caller-path fallback.
 
 Add permanently hermetic candidate-guard unit tests using a synthetic `CandidateBaselineProbe`: both absent is allowed; source present, resource present, and both present are refused. Assert the production probe/tool remains unpackaged and unexported, but do not create an output/transformation API or claim the second pre-output race check at CP1.
 
 Add a synthetic class that structurally implements every `ArtifactLogicalContractView` property and prove the comparator exhaustively accepts it against an equal strict expected model. Remove one property or change each ordered entry family in focused parameter cases and require mypy/runtime comparison to fail at the CP1 boundary. Assert neither the protocol annotations nor comparator import `manifest.py`, `VerifiedArtifactSet`, or any alternate later-checkpoint result protocol.
 
-Run:
+For config, first add only the valid exact-baseline selector, observe its missing/skeleton RED, and implement a permissive typed loader sufficient for that valid file. Next add the complete 43-case mutation family, require all 43 IDs to fail because the permissive loader accepts each mutation, then add the exact frozen validator and make all 43 GREEN. Follow the same serial pattern for every remaining expected/resource/candidate selector. After all Step 4 loops are GREEN, run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
@@ -275,13 +295,13 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/contract/test_artifact_resources.py -q
 ```
 
-Expected RED: artifact config/model/resource loaders, the exact dual resource boundary, the probe protocol, and the initial candidate guard are missing; the real standard editable cannot recover shadowed force-included bytes, the built wheel lacks the frozen resources, `jsonschema` and `rfc3339-validator` remain dev-only.
+Expected aggregate GREEN. The earlier exact selectors separately record the missing config/model/protocol/guard, wheel inventory, primary loader, editable fallback, and runtime-dependency REDs; this multi-file command is never RED evidence.
 
-- [ ] **Step 5: Implement config, expected-contract, resource, dependency, ignore, and guard foundations**
+- [ ] **Step 5: Finish the serial foundations and synchronize their assembled dependency/resource state**
 
-Use a duplicate-key-rejecting YAML loader and strict frozen Pydantic models. Encode the exact production config values from the approved design, including source rows `42_394/1_734/5_646/95_619`, source columns `40/73/49/45`, source cells `1_695_760/126_582/276_654/4_302_855`, Silver counts `42_394/1_733/5_646/11_138/95_618`, quarantine rows `2`, links `47`, evidence `371`, and pair SHA-256 `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`.
+The implementations named here are the accumulated results of the Step 2/Step 4 serial selector loops, not authorization for one bulk change. Use a duplicate-key-rejecting YAML loader and strict frozen Pydantic models. Encode the exact production config values from the approved design, including source rows `42_394/1_734/5_646/95_619`, source columns `40/73/49/45`, source cells `1_695_760/126_582/276_654/4_302_855`, Silver counts `42_394/1_733/5_646/11_138/95_618`, quarantine rows `2`, links `47`, evidence `371`, and pair SHA-256 `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`. The coherent exhaustive config selector must show every one of its 43 parameter IDs failing before the exact validator is added; a first failing mutation does not satisfy the RED.
 
-Move `jsonschema>=4.26,<5` and `rfc3339-validator>=0.1.4,<0.2` into `[project].dependencies`, keep type stubs in dev, and add `pyarrow>=21,<24` as the explicit incremental Parquet runtime. Configure Hatch force-includes for the two root schemas only; the expected contract force-include is deliberately absent until Checkpoint 8. Implement `importlib.resources` primary plus only the exact distribution-metadata editable fallback described above. A primary missing resource may enter that fallback; a primary symlink/special/invalid resource fails closed rather than searching elsewhere. Do not inspect `Path.cwd()`, `__file__` parents, repository settings, arbitrary distribution files, or caller paths, and do not configure Hatch `dev-mode-exact`. Update the lock with:
+Move `jsonschema>=4.26,<5` and `rfc3339-validator>=0.1.4,<0.2` into `[project].dependencies`, keep type stubs in dev, and add `pyarrow>=21,<24` as the explicit incremental Parquet runtime only after their dedicated metadata RED. The two root-schema force-includes, installed-wheel primary, and editable fallback must already have been added separately in the exact Step 4 order; do not reimplement or batch them here. The expected contract force-include remains absent until Checkpoint 8. A primary missing resource may enter the fallback; a primary symlink/special/invalid resource fails closed rather than searching elsewhere. Do not inspect `Path.cwd()`, `__file__` parents, repository settings, arbitrary distribution files, or caller paths, and do not configure Hatch `dev-mode-exact`. Update the lock with:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv lock
