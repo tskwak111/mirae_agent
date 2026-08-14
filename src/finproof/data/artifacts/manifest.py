@@ -314,6 +314,20 @@ _VERIFIED_TABLE_ORDER = (
     "gold_exact_cross_source_link_evidence",
 )
 
+_VERIFIED_TABLE_GRAINS = (
+    "source_column",
+    "source_row",
+    "source_cell",
+    "instrument",
+    "listed_product",
+    "listed_product",
+    "fund_item",
+    "fund_attribute",
+    "quality_issue",
+    "exact_cross_source_link",
+    "exact_cross_source_link_evidence",
+)
+
 
 def verify_declared_inventory(
     manifest: ArtifactManifest, root: Path
@@ -333,14 +347,16 @@ def verify_declared_inventory(
         )
         if ArtifactManifest._from_bytes(manifest_payload) != manifest:
             raise ValueError("held manifest does not match supplied manifest")
-        declared_with_payloads = tuple(
-            held_tree.read_initial_entry(PurePosixPath(entry.path), entry.kind)
-            for entry in manifest.files
-        )
-        declared_entries = tuple(entry for entry, _ in declared_with_payloads)
-        for observed, declared in zip(declared_entries, manifest.files, strict=True):
+        declared_entries_list: list[VerifiedPhysicalEntry] = []
+        for declared in manifest.files:
+            observed = held_tree.read_initial_digest_entry(
+                PurePosixPath(declared.path),
+                declared.kind,
+            )
             if observed.size_bytes != declared.size_bytes or observed.sha256 != declared.sha256:
                 raise ValueError("declared file size or digest does not match")
+            declared_entries_list.append(observed)
+        declared_entries = tuple(declared_entries_list)
         held_tree.revalidate_ancestors()
         held_tree.check_exact_tree(manifest)
         inventory = VerifiedPhysicalInventory(
@@ -445,21 +461,34 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
     @contextmanager
     def _open_owned_entry(self, entry: VerifiedPhysicalEntry) -> Iterator[BinaryIO]:
         stream: BinaryIO | None = None
+        consumer_view: BinaryIO | None = None
         try:
             self._held_tree.revalidate_ancestors()
             stream = self._held_tree.open_entry(entry)
             self._require_expected_content(stream, entry)
             stream.seek(0)
+            consumer_view = cast(
+                BinaryIO,
+                os.fdopen(os.dup(stream.fileno()), "rb", closefd=True),
+            )
         except (OSError, TypeError, ValueError) as exc:
+            if consumer_view is not None:
+                consumer_view.close()
             if stream is not None:
                 stream.close()
             raise _inventory_capability_error("verified_reopen_failed") from exc
         with stream:
-            yield stream
-            self._require_expected_content(stream, entry)
-            self._held_tree.revalidate_entry(entry, stream.fileno())
-            self._held_tree.revalidate_ancestors()
-            self._held_tree.check_exact_tree(self._manifest)
+            try:
+                yield consumer_view
+            finally:
+                consumer_view.close()
+            try:
+                self._require_expected_content(stream, entry)
+                self._held_tree.revalidate_entry(entry, stream.fileno())
+                self._held_tree.revalidate_ancestors()
+                self._held_tree.check_exact_tree(self._manifest)
+            except (OSError, TypeError, ValueError) as exc:
+                raise _inventory_capability_error("verified_reopen_failed") from exc
 
     def assert_unchanged(self) -> None:
         self._require_live()
@@ -486,7 +515,12 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
 
     def _read_entry(self, entry: VerifiedPhysicalEntry) -> bytes:
         with self._held_tree.open_entry(entry) as stream:
-            payload = self._require_expected_content(stream, entry)
+            payload = _read_bounded_bytes(stream)
+            self._require_expected_identity(
+                size_bytes=len(payload),
+                sha256=hashlib.sha256(payload).hexdigest(),
+                entry=entry,
+            )
             self._held_tree.revalidate_entry(entry, stream.fileno())
             return payload
 
@@ -494,12 +528,23 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
     def _require_expected_content(
         stream: BinaryIO,
         entry: VerifiedPhysicalEntry,
-    ) -> bytes:
-        stream.seek(0)
-        payload = stream.read()
-        if len(payload) != entry.size_bytes or hashlib.sha256(payload).hexdigest() != entry.sha256:
+    ) -> None:
+        size_bytes, sha256 = _stream_size_sha256(stream)
+        VerifiedPhysicalInventory._require_expected_identity(
+            size_bytes=size_bytes,
+            sha256=sha256,
+            entry=entry,
+        )
+
+    @staticmethod
+    def _require_expected_identity(
+        *,
+        size_bytes: int,
+        sha256: str,
+        entry: VerifiedPhysicalEntry,
+    ) -> None:
+        if size_bytes != entry.size_bytes or sha256 != entry.sha256:
             raise _checksum_error(entry)
-        return payload
 
 
 class ClosedTableSpecRegistry(Protocol):
@@ -608,11 +653,25 @@ class ArtifactTableVerifier(Protocol):
 
 
 class ReportVerificationResult(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        revalidate_instances="always",
+    )
 
     reports: tuple[ExpectedSemanticReport, ...]
-    exact_link_pair_sha256: str
-    exact_link_evidence_count: int
+    exact_link_pair_sha256: Sha256
+    exact_link_evidence_count: NonNegativeInt
+
+    @model_validator(mode="after")
+    def require_exact_report_inventory(self) -> Self:
+        if tuple(report.report_id for report in self.reports) != (
+            "source_audit",
+            "quality_summary",
+        ):
+            raise ValueError("reports must use the exact closed order")
+        return self
 
 
 class ArtifactReportVerifier(Protocol):
@@ -626,17 +685,42 @@ class ArtifactReportVerifier(Protocol):
 
 
 class ArtifactCoreVerificationResult(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        revalidate_instances="always",
+    )
 
-    artifact_contract_version: str
-    artifact_set_id: str
+    artifact_contract_version: Literal["1.0.0"]
+    artifact_set_id: Literal["finproof-data-artifacts/v1"]
     dataset_version: date
     logical_inputs: tuple[ExpectedLogicalInput, ...]
     tables: tuple[ExpectedLogicalTable, ...]
     reports: tuple[ExpectedSemanticReport, ...]
-    overall_manifest_logical_hash: str
-    exact_link_pair_sha256: str
-    exact_link_evidence_count: int
+    overall_manifest_logical_hash: Sha256
+    exact_link_pair_sha256: Sha256
+    exact_link_evidence_count: NonNegativeInt
+
+    @model_validator(mode="after")
+    def require_exact_logical_inventory(self) -> Self:
+        if self.dataset_version != date(2026, 7, 11):
+            raise ValueError("dataset_version must be 2026-07-11")
+        if (
+            tuple((entry.namespace, entry.path, entry.kind) for entry in self.logical_inputs)
+            != _INPUT_INVENTORY
+        ):
+            raise ValueError("logical_inputs must use the exact closed order")
+        if tuple(table.name for table in self.tables) != _VERIFIED_TABLE_ORDER:
+            raise ValueError("tables must use the exact closed order")
+        if tuple(table.grain for table in self.tables) != _VERIFIED_TABLE_GRAINS:
+            raise ValueError("tables must use the exact closed grains")
+        if tuple(report.report_id for report in self.reports) != (
+            "source_audit",
+            "quality_summary",
+        ):
+            raise ValueError("reports must use the exact closed order")
+        return self
 
 
 class ArtifactExpectedVerificationResult(ArtifactCoreVerificationResult):
@@ -935,9 +1019,35 @@ class _HeldArtifactTree:
             st_nlink=before.st_nlink,
         )
         with self.open_entry(entry, check_digest=False) as stream:
-            payload = stream.read()
+            payload = _read_bounded_bytes(stream)
             self.revalidate_entry(entry, stream.fileno())
         return replace_entry_digest(entry, payload), payload
+
+    def read_initial_digest_entry(
+        self,
+        path: PurePosixPath,
+        kind: Literal["parquet", "report", "duckdb"],
+    ) -> VerifiedPhysicalEntry:
+        parent_fd, name = self._parent_and_name(path)
+        before = self._require_regular_leaf(parent_fd, name)
+        entry = VerifiedPhysicalEntry(
+            path=path,
+            kind=kind,
+            size_bytes=before.st_size,
+            sha256="0" * 64,
+            st_dev=before.st_dev,
+            st_ino=before.st_ino,
+            file_type=stat.S_IFMT(before.st_mode),
+            st_nlink=before.st_nlink,
+        )
+        with self.open_entry(entry, check_digest=False) as stream:
+            size_bytes, sha256 = _stream_size_sha256(stream)
+            self.revalidate_entry(entry, stream.fileno())
+        return replace_entry_identity(
+            entry,
+            size_bytes=size_bytes,
+            sha256=sha256,
+        )
 
     def open_entry(
         self,
@@ -1048,16 +1158,50 @@ def replace_entry_digest(
     entry: VerifiedPhysicalEntry,
     payload: bytes,
 ) -> VerifiedPhysicalEntry:
+    return replace_entry_identity(
+        entry,
+        size_bytes=len(payload),
+        sha256=hashlib.sha256(payload).hexdigest(),
+    )
+
+
+def replace_entry_identity(
+    entry: VerifiedPhysicalEntry,
+    *,
+    size_bytes: int,
+    sha256: str,
+) -> VerifiedPhysicalEntry:
     return VerifiedPhysicalEntry(
         path=entry.path,
         kind=entry.kind,
-        size_bytes=len(payload),
-        sha256=hashlib.sha256(payload).hexdigest(),
+        size_bytes=size_bytes,
+        sha256=sha256,
         st_dev=entry.st_dev,
         st_ino=entry.st_ino,
         file_type=entry.file_type,
         st_nlink=entry.st_nlink,
     )
+
+
+_DIGEST_CHUNK_BYTES = 64 * 1024
+
+
+def _stream_size_sha256(stream: BinaryIO) -> tuple[int, str]:
+    stream.seek(0)
+    digest = hashlib.sha256()
+    size_bytes = 0
+    while chunk := stream.read(_DIGEST_CHUNK_BYTES):
+        digest.update(chunk)
+        size_bytes += len(chunk)
+    return size_bytes, digest.hexdigest()
+
+
+def _read_bounded_bytes(stream: BinaryIO) -> bytes:
+    stream.seek(0)
+    chunks: list[bytes] = []
+    while chunk := stream.read(_DIGEST_CHUNK_BYTES):
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _require_descriptor_inventory_support() -> None:

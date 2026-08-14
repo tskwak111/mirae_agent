@@ -31,14 +31,86 @@
       "type": "array",
       "minItems": 9,
       "maxItems": 9,
-      "items": {"$ref": "#/$defs/artifactInput"}
+      "prefixItems": [
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "source_root"}, "path": {"const": "input_manifest.json"}, "kind": {"const": "source_manifest"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "source_root"}, "path": {"const": "schema_catalog.json"}, "kind": {"const": "source_schema_catalog"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "config/artifact_build.yaml"}, "kind": {"const": "artifact_build_config"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "config/datasets.yaml"}, "kind": {"const": "dataset_registry"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "config/quality_rules.yaml"}, "kind": {"const": "quality_rule_registry"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "config/rating_scale.yaml"}, "kind": {"const": "rating_scale_registry"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "config/state_rules.yaml"}, "kind": {"const": "state_rule_registry"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "schemas/artifact_manifest.schema.json"}, "kind": {"const": "artifact_manifest_schema"}}}
+          ]
+        },
+        {
+          "allOf": [
+            {"$ref": "#/$defs/artifactInput"},
+            {"properties": {"namespace": {"const": "repository"}, "path": {"const": "schemas/quality_issue.schema.json"}, "kind": {"const": "quality_issue_schema"}}}
+          ]
+        }
+      ],
+      "items": false
     },
     "versions": {"$ref": "#/$defs/artifactVersions"},
     "files": {
       "type": "array",
       "minItems": 14,
       "maxItems": 14,
-      "items": {"$ref": "#/$defs/artifactFile"}
+      "prefixItems": [
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "finproof.duckdb"}, "kind": {"const": "duckdb"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/bronze_source_cell.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/bronze_source_column.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/bronze_source_row.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/gold_exact_cross_source_link.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/gold_exact_cross_source_link_evidence.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_bond_instrument.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_domestic_listed_product.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_fund_item.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_fund_item_attribute.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_overseas_listed_product.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_quality_issue.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "reports/quality_summary.json"}, "kind": {"const": "report"}, "report_id": {"const": "quality_summary"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "reports/source_audit.json"}, "kind": {"const": "report"}, "report_id": {"const": "source_audit"}}}]}
+      ],
+      "items": false
     },
     "database_path": {
       "const": "finproof.duckdb",
@@ -47,24 +119,57 @@
     "database_sha256": {"$ref": "#/$defs/sha256"},
     "tables": {
       "type": "object",
-      "minProperties": 11,
-      "maxProperties": 11,
-      "propertyNames": {
-        "enum": [
-          "bronze_source_cell",
-          "bronze_source_column",
-          "bronze_source_row",
-          "gold_exact_cross_source_link",
-          "gold_exact_cross_source_link_evidence",
-          "silver_bond_instrument",
-          "silver_domestic_listed_product",
-          "silver_fund_item",
-          "silver_fund_item_attribute",
-          "silver_overseas_listed_product",
-          "silver_quality_issue"
-        ]
+      "additionalProperties": false,
+      "required": [
+        "bronze_source_cell",
+        "bronze_source_column",
+        "bronze_source_row",
+        "gold_exact_cross_source_link",
+        "gold_exact_cross_source_link_evidence",
+        "silver_bond_instrument",
+        "silver_domestic_listed_product",
+        "silver_fund_item",
+        "silver_fund_item_attribute",
+        "silver_overseas_listed_product",
+        "silver_quality_issue"
+      ],
+      "properties": {
+        "bronze_source_cell": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "bronze_source_cell"}, "layer": {"const": "bronze"}, "grain": {"const": "source_cell"}, "parquet_path": {"const": "parquet/bronze_source_cell.parquet"}}}]
+        },
+        "bronze_source_column": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "bronze_source_column"}, "layer": {"const": "bronze"}, "grain": {"const": "source_column"}, "parquet_path": {"const": "parquet/bronze_source_column.parquet"}}}]
+        },
+        "bronze_source_row": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "bronze_source_row"}, "layer": {"const": "bronze"}, "grain": {"const": "source_row"}, "parquet_path": {"const": "parquet/bronze_source_row.parquet"}}}]
+        },
+        "gold_exact_cross_source_link": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "gold_exact_cross_source_link"}, "layer": {"const": "gold"}, "grain": {"const": "exact_cross_source_link"}, "parquet_path": {"const": "parquet/gold_exact_cross_source_link.parquet"}}}]
+        },
+        "gold_exact_cross_source_link_evidence": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "gold_exact_cross_source_link_evidence"}, "layer": {"const": "gold"}, "grain": {"const": "exact_cross_source_link_evidence"}, "parquet_path": {"const": "parquet/gold_exact_cross_source_link_evidence.parquet"}}}]
+        },
+        "silver_bond_instrument": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_bond_instrument"}, "layer": {"const": "silver"}, "grain": {"const": "instrument"}, "parquet_path": {"const": "parquet/silver_bond_instrument.parquet"}}}]
+        },
+        "silver_domestic_listed_product": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_domestic_listed_product"}, "layer": {"const": "silver"}, "grain": {"const": "listed_product"}, "parquet_path": {"const": "parquet/silver_domestic_listed_product.parquet"}}}]
+        },
+        "silver_fund_item": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_fund_item"}, "layer": {"const": "silver"}, "grain": {"const": "fund_item"}, "parquet_path": {"const": "parquet/silver_fund_item.parquet"}}}]
+        },
+        "silver_fund_item_attribute": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_fund_item_attribute"}, "layer": {"const": "silver"}, "grain": {"const": "fund_attribute"}, "parquet_path": {"const": "parquet/silver_fund_item_attribute.parquet"}}}]
+        },
+        "silver_overseas_listed_product": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_overseas_listed_product"}, "layer": {"const": "silver"}, "grain": {"const": "listed_product"}, "parquet_path": {"const": "parquet/silver_overseas_listed_product.parquet"}}}]
+        },
+        "silver_quality_issue": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_quality_issue"}, "layer": {"const": "silver"}, "grain": {"const": "quality_issue"}, "parquet_path": {"const": "parquet/silver_quality_issue.parquet"}}}]
+        }
       },
-      "additionalProperties": {"$ref": "#/$defs/artifactTable"}
+      "minProperties": 11,
+      "maxProperties": 11
     },
     "logical_hash": {"$ref": "#/$defs/sha256"}
   },

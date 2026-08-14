@@ -190,6 +190,10 @@ def compare_expected_artifact_contract(
 ) -> None:
     """Compare an actual logical contract with its frozen expected identity."""
     try:
+        expected = ExpectedPhase1ArtifactContract.model_validate(expected, strict=True)
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise _reproducibility_error("invalid_expected_contract") from exc
+    try:
         if type(actual.artifact_contract_version) is not str:
             raise TypeError("artifact_contract_version")
         if type(actual.artifact_set_id) is not str:

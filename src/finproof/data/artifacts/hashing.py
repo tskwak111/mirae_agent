@@ -227,7 +227,12 @@ def table_logical_hash(
     )
     observed_count = 0
     for row in rows:
-        if set(row) != set(spec.logical_projection):
+        if not isinstance(row, Mapping):
+            raise TypeError("table row must be a mapping with unique keys")
+        row_keys = tuple(row)
+        if any(type(key) is not str for key in row_keys) or len(row_keys) != len(set(row_keys)):
+            raise TypeError("table row must be a mapping with unique keys")
+        if set(row_keys) != set(spec.logical_projection):
             raise ValueError("row keys must equal the logical projection")
         digest.update(canonical_json_bytes(row))
         observed_count += 1

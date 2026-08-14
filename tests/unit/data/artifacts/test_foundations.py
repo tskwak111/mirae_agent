@@ -1022,6 +1022,61 @@ def test_expected_contract_enforces_literals_hashes_counts_and_grains(case: str)
         ExpectedPhase1ArtifactContract.model_validate(forged, strict=True)
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "artifact-version",
+        "artifact-set",
+        "dataset-date",
+        "pair-hash",
+        "evidence-count",
+        "known-table-count",
+        "table-grain",
+    ],
+)
+def test_expected_comparator_revalidates_forged_expected_instance_before_comparison(
+    case: str,
+) -> None:
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.expected_contract import (
+        ExpectedPhase1ArtifactContract,
+        compare_expected_artifact_contract,
+    )
+
+    expected = ExpectedPhase1ArtifactContract.model_validate(
+        expected_contract_payload(), strict=True
+    )
+    update: dict[str, object]
+    if case == "artifact-version":
+        update = {"artifact_contract_version": "2.0.0"}
+    elif case == "artifact-set":
+        update = {"artifact_set_id": "other/v1"}
+    elif case == "dataset-date":
+        update = {"dataset_version": date(2026, 7, 10)}
+    elif case == "pair-hash":
+        update = {"exact_link_pair_sha256": "d" * 64}
+    elif case == "evidence-count":
+        update = {"exact_link_evidence_count": 370}
+    else:
+        field = "row_count" if case == "known-table-count" else "grain"
+        value: object = expected.tables[0].row_count + 1
+        if field == "grain":
+            value = "other"
+        update = {
+            "tables": (
+                expected.tables[0].model_copy(update={field: value}),
+                *expected.tables[1:],
+            )
+        }
+    forged = expected.model_copy(update=update)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        compare_expected_artifact_contract(forged, forged)
+
+    assert caught.value.code is ArtifactErrorCode.REPRODUCIBILITY_MISMATCH
+    assert caught.value.internal_context == {"reason": "invalid_expected_contract"}
+
+
 def test_expected_comparator_accepts_equal_structural_contract() -> None:
     from finproof.data.artifacts.expected_contract import (
         ExpectedPhase1ArtifactContract,

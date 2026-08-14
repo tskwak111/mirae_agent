@@ -1,7 +1,7 @@
 """Canonical artifact hashing contracts."""
 
 import hashlib
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -54,6 +54,17 @@ class _OneShotRows:
 
     def __len__(self) -> int:
         raise AssertionError("rows must not be measured or materialized")
+
+
+class _DuplicateKeyMapping(Mapping[str, object]):
+    def __getitem__(self, key: str) -> object:
+        return {"id": 1, "value": "a"}[key]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(("id", "id", "value"))
+
+    def __len__(self) -> int:
+        return 3
 
 
 class _SyntheticReport(BaseModel):
@@ -437,6 +448,23 @@ def test_table_hash_requires_exact_logical_projection_keys(
 ) -> None:
     with pytest.raises(ValueError, match="logical projection"):
         table_logical_hash(_valid_spec(), row_count=1, rows=iter((row,)))
+
+
+@pytest.mark.parametrize(
+    "row",
+    [
+        (("id", 1), ("value", "a")),
+        _DuplicateKeyMapping(),
+    ],
+    ids=["non-mapping-tuple", "duplicate-key-mapping"],
+)
+def test_table_logical_hash_rejects_non_mapping_and_duplicate_key_mapping_rows(
+    row: object,
+) -> None:
+    rows = cast(Iterable[Mapping[str, object]], (row,))
+
+    with pytest.raises(TypeError, match="table row must be a mapping with unique keys"):
+        table_logical_hash(_valid_spec(), row_count=1, rows=rows)
 
 
 @pytest.mark.parametrize(

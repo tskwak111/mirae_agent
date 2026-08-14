@@ -2,23 +2,31 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import socket
 import stat
+import tracemalloc
 from copy import deepcopy
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, cast
 
 import pytest
 from pydantic import ValidationError
 
 from finproof.data.artifacts.errors import ArtifactContractError
 from finproof.data.artifacts.manifest import ArtifactManifest, verify_declared_inventory
-from tests.helpers.artifacts import INPUTS, TABLES, manifest_payload, write_artifact_tree
+from tests.helpers.artifacts import (
+    INPUTS,
+    TABLES,
+    expected_contract_payload,
+    manifest_payload,
+    write_artifact_tree,
+)
 
 if TYPE_CHECKING:
     from finproof.data.artifacts.hashing import TableSpecIdentity
@@ -287,6 +295,93 @@ def test_verified_inventory_exact_tree_and_entry_identities(tmp_path: Path) -> N
             assert entry.st_ino > 0
             assert entry.file_type > 0
             assert entry.st_nlink == 1
+
+
+def test_inventory_streams_all_declared_digests_without_materializing_payloads(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts import manifest as manifest_module
+
+    root = tmp_path / "artifacts"
+    manifest = write_artifact_tree(root)
+    payload = manifest.model_dump(mode="python", warnings="none")
+    files = [dict(entry) for entry in payload["files"]]
+    two_mib = 2 * 1024 * 1024
+    for index, file_payload in enumerate(files, start=1):
+        content = bytes([index]) * two_mib
+        root.joinpath(*PurePosixPath(file_payload["path"]).parts).write_bytes(content)
+        file_payload["size_bytes"] = two_mib
+        file_payload["sha256"] = hashlib.sha256(content).hexdigest()
+    payload["files"] = tuple(files)
+    payload["database_sha256"] = files[0]["sha256"]
+    manifest = ArtifactManifest.model_validate(payload, strict=True)
+    (root / "manifest.json").write_text(manifest.model_dump_json(), encoding="utf-8")
+
+    read_sizes: list[int] = []
+    original_open_entry = manifest_module._HeldArtifactTree.open_entry
+
+    class _BoundedReadStream:
+        def __init__(self, stream: BinaryIO) -> None:
+            self._stream = stream
+
+        def read(self, size: int = -1) -> bytes:
+            read_sizes.append(size)
+            if size < 0 or size > 256 * 1024:
+                raise AssertionError("artifact digest reads must use fixed-size chunks")
+            return self._stream.read(size)
+
+        def __enter__(self) -> _BoundedReadStream:
+            return self
+
+        def __exit__(self, *args: object) -> None:
+            self.close()
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self._stream, name)
+
+        def close(self) -> None:
+            self._stream.close()
+
+    def bounded_open_entry(
+        tree: Any,
+        entry: Any,
+        *,
+        check_digest: bool = True,
+    ) -> BinaryIO:
+        stream = original_open_entry(tree, entry, check_digest=check_digest)
+        return cast(BinaryIO, _BoundedReadStream(stream))
+
+    monkeypatch.setattr(manifest_module._HeldArtifactTree, "open_entry", bounded_open_entry)
+    tracemalloc.start()
+    try:
+        with verify_declared_inventory(manifest, root) as inventory:
+            inventory.assert_unchanged()
+            owned_entry = inventory.declared_entries[0]
+            with inventory.open_verified(owned_entry) as stream:
+                while stream.read(64 * 1024):
+                    pass
+        _, peak = tracemalloc.get_traced_memory()
+    finally:
+        tracemalloc.stop()
+
+    assert read_sizes
+    assert all(0 <= size <= 256 * 1024 for size in read_sizes)
+    assert peak < 8 * 1024 * 1024
+
+
+def test_open_verified_retains_private_descriptor_when_consumer_closes_view(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "artifacts"
+    manifest = write_artifact_tree(root)
+
+    with verify_declared_inventory(manifest, root) as inventory:
+        entry = inventory.declared_entries[0]
+        with inventory.open_verified(entry) as consumer_view:
+            assert consumer_view.read(1)
+            consumer_view.close()
+        inventory.assert_unchanged()
 
 
 @pytest.mark.parametrize(
@@ -769,6 +864,202 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
     finally:
         inventory.__exit__()
         other_inventory.__exit__()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "report-container",
+        "report-count",
+        "report-order",
+        "report-type",
+        "report-id",
+        "report-hash",
+        "report-pair-hash",
+        "report-evidence-negative",
+        "report-evidence-bool",
+        "core-artifact-version",
+        "core-artifact-set",
+        "core-dataset-date",
+        "core-input-container",
+        "core-input-count",
+        "core-input-order",
+        "core-input-type",
+        "core-input-identity",
+        "core-table-container",
+        "core-table-count",
+        "core-table-order",
+        "core-table-type",
+        "core-table-name",
+        "core-table-grain",
+        "core-table-count-negative",
+        "core-table-count-bool",
+        "core-table-schema-hash",
+        "core-table-logical-hash",
+        "core-report-container",
+        "core-report-count",
+        "core-report-order",
+        "core-report-type",
+        "core-report-hash",
+        "core-logical-hash",
+        "core-pair-hash",
+        "core-evidence-negative",
+        "core-evidence-bool",
+    ],
+)
+def test_report_and_core_verification_results_reject_every_invalid_shape(
+    case: str,
+) -> None:
+    from finproof.data.artifacts.expected_contract import ExpectedPhase1ArtifactContract
+    from finproof.data.artifacts.manifest import (
+        ArtifactCoreVerificationResult,
+        ReportVerificationResult,
+    )
+
+    expected = ExpectedPhase1ArtifactContract.model_validate(
+        expected_contract_payload(), strict=True
+    )
+    report_result = ReportVerificationResult(
+        reports=expected.reports,
+        exact_link_pair_sha256=expected.exact_link_pair_sha256,
+        exact_link_evidence_count=expected.exact_link_evidence_count,
+    )
+    core_result = ArtifactCoreVerificationResult(
+        artifact_contract_version=expected.artifact_contract_version,
+        artifact_set_id=expected.artifact_set_id,
+        dataset_version=expected.dataset_version,
+        logical_inputs=expected.logical_inputs,
+        tables=expected.tables,
+        reports=expected.reports,
+        overall_manifest_logical_hash=expected.overall_manifest_logical_hash,
+        exact_link_pair_sha256=expected.exact_link_pair_sha256,
+        exact_link_evidence_count=expected.exact_link_evidence_count,
+    )
+    if case == "core-table-count-negative":
+        baseline_neutral = core_result.model_copy(
+            update={
+                "tables": (
+                    core_result.tables[0].model_copy(
+                        update={"row_count": core_result.tables[0].row_count + 1}
+                    ),
+                    *core_result.tables[1:],
+                )
+            }
+        )
+        assert (
+            ArtifactCoreVerificationResult.model_validate(baseline_neutral, strict=True)
+            .tables[0]
+            .row_count
+            == core_result.tables[0].row_count + 1
+        )
+
+    if case.startswith("report-"):
+        update: dict[str, object]
+        if case == "report-container":
+            update = {"reports": list(report_result.reports)}
+        elif case == "report-count":
+            update = {"reports": report_result.reports[:1]}
+        elif case == "report-order":
+            update = {"reports": tuple(reversed(report_result.reports))}
+        elif case == "report-type":
+            update = {"reports": (object(), report_result.reports[1])}
+        elif case == "report-id":
+            update = {
+                "reports": (
+                    report_result.reports[0].model_copy(update={"report_id": "other"}),
+                    report_result.reports[1],
+                )
+            }
+        elif case == "report-hash":
+            update = {
+                "reports": (
+                    report_result.reports[0].model_copy(update={"semantic_hash": "A" * 64}),
+                    report_result.reports[1],
+                )
+            }
+        elif case == "report-pair-hash":
+            update = {"exact_link_pair_sha256": "A" * 64}
+        elif case == "report-evidence-negative":
+            update = {"exact_link_evidence_count": -1}
+        else:
+            update = {"exact_link_evidence_count": True}
+        forged_report = report_result.model_copy(update=update)
+        with pytest.raises(ValidationError):
+            ReportVerificationResult.model_validate(forged_report, strict=True)
+        return
+
+    update = {}
+    if case == "core-artifact-version":
+        update = {"artifact_contract_version": "2.0.0"}
+    elif case == "core-artifact-set":
+        update = {"artifact_set_id": "other/v1"}
+    elif case == "core-dataset-date":
+        update = {"dataset_version": date(2026, 7, 10)}
+    elif case == "core-input-container":
+        update = {"logical_inputs": list(core_result.logical_inputs)}
+    elif case == "core-input-count":
+        update = {"logical_inputs": core_result.logical_inputs[:-1]}
+    elif case == "core-input-order":
+        update = {"logical_inputs": tuple(reversed(core_result.logical_inputs))}
+    elif case == "core-input-type":
+        update = {"logical_inputs": (object(), *core_result.logical_inputs[1:])}
+    elif case == "core-input-identity":
+        update = {
+            "logical_inputs": (
+                core_result.logical_inputs[0].model_copy(update={"path": "other"}),
+                *core_result.logical_inputs[1:],
+            )
+        }
+    elif case == "core-table-container":
+        update = {"tables": list(core_result.tables)}
+    elif case == "core-table-count":
+        update = {"tables": core_result.tables[:-1]}
+    elif case == "core-table-order":
+        update = {"tables": tuple(reversed(core_result.tables))}
+    elif case == "core-table-type":
+        update = {"tables": (object(), *core_result.tables[1:])}
+    elif case.startswith("core-table-"):
+        field, value = {
+            "core-table-name": ("name", "other"),
+            "core-table-grain": ("grain", "other"),
+            "core-table-count-negative": ("row_count", -1),
+            "core-table-count-bool": ("row_count", True),
+            "core-table-schema-hash": ("schema_hash", "A" * 64),
+            "core-table-logical-hash": ("logical_hash", "A" * 64),
+        }[case]
+        update = {
+            "tables": (
+                core_result.tables[0].model_copy(update={field: value}),
+                *core_result.tables[1:],
+            )
+        }
+    elif case == "core-report-container":
+        update = {"reports": list(core_result.reports)}
+    elif case == "core-report-count":
+        update = {"reports": core_result.reports[:1]}
+    elif case == "core-report-order":
+        update = {"reports": tuple(reversed(core_result.reports))}
+    elif case == "core-report-type":
+        update = {"reports": (object(), core_result.reports[1])}
+    elif case == "core-report-hash":
+        update = {
+            "reports": (
+                core_result.reports[0].model_copy(update={"semantic_hash": "A" * 64}),
+                core_result.reports[1],
+            )
+        }
+    elif case == "core-logical-hash":
+        update = {"overall_manifest_logical_hash": "A" * 64}
+    elif case == "core-pair-hash":
+        update = {"exact_link_pair_sha256": "A" * 64}
+    elif case == "core-evidence-negative":
+        update = {"exact_link_evidence_count": -1}
+    else:
+        update = {"exact_link_evidence_count": True}
+    forged_core = core_result.model_copy(update=update)
+
+    with pytest.raises(ValidationError):
+        ArtifactCoreVerificationResult.model_validate(forged_core, strict=True)
 
 
 @pytest.mark.parametrize(
