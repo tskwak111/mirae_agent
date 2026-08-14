@@ -22,8 +22,41 @@ All must pass:
 - state/derived-date field tests
 - exact link count test
 - clean artifact build from source files
-- two independent builds produce identical logical tables and artifact manifest hashes, excluding declared build timestamps
-- DuckDB opens read-only and contains expected tables/counts
+- Bronze contains exactly 145,393 source rows, 6,401,851 source cells, and 207
+  source-catalog columns with complete D-017 lineage
+- Silver contains exactly 42,394 bonds, 1,733 domestic listed products, 5,646 overseas
+  listed products, 11,138 fund items, and 95,618 fund attributes; the two quarantined
+  source rows remain in Bronze and canonical quality output
+- exact raw-identifier links contain 47 item-grain pairs, canonical pair SHA-256
+  `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`, and
+  371 source locators
+- two independent builds with different injected UTC persistence times produce
+  identical table and manifest logical hashes; each build's declared physical hashes
+  independently verify its own generation
+- verification recomputes Parquet schema/count/sort/unique/logical hashes, both report
+  logical hashes, and the overall manifest logical hash, then matches the verified set
+  against packaged `config/expected_phase1_artifacts.json`
+- initial expected-contract bootstrap uses only the unpublished, non-packaged candidate
+  path with full verification and independent review; it refuses any existing baseline
+- manifest/Bronze/quality typed/quality-JSON persistence timestamps agree exactly, and
+  report logical identity uses semantic report IDs rather than output paths
+- staged build/publication failures leave an existing verified artifact unchanged or
+  restore it; no-clean refuses an existing target and clean refuses unrecognized or
+  symlink targets
+- manifest verification and clean recognition require the exact recursive tree
+  (`manifest.json`, 14 declared regular files, required parent directories only); extra,
+  link, special, hardlink-alias, canonical-duplicate, and WAL entries refuse byte-safely
+- DuckDB is self-contained, opens read-only, rejects writes, and contains only the
+  expected Task 5 tables; bidirectional typed equality proves every DuckDB table has
+  exactly the verified Parquet content, not merely the same schema/count
+- official public-fund artifact construction is bounded by one complete item group
+  (at most 16 source rows) plus fixed-size writer batches
+- every non-source-sorted Silver/quality/link output uses bounded external staging with
+  one DuckDB thread, a 1-GiB memory limit, and a private spill directory
+- verification equality also uses one DuckDB thread, a 1-GiB limit, and its own
+  mode-0700 marker-owned OS temp without artifact-root/parent writes; post-commit old
+  generations are atomically renamed to marked cleanup tombstones before recursive
+  deletion
 - full format/lint/type/test/audit/verify commands
 
 Required deliverables:
@@ -35,6 +68,10 @@ artifacts/reports/quality_summary.json
 artifacts/parquet/*.parquet
 artifacts/finproof.duckdb
 ```
+
+These are generated runtime deliverables and remain untracked. The repository tracks a
+timestamp-free expected Phase 1 logical-artifact contract and records the reviewed
+generation's physical hashes in implementation status.
 
 ## Phase 2 gate — Deterministic correctness and evidence
 

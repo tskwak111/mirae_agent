@@ -405,109 +405,39 @@ families, query/API behavior, or eligibility rules.
 
 ### Task 5: Build reproducible Parquet/DuckDB artifacts and exact links
 
-**Files:**
-- Create: `src/finproof/data/build.py`
-- Create: `src/finproof/data/artifact_manifest.py`
-- Create: `src/finproof/storage/__init__.py`
-- Create: `src/finproof/storage/schema.sql`
-- Create: `src/finproof/storage/database.py`
-- Create: `src/finproof/cli/build_data.py`
-- Create: `tests/integration/data/test_artifact_build.py`
-- Create: `tests/integration/data/test_exact_cross_source_links.py`
-- Create: `tests/integration/data/test_build_reproducibility.py`
-- Modify: `src/finproof/cli/main.py`
-- Modify: `docs/implementation/STATUS.md`
+> **Approved specification:**
+> `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`
+>
+> **Forthcoming authoritative detailed plan:**
+> `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`
 
-**Interfaces:**
-- Produces: `build_artifacts(settings: Settings, versions: VersionBundle) -> ArtifactManifest`
-- Produces: `ArtifactManifest.load(path: Path) -> ArtifactManifest`
-- Produces: `open_read_only_database(path: Path) -> duckdb.DuckDBPyConnection`
-- CLI: `finproof build-data --clean`
+D-022 and D-023 supersede the removed legacy two-argument builder, undeclared
+`table_hashes`, generic atomic-directory replacement, count-only DuckDB validation,
+trim-ambiguous link, and tracked runtime-artifact examples. Do not reconstruct or
+execute those examples from Git history.
 
-- [ ] **Step 1: Write a failing small-fixture artifact build test**
+The dedicated plan must implement the approved specification under strict RED -> GREEN
+-> REFACTOR with these eight reviewer-worthy checkpoints:
 
-```python
-from finproof.data.build import build_artifacts
+- [ ] **Checkpoint 1: build settings/options, runtime schema resources, artifact config,
+  expected-contract types/comparison and synthetic bootstrap boundary, dependencies,
+  and typed errors; no official baseline content**
+- [ ] **Checkpoint 2: strict manifest/load/verify, exact input inventory, canonical
+  schema/table/report/overall hashes, and expected-contract comparison**
+- [ ] **Checkpoint 3: frozen table specs, wide projection/strict `record_json`
+  serializers, exact Decimal/time behavior, and Parquet writers**
+- [ ] **Checkpoint 4: complete generic Bronze streaming and bounded external staging,
+  ordering, spill, and cleanup behavior**
+- [ ] **Checkpoint 5: wide Silver products/attributes, bounded fund-item collapse,
+  D-021 quality persistence, quarantine, and deterministic reports**
+- [ ] **Checkpoint 6: exact raw-identifier links, full bidirectional locator evidence,
+  pair hash, and conflict rejection**
+- [ ] **Checkpoint 7: self-contained DuckDB exact-content verification, guarded
+  publication/rollback/recovery, read-only access, and safe CLI**
+- [ ] **Checkpoint 8: two-build official logical reproduction, independently reviewed
+  official expected-contract creation plus wheel-byte test, acceptance, bounded-memory
+  evidence, all Phase 1 gates, status, review, and clean tree**
 
-
-def test_build_writes_manifest_parquet_database_and_quality_report(fixture_settings, versions) -> None:
-    manifest = build_artifacts(fixture_settings, versions)
-    assert manifest.database_path.name == "finproof.duckdb"
-    assert "silver_fund_item" in manifest.tables
-    assert manifest.tables["silver_fund_item"].row_count == 1
-    assert (fixture_settings.artifact_dir / "reports/quality_summary.json").is_file()
-```
-
-- [ ] **Step 2: Run and observe failure**
-
-```bash
-uv run pytest tests/integration/data/test_artifact_build.py -q
-```
-
-- [ ] **Step 3: Implement deterministic build transaction**
-
-Build into a temporary sibling directory, then atomically replace the target only after:
-
-- source manifest passes
-- all rows normalize
-- expected tables and schemas are present
-- quality issues are written
-- DuckDB views/counts validate
-- artifact files receive SHA-256
-
-Use stable sort keys and deterministic Parquet settings. Exclude wall-clock timestamps from logical reproducibility hashes; store operational build time separately.
-
-- [ ] **Step 4: Run small build test to green**
-
-```bash
-uv run pytest tests/integration/data/test_artifact_build.py -q
-```
-
-- [ ] **Step 5: Write failing exact-link and reproducibility tests**
-
-```python
-@pytest.mark.source_contract
-@pytest.mark.slow
-def test_official_exact_domestic_etf_fund_links_equal_47(official_artifacts) -> None:
-    with open_read_only_database(official_artifacts.database_path) as conn:
-        count = conn.execute("select count(*) from gold_exact_cross_source_link").fetchone()[0]
-    assert count == 47
-```
-
-```python
-def test_two_fixture_builds_have_same_logical_manifest(build_twice) -> None:
-    first, second = build_twice
-    assert first.logical_hash == second.logical_hash
-    assert first.table_hashes == second.table_hashes
-```
-
-- [ ] **Step 6: Run, implement exact identifier link and stable manifest, rerun**
-
-```bash
-uv run pytest tests/integration/data/test_exact_cross_source_links.py tests/integration/data/test_build_reproducibility.py -q
-```
-
-Link only `PREF01N001.pd_itm_no = PRFD01N001.ksd_itm_no`. Store rule/evidence and reject duplicate/conflicting exact mappings.
-
-- [ ] **Step 7: Build official artifacts and run the complete Phase 1 gate**
-
-```bash
-uv run finproof build-data --clean
-uv run pytest -q tests/unit/data tests/unit/registry tests/source_contract tests/integration/data
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy src tests tools
-uv run python tools/audit_source_data.py --check
-uv run python tools/verify_handoff.py
-```
-
-Inspect DuckDB counts against `tests/contracts/expected_source_audit.json`.
-
-- [ ] **Step 8: Update phase status, record artifact hashes, and commit**
-
-```bash
-git add src/finproof/data src/finproof/storage src/finproof/cli tests artifacts/manifest.json artifacts/reports docs/implementation/STATUS.md
-git commit -m "feat: build reproducible FinProof data artifacts"
-```
-
-Do not commit large generated Parquet/database files unless the organizer repository policy requires them. If excluded, record their build command and shared immutable artifact link/checksum in the submission docs.
+No Task 5 production code starts until the dedicated plan replaces this pointer as the
+execution authority and passes plan review. Runtime files under `artifacts/` remain
+generated and untracked; only the timestamp-free official logical contract is tracked.

@@ -244,8 +244,14 @@ returns               <- fd_wk1_ern_r, fd_mm1_ern_r, fd_mm3_ern_r,
 Initial automatic link rule:
 
 ```text
-domestic_etf.pd_itm_no == public_fund.ksd_itm_no
+domestic_etf.pd_itm_no raw value == public_fund.ksd_itm_no representative raw value
 ```
+
+The rule is version `1.0.0`, applies only to source-declared domestic ETFs, and emits
+one link at the public-fund `itm_no` grain. It never trims an identifier to create a
+match. Each link preserves the left `pd_itm_no` locator and every agreeing public-fund
+`ksd_itm_no` locator. Repeated attribute rows add evidence, not links; a one-to-many
+identifier conflict blocks artifact publication.
 
 Link metadata:
 
@@ -286,10 +292,59 @@ Phase 1 outputs:
 artifacts/manifest.json
 artifacts/reports/source_audit.json
 artifacts/reports/quality_summary.json
-artifacts/parquet/bronze_*.parquet
-artifacts/parquet/silver_*.parquet
+artifacts/parquet/bronze_source_column.parquet
+artifacts/parquet/bronze_source_row.parquet
+artifacts/parquet/bronze_source_cell.parquet
+artifacts/parquet/silver_bond_instrument.parquet
+artifacts/parquet/silver_domestic_listed_product.parquet
+artifacts/parquet/silver_overseas_listed_product.parquet
+artifacts/parquet/silver_fund_item.parquet
+artifacts/parquet/silver_fund_item_attribute.parquet
 artifacts/parquet/silver_quality_issue.parquet
+artifacts/parquet/gold_exact_cross_source_link.parquet
+artifacts/parquet/gold_exact_cross_source_link_evidence.parquet
 artifacts/finproof.duckdb
 ```
 
-The database is read-only at API runtime. Artifact checksums and registry versions are included in `/version` and each execution trace.
+Bronze preserves all 145,393 source rows, 6,401,851 source cells, and 207 catalog
+columns, including quarantined rows. Wide Silver typed columns are the query projection;
+the canonical strict-model `record_json` is the authoritative raw/normalized/rule/
+quality/lineage serialization. Task 5 does not create metric, family, eligibility,
+state, alias, fuzzy, search, or runtime-evidence tables.
+
+The artifact manifest separates two identities:
+
+- physical file and database SHA-256 values prove the integrity of one published
+  generation;
+- canonical table and manifest logical hashes prove data reproducibility after the one
+  injected UTC persistence timestamp is replaced with null and artifact output path/
+  size/compression/physical-hash fields are excluded.
+
+The timestamp-free source-audit and quality-summary reports each have a closed semantic
+report ID and canonical logical hash included in overall identity; physical report
+paths are excluded. Verification recomputes
+Parquet schema/count/order/uniqueness/logical hashes, both report hashes, and the overall
+logical hash, then proves each self-contained DuckDB table is exactly equal to its
+verified Parquet relation. Evaluation additionally compares the result with the
+separately tracked and packaged `config/expected_phase1_artifacts.json`; matching only
+physical hashes or row counts is insufficient.
+
+The database is self-contained and read-only at API runtime. A build is staged and
+fully verified before guarded offline publication; `--clean` may replace only an
+already verified FinProof artifact root with the exact recursive physical inventory;
+any extra/link/special entry makes clean refuse without changing target bytes. A failed
+promotion rolls back. Runtime
+files under `artifacts/` are generated and untracked. The repository tracks a
+timestamp-free expected logical contract at
+`config/expected_phase1_artifacts.json` instead. Artifact checksums and registry
+versions are included in `/version` and each execution trace.
+
+Only a repository-only, non-packaged candidate builder may bootstrap the initially
+absent expected contract: it fully verifies a temporary, unpublished artifact set,
+cannot write the baseline, and refuses once the expected file/resource exists. After a
+new target commits, old-generation cleanup first atomically renames the verified backup
+to an exact marked tombstone; partial recursive cleanup never rolls back the new target.
+
+The exact implementation contract, table schemas, sort keys, hashing rules, and stop
+conditions are frozen in
+`docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`.

@@ -1,6 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, official acceptance, independent whole-branch review, and the final reviewed-tree gate are verified; local integration remains before Task 5 starts.
+**Last updated:** 2026-08-14 — Phase 1 Task 4 implementation, official acceptance,
+independent whole-branch review, final reviewed-tree gate, and local fast-forward are
+verified; Phase 1 Task 5 design/implementation remains incomplete.
 
 ## Frozen baseline
 
@@ -58,7 +60,35 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality persistence time, and create exact identifier links.** Before implementation, locally fast-forward the reviewed Task 4 branch. Keep the Phase 1 gate unchecked until Task 5's artifact and reproducibility evidence exists.
+**Phase 1 Task 5: freeze and implement the reproducible Parquet/DuckDB artifact
+contract, inject quality persistence time, and create exact identifier links.** Task 4
+is already integrated locally. Keep Task 5 and the Phase 1 gate unchecked until the
+artifact design/plan, implementation, reproduction evidence, and independent review
+exist.
+
+## Phase 1 Task 5 design record
+
+The artifact-build contract is approved for implementation planning in
+`docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`. D-022 and
+D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
+external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
+The legacy Task 5 body now contains only the approved-spec/dedicated-plan pointer and
+eight unchecked checkpoint boundaries; production implementation has not started.
+
+Observed design-gate evidence on 2026-08-14:
+
+- independent final review: Critical 0 / Important 0 / Minor 0;
+- `python3 tools/verify_handoff.py`: 61 required files, 9 official inputs,
+  41,384,928 bytes;
+- `python3 tools/audit_source_data.py --check`: 145,393 rows, snapshot 2026-07-11;
+- `uv run pytest tests/contract -q`: 39 passed in 45.28 seconds;
+- `uv run pre-commit run --all-files`: Ruff check and Ruff format passed;
+- `git diff --check`: passed.
+
+The exact next step is to write and independently review
+`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Do not create the
+official expected logical baseline or write Task 5 production code before that plan is
+approved.
 
 ## Handoff validation record — not production implementation
 
@@ -701,13 +731,13 @@ Decision boundaries and remaining procedures:
   reproducibility hashes.
 - A-003 remains open; Task 4 derives no overseas/public-fund eligibility.
 - A-011 remains open only for later evidence, golden-case, and metric contracts.
-- Independent whole-branch review and the final reviewed-tree gate are approved. The
-  authorized local fast-forward remains Task 7 Step 6 and must occur before Task 5
-  implementation.
+- Independent whole-branch review, the final reviewed-tree gate, and the authorized
+  local fast-forward are complete. Task 5 remains unimplemented.
 - Phase 1 Task 5 and the Phase 1 gate remain unchecked.
 
 Exact next development task:
 
-**Phase 1 Task 5: build reproducible Parquet/DuckDB artifacts, inject quality
-persistence time, and create exact identifier links.** Before its first code change,
-complete the remaining Task 4 local integration.
+**Phase 1 Task 5: freeze an implementation-complete artifact-build design and detailed
+TDD plan, then build reproducible Parquet/DuckDB artifacts, inject quality persistence
+time, and create exact identifier links.** Do not mark Task 5 or the Phase 1 gate
+complete before official reproduction and review evidence exists.
