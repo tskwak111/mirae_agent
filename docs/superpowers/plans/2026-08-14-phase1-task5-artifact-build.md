@@ -959,13 +959,13 @@ base `d983f1a`. Commit `065f68a` and the dirty worktree
 `/Users/ss020/Dev/Mirae_Agent/.worktrees/phase1-task5-artifact-build-fifth` are
 reference-only review evidence: prove `065f68a` is not an ancestor of the redo branch,
 and do not cherry-pick it or copy its production/test files wholesale. The selector
-sequence below supersedes that attempt's incomplete TDD evidence. Exactly six selectors
+sequence below supersedes that attempt's incomplete TDD evidence. Exactly seven selectors
 are labeled derived first-GREEN acceptances: exact-signature/Fund derivation,
-frozen-spec hash metamorphism, serializer fingerprint integration, quality-specific
-duplicate integration, common-checker canonical-JSON integration, and writer/verifier
-fingerprint integration. Every other behavior selector, including every substantive
+frozen-spec hash metamorphism, the non-Bronze timestamp signature, serializer
+fingerprint integration, quality-specific duplicate integration, common-checker
+canonical-JSON integration, and writer/verifier fingerprint integration. Every other behavior selector, including every substantive
 review-gap selector added below, is a mandatory newly observed RED on the clean-redo
-lineage. Never alter production code or manufacture a failure to turn one of those six
+lineage. Never alter production code or manufacture a failure to turn one of those seven
 derived acceptances into RED evidence.
 
 **Files:**
@@ -1147,8 +1147,10 @@ Hard-code the reviewed resulting columns in `TABLE_SPECS`; use derivation only a
 
 - [ ] **Step 3: Close serializer behaviors through strict serial selectors**
 
-Use the same one-selector RED/skeleton/narrower-RED/GREEN rule and this exact order in
-`tests/unit/data/artifacts/test_serialization.py`:
+Use the same one-selector RED/skeleton/narrower-RED/GREEN rule for every unlabeled
+mandatory selector and this exact order in
+`tests/unit/data/artifacts/test_serialization.py`. The inline-labeled signature selector
+is a derived first-GREEN acceptance and is excluded from the RED requirement:
 
 ```text
 test_serialization_module_skeleton_rejects_valid_bond
@@ -1159,7 +1161,7 @@ test_fund_item_record_json_round_trip_representative_and_lineage
 test_explicit_table_serializers_cover_bronze_attribute_quality_and_gold
 test_bronze_source_row_alone_accepts_and_injects_persistence_timestamp
 test_persisted_quality_requires_typed_json_timestamp_agreement
-test_non_bronze_serializers_expose_no_persistence_timestamp_parameter
+test_non_bronze_serializers_expose_no_persistence_timestamp_parameter  # derived first-GREEN acceptance
 test_decimal_date_local_datetime_enum_null_and_utc_encoding
 test_serialization_rejects_aware_source_local_and_nonexact_utc_timestamps
 test_explicit_gold_decimal_rejects_decimal_38_18_integer_and_fractional_overflow
@@ -1170,9 +1172,15 @@ test_serialization_rejects_mutated_registered_spec_fingerprint
 ```
 
 The skeleton implements only names with raising bodies. Each model selector adds only
-that exact model/table projection. The non-Bronze timestamp selector inspects/calls the
-closed signatures and must fail before the generic timestamp parameter is removed; it
-does not rely only on mypy. The forged-spec selector supplies equal-looking copies,
+that exact model/table projection. The non-Bronze timestamp selector is a derived
+first-GREEN signature acceptance: the minimal initial contract already defines
+`serialize_table_row(spec, value)` while only
+`serialize_bronze_source_row(..., persistence_timestamp=...)` accepts a timestamp, so
+the signature inspection and call-binding rejection necessarily follow from the API
+split driven by the preceding Bronze selector. Record its first-run GREEN honestly;
+do not add, remove, or temporarily expose a generic timestamp parameter to manufacture
+a RED. It still executes the runtime inspection/call fence and does not rely only on
+mypy. The forged-spec selector supplies equal-looking copies,
 subclasses, and wrong model/table pairs only, and every ID must reach the same intended
 exact-identity rejection. It does not mutate a registered object; the Step 1 fingerprint
 family exclusively owns that behavior's RED.
@@ -1221,8 +1229,9 @@ timestamp parameter and rejects one at Python call binding.
 
 Expected: every mandatory named behavior records its own RED/GREEN; no grouped import
 failure masks a later model, timestamp, numeric, or forged-spec branch. Record exactly
-15 mandatory RED/GREEN selectors plus one derived first-GREEN fingerprint-integration
-acceptance for Step 3; do not count that acceptance as RED evidence.
+14 mandatory RED/GREEN selectors plus two derived first-GREEN acceptances (the
+non-Bronze timestamp signature and fingerprint integration) for Step 3; do not count
+either acceptance as RED evidence.
 
 - [ ] **Step 4: Implement canonical strict-model JSON and typed row serializers**
 
@@ -1452,8 +1461,8 @@ Expected aggregate GREEN only after every mandatory selector's RED/GREEN and eve
 derived acceptance's observed first-GREEN. This grouped command is never evidence for
 the individual writer/reopen/uniqueness/ownership behaviors. Record exactly 43
 mandatory RED/GREEN selectors plus the three derived first-GREEN integration
-acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 71 mandatory
-RED/GREEN selectors and six explicitly derived first-GREEN acceptances; report the two
+acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 70 mandatory
+RED/GREEN selectors and seven explicitly derived first-GREEN acceptances; report the two
 categories separately and never inflate the RED count with an acceptance.
 
 - [ ] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
