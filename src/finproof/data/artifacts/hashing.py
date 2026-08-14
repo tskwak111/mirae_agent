@@ -234,7 +234,11 @@ def table_logical_hash(
             raise TypeError("table row must be a mapping with unique keys")
         if set(row_keys) != set(spec.logical_projection):
             raise ValueError("row keys must equal the logical projection")
-        digest.update(canonical_json_bytes(row))
+        try:
+            row_snapshot = {key: row[key] for key in row_keys}
+        except Exception as exc:
+            raise TypeError("table row changed during snapshot") from exc
+        digest.update(canonical_json_bytes(row_snapshot))
         observed_count += 1
     if observed_count != row_count:
         raise ValueError("observed row count does not match row_count")

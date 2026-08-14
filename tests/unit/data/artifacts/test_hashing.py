@@ -67,6 +67,63 @@ class _DuplicateKeyMapping(Mapping[str, object]):
         return 3
 
 
+class _StatefulIterationMapping(Mapping[str, object]):
+    def __init__(self) -> None:
+        self.iterations = 0
+        self.lookups: list[str] = []
+
+    def __getitem__(self, key: str) -> object:
+        self.lookups.append(key)
+        return {"id": 1, "value": "a", "unchecked": "external"}[key]
+
+    def __iter__(self) -> Iterator[str]:
+        self.iterations += 1
+        if self.iterations == 1:
+            return iter(("id", "value"))
+        return iter(("id", "unchecked"))
+
+    def __len__(self) -> int:
+        return 2
+
+
+class _LookupMutationMapping(Mapping[str, object]):
+    def __init__(self) -> None:
+        self.iterations = 0
+        self.lookups: list[str] = []
+        self._value_available = True
+
+    def __getitem__(self, key: str) -> object:
+        self.lookups.append(key)
+        if key == "id":
+            self._value_available = False
+            return 1
+        if key == "value" and self._value_available:
+            return "a"
+        raise KeyError(key)
+
+    def __iter__(self) -> Iterator[str]:
+        self.iterations += 1
+        return iter(("id", "value"))
+
+    def __len__(self) -> int:
+        return 2
+
+
+class _LookupErrorMapping(Mapping[str, object]):
+    def __init__(self) -> None:
+        self.iterations = 0
+
+    def __getitem__(self, key: str) -> object:
+        raise RuntimeError(f"lookup failed for {key}")
+
+    def __iter__(self) -> Iterator[str]:
+        self.iterations += 1
+        return iter(("id", "value"))
+
+    def __len__(self) -> int:
+        return 2
+
+
 class _SyntheticReport(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
@@ -465,6 +522,30 @@ def test_table_logical_hash_rejects_non_mapping_and_duplicate_key_mapping_rows(
 
     with pytest.raises(TypeError, match="table row must be a mapping with unique keys"):
         table_logical_hash(_valid_spec(), row_count=1, rows=rows)
+
+
+def test_table_logical_hash_snapshots_stateful_mapping_after_one_key_iteration() -> None:
+    row = _StatefulIterationMapping()
+
+    observed = table_logical_hash(_valid_spec(), row_count=1, rows=(row,))
+
+    assert row.iterations == 1
+    assert row.lookups == ["id", "value"]
+    assert observed == "e6d190552db0c8f3ed630fc36f60d5b208fd01d57f2cc0f94b4d852d4a2aee28"
+
+
+@pytest.mark.parametrize(
+    "row",
+    [_LookupMutationMapping(), _LookupErrorMapping()],
+    ids=["lookup-mutation", "lookup-error"],
+)
+def test_table_logical_hash_fails_typed_when_mapping_lookup_changes_or_errors(
+    row: _LookupMutationMapping | _LookupErrorMapping,
+) -> None:
+    with pytest.raises(TypeError, match="table row changed during snapshot"):
+        table_logical_hash(_valid_spec(), row_count=1, rows=(row,))
+
+    assert row.iterations == 1
 
 
 @pytest.mark.parametrize(
