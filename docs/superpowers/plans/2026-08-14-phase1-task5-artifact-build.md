@@ -959,13 +959,14 @@ base `d983f1a`. Commit `065f68a` and the dirty worktree
 `/Users/ss020/Dev/Mirae_Agent/.worktrees/phase1-task5-artifact-build-fifth` are
 reference-only review evidence: prove `065f68a` is not an ancestor of the redo branch,
 and do not cherry-pick it or copy its production/test files wholesale. The selector
-sequence below supersedes that attempt's incomplete TDD evidence. Exactly seven selectors
+sequence below supersedes that attempt's incomplete TDD evidence. Exactly eight selectors
 are labeled derived first-GREEN acceptances: exact-signature/Fund derivation,
 frozen-spec hash metamorphism, the non-Bronze timestamp signature, serializer
 fingerprint integration, quality-specific duplicate integration, common-checker
-canonical-JSON integration, and writer/verifier fingerprint integration. Every other behavior selector, including every substantive
+canonical-JSON integration, logical-mutation/physical-reencoding hash integration, and
+writer/verifier fingerprint integration. Every other behavior selector, including every substantive
 review-gap selector added below, is a mandatory newly observed RED on the clean-redo
-lineage. Never alter production code or manufacture a failure to turn one of those seven
+lineage. Never alter production code or manufacture a failure to turn one of those eight
 derived acceptances into RED evidence.
 
 **Files:**
@@ -1286,7 +1287,7 @@ tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_
 tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_setup_and_close_failures_are_typed_and_retained
 tests/integration/artifacts/test_parquet_verification.py::test_common_checker_rejects_noncanonical_record_json
 tests/integration/artifacts/test_parquet_verification.py::test_writer_and_verifier_reject_mutated_registered_spec_fingerprint
-tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_detects_logical_mutation_but_ignores_physical_reencoding
+tests/integration/artifacts/test_parquet_verification.py::test_staged_reopen_detects_logical_mutation_but_ignores_physical_reencoding  # derived first-GREEN acceptance
 tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_rejects_unissued_facts_and_forged_registration_token
 tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_atomically_registers_exact_verification_and_handle_objects
 tests/integration/artifacts/test_parquet_verification.py::test_staged_verification_rejects_copied_equal_and_object_new_forge
@@ -1309,11 +1310,12 @@ tests/integration/artifacts/test_parquet_verification.py::test_complete_final_re
 ```
 
 The first selector permits only exact protocols/types and raising bodies. Every later
-selector is authored after its predecessor is GREEN. Three Step 5 selectors are
+selector is authored after its predecessor is GREEN. Four Step 5 selectors are
 explicit derived first-GREEN integration acceptances rather than new behavior REDs:
 `test_quality_issue_unique_index_rejects_same_issue_id_at_nonadjacent_sorted_locations`,
 `test_common_checker_rejects_noncanonical_record_json`, and
-`test_writer_and_verifier_reject_mutated_registered_spec_fingerprint`. All other Step 5
+`test_writer_and_verifier_reject_mutated_registered_spec_fingerprint`, plus the inline-
+labeled logical-mutation/physical-reencoding selector. All other Step 5
 selectors are mandatory RED/GREEN. Writer schema, bounds, lifecycle, abort, reopen
 metadata, hash, sort, uniqueness, ownership, and final transition are independent
 behaviors; a missing module or the first bad parameter cannot stand in for their REDs.
@@ -1347,8 +1349,15 @@ The staged handle's context-managed `iter_batches(batch_size=2)` test holds the 
 stream and `ParquetFile` live until iterator/context exit, observes `use_threads=False`,
 rejects zero/negative/>65,536, and proves no escaped iterator works after close. On
 reopened verification, prove the known final row count enters the logical header before
-the first row. Mutate one logical cell and require logical-hash drift; physical
-reencoding with identical typed rows leaves logical identity unchanged.
+the first row. The later logical-mutation/physical-reencoding selector is a derived
+first-GREEN acceptance: this earlier mandatory known-count selector's smallest generic
+implementation already computes `table_logical_hash` from the reopened logical rows,
+so a changed logical cell must alter the hash while physically reencoded identical
+typed rows must retain it. Record the first-run GREEN with no production change; never
+bypass, weaken, or temporarily replace the generic logical-row hash merely to
+manufacture a RED. The acceptance still mutates one logical cell and requires hash
+drift, then physically reencodes identical typed rows and requires stable logical
+identity.
 Mutate one byte in place without changing inode/length during iteration and between two
 opens; pre/post same-descriptor size/SHA plus owner rescan must reject both without a
 staged or final result.
@@ -1459,10 +1468,10 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected aggregate GREEN only after every mandatory selector's RED/GREEN and every
 derived acceptance's observed first-GREEN. This grouped command is never evidence for
-the individual writer/reopen/uniqueness/ownership behaviors. Record exactly 43
-mandatory RED/GREEN selectors plus the three derived first-GREEN integration
-acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 70 mandatory
-RED/GREEN selectors and seven explicitly derived first-GREEN acceptances; report the two
+the individual writer/reopen/uniqueness/ownership behaviors. Record exactly 42
+mandatory RED/GREEN selectors plus the four derived first-GREEN integration
+acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 69 mandatory
+RED/GREEN selectors and eight explicitly derived first-GREEN acceptances; report the two
 categories separately and never inflate the RED count with an acceptance.
 
 - [ ] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
