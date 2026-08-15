@@ -455,23 +455,39 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
     def issue_verified_table_handle(
         self,
         *,
-        entry: VerifiedPhysicalEntry,
-        table_name: str,
-        row_count: int,
-        schema_sha256: str,
-        logical_hash: str,
+        seal: object,
     ) -> "VerifiedTableHandle":
         """Issue and register one exact final-domain verified table handle."""
-        from finproof.data.artifacts.parquet_io import VerifiedParquetTable
+        from finproof.data.artifacts.parquet_io import (
+            VerifiedParquetTable,
+            _consume_final_verification_seal,
+            _validate_final_verification_seal,
+        )
 
-        self.require_owned(entry)
+        try:
+            entry, spec, facts = _validate_final_verification_seal(seal, self)
+            self.require_owned(entry)
+            if (
+                entry.path != PurePosixPath(spec.parquet_path)
+                or entry.kind != "parquet"
+                or entry.size_bytes != facts.physical_size_bytes
+                or entry.sha256 != facts.physical_sha256
+                or facts.spec is not spec
+            ):
+                raise ValueError("final verification seal facts mismatch")
+        except (AttributeError, TypeError, ValueError, ArtifactContractError) as exc:
+            raise _inventory_capability_error("invalid_final_table_seal") from exc
         handle = object.__new__(VerifiedParquetTable)
         object.__setattr__(handle, "entry", entry)
-        object.__setattr__(handle, "table_name", table_name)
-        object.__setattr__(handle, "row_count", row_count)
-        object.__setattr__(handle, "schema_sha256", schema_sha256)
-        object.__setattr__(handle, "logical_hash", logical_hash)
+        object.__setattr__(handle, "table_name", spec.table_name)
+        object.__setattr__(handle, "row_count", facts.row_count)
+        object.__setattr__(handle, "schema_sha256", facts.schema_hash)
+        object.__setattr__(handle, "logical_hash", facts.logical_hash)
         fingerprint = self._verified_handle_fingerprint(handle)
+        try:
+            _consume_final_verification_seal(seal, self)
+        except (AttributeError, TypeError, ValueError, ArtifactContractError) as exc:
+            raise _inventory_capability_error("invalid_final_table_seal") from exc
         self._verified_table_handles[id(handle)] = (handle, fingerprint)
         return handle
 

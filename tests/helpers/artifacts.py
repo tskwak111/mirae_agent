@@ -443,10 +443,15 @@ class TestStageArtifactOwner:
         try:
             return (
                 value.logical.model_dump_json(),
+                id(value._leaf),
+                value._relative_path,
+                value._leaf_identity,
                 value.physical_size_bytes,
                 value.physical_sha256,
                 handle.table_name,
                 id(handle._leaf),
+                handle._relative_path,
+                handle._leaf_identity,
                 handle.row_count,
                 handle.schema_sha256,
                 handle.logical_hash,
@@ -487,8 +492,9 @@ class TestStageArtifactOwner:
         pair = self._sets.get(id(previous))
         if pair is None or pair[0] is not previous:
             raise ValueError("superseded staged set")
+        token = self._register_staged_set(value)
         del self._sets[id(previous)]
-        return self._register_staged_set(value)
+        return token
 
     def _require_registered_staged_set(self, value: object, token: object) -> None:
         pair = self._sets.get(id(value))

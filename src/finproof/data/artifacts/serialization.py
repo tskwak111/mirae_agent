@@ -377,6 +377,18 @@ def logical_table_row(spec: TableSpec, row: Mapping[str, object]) -> Mapping[str
             raise ValueError("record_json and typed projection do not agree")
     if spec is TABLE_SPEC_BY_NAME["bronze_source_row"]:
         logical["loaded_at"] = None
+    elif spec is TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]:
+        record_json = row["record_json"]
+        if type(record_json) is not str:
+            raise ValueError("fund attribute record_json must be an exact string")
+        try:
+            parsed_attribute = FundItemAttribute.model_validate_json(record_json)
+        except ValidationError as exc:
+            raise ValueError("fund attribute record_json is invalid") from exc
+        if canonical_record_json(parsed_attribute) != record_json:
+            raise ValueError("fund attribute record_json must be canonical")
+        if dict(_serialize_explicit(spec, parsed_attribute)) != dict(row):
+            raise ValueError("fund attribute typed/JSON projection agreement is required")
     elif spec is TABLE_SPEC_BY_NAME["silver_quality_issue"]:
         record_json = row["record_json"]
         if type(record_json) is not str:
@@ -384,10 +396,12 @@ def logical_table_row(spec: TableSpec, row: Mapping[str, object]) -> Mapping[str
         parsed = DataQualityIssue.model_validate_json(record_json)
         if canonical_record_json(parsed) != record_json:
             raise ValueError("quality record_json must be canonical")
-        if parsed.first_detected_at != row["first_detected_at"]:
-            raise ValueError("quality typed/JSON timestamp agreement is required")
         if parsed.first_detected_at is None:
             raise ValueError("quality issue must already be persisted")
+        if parsed.first_detected_at != row["first_detected_at"]:
+            raise ValueError("quality typed/JSON timestamp agreement is required")
+        if dict(_serialize_explicit(spec, parsed)) != dict(row):
+            raise ValueError("quality typed/JSON projection agreement is required")
         neutral = DataQualityIssue.model_validate(
             {**parsed.model_dump(mode="python"), "first_detected_at": None},
             strict=True,

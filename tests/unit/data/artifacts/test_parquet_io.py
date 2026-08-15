@@ -2,9 +2,11 @@
 # ruff: noqa: ANN001, ANN002, ANN204, E501
 """Capability-bound incremental Parquet writer contracts."""
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePosixPath
+from typing import Never
 
 import pytest
 
@@ -196,6 +198,158 @@ def test_writer_snapshots_lying_length_and_mutating_sequence_once_with_65537_cap
     )
 
 
+def test_writer_snapshots_each_yielded_mapping_before_requesting_the_next_row() -> None:
+    import pyarrow.parquet as pq
+
+    from finproof.data.artifacts.parquet_io import ParquetBatchWriter
+    from finproof.data.artifacts.table_specs import table_spec
+
+    shared = _column_row(1)
+
+    def rows() -> Iterator[dict[str, object]]:
+        yield shared
+        shared.update(_column_row(2))
+        yield shared
+
+    leaf = _Leaf()
+    writer = ParquetBatchWriter(table_spec("bronze_source_column"), leaf)
+    writer.write_batch(rows())
+    writer.close()
+    reopened = pq.ParquetFile(BytesIO(leaf.buffer.getvalue())).read().to_pylist()
+    assert [row["source_column_number"] for row in reopened] == [1, 2]
+    assert [row["source_column_name"] for row in reopened] == ["COL1", "COL2"]
+
+
+@pytest.mark.parametrize(
+    "case", ["dict", "dict-subclass", "custom-mapping", "tuple", "list", "object"]
+)
+def test_writer_accepts_mapping_rows_and_rejects_each_non_mapping_before_arrow(
+    case: str,
+) -> None:
+    from collections.abc import Mapping
+
+    from finproof.data.artifacts.parquet_io import ParquetBatchWriter
+    from finproof.data.artifacts.table_specs import table_spec
+
+    original = _column_row(1)
+
+    class DictSubclass(dict):
+        pass
+
+    class CustomMapping(Mapping):
+        def __iter__(self):
+            return iter(original)
+
+        def __len__(self):
+            return len(original)
+
+        def __getitem__(self, key):
+            return original[key]
+
+    row = {
+        "dict": original,
+        "dict-subclass": DictSubclass(original),
+        "custom-mapping": CustomMapping(),
+        "tuple": tuple(original.values()),
+        "list": list(original.values()),
+        "object": object(),
+    }[case]
+    writer = ParquetBatchWriter(table_spec("bronze_source_column"), _Leaf())
+    if case in {"dict", "dict-subclass", "custom-mapping"}:
+        writer.write_batch((row,))
+    else:
+        with pytest.raises(ValueError, match="mapping"):
+            writer.write_batch((row,))
+    writer.close()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "string",
+        "int64",
+        "date",
+        "local-datetime",
+        "utc-datetime",
+        "decimal",
+        "bool",
+        "nonnullable-null",
+        "nullable-null",
+    ],
+)
+def test_writer_validates_every_exact_physical_scalar_on_each_frozen_snapshot(
+    monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    from datetime import UTC, datetime
+
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.serialization import (
+        serialize_bronze_source_row,
+        serialize_table_row,
+    )
+    from finproof.data.artifacts.table_specs import table_spec
+    from tests.helpers.source_rows import source_row
+    from tests.unit.data.artifacts.test_serialization import _bond_record, _domestic_record
+
+    if case in {"string", "int64", "date", "nonnullable-null"}:
+        spec = table_spec("bronze_source_column")
+        row = _column_row(1)
+        field, invalid = {
+            "string": ("catalog_version", 1),
+            "int64": ("source_table_order", True),
+            "date": ("source_snapshot_date", datetime(2026, 7, 11)),
+            "nonnullable-null": ("catalog_version", None),
+        }[case]
+    elif case == "local-datetime":
+        spec = table_spec("silver_domestic_listed_product")
+        row = dict(serialize_table_row(spec, _domestic_record()))
+        field, invalid = "daily_update_at", datetime(2026, 7, 11, tzinfo=UTC)
+    elif case == "utc-datetime":
+        spec = table_spec("bronze_source_row")
+        row = dict(
+            serialize_bronze_source_row(
+                spec,
+                source_row("PRBD01N001"),
+                persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC),
+            )
+        )
+        field, invalid = "loaded_at", datetime(2026, 8, 15)
+    else:
+        spec = table_spec("silver_bond_instrument")
+        row = dict(serialize_table_row(spec, _bond_record()))
+        field, invalid = {
+            "decimal": ("coupon_rate", "1.23"),
+            "bool": ("is_matured_at_as_of", 1),
+            "nullable-null": ("coupon_rate", None),
+        }[case]
+    row[field] = invalid
+    leaf = _Leaf()
+    leaf.table_name = spec.table_name
+    leaf.relative_path = PurePosixPath(spec.parquet_path)
+    writer = parquet_io.ParquetBatchWriter(spec, leaf)
+    if case != "nullable-null":
+        original_pa = parquet_io.pa  # type: ignore[attr-defined]
+
+        class TableProxy:
+            @staticmethod
+            def from_pylist(*_args: object, **_kwargs: object) -> Never:
+                raise AssertionError("invalid physical scalar reached Arrow")
+
+        class ArrowProxy:
+            Table = TableProxy
+
+            def __getattr__(self, name):
+                return getattr(original_pa, name)
+
+        monkeypatch.setattr(parquet_io, "pa", ArrowProxy())
+    if case == "nullable-null":
+        writer.write_batch((row,))
+    else:
+        with pytest.raises(ValueError, match=r"physical|null|timestamp|Decimal"):
+            writer.write_batch((row,))
+    writer.close()
+
+
 @pytest.mark.parametrize("case", ["reuse-write", "reuse-close", "write-failure", "close-failure"])
 def test_writer_close_flush_failure_and_reuse_lifecycle(case: str) -> None:
     from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
@@ -246,6 +400,39 @@ def test_writer_leaf_enter_failure_is_typed_and_never_writes() -> None:
     assert captured.value.code is ArtifactErrorCode.SERIALIZATION_FAILED
     assert captured.value.operation_id == "enter-parquet-leaf"
     assert leaf.buffer.getvalue() == b""
+
+
+def test_parquet_writer_constructor_failure_is_typed_and_exits_sink_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.table_specs import table_spec
+
+    leaf = _Leaf()
+    exits: list[tuple[object, object, object]] = []
+
+    class Context:
+        def __enter__(self):
+            return leaf.buffer
+
+        def __exit__(self, exc_type, exc, traceback):
+            exits.append((exc_type, exc, traceback))
+
+    def fail_constructor(*_args: object, **_kwargs: object) -> Never:
+        raise OSError("injected ParquetWriter constructor failure")
+
+    leaf.create_exclusive = lambda: Context()
+    monkeypatch.setattr(parquet_io.pq, "ParquetWriter", fail_constructor)  # type: ignore[attr-defined]
+    with pytest.raises(ArtifactContractError) as caught:
+        parquet_io.ParquetBatchWriter(table_spec("bronze_source_column"), leaf)
+    assert caught.value.code is ArtifactErrorCode.SERIALIZATION_FAILED
+    assert caught.value.operation_id == "construct-parquet-writer"
+    assert len(exits) == 1
+    assert exits[0][0] is OSError
+    assert isinstance(exits[0][1], OSError)
+    assert exits[0][2] is exits[0][1].__traceback__
+    assert leaf.unlinked is False
 
 
 def test_writer_leaf_exit_failure_is_typed_and_preserves_ambiguous_leaf() -> None:

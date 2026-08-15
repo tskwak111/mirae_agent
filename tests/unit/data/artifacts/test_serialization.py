@@ -355,6 +355,115 @@ def test_persisted_quality_requires_typed_json_timestamp_agreement() -> None:
         serialize_table_row(spec, pure)
 
 
+@pytest.mark.parametrize(
+    "field",
+    [
+        "issue_id",
+        "rule_id",
+        "rule_version",
+        "severity",
+        "quality_status",
+        "source_table",
+        "source_file",
+        "source_sheet",
+        "source_row_number",
+        "source_column_name",
+        "source_column_number",
+        "source_column_letter",
+        "source_checksum",
+        "source_snapshot_date",
+        "source_applicable_date",
+        "reason",
+        "quarantined",
+        "raw_payload_sha256",
+    ],
+)
+def test_quality_logical_projection_compares_each_uncovered_scalar_to_canonical_record_json(
+    field: str,
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from finproof.data.artifacts.serialization import logical_table_row, serialize_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStatus
+
+    pure = DataQualityIssue.from_row(
+        source_row("PREF01N001"),
+        "pd_itm_no",
+        rule_id="test.rule",
+        rule_version="1.0.0",
+        severity=IssueSeverity.WARNING,
+        quality_status=QualityStatus.INVALID_FORMAT,
+        reason="test",
+        quarantined=True,
+    )
+    persisted = DataQualityIssue.model_validate(
+        {
+            **pure.model_dump(mode="python"),
+            "first_detected_at": datetime(2026, 8, 15, tzinfo=UTC),
+        },
+        strict=True,
+    )
+    spec = TABLE_SPEC_BY_NAME["silver_quality_issue"]
+    row = dict(serialize_table_row(spec, persisted))
+    original = row[field]
+    if type(original) is bool:
+        changed: object = not original
+    elif type(original) is int:
+        changed = original + 1
+    elif type(original) is date:
+        changed = original + timedelta(days=1)
+    elif original is None:
+        changed = AS_OF
+    else:
+        changed = f"{original}x"
+
+    with pytest.raises(ValueError, match="typed/JSON"):
+        logical_table_row(spec, {**row, field: changed})
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "grain",
+        "fund_item_id",
+        "fund_item_id__quality_status",
+        "attribute_code",
+        "attribute_code__quality_status",
+        "attribute_code_raw",
+        "source_row_number",
+        "record_json",
+    ],
+)
+def test_fund_attribute_logical_projection_compares_every_physical_column_to_canonical_record_json(
+    field: str,
+) -> None:
+    import json
+
+    from finproof.data.artifacts.serialization import logical_table_row, serialize_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+
+    normalized = normalize_fund_attribute(source_row("PRFD01N001"))
+    assert normalized.record is not None
+    attribute = collapse_fund_items([normalized.record]).attributes[0]
+    spec = TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]
+    row = dict(serialize_table_row(spec, attribute))
+    original = row[field]
+    if field == "record_json":
+        payload = json.loads(original)
+        payload["attribute_code"]["raw_value"] = "FORGED"
+        changed: object = json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
+    elif type(original) is int:
+        changed = original + 1
+    else:
+        changed = f"{original}x"
+
+    with pytest.raises(ValueError, match="attribute typed/JSON"):
+        logical_table_row(spec, {**row, field: changed})
+
+
 def test_non_bronze_serializers_expose_no_persistence_timestamp_parameter() -> None:
     from datetime import UTC, datetime
     from inspect import signature

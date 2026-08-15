@@ -19,13 +19,16 @@ import pytest
 from pydantic import ValidationError
 
 from finproof.data.artifacts.errors import ArtifactContractError
+from finproof.data.artifacts.hashing import schema_sha256
 from finproof.data.artifacts.manifest import ArtifactManifest, verify_declared_inventory
+from finproof.data.artifacts.table_specs import table_spec
 from tests.helpers.artifacts import (
     INPUTS,
     TABLES,
     expected_contract_payload,
     manifest_payload,
     write_artifact_tree,
+    write_empty_parquet_artifact_tree,
 )
 
 if TYPE_CHECKING:
@@ -43,6 +46,31 @@ class _SyntheticVerifiedTableHandle:
     row_count: int
     schema_sha256: str
     logical_hash: str
+
+
+def _issue_test_verified_table_handle(inventory: Any, table: Any) -> Any:
+    from finproof.data.artifacts.parquet_io import (
+        _CheckedParquetFacts,
+        _FinalVerificationAuthority,
+    )
+    from finproof.data.artifacts.table_specs import table_spec
+
+    spec = table_spec(table.name)
+    entry = next(
+        item
+        for item in inventory.declared_entries
+        if item.path.as_posix() == f"parquet/{table.name}.parquet"
+    )
+    facts = _CheckedParquetFacts._from_checked(
+        spec=spec,
+        row_count=table.row_count,
+        logical_hash=table.logical_hash,
+        physical_size_bytes=entry.size_bytes,
+        physical_sha256=entry.sha256,
+        leaf_identity=(entry.st_dev, entry.st_ino, entry.file_type, 0o644, entry.st_nlink),
+    )
+    seal = _FinalVerificationAuthority(inventory).mint(entry=entry, spec=spec, facts=facts)
+    return inventory.issue_verified_table_handle(seal=seal)
 
 
 def test_artifact_manifest_exact_valid_shape() -> None:
@@ -751,13 +779,12 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
     inventory = verify_declared_inventory(manifest, root)
     other_inventory = verify_declared_inventory(other_manifest, other_root)
     try:
-        entries = {entry.path.as_posix(): entry for entry in inventory.declared_entries}
         other_entries = {entry.path.as_posix(): entry for entry in other_inventory.declared_entries}
         tables = tuple(
             ExpectedLogicalTable(
                 name=name,
                 grain=manifest.tables[name].grain,
-                schema_hash=manifest.tables[name].schema_sha256,
+                schema_hash=schema_sha256(table_spec(name)),
                 row_count=manifest.tables[name].row_count,
                 sort_key=manifest.tables[name].sort_key,
                 unique_key=manifest.tables[name].unique_key,
@@ -765,16 +792,7 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
             )
             for name, _, _ in TABLES
         )
-        handles = tuple(
-            inventory.issue_verified_table_handle(
-                table_name=table.name,
-                entry=entries[f"parquet/{table.name}.parquet"],
-                row_count=table.row_count,
-                schema_sha256=table.schema_hash,
-                logical_hash=table.logical_hash,
-            )
-            for table in tables
-        )
+        handles = tuple(_issue_test_verified_table_handle(inventory, table) for table in tables)
 
         if case == "copied-handle":
             handles = (copy(handles[0]), *handles[1:])
@@ -1129,12 +1147,11 @@ def test_verification_kernel_exact_expected_order_and_short_circuit(
             if fail_at == "tables":
                 raise RuntimeError("tables")
             inventory = kwargs["inventory"]
-            entries = {entry.path.as_posix(): entry for entry in inventory.declared_entries}
             tables = tuple(
                 ExpectedLogicalTable(
                     name=name,
                     grain=manifest.tables[name].grain,
-                    schema_hash=manifest.tables[name].schema_sha256,
+                    schema_hash=schema_sha256(table_spec(name)),
                     row_count=manifest.tables[name].row_count,
                     sort_key=manifest.tables[name].sort_key,
                     unique_key=manifest.tables[name].unique_key,
@@ -1142,16 +1159,7 @@ def test_verification_kernel_exact_expected_order_and_short_circuit(
                 )
                 for name, _, _ in TABLES
             )
-            handles = tuple(
-                inventory.issue_verified_table_handle(
-                    table_name=table.name,
-                    entry=entries[f"parquet/{table.name}.parquet"],
-                    row_count=table.row_count,
-                    schema_sha256=table.schema_hash,
-                    logical_hash=table.logical_hash,
-                )
-                for table in tables
-            )
+            handles = tuple(_issue_test_verified_table_handle(inventory, table) for table in tables)
             return TableVerificationResult.from_verified(
                 inventory=inventory,
                 tables=tables,
@@ -1303,12 +1311,11 @@ def test_verification_kernel_candidate_core_skips_only_expected(
             if fail_at == "tables":
                 raise RuntimeError("tables")
             inventory = kwargs["inventory"]
-            entries = {entry.path.as_posix(): entry for entry in inventory.declared_entries}
             tables = tuple(
                 ExpectedLogicalTable(
                     name=name,
                     grain=manifest.tables[name].grain,
-                    schema_hash=manifest.tables[name].schema_sha256,
+                    schema_hash=schema_sha256(table_spec(name)),
                     row_count=manifest.tables[name].row_count,
                     sort_key=manifest.tables[name].sort_key,
                     unique_key=manifest.tables[name].unique_key,
@@ -1316,16 +1323,7 @@ def test_verification_kernel_candidate_core_skips_only_expected(
                 )
                 for name, _, _ in TABLES
             )
-            handles = tuple(
-                inventory.issue_verified_table_handle(
-                    table_name=table.name,
-                    entry=entries[f"parquet/{table.name}.parquet"],
-                    row_count=table.row_count,
-                    schema_sha256=table.schema_hash,
-                    logical_hash=table.logical_hash,
-                )
-                for table in tables
-            )
+            handles = tuple(_issue_test_verified_table_handle(inventory, table) for table in tables)
             return TableVerificationResult.from_verified(
                 inventory=inventory,
                 tables=tables,
@@ -1442,3 +1440,49 @@ def test_verified_inventory_detects_physical_byte_mutation_without_mutating_tree
             for path in root.rglob("*")
             if stat.S_ISREG(path.lstat().st_mode)
         } == tree_before
+
+
+def test_inventory_requires_exact_unconsumed_local_authority_seal_before_final_handle_issuance(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import (
+        VerifiedParquetTable,
+        _CheckedParquetFacts,
+        _FinalVerificationAuthority,
+    )
+    from finproof.data.artifacts.table_specs import table_spec
+
+    root = tmp_path / "sealed-artifact"
+    manifest = write_empty_parquet_artifact_tree(root)
+    with verify_declared_inventory(manifest, root) as inventory:
+        entry = next(
+            item
+            for item in inventory.declared_entries
+            if item.path.as_posix() == "parquet/bronze_source_column.parquet"
+        )
+        spec = table_spec("bronze_source_column")
+        declared = manifest.tables[spec.table_name]
+        facts = _CheckedParquetFacts._from_checked(
+            spec=spec,
+            row_count=declared.row_count,
+            logical_hash=declared.logical_hash,
+            physical_size_bytes=entry.size_bytes,
+            physical_sha256=entry.sha256,
+            leaf_identity=(
+                entry.st_dev,
+                entry.st_ino,
+                entry.file_type,
+                0o644,
+                entry.st_nlink,
+            ),
+        )
+        seal = _FinalVerificationAuthority(inventory).mint(entry=entry, spec=spec, facts=facts)
+
+        handle = inventory.issue_verified_table_handle(seal=seal)
+        assert type(handle) is VerifiedParquetTable
+        inventory.require_owned_verified_table_handle(handle)
+        with pytest.raises(ArtifactContractError) as consumed:
+            inventory.issue_verified_table_handle(seal=seal)
+        assert consumed.value.internal_context == {"reason": "invalid_final_table_seal"}

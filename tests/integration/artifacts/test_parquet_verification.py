@@ -3,8 +3,12 @@
 """Owned staged and final Parquet verification contracts."""
 
 import copy
+import inspect
+import os
+import stat
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -24,6 +28,28 @@ def _written(tmp_path: Path):
     writer.write_batch((_column_row(1), _column_row(2)))
     writer.close()
     return owner, leaf
+
+
+def _empty_staged_verifications(owner: TestStageArtifactOwner):
+    from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    values = []
+    for spec in TABLE_SPECS:
+        leaf = owner.claim_parquet_leaf(spec.table_name)
+        ParquetBatchWriter(spec, leaf).close()
+        values.append(verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec))
+    return tuple(values)
+
+
+def _trusted_workspace_parent(path: Path):
+    from finproof.data.artifacts.parquet_io import _TrustedWorkspaceParent
+
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        return _TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def test_staged_reopen_keeps_stream_and_parquetfile_inside_owned_context(
@@ -304,7 +330,9 @@ def test_final_unique_index_is_managed_pathless_spillable_and_exact_owned(
     )
 
     roots: list[Path] = []
-    with _final_verification_workspace(parent=tmp_path) as workspace:
+    with _final_verification_workspace(
+        trusted_parent=_trusted_workspace_parent(tmp_path)
+    ) as workspace:
         roots.append(workspace._root)
         with workspace.create_unique_key_index(limits=ParquetVerificationLimits()) as index:
             index.insert_canonical_batch((b"one", b"two"))
@@ -347,7 +375,9 @@ def test_unique_workspace_disables_external_access_install_and_autoload(
             pass
 
     monkeypatch.setattr(parquet_io.duckdb, "connect", lambda target: Connection())
-    with parquet_io._final_verification_workspace(parent=tmp_path) as workspace:
+    with parquet_io._final_verification_workspace(
+        trusted_parent=_trusted_workspace_parent(tmp_path)
+    ) as workspace:
         with workspace.create_unique_key_index(
             limits=parquet_io.ParquetVerificationLimits()
         ) as index:
@@ -368,12 +398,7 @@ def test_unique_workspace_preserves_external_symlink_victim_bytes_and_mode(
     original_mode = victim.stat().st_mode
     connected = False
     yielded = False
-    retained: list[Path] = []
-
-    def connect(target: str):
-        nonlocal connected
-        connected = True
-        return parquet_io.duckdb.connect(target)
+    retained: list[str] = []
 
     original_connect = parquet_io.duckdb.connect
 
@@ -384,16 +409,18 @@ def test_unique_workspace_preserves_external_symlink_victim_bytes_and_mode(
 
     monkeypatch.setattr(parquet_io.duckdb, "connect", spy_connect)
     with pytest.raises(Exception):
-        with parquet_io._final_verification_workspace(parent=tmp_path) as workspace:
-            retained.append(workspace._root)
-            (workspace._root / "keys.duckdb").symlink_to(victim)
+        with parquet_io._final_verification_workspace(
+            trusted_parent=_trusted_workspace_parent(tmp_path)
+        ) as workspace:
+            retained.append(workspace._root_name)
+            os.symlink(os.fspath(victim), "keys.duckdb", dir_fd=workspace._root_fd)
             with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
                 yielded = True
     assert connected is False
     assert yielded is False
     assert victim.read_bytes() == original_bytes
     assert victim.stat().st_mode == original_mode
-    assert retained[0].is_dir()
+    assert (tmp_path / retained[0]).is_dir()
 
 
 @pytest.mark.parametrize(
@@ -414,30 +441,49 @@ def test_unique_workspace_revalidates_exact_modes_marker_bytes_and_every_identit
     from finproof.data.artifacts import parquet_io
 
     with pytest.raises(parquet_io.ArtifactContractError):
-        with parquet_io._final_verification_workspace(parent=tmp_path) as workspace:
+        with parquet_io._final_verification_workspace(
+            trusted_parent=_trusted_workspace_parent(tmp_path)
+        ) as workspace:
             if case == "root-mode":
-                workspace._root.chmod(0o755)
+                os.fchmod(workspace._root_fd, 0o755)
             elif case == "marker-mode":
-                workspace._marker.chmod(0o644)
+                marker = os.open(workspace._MARKER_NAME, os.O_RDONLY, dir_fd=workspace._root_fd)
+                try:
+                    os.fchmod(marker, 0o644)
+                finally:
+                    os.close(marker)
             elif case == "spill-mode":
-                workspace._spill.chmod(0o755)
+                os.fchmod(workspace._spill_fd, 0o755)
             elif case == "marker-bytes":
-                workspace._marker.write_bytes(b"forged-marker-same-inode\n")
+                marker = os.open(workspace._MARKER_NAME, os.O_WRONLY, dir_fd=workspace._root_fd)
+                try:
+                    os.ftruncate(marker, 0)
+                    os.write(marker, b"forged-marker-same-inode\n")
+                finally:
+                    os.close(marker)
             elif case == "root-aba":
-                displaced = tmp_path / "displaced-root"
-                workspace._root.rename(displaced)
-                workspace._root.mkdir(mode=0o700)
-                (workspace._root / "spill").mkdir(mode=0o700)
-                marker = workspace._root / ".finproof-parquet-verification"
-                marker.write_bytes(workspace._MARKER_BYTES)
-                marker.chmod(0o600)
+                os.rename(
+                    workspace._root_name,
+                    "displaced-root",
+                    src_dir_fd=workspace._parent_fd,
+                    dst_dir_fd=workspace._parent_fd,
+                )
+                os.mkdir(workspace._root_name, mode=0o700, dir_fd=workspace._parent_fd)
             elif case == "marker-aba":
-                workspace._marker.unlink()
-                workspace._marker.write_bytes(workspace._MARKER_BYTES)
-                workspace._marker.chmod(0o600)
+                os.unlink(workspace._MARKER_NAME, dir_fd=workspace._root_fd)
+                marker = os.open(
+                    workspace._MARKER_NAME,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=workspace._root_fd,
+                )
+                try:
+                    os.write(marker, workspace._MARKER_BYTES)
+                finally:
+                    os.close(marker)
             else:
-                workspace._spill.rmdir()
-                workspace._spill.mkdir(mode=0o700)
+                os.rmdir(workspace._SPILL_NAME, dir_fd=workspace._root_fd)
+                os.mkdir(workspace._SPILL_NAME, mode=0o700, dir_fd=workspace._root_fd)
             workspace.assert_unchanged()
 
 
@@ -451,9 +497,16 @@ def test_unique_workspace_closes_before_cleanup_and_rejects_aba_or_ambiguity(
     class Connection:
         def execute(self, sql: str, parameters=None):
             if sql == "SET temp_directory = ?":
-                spill = Path(parameters[0]) / "owned-spill.tmp"
-                spill.write_bytes(b"spill")
-                spill.chmod(0o600)
+                descriptor = os.open(
+                    "owned-spill.tmp",
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                    dir_fd=workspace._spill_fd,
+                )
+                try:
+                    os.write(descriptor, b"spill")
+                finally:
+                    os.close(descriptor)
             return self
 
         def executemany(self, sql: str, parameters) -> None:
@@ -467,18 +520,20 @@ def test_unique_workspace_closes_before_cleanup_and_rejects_aba_or_ambiguity(
             events.append("close")
 
     monkeypatch.setattr(parquet_io.duckdb, "connect", lambda target: Connection())
-    roots: list[Path] = []
-    with parquet_io._final_verification_workspace(parent=tmp_path) as workspace:
-        roots.append(workspace._root)
+    roots: list[str] = []
+    with parquet_io._final_verification_workspace(
+        trusted_parent=_trusted_workspace_parent(tmp_path)
+    ) as workspace:
+        roots.append(workspace._root_name)
         with workspace.create_unique_key_index(
             limits=parquet_io.ParquetVerificationLimits()
         ) as index:
             index.insert_canonical_batch((b"one",))
             index.assert_unique()
         assert events == ["close"]
-        assert (workspace._spill / "owned-spill.tmp").is_file()
+        assert stat.S_ISREG(os.stat("owned-spill.tmp", dir_fd=workspace._spill_fd).st_mode)
     assert events == ["close"]
-    assert not roots[0].exists()
+    assert not (tmp_path / roots[0]).exists()
 
 
 @pytest.mark.parametrize(
@@ -489,19 +544,17 @@ def test_unique_workspace_setup_and_close_failures_are_typed_and_retained(
 ) -> None:
     from finproof.data.artifacts import parquet_io
 
-    roots: list[Path] = []
-    original_mkdtemp = parquet_io.tempfile.mkdtemp
+    roots: list[str] = []
+    original_mkdir = parquet_io.os.mkdir
+    if case == "temp-root":
 
-    def tracked_mkdtemp(*args, **kwargs):
-        if case == "temp-root":
-            raise OSError("injected temp-root failure")
-        result = original_mkdtemp(*args, **kwargs)
-        roots.append(Path(result))
-        return result
+        def fail_root(path, *args, **kwargs):
+            if isinstance(path, str) and path.startswith("finproof-parquet-verify-"):
+                raise OSError("injected temp-root failure")
+            return original_mkdir(path, *args, **kwargs)
 
-    monkeypatch.setattr(parquet_io.tempfile, "mkdtemp", tracked_mkdtemp)
+        monkeypatch.setattr(parquet_io.os, "mkdir", fail_root)
     if case == "spill-setup":
-        original_mkdir = parquet_io.os.mkdir
 
         def fail_spill(path, *args, **kwargs):
             if path == "spill":
@@ -542,13 +595,16 @@ def test_unique_workspace_setup_and_close_failures_are_typed_and_retained(
 
     monkeypatch.setattr(parquet_io.duckdb, "connect", connect)
     with pytest.raises(parquet_io.ArtifactContractError):
-        with parquet_io._final_verification_workspace(parent=tmp_path) as workspace:
+        with parquet_io._final_verification_workspace(
+            trusted_parent=_trusted_workspace_parent(tmp_path)
+        ) as workspace:
+            roots.append(workspace._root_name)
             with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
                 pass
     if case == "configure":
         assert close_calls == 1
     if case == "close":
-        assert roots[0].is_dir()
+        assert (tmp_path / roots[0]).is_dir()
 
 
 def test_common_checker_rejects_noncanonical_record_json(tmp_path: Path) -> None:
@@ -701,6 +757,10 @@ def test_staged_verification_rejects_copied_equal_and_object_new_forge(
         forged = object.__new__(StagedParquetVerification)
         for name in (
             "_owner",
+            "_leaf",
+            "_spec",
+            "_relative_path",
+            "_leaf_identity",
             "_owner_registration_token",
             "logical",
             "physical_size_bytes",
@@ -946,7 +1006,7 @@ def test_staged_set_extension_supersedes_predecessor_and_preserves_frozen_order(
     )
     staged = StagedParquetSet.from_verified(owner=owner, verifications=(first,))
 
-    extended = staged.extend(second)
+    extended = staged.extend_verified(owner=owner, verifications=(second,))
 
     assert extended.verifications == (first, second)
     assert extended.verifications[0] is first
@@ -956,6 +1016,797 @@ def test_staged_set_extension_supersedes_predecessor_and_preserves_frozen_order(
     with pytest.raises(ValueError, match="superseded|unregistered"):
         owner._require_registered_staged_set(staged, staged._registration_token)
     owner._require_registered_staged_set(extended, extended._registration_token)
+
+
+def test_staged_set_exposes_only_exact_extend_verified_and_require_complete_signatures() -> None:
+    from finproof.data.artifacts.parquet_io import (
+        OwnedStageArtifactOwner,
+        StagedParquetSet,
+        StagedParquetVerification,
+    )
+
+    assert "extend" not in StagedParquetSet.__dict__
+    assert inspect.signature(StagedParquetSet.extend_verified) == inspect.Signature(
+        parameters=(
+            inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),
+            inspect.Parameter(
+                "owner", inspect.Parameter.KEYWORD_ONLY, annotation=OwnedStageArtifactOwner
+            ),
+            inspect.Parameter(
+                "verifications",
+                inspect.Parameter.KEYWORD_ONLY,
+                annotation=tuple[StagedParquetVerification, ...],
+            ),
+        ),
+        return_annotation="StagedParquetSet",
+    )
+    assert inspect.signature(StagedParquetSet.require_complete) == inspect.Signature(
+        parameters=(inspect.Parameter("self", inspect.Parameter.POSITIONAL_OR_KEYWORD),),
+        return_annotation=None,
+    )
+
+
+def test_extend_verified_requires_explicit_owner_tuple_and_accepts_distinct_value_equal_utc(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.parquet_io import (
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+
+    owner, first_leaf = _written(tmp_path)
+    first = verify_staged_parquet_table(
+        owner=owner, leaf=first_leaf, spec=table_spec("bronze_source_column")
+    )
+    second_leaf = owner.claim_parquet_leaf("bronze_source_row")
+    ParquetBatchWriter(table_spec("bronze_source_row"), second_leaf).close()
+    second = verify_staged_parquet_table(
+        owner=owner, leaf=second_leaf, spec=table_spec("bronze_source_row")
+    )
+    staged = StagedParquetSet.from_verified(owner=owner, verifications=(first,))
+    equal_timestamp = datetime.fromisoformat(staged.persistence_timestamp.isoformat())
+    assert equal_timestamp == owner.persistence_timestamp
+    assert equal_timestamp is not owner.persistence_timestamp
+    object.__setattr__(staged, "persistence_timestamp", equal_timestamp)
+
+    with pytest.raises(TypeError):
+        staged.extend_verified(verifications=(second,))  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="tuple"):
+        staged.extend_verified(owner=owner, verifications=second)  # type: ignore[arg-type]
+
+    extended = staged.extend_verified(owner=owner, verifications=(second,))
+
+    assert extended.verifications == (first, second)
+    assert extended.persistence_timestamp == owner.persistence_timestamp
+    owner._require_registered_staged_set(extended, extended._registration_token)
+
+
+@pytest.mark.parametrize("fault", ["validation", "owner-registration"])
+def test_extend_verified_supersession_is_atomic_on_validation_and_owner_registration_faults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    from finproof.data.artifacts.parquet_io import (
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+
+    owner, first_leaf = _written(tmp_path)
+    first = verify_staged_parquet_table(
+        owner=owner, leaf=first_leaf, spec=table_spec("bronze_source_column")
+    )
+    second_leaf = owner.claim_parquet_leaf("bronze_source_row")
+    ParquetBatchWriter(table_spec("bronze_source_row"), second_leaf).close()
+    second = verify_staged_parquet_table(
+        owner=owner, leaf=second_leaf, spec=table_spec("bronze_source_row")
+    )
+    staged = StagedParquetSet.from_verified(owner=owner, verifications=(first,))
+
+    if fault == "validation":
+        supplied = [second]
+    else:
+        supplied = (second,)
+
+        def fail_register(value: object) -> object:
+            raise OSError("injected owner registration failure")
+
+        monkeypatch.setattr(owner, "_register_staged_set", fail_register)
+
+    with pytest.raises((ValueError, OSError)):
+        staged.extend_verified(owner=owner, verifications=supplied)  # type: ignore[arg-type]
+
+    owner._require_registered_staged_set(staged, staged._registration_token)
+
+
+@pytest.mark.parametrize("case", ["partial", "reordered", "duplicate", "complete"])
+def test_require_complete_accepts_only_exact_eleven_registered_tables_in_frozen_order(
+    tmp_path: Path, case: str
+) -> None:
+    from finproof.data.artifacts.parquet_io import StagedParquetSet
+
+    owner = TestStageArtifactOwner(tmp_path / case, datetime(2026, 8, 15, tzinfo=UTC))
+    verifications = _empty_staged_verifications(owner)
+    supplied = verifications[:-1] if case == "partial" else verifications
+    staged = StagedParquetSet.from_verified(owner=owner, verifications=supplied)
+    if case == "reordered":
+        changed = (verifications[1], verifications[0], *verifications[2:])
+        object.__setattr__(staged, "verifications", changed)
+        object.__setattr__(staged, "handles", tuple(item.handle for item in changed))
+    elif case == "duplicate":
+        changed = (verifications[0], verifications[0], *verifications[2:])
+        object.__setattr__(staged, "verifications", changed)
+        object.__setattr__(staged, "handles", tuple(item.handle for item in changed))
+
+    if case == "complete":
+        staged.require_complete()
+    else:
+        with pytest.raises(ValueError, match="complete|order|duplicate"):
+            staged.require_complete()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "handle-leaf",
+        "verification-leaf",
+        "handle-relative-path",
+        "verification-relative-path",
+        "handle-identity",
+        "verification-identity",
+    ],
+)
+def test_staged_handle_and_verification_retain_exact_frozen_leaf_identity(
+    tmp_path: Path, case: str
+) -> None:
+    from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
+
+    owner, leaf = _written(tmp_path)
+    verification = verify_staged_parquet_table(
+        owner=owner, leaf=leaf, spec=table_spec("bronze_source_column")
+    )
+    handle = verification.handle
+    with leaf.open_verified() as stream:
+        observed = os.fstat(stream.fileno())
+    expected_identity = (
+        observed.st_dev,
+        observed.st_ino,
+        stat.S_IFMT(observed.st_mode),
+        stat.S_IMODE(observed.st_mode),
+        observed.st_nlink,
+    )
+    assert handle._leaf is leaf
+    assert verification._leaf is leaf
+    assert handle._relative_path == leaf.relative_path
+    assert verification._relative_path == leaf.relative_path
+    assert handle._leaf_identity == expected_identity
+    assert verification._leaf_identity == expected_identity
+
+    target = verification if case.startswith("verification") else handle
+    if case.endswith("leaf"):
+        attribute, changed = "_leaf", object()
+    elif case.endswith("relative-path"):
+        attribute, changed = "_relative_path", Path("forged.parquet")
+    else:
+        attribute, changed = "_leaf_identity", (0, 0, 0, 0, 0)
+    object.__setattr__(target, attribute, changed)
+    with pytest.raises(ValueError, match="unregistered|foreign stage leaf"):
+        target.require_registered()
+
+
+@pytest.mark.parametrize("case", ["every-call", "same-inode-byte-mutation"])
+def test_verification_for_reopens_and_rechecks_exact_bytes_and_leaf_identity_on_every_call(
+    tmp_path: Path, case: str
+) -> None:
+    from finproof.data.artifacts.parquet_io import (
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+
+    owner, leaf = _written(tmp_path)
+    verification = verify_staged_parquet_table(
+        owner=owner, leaf=leaf, spec=table_spec("bronze_source_column")
+    )
+    staged = StagedParquetSet.from_verified(owner=owner, verifications=(verification,))
+    opens = 0
+    original_open = leaf.open_verified
+
+    class TrackedOpen:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __enter__(self):
+            nonlocal opens
+            opens += 1
+            return self._inner.__enter__()
+
+        def __exit__(self, *args):
+            return self._inner.__exit__(*args)
+
+    leaf.open_verified = lambda: TrackedOpen(original_open())  # type: ignore[no-untyped-call]
+    if case == "every-call":
+        assert staged.verification_for("bronze_source_column") is verification
+        assert staged.verification_for("bronze_source_column") is verification
+        assert opens == 2
+    else:
+        path = leaf._path()
+        with path.open("r+b") as stream:
+            stream.seek(8)
+            original = stream.read(1)
+            stream.seek(8)
+            stream.write(bytes((original[0] ^ 1,)))
+        with pytest.raises(ValueError, match="physical identity"):
+            staged.verification_for("bronze_source_column")
+        assert opens == 1
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "consumer-before-first",
+        "consumer-between-batches",
+        "consumer-after-final",
+        "post-digest-fault",
+        "post-rescan-fault",
+        "context-exit-fault",
+    ],
+)
+def test_staged_consumers_run_post_read_checks_and_context_exit_in_finally(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
+
+    owner, leaf = _written(tmp_path)
+    verification = verify_staged_parquet_table(
+        owner=owner, leaf=leaf, spec=table_spec("bronze_source_column")
+    )
+    handle = verification.handle
+    original_open = leaf.open_verified
+    original_digest = parquet_io._physical_digest
+    original_require = owner.require_owned_parquet_leaf
+    exit_calls = 0
+    digest_calls = 0
+    owner_rescans = 0
+
+    class TrackedOpen:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __enter__(self):
+            return self._inner.__enter__()
+
+        def __exit__(self, *args):
+            nonlocal exit_calls
+            exit_calls += 1
+            result = self._inner.__exit__(*args)
+            if case == "context-exit-fault":
+                raise OSError("injected context exit failure")
+            return result
+
+    def tracked_digest(stream):
+        nonlocal digest_calls
+        digest_calls += 1
+        if case == "post-digest-fault" and digest_calls == 2:
+            raise OSError("injected post-digest failure")
+        return original_digest(stream)
+
+    def tracked_require(candidate):
+        nonlocal owner_rescans
+        owner_rescans += 1
+        if case == "post-rescan-fault" and owner_rescans == 2:
+            raise OSError("injected owner rescan failure")
+        return original_require(candidate)
+
+    leaf.open_verified = lambda: TrackedOpen(original_open())  # type: ignore[no-untyped-call]
+    monkeypatch.setattr(parquet_io, "_physical_digest", tracked_digest)
+    monkeypatch.setattr(owner, "require_owned_parquet_leaf", tracked_require)
+
+    if case.startswith("consumer-"):
+        with pytest.raises(RuntimeError, match="consumer stopped"):
+            with handle.iter_batches(batch_size=1) as batches:
+                if case == "consumer-before-first":
+                    raise RuntimeError("consumer stopped")
+                if case == "consumer-between-batches":
+                    next(batches)
+                    raise RuntimeError("consumer stopped")
+                tuple(batches)
+                raise RuntimeError("consumer stopped")
+    else:
+        with pytest.raises(OSError, match="injected"):
+            with handle.iter_batches(batch_size=1) as batches:
+                tuple(batches)
+
+    assert digest_calls >= 2
+    assert exit_calls == 1
+    assert owner_rescans >= 2
+
+
+def test_unique_workspace_root_is_created_and_held_beneath_a_trusted_parent_descriptor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from finproof.data.artifacts import parquet_io
+
+    descriptor = os.open(tmp_path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+
+    monkeypatch.setattr(
+        parquet_io.tempfile,
+        "mkdtemp",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("workspace creation used a mutable path")
+        ),
+    )
+    with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+        parent_identity = parquet_io._descriptor_identity(workspace._parent_fd, directory=True)
+        root_identity = parquet_io._descriptor_identity(workspace._root_fd, directory=True)
+        spill_identity = parquet_io._descriptor_identity(workspace._spill_fd, directory=True)
+        marker_identity = os.stat(
+            workspace._MARKER_NAME, dir_fd=workspace._root_fd, follow_symlinks=False
+        )
+        assert parent_identity == workspace._parent_identity
+        assert root_identity == workspace._root_identity
+        assert spill_identity == workspace._spill_identity
+        assert stat.S_IMODE(root_identity[3]) == 0o700
+        assert stat.S_IMODE(spill_identity[3]) == 0o700
+        assert stat.S_IMODE(marker_identity.st_mode) == 0o600
+        assert set(os.listdir(workspace._root_fd)) == {
+            workspace._MARKER_NAME,
+            workspace._SPILL_NAME,
+        }
+        assert all(not isinstance(value, Path) for value in vars(workspace).values())
+
+    assert list(tmp_path.iterdir()) == []
+    with pytest.raises(OSError):
+        os.fstat(trusted_parent._descriptor)
+
+
+@pytest.mark.parametrize("case", ["ordered-cleanup", "post-marker-root-mode-change"])
+def test_unique_workspace_cleanup_is_descriptor_relative_preflighted_and_removes_marker_last(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    descriptor = os.open(tmp_path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+    events: list[tuple[str, object, int | None]] = []
+    changed = False
+    workspace: Any = None
+    original_unlink = os.unlink
+    original_rmdir = os.rmdir
+    original_close = os.close
+
+    def tracked_unlink(name, *args, dir_fd=None, **kwargs):
+        nonlocal changed
+        events.append(("unlink", name, dir_fd))
+        result = original_unlink(name, *args, dir_fd=dir_fd, **kwargs)
+        if (
+            case == "post-marker-root-mode-change"
+            and workspace is not None
+            and name == workspace._MARKER_TOMBSTONE
+            and not changed
+        ):
+            changed = True
+            os.fchmod(workspace._root_fd, 0o755)
+        return result
+
+    def tracked_rmdir(name, *args, dir_fd=None, **kwargs):
+        events.append(("rmdir", name, dir_fd))
+        return original_rmdir(name, *args, dir_fd=dir_fd, **kwargs)
+
+    def tracked_close(descriptor):
+        events.append(("close", descriptor, None))
+        return original_close(descriptor)
+
+    monkeypatch.setattr(os, "unlink", tracked_unlink)
+    monkeypatch.setattr(os, "rmdir", tracked_rmdir)
+    monkeypatch.setattr(os, "close", tracked_close)
+
+    if case == "ordered-cleanup":
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            root_fd = workspace._root_fd
+            spill_fd = workspace._spill_fd
+            parent_fd = workspace._parent_fd
+            root_name = workspace._root_name
+        assert events.index(("close", spill_fd, None)) < events.index(
+            ("rmdir", workspace._SPILL_TOMBSTONE, root_fd)
+        )
+        assert events.index(("rmdir", workspace._SPILL_TOMBSTONE, root_fd)) < events.index(
+            ("unlink", workspace._MARKER_TOMBSTONE, root_fd)
+        )
+        assert events.index(("close", root_fd, None)) < events.index(
+            ("rmdir", f"{root_name}.cleanup", parent_fd)
+        )
+        assert events[-1] == ("close", parent_fd, None)
+        assert list(tmp_path.iterdir()) == []
+    else:
+        with pytest.raises(ArtifactContractError):
+            with parquet_io._final_verification_workspace(
+                trusted_parent=trusted_parent
+            ) as workspace:
+                pass
+        assert workspace is not None
+        assert (workspace._spill_fd, workspace._root_fd, workspace._parent_fd) == (
+            -1,
+            -1,
+            -1,
+        )
+        retained_root = tmp_path / workspace._root_name
+        assert retained_root.is_dir()
+        assert stat.S_IMODE(retained_root.stat().st_mode) == 0o755
+
+
+@pytest.mark.parametrize("target", ["root", "spill", "marker"])
+def test_workspace_root_child_and_marker_substitution_never_touch_external_victims(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, target: str
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    victim = tmp_path / "external-victim.bin"
+    victim.write_bytes(b"external-victim-must-survive")
+    victim.chmod(0o640)
+    descriptor = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+    workspace: Any = None
+    substituted = False
+    original_rename = os.rename
+
+    def substituting_rename(
+        source,
+        destination,
+        *args,
+        src_dir_fd=None,
+        dst_dir_fd=None,
+        **kwargs,
+    ):
+        nonlocal substituted
+        matches = workspace is not None and (
+            (target == "root" and source == workspace._root_name)
+            or (target == "spill" and source == workspace._SPILL_NAME)
+            or (target == "marker" and source == workspace._MARKER_NAME)
+        )
+        if matches and not substituted:
+            substituted = True
+            saved = f"{source}.owned-saved"
+            original_rename(
+                source,
+                saved,
+                src_dir_fd=src_dir_fd,
+                dst_dir_fd=src_dir_fd,
+            )
+            os.symlink(os.fspath(victim), source, dir_fd=src_dir_fd)
+        return original_rename(
+            source,
+            destination,
+            *args,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+            **kwargs,
+        )
+
+    with pytest.raises(ArtifactContractError):
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            monkeypatch.setattr(os, "rename", substituting_rename)
+
+    assert substituted
+    assert victim.read_bytes() == b"external-victim-must-survive"
+    assert stat.S_IMODE(victim.stat().st_mode) == 0o640
+    assert workspace is not None
+    for descriptor in (workspace._spill_fd, workspace._root_fd, workspace._parent_fd):
+        if descriptor >= 0:
+            os.close(descriptor)
+
+
+@pytest.mark.parametrize(
+    "fault", ["connection-close", "spill-rmdir", "marker-unlink", "root-rmdir"]
+)
+def test_workspace_cleanup_fault_retains_ambiguous_owned_remainder_without_victim_deletion(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    victim = tmp_path / "external.bin"
+    victim.write_bytes(b"untouched")
+    victim.chmod(0o640)
+    descriptor = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+    workspace: Any = None
+    original_unlink = os.unlink
+    original_rmdir = os.rmdir
+    fault_seen = False
+
+    def faulting_unlink(name, *args, dir_fd=None, **kwargs):
+        nonlocal fault_seen
+        if (
+            fault == "marker-unlink"
+            and workspace is not None
+            and name == workspace._MARKER_TOMBSTONE
+        ):
+            fault_seen = True
+            raise OSError("injected marker unlink failure")
+        return original_unlink(name, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_rmdir(name, *args, dir_fd=None, **kwargs):
+        nonlocal fault_seen
+        matches = workspace is not None and (
+            (fault == "spill-rmdir" and name == workspace._SPILL_TOMBSTONE)
+            or (fault == "root-rmdir" and name == f"{workspace._root_name}.cleanup")
+        )
+        if matches:
+            fault_seen = True
+            raise OSError("injected directory removal failure")
+        return original_rmdir(name, *args, dir_fd=dir_fd, **kwargs)
+
+    monkeypatch.setattr(os, "unlink", faulting_unlink)
+    monkeypatch.setattr(os, "rmdir", faulting_rmdir)
+
+    if fault == "connection-close":
+
+        class CloseFailConnection:
+            def execute(self, *args, **kwargs):
+                return self
+
+            def executemany(self, *args, **kwargs):
+                return self
+
+            def fetchone(self):
+                return None
+
+            def close(self):
+                nonlocal fault_seen
+                fault_seen = True
+                raise OSError("injected connection close failure")
+
+        monkeypatch.setattr(
+            parquet_io.duckdb, "connect", lambda *args, **kwargs: CloseFailConnection()
+        )
+
+    with pytest.raises((ArtifactContractError, OSError)):
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            if fault == "connection-close":
+                with workspace.create_unique_key_index(
+                    limits=parquet_io.ParquetVerificationLimits()
+                ):
+                    pass
+
+    assert fault_seen
+    assert workspace is not None
+    for descriptor in (workspace._spill_fd, workspace._root_fd, workspace._parent_fd):
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
+    assert any(parent.iterdir())
+    assert victim.read_bytes() == b"untouched"
+    assert stat.S_IMODE(victim.stat().st_mode) == 0o640
+
+
+@pytest.mark.parametrize(
+    ("fault", "expected_code", "expected_operation", "expected_reason"),
+    [
+        ("create", "exact_tree_mismatch", "parquet-workspace-create", "workspace_create_failed"),
+        ("open", "exact_tree_mismatch", "parquet-workspace-open", "workspace_open_failed"),
+        (
+            "revalidate",
+            "exact_tree_mismatch",
+            "parquet-workspace-revalidate",
+            "workspace_marker_content_changed",
+        ),
+        (
+            "configure",
+            "database_validation_failed",
+            "parquet-workspace-configure",
+            "workspace_configure_failed",
+        ),
+        (
+            "index-create",
+            "database_validation_failed",
+            "parquet-unique-index-create",
+            "unique_index_create_failed",
+        ),
+        (
+            "insert",
+            "database_validation_failed",
+            "parquet-unique-index-insert",
+            "unique_index_insert_failed",
+        ),
+        (
+            "query",
+            "database_validation_failed",
+            "parquet-unique-index-query",
+            "unique_index_query_failed",
+        ),
+        (
+            "close",
+            "database_validation_failed",
+            "parquet-unique-index-close",
+            "connection_close_failed",
+        ),
+        (
+            "cleanup",
+            "staging_cleanup_failed",
+            "parquet-workspace-cleanup",
+            "workspace_cleanup_failed",
+        ),
+    ],
+)
+def test_workspace_faults_have_exact_nonreserved_typed_operations_and_redacted_context(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+    expected_code: str,
+    expected_operation: str,
+    expected_reason: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    descriptor = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+    original_mkdir = os.mkdir
+    original_rmdir = os.rmdir
+    workspace: Any = None
+
+    if fault == "create":
+
+        def fail_create(name, *args, mode=0o777, dir_fd=None, **kwargs):
+            if isinstance(name, str) and name.startswith("finproof-parquet-verify-"):
+                raise OSError("injected root create failure")
+            return original_mkdir(name, *args, mode=mode, dir_fd=dir_fd, **kwargs)
+
+        monkeypatch.setattr(os, "mkdir", fail_create)
+    elif fault == "open":
+        monkeypatch.setattr(
+            parquet_io,
+            "_open_relative_directory",
+            lambda *args, **kwargs: (_ for _ in ()).throw(OSError("injected open failure")),
+        )
+
+    class FaultConnection:
+        def __init__(self) -> None:
+            self._last = ""
+
+        def execute(self, statement, *args, **kwargs):
+            self._last = str(statement)
+            if fault == "configure" and self._last.startswith("SET threads"):
+                raise OSError("injected configure failure")
+            if fault == "index-create" and self._last.startswith("CREATE TABLE"):
+                raise OSError("injected index create failure")
+            return self
+
+        def executemany(self, *args, **kwargs):
+            if fault == "insert":
+                raise OSError("injected insert failure")
+            return self
+
+        def fetchone(self):
+            if fault == "query":
+                raise OSError("injected query failure")
+
+        def close(self):
+            if fault == "close":
+                raise OSError("injected close failure")
+
+    if fault in {"configure", "index-create", "insert", "query", "close"}:
+        monkeypatch.setattr(parquet_io.duckdb, "connect", lambda *args, **kwargs: FaultConnection())
+
+    def fail_cleanup(name, *args, dir_fd=None, **kwargs):
+        if workspace is not None and name == workspace._SPILL_TOMBSTONE:
+            raise OSError("injected cleanup failure")
+        return original_rmdir(name, *args, dir_fd=dir_fd, **kwargs)
+
+    if fault == "cleanup":
+        monkeypatch.setattr(os, "rmdir", fail_cleanup)
+
+    with pytest.raises(ArtifactContractError) as raised:
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            if fault == "revalidate":
+                marker = os.open(workspace._MARKER_NAME, os.O_WRONLY, dir_fd=workspace._root_fd)
+                try:
+                    os.ftruncate(marker, 0)
+                    os.write(marker, b"changed\n")
+                finally:
+                    os.close(marker)
+            elif fault in {"configure", "index-create", "insert", "query", "close"}:
+                with workspace.create_unique_key_index(
+                    limits=parquet_io.ParquetVerificationLimits()
+                ) as index:
+                    if fault == "insert":
+                        index.insert_canonical_batch((b"one",))
+                    elif fault == "query":
+                        index.assert_unique()
+
+    error = raised.value
+    assert error.code.value == expected_code
+    assert error.operation_id == expected_operation
+    assert error.target_basename is None
+    assert error.published is False
+    assert dict(error.internal_context) == {"reason": expected_reason}
+    assert "trusted" not in str(error)
+    assert "CREATE TABLE" not in str(error)
+
+
+def test_actual_install_and_load_fail_under_locked_workspace_configuration(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from finproof.data.artifacts import parquet_io
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    descriptor = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        trusted_parent = parquet_io._TrustedWorkspaceParent._from_open_descriptor(descriptor)
+    finally:
+        os.close(descriptor)
+    real_connect = parquet_io.duckdb.connect
+    attempted: list[tuple[str, BaseException | None]] = []
+
+    class LockedConnectionProxy:
+        def __init__(self):
+            self._inner = real_connect(":memory:")
+
+        def execute(self, statement, parameters=None):
+            if parameters is None:
+                self._inner.execute(statement)
+            else:
+                self._inner.execute(statement, parameters)
+            if statement == "SET autoload_known_extensions = false":
+                for attempted_statement in ("INSTALL httpfs", "LOAD httpfs"):
+                    try:
+                        self._inner.execute(attempted_statement)
+                    except BaseException as exc:
+                        attempted.append((attempted_statement, exc))
+                    else:
+                        attempted.append((attempted_statement, None))
+            return self
+
+        def executemany(self, statement, parameters):
+            self._inner.executemany(statement, parameters)
+            return self
+
+        def fetchone(self):
+            return self._inner.fetchone()
+
+        def close(self):
+            self._inner.close()
+
+    monkeypatch.setattr(
+        parquet_io.duckdb,
+        "connect",
+        lambda *args, **kwargs: LockedConnectionProxy(),  # type: ignore[no-untyped-call]
+    )
+    with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+        with workspace.create_unique_key_index(
+            limits=parquet_io.ParquetVerificationLimits()
+        ) as index:
+            index.insert_canonical_batch((b"one",))
+            index.assert_unique()
+
+    assert tuple(statement for statement, _ in attempted) == (
+        "INSTALL httpfs",
+        "LOAD httpfs",
+    )
+    assert all(isinstance(error, parquet_io.duckdb.PermissionException) for _, error in attempted)
 
 
 @pytest.mark.parametrize("case", ["reordered", "duplicate"])
@@ -1261,3 +2112,631 @@ def test_complete_final_result_requires_inventory_issued_registered_exact_handle
                 handles=handles,
             )
         assert caught.value.internal_context == {"reason": "unowned_verified_table_handle"}
+
+
+def test_common_checker_returns_facts_only_and_final_adapter_mints_local_seal_after_clean_entry_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.manifest import (
+        VerifiedPhysicalInventory,
+        verify_declared_inventory,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    root = tmp_path / "artifact"
+    manifest = write_empty_parquet_artifact_tree(root)
+    events: list[str] = []
+    open_depth = 0
+    original_check = parquet_io._check_opened_parquet
+    original_open = VerifiedPhysicalInventory.open_verified
+
+    def checked(**kwargs):
+        result = original_check(**kwargs)
+        assert type(result).__name__ == "_CheckedParquetFacts"
+        assert not any("seal" in name or "issue" in name for name in dir(result))
+        events.append("facts")
+        return result
+
+    class TrackedContext:
+        def __init__(self, inner):
+            self._inner = inner
+
+        def __enter__(self):
+            nonlocal open_depth
+            open_depth += 1
+            events.append("entry-enter")
+            return self._inner.__enter__()
+
+        def __exit__(self, exc_type, exc, traceback):
+            nonlocal open_depth
+            result = self._inner.__exit__(exc_type, exc, traceback)
+            open_depth -= 1
+            events.append("entry-exit")
+            return result
+
+    def opened(self, entry):
+        return TrackedContext(original_open(self, entry))  # type: ignore[no-untyped-call]
+
+    class StopAfterSeal(Exception):
+        pass
+
+    def issued(self, **kwargs):
+        assert tuple(kwargs) == ("seal",)
+        seal = kwargs["seal"]
+        assert type(seal).__name__ == "_FinalVerificationSeal"
+        assert "facts" in events
+        assert open_depth == 0
+        self.assert_unchanged()
+        events.append("seal-issued")
+        raise StopAfterSeal
+
+    monkeypatch.setattr(parquet_io, "_check_opened_parquet", checked)
+    monkeypatch.setattr(VerifiedPhysicalInventory, "open_verified", opened)
+    monkeypatch.setattr(VerifiedPhysicalInventory, "issue_verified_table_handle", issued)
+
+    with verify_declared_inventory(manifest, root) as inventory:
+        with pytest.raises(StopAfterSeal):
+            parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                manifest=manifest,
+                inventory=inventory,
+                specs=TABLE_SPECS,
+            )
+    assert events[-1] == "seal-issued"
+
+
+@pytest.mark.parametrize(
+    "case", ["copy", "equal", "object-new", "staged", "foreign", "second-consumption"]
+)
+def test_final_seal_rejects_copy_equal_object_new_staged_foreign_and_second_consumption(
+    tmp_path: Path, case: str
+) -> None:
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import (
+        _CheckedParquetFacts,
+        _FinalVerificationAuthority,
+        _FinalVerificationSeal,
+    )
+    from finproof.data.artifacts.table_specs import table_spec
+
+    root = tmp_path / "artifact"
+    manifest = write_empty_parquet_artifact_tree(root)
+    with verify_declared_inventory(manifest, root) as inventory:
+        entry = next(item for item in inventory.declared_entries if item.kind == "parquet")
+        spec = table_spec(entry.path.stem)
+        declared = manifest.tables[spec.table_name]
+        facts = _CheckedParquetFacts._from_checked(
+            spec=spec,
+            row_count=declared.row_count,
+            logical_hash=declared.logical_hash,
+            physical_size_bytes=entry.size_bytes,
+            physical_sha256=entry.sha256,
+            leaf_identity=(
+                entry.st_dev,
+                entry.st_ino,
+                entry.file_type,
+                0o644,
+                entry.st_nlink,
+            ),
+        )
+        seal = _FinalVerificationAuthority(inventory).mint(entry=entry, spec=spec, facts=facts)
+        target_inventory = inventory
+        foreign_context = None
+        if case == "copy":
+            forged: object = copy.copy(seal)
+        elif case == "equal":
+            forged = object.__new__(_FinalVerificationSeal)
+            for name in ("_authority", "_inventory", "_entry", "_spec", "_facts"):
+                object.__setattr__(forged, name, getattr(seal, name))
+        elif case == "object-new":
+            forged = object.__new__(_FinalVerificationSeal)
+        elif case == "staged":
+            forged = object()
+        elif case == "foreign":
+            other_root = tmp_path / "other"
+            other_manifest = write_empty_parquet_artifact_tree(other_root)
+            foreign_context = verify_declared_inventory(other_manifest, other_root)
+            target_inventory = foreign_context.__enter__()
+            forged = seal
+        else:
+            target_inventory.issue_verified_table_handle(seal=seal)
+            forged = seal
+
+        try:
+            with pytest.raises(ArtifactContractError) as caught:
+                target_inventory.issue_verified_table_handle(seal=forged)
+            assert caught.value.internal_context == {"reason": "invalid_final_table_seal"}
+        finally:
+            if foreign_context is not None:
+                foreign_context.__exit__(None, None, None)
+
+
+@pytest.mark.parametrize("case", ["quality", "fund-attribute"])
+def test_common_checker_rejects_each_quality_and_fund_attribute_physical_json_mismatch(
+    tmp_path: Path, case: str
+) -> None:
+    from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
+    from finproof.data.artifacts.serialization import serialize_table_row
+    from finproof.data.normalization.public_funds import (
+        collapse_fund_items,
+        normalize_fund_attribute,
+    )
+    from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStatus
+    from tests.helpers.source_rows import source_row
+
+    if case == "quality":
+        pure = DataQualityIssue.from_row(
+            source_row("PREF01N001"),
+            "pd_itm_no",
+            rule_id="test.rule",
+            rule_version="1.0.0",
+            severity=IssueSeverity.WARNING,
+            quality_status=QualityStatus.INVALID_FORMAT,
+            reason="test",
+            quarantined=True,
+        )
+        value = DataQualityIssue.model_validate(
+            {
+                **pure.model_dump(mode="python"),
+                "first_detected_at": datetime(2026, 8, 15, tzinfo=UTC),
+            },
+            strict=True,
+        )
+        spec = table_spec("silver_quality_issue")
+        row = dict(serialize_table_row(spec, value))
+        row["reason"] = "forged"
+    else:
+        normalized = normalize_fund_attribute(source_row("PRFD01N001"))
+        assert normalized.record is not None
+        value = collapse_fund_items([normalized.record]).attributes[0]
+        spec = table_spec("silver_fund_item_attribute")
+        row = dict(serialize_table_row(spec, value))
+        row["attribute_code_raw"] = "FORGED"
+
+    owner = TestStageArtifactOwner(tmp_path / case, datetime(2026, 8, 15, tzinfo=UTC))
+    leaf = owner.claim_parquet_leaf(spec.table_name)
+    writer = ParquetBatchWriter(spec, leaf)
+    writer.write_batch((row,))
+    writer.close()
+    with pytest.raises(ValueError, match="typed/JSON"):
+        verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+
+
+@pytest.mark.parametrize("boundary", ["snapshot", "arrow", "close", "abort"])
+@pytest.mark.parametrize(
+    "field",
+    [
+        "table_name",
+        "layer",
+        "grain",
+        "columns",
+        "unique_key",
+        "sort_key",
+        "logical_projection",
+        "parquet_path",
+        "column.name",
+        "column.logical_type",
+        "column.arrow_type",
+        "column.duckdb_type",
+        "column.nullable",
+    ],
+)
+def test_writer_rechecks_deep_spec_fingerprint_at_each_uncovered_post_construction_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    field: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+
+    spec = table_spec("bronze_source_column")
+    owner = TestStageArtifactOwner(
+        tmp_path / f"{boundary}-{field.replace('.', '-')}",
+        datetime(2026, 8, 15, tzinfo=UTC),
+    )
+    leaf = owner.claim_parquet_leaf(spec.table_name)
+    writer = ParquetBatchWriter(spec, leaf)
+    target = spec.columns[0] if field.startswith("column.") else spec
+    attribute = field.removeprefix("column.")
+    original = getattr(target, attribute)
+    changed = not original if attribute == "nullable" else "forged"
+    if isinstance(original, tuple):
+        changed = tuple(reversed(original)) if len(original) > 1 else ("forged",)
+    iterations = 0
+
+    def mutate() -> None:
+        object.__setattr__(target, attribute, changed)
+
+    class Rows:
+        def __iter__(self):
+            nonlocal iterations
+            iterations += 1
+            yield _column_row(1)
+
+    try:
+        if boundary == "snapshot":
+            mutate()
+            with pytest.raises(ValueError, match="fingerprint"):
+                writer.write_batch(Rows())
+            assert iterations == 0
+        elif boundary == "arrow":
+            original_validate = parquet_io.validate_physical_row
+
+            def validate_then_mutate(*args, **kwargs):
+                result = original_validate(*args, **kwargs)
+                mutate()
+                return result
+
+            monkeypatch.setattr(parquet_io, "validate_physical_row", validate_then_mutate)
+            with pytest.raises(ValueError, match="fingerprint"):
+                writer.write_batch((_column_row(1),))
+        elif boundary == "close":
+            writer.write_batch((_column_row(1),))
+            mutate()
+            with pytest.raises(ValueError, match="fingerprint"):
+                writer.close()
+        else:
+            mutate()
+            with pytest.raises(ValueError, match="fingerprint"):
+                writer.abort()
+    finally:
+        object.__setattr__(target, attribute, original)
+        monkeypatch.undo()
+        if not writer._closed:
+            writer.close()
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    [
+        "after-open",
+        "before-batch",
+        "after-last-read",
+        "before-registration",
+        "handle-batch",
+        "set-lookup",
+        "set-declaration",
+    ],
+)
+@pytest.mark.parametrize(
+    "field",
+    [
+        "table_name",
+        "layer",
+        "grain",
+        "columns",
+        "unique_key",
+        "sort_key",
+        "logical_projection",
+        "parquet_path",
+        "column.name",
+        "column.logical_type",
+        "column.arrow_type",
+        "column.duckdb_type",
+        "column.nullable",
+    ],
+)
+def test_staged_verifier_rechecks_deep_spec_fingerprint_at_each_uncovered_post_open_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    field: str,
+) -> None:
+    from contextlib import contextmanager
+
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.parquet_io import (
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+
+    spec = table_spec("bronze_source_column")
+    owner, leaf = _written(tmp_path / f"{boundary}-{field.replace('.', '-')}")
+    target = spec.columns[0] if field.startswith("column.") else spec
+    attribute = field.removeprefix("column.")
+    original = getattr(target, attribute)
+    changed = not original if attribute == "nullable" else "forged"
+    if isinstance(original, tuple):
+        changed = tuple(reversed(original)) if len(original) > 1 else ("forged",)
+
+    def mutate() -> None:
+        object.__setattr__(target, attribute, changed)
+
+    converted = 0
+    try:
+        if boundary == "after-open":
+            original_open = leaf.open_verified
+            original_parquet = parquet_io.pq.ParquetFile
+            parquet_constructions = 0
+
+            def tracked_parquet(*args, **kwargs):
+                nonlocal parquet_constructions
+                parquet_constructions += 1
+                return original_parquet(*args, **kwargs)
+
+            @contextmanager
+            def mutating_open():
+                with original_open() as stream:
+                    mutate()
+                    yield stream
+
+            leaf.open_verified = mutating_open
+            monkeypatch.setattr(parquet_io.pq, "ParquetFile", tracked_parquet)
+            with pytest.raises(ValueError, match="fingerprint"):
+                verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+            assert parquet_constructions == 0
+        elif boundary == "before-batch":
+            original_parquet = parquet_io.pq.ParquetFile
+
+            class BatchView:
+                def __init__(self, batch):
+                    self._batch = batch
+
+                def to_pylist(self):
+                    nonlocal converted
+                    converted += 1
+                    return self._batch.to_pylist()
+
+            class ParquetView:
+                def __init__(self, stream):
+                    self._inner = original_parquet(stream)
+                    self.schema_arrow = self._inner.schema_arrow
+                    self.metadata = self._inner.metadata
+
+                def iter_batches(self, **kwargs):
+                    for batch in self._inner.iter_batches(**kwargs):
+                        mutate()
+                        yield BatchView(batch)  # type: ignore[no-untyped-call]
+
+            monkeypatch.setattr(parquet_io.pq, "ParquetFile", ParquetView)
+            with pytest.raises(ValueError, match="fingerprint"):
+                verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+            assert converted == 0
+        elif boundary == "after-last-read":
+            original_check = parquet_io._check_opened_parquet
+
+            def check_then_mutate(**kwargs):
+                facts = original_check(**kwargs)
+                mutate()
+                return facts
+
+            monkeypatch.setattr(parquet_io, "_check_opened_parquet", check_then_mutate)
+            with pytest.raises(ValueError, match="fingerprint"):
+                verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+        elif boundary == "before-registration":
+            original_register = owner._register_staged_verification
+            original_logical = parquet_io.ExpectedLogicalTable
+            registration_calls = 0
+
+            def register(value, handle):
+                nonlocal registration_calls
+                registration_calls += 1
+                return original_register(value, handle)
+
+            def logical_then_mutate(*args, **kwargs):
+                value = original_logical(*args, **kwargs)
+                mutate()
+                return value
+
+            owner._register_staged_verification = register
+            monkeypatch.setattr(parquet_io, "ExpectedLogicalTable", logical_then_mutate)
+            with pytest.raises(ValueError, match="fingerprint"):
+                verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+            assert registration_calls == 0
+        else:
+            verification = verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
+            staged = StagedParquetSet.from_verified(owner=owner, verifications=(verification,))
+            mutate()
+            if boundary == "handle-batch":
+                with (
+                    pytest.raises(ValueError, match="fingerprint"),
+                    verification.handle.iter_batches() as batches,
+                ):
+                    next(batches)
+            elif boundary == "set-lookup":
+                with pytest.raises(ValueError, match="fingerprint"):
+                    staged.verification_for(spec.table_name)
+            else:
+                with pytest.raises(ValueError, match="fingerprint"):
+                    staged.table_declarations()
+    finally:
+        object.__setattr__(target, attribute, original)
+        monkeypatch.undo()
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ["after-open", "before-batch", "facts-return", "seal-mint", "issuance", "result"],
+)
+@pytest.mark.parametrize(
+    "field",
+    [
+        "table_name",
+        "layer",
+        "grain",
+        "columns",
+        "unique_key",
+        "sort_key",
+        "logical_projection",
+        "parquet_path",
+        "column.name",
+        "column.logical_type",
+        "column.arrow_type",
+        "column.duckdb_type",
+        "column.nullable",
+    ],
+)
+def test_final_verifier_rechecks_deep_spec_fingerprint_at_each_uncovered_post_open_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    boundary: str,
+    field: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.manifest import (
+        verify_declared_inventory,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    root = tmp_path / f"{boundary}-{field.replace('.', '-')}"
+    manifest = write_empty_parquet_artifact_tree(root)
+    spec = TABLE_SPECS[-1] if boundary == "result" else TABLE_SPECS[0]
+    target = spec.columns[0] if field.startswith("column.") else spec
+    attribute = field.removeprefix("column.")
+    original = getattr(target, attribute)
+    changed = not original if attribute == "nullable" else "forged"
+    if isinstance(original, tuple):
+        changed = tuple(reversed(original)) if len(original) > 1 else ("forged",)
+
+    def mutate() -> None:
+        object.__setattr__(target, attribute, changed)
+
+    converted = 0
+    try:
+        with verify_declared_inventory(manifest, root) as inventory:
+            if boundary == "after-open":
+                original_open = inventory.open_verified
+                original_parquet = parquet_io.pq.ParquetFile
+                parquet_constructions = 0
+
+                class TrackedContext:
+                    def __init__(self, inner, should_mutate):
+                        self._inner = inner
+                        self._should_mutate = should_mutate
+
+                    def __enter__(self):
+                        stream = self._inner.__enter__()
+                        if self._should_mutate:
+                            mutate()
+                        return stream
+
+                    def __exit__(self, *args):
+                        return self._inner.__exit__(*args)
+
+                def opened(entry):
+                    return TrackedContext(  # type: ignore[no-untyped-call]
+                        original_open(entry), entry.path.as_posix() == spec.parquet_path
+                    )
+
+                def tracked_parquet(*args, **kwargs):
+                    nonlocal parquet_constructions
+                    parquet_constructions += 1
+                    return original_parquet(*args, **kwargs)
+
+                inventory.open_verified = opened
+                monkeypatch.setattr(parquet_io.pq, "ParquetFile", tracked_parquet)
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+                assert parquet_constructions == 0
+            elif boundary == "before-batch":
+                original_parquet = parquet_io.pq.ParquetFile
+
+                class BatchView:
+                    def __init__(self, batch):
+                        self._batch = batch
+
+                    def to_pylist(self):
+                        nonlocal converted
+                        converted += 1
+                        return self._batch.to_pylist()
+
+                class ParquetView:
+                    def __init__(self, stream):
+                        self._inner = original_parquet(stream)
+                        self.schema_arrow = self._inner.schema_arrow
+                        self.metadata = self._inner.metadata
+
+                    def iter_batches(self, **kwargs):
+                        mutate()
+                        for batch in self._inner.iter_batches(**kwargs):
+                            yield BatchView(batch)  # type: ignore[no-untyped-call]
+
+                monkeypatch.setattr(parquet_io.pq, "ParquetFile", ParquetView)
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+                assert converted == 0
+            elif boundary == "facts-return":
+                original_check = parquet_io._check_opened_parquet
+
+                def check_then_mutate(**kwargs):
+                    facts = original_check(**kwargs)
+                    if kwargs["spec"] is spec:
+                        mutate()
+                    return facts
+
+                monkeypatch.setattr(parquet_io, "_check_opened_parquet", check_then_mutate)
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+            elif boundary == "seal-mint":
+                original_unchanged = inventory.assert_unchanged
+                original_mint = parquet_io._FinalVerificationAuthority.mint
+                mint_calls = 0
+
+                def unchanged_then_mutate():
+                    original_unchanged()
+                    mutate()
+
+                def mint(*args, **kwargs):
+                    nonlocal mint_calls
+                    mint_calls += 1
+                    return original_mint(*args, **kwargs)
+
+                inventory.assert_unchanged = unchanged_then_mutate
+                monkeypatch.setattr(parquet_io._FinalVerificationAuthority, "mint", mint)
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+                assert mint_calls == 0
+            elif boundary == "issuance":
+                original_mint = parquet_io._FinalVerificationAuthority.mint
+                issue_calls = 0
+
+                def mint_then_mutate(*args, **kwargs):
+                    seal = original_mint(*args, **kwargs)
+                    mutate()
+                    return seal
+
+                original_issue = inventory.issue_verified_table_handle
+
+                def issue(**kwargs):
+                    nonlocal issue_calls
+                    issue_calls += 1
+                    return original_issue(**kwargs)
+
+                monkeypatch.setattr(
+                    parquet_io._FinalVerificationAuthority, "mint", mint_then_mutate
+                )
+                inventory.issue_verified_table_handle = issue
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+                assert issue_calls == 0
+            else:
+                original_issue = inventory.issue_verified_table_handle
+                issue_calls = 0
+
+                def issue(**kwargs):
+                    nonlocal issue_calls
+                    handle = original_issue(**kwargs)
+                    issue_calls += 1
+                    if issue_calls == len(TABLE_SPECS):
+                        mutate()
+                    return handle
+
+                inventory.issue_verified_table_handle = issue
+                with pytest.raises(ValueError, match="fingerprint"):
+                    parquet_io.ParquetArtifactTableVerifier().verify_tables(
+                        manifest=manifest, inventory=inventory, specs=TABLE_SPECS
+                    )
+    finally:
+        object.__setattr__(target, attribute, original)
+        monkeypatch.undo()
