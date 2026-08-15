@@ -423,6 +423,7 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
         self._held_tree = held_tree
         self._manifest_entry = manifest_entry
         self._declared_entries = declared_entries
+        self._verified_table_handles: dict[int, tuple[object, tuple[object, ...]]] = {}
         self._closed = False
 
     @property
@@ -450,6 +451,56 @@ class VerifiedPhysicalInventory(AbstractContextManager["VerifiedPhysicalInventor
         self._require_live()
         if not any(entry is owned for owned in self._declared_entries):
             raise _inventory_capability_error("unowned_entry")
+
+    def issue_verified_table_handle(
+        self,
+        *,
+        entry: VerifiedPhysicalEntry,
+        table_name: str,
+        row_count: int,
+        schema_sha256: str,
+        logical_hash: str,
+    ) -> "VerifiedTableHandle":
+        """Issue and register one exact final-domain verified table handle."""
+        from finproof.data.artifacts.parquet_io import VerifiedParquetTable
+
+        self.require_owned(entry)
+        handle = object.__new__(VerifiedParquetTable)
+        object.__setattr__(handle, "entry", entry)
+        object.__setattr__(handle, "table_name", table_name)
+        object.__setattr__(handle, "row_count", row_count)
+        object.__setattr__(handle, "schema_sha256", schema_sha256)
+        object.__setattr__(handle, "logical_hash", logical_hash)
+        fingerprint = self._verified_handle_fingerprint(handle)
+        self._verified_table_handles[id(handle)] = (handle, fingerprint)
+        return handle
+
+    def require_owned_verified_table_handle(self, handle: "VerifiedTableHandle") -> None:
+        """Require the exact still-unchanged handle issued by this inventory."""
+        self._require_live()
+        registered = self._verified_table_handles.get(id(handle))
+        if (
+            registered is None
+            or registered[0] is not handle
+            or registered[1] != self._verified_handle_fingerprint(handle)
+        ):
+            raise _inventory_capability_error("unowned_verified_table_handle")
+        self.require_owned(handle.entry)
+
+    @staticmethod
+    def _verified_handle_fingerprint(
+        handle: "VerifiedTableHandle",
+    ) -> tuple[object, ...]:
+        try:
+            return (
+                id(handle.entry),
+                handle.table_name,
+                handle.row_count,
+                handle.schema_sha256,
+                handle.logical_hash,
+            )
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise _inventory_capability_error("invalid_verified_table_handle") from exc
 
     def open_verified(
         self,
@@ -621,7 +672,7 @@ class TableVerificationResult:
                 entry = handle.entry
                 if type(entry) is not VerifiedPhysicalEntry:
                     raise TypeError("verified handle entry has the wrong type")
-                inventory.require_owned(entry)
+                inventory.require_owned_verified_table_handle(handle)
                 if entry.path != PurePosixPath(f"parquet/{expected_name}.parquet"):
                     raise ValueError("verified entry path does not match table")
                 if (

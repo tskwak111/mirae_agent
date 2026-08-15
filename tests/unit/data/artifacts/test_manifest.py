@@ -8,7 +8,7 @@ import shutil
 import socket
 import stat
 import tracemalloc
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
@@ -721,6 +721,7 @@ def test_verification_kernel_requires_every_port_before_filesystem_work(
         "foreign-owner",
         "reordered-tables",
         "reordered-handles",
+        "copied-handle",
         "table-name",
         "table-count",
         "table-schema",
@@ -765,7 +766,7 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
             for name, _, _ in TABLES
         )
         handles = tuple(
-            _SyntheticVerifiedTableHandle(
+            inventory.issue_verified_table_handle(
                 table_name=table.name,
                 entry=entries[f"parquet/{table.name}.parquet"],
                 row_count=table.row_count,
@@ -775,21 +776,25 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
             for table in tables
         )
 
+        if case == "copied-handle":
+            handles = (copy(handles[0]), *handles[1:])
+
         if case == "forged-entry":
-            handles = (
-                replace(handles[0], entry=replace(handles[0].entry, st_ino=0)),
-                *handles[1:],
-            )
+            first_handle = copy(handles[0])
+            object.__setattr__(first_handle, "entry", replace(handles[0].entry, st_ino=0))
+            handles = (first_handle, *handles[1:])
         elif case == "copied-entry":
-            handles = (replace(handles[0], entry=replace(handles[0].entry)), *handles[1:])
+            first_handle = copy(handles[0])
+            object.__setattr__(first_handle, "entry", replace(handles[0].entry))
+            handles = (first_handle, *handles[1:])
         elif case == "foreign-entry":
-            handles = (
-                replace(
-                    handles[0],
-                    entry=other_entries[f"parquet/{tables[0].name}.parquet"],
-                ),
-                *handles[1:],
+            first_handle = copy(handles[0])
+            object.__setattr__(
+                first_handle,
+                "entry",
+                other_entries[f"parquet/{tables[0].name}.parquet"],
             )
+            handles = (first_handle, *handles[1:])
         elif case == "closed-owner":
             inventory.__exit__()
         elif case == "reordered-tables":
@@ -813,14 +818,15 @@ def test_table_verification_result_requires_exact_live_inventory_owned_entries(
             tables = (tables[0].model_copy(update={key: updates[field]}), *tables[1:])
         elif case.startswith("handle-"):
             field = case.removeprefix("handle-")
+            first_handle = copy(handles[0])
             if field == "name":
-                first_handle = replace(handles[0], table_name="other")
+                object.__setattr__(first_handle, "table_name", "other")
             elif field == "count":
-                first_handle = replace(handles[0], row_count=handles[0].row_count + 1)
+                object.__setattr__(first_handle, "row_count", handles[0].row_count + 1)
             elif field == "schema":
-                first_handle = replace(handles[0], schema_sha256="e" * 64)
+                object.__setattr__(first_handle, "schema_sha256", "e" * 64)
             else:
-                first_handle = replace(handles[0], logical_hash="e" * 64)
+                object.__setattr__(first_handle, "logical_hash", "e" * 64)
             handles = (first_handle, *handles[1:])
 
         if case == "valid":
@@ -1137,7 +1143,7 @@ def test_verification_kernel_exact_expected_order_and_short_circuit(
                 for name, _, _ in TABLES
             )
             handles = tuple(
-                _SyntheticVerifiedTableHandle(
+                inventory.issue_verified_table_handle(
                     table_name=table.name,
                     entry=entries[f"parquet/{table.name}.parquet"],
                     row_count=table.row_count,
@@ -1311,7 +1317,7 @@ def test_verification_kernel_candidate_core_skips_only_expected(
                 for name, _, _ in TABLES
             )
             handles = tuple(
-                _SyntheticVerifiedTableHandle(
+                inventory.issue_verified_table_handle(
                     table_name=table.name,
                     entry=entries[f"parquet/{table.name}.parquet"],
                     row_count=table.row_count,
