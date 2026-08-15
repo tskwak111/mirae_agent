@@ -92,6 +92,9 @@ class ArtifactBuildSession:
         "_database_leaf",
         "_input_identity",
         "_leaf_objects",
+        "_live_database_workspaces",
+        "_live_external_order_stores",
+        "_live_parquet_writers",
         "_lock_fd",
         "_marker_identity",
         "_marker_name",
@@ -170,7 +173,12 @@ class ArtifactBuildSession:
     def transfer_candidate_stage(self) -> "OwnedCandidateStage":
         self.assert_live()
         _require_session_generation(self)
-        if self._registered_stage_names - {"parquet", "finproof.duckdb"}:
+        if (
+            self._live_parquet_writers
+            or self._live_external_order_stores
+            or self._live_database_workspaces
+            or self._registered_stage_names - {"parquet", "finproof.duckdb"}
+        ):
             raise _staging_error("working_state_not_closed")
         value = object.__new__(OwnedCandidateStage)
         for name in _TRANSFERRED_STAGE_SLOTS:
@@ -295,6 +303,48 @@ class ArtifactBuildSession:
         self.assert_live()
         return _open_managed_stage_database_build(self)
 
+    def _register_live_parquet_writer(self, writer: object, leaf: object) -> None:
+        from finproof.data.artifacts.parquet_io import ParquetBatchWriter
+
+        self.assert_live()
+        self.require_owned_parquet_leaf(leaf)
+        if type(writer) is not ParquetBatchWriter or id(writer) in self._live_parquet_writers:
+            raise _stage_contract_error("invalid_live_parquet_writer_registration")
+        self._live_parquet_writers[id(writer)] = writer
+
+    def _release_live_parquet_writer(self, writer: object) -> None:
+        self.assert_live()
+        if self._live_parquet_writers.get(id(writer)) is not writer:
+            raise _stage_contract_error("invalid_live_parquet_writer_release")
+        del self._live_parquet_writers[id(writer)]
+
+    def _register_live_external_order_store(self, store: object) -> None:
+        self.assert_live()
+        if type(store) is not ExternalOrderStore or id(store) in self._live_external_order_stores:
+            raise _stage_contract_error("invalid_live_external_order_store_registration")
+        self._live_external_order_stores[id(store)] = store
+
+    def _release_live_external_order_store(self, store: object) -> None:
+        self.assert_live()
+        if self._live_external_order_stores.get(id(store)) is not store:
+            raise _stage_contract_error("invalid_live_external_order_store_release")
+        del self._live_external_order_stores[id(store)]
+
+    def _register_live_database_workspace(self, workspace: object) -> None:
+        self.assert_live()
+        if (
+            type(workspace) is not _ManagedDatabaseBuild
+            or id(workspace) in self._live_database_workspaces
+        ):
+            raise _stage_contract_error("invalid_live_database_workspace_registration")
+        self._live_database_workspaces[id(workspace)] = workspace
+
+    def _release_live_database_workspace(self, workspace: object) -> None:
+        self.assert_live()
+        if self._live_database_workspaces.get(id(workspace)) is not workspace:
+            raise _stage_contract_error("invalid_live_database_workspace_release")
+        del self._live_database_workspaces[id(workspace)]
+
     def require_owned_database_leaf(self, leaf: "OwnedStageDatabaseLeaf") -> None:
         self.assert_live()
         try:
@@ -366,9 +416,22 @@ class ArtifactBuildSession:
     def _abort_initial_stage(self) -> None:
         if self._closed:
             return
-        self._state = "CLOSING"
         failed = False
         try:
+            _require_session_generation(self)
+            for writer in tuple(self._live_parquet_writers.values()):
+                writer.abort()
+            for store in tuple(self._live_external_order_stores.values()):
+                store.close_and_remove_working_state()
+            for workspace in tuple(self._live_database_workspaces.values()):
+                workspace._discard()
+            if (
+                self._live_parquet_writers
+                or self._live_external_order_stores
+                or self._live_database_workspaces
+            ):
+                raise ValueError("live working object remained registered after abort")
+            self._state = "CLOSING"
             _require_session_generation(self)
             if self._registered_stage_names - {"parquet", "finproof.duckdb"}:
                 raise ValueError("live working state remains registered")
@@ -1057,6 +1120,7 @@ class _ManagedDatabaseBuild:
             os.rmdir(self._workspace_name, dir_fd=self._owner._stage_fd)
             self._owner._registered_stage_names.remove(self._workspace_name)
             _refresh_owned_database_mutation(self._owner)
+            self._owner._release_live_database_workspace(self)
             self._state = "CLOSED"
         except BaseException:
             self._state = "AMBIGUOUS"
@@ -1139,6 +1203,7 @@ def _open_managed_stage_database_build(
         value._workspace_identity = _directory_identity(os.fstat(workspace_fd))
         value._workspace_name = workspace_name
         value._writer_issued = False
+        owner._register_live_database_workspace(value)
         return value
     except BaseException as exc:
         if connection is not None:
@@ -1439,6 +1504,7 @@ class ExternalOrderStore:
             self._workspace_fd = -1
             os.rmdir(self._workspace_name, dir_fd=self._owner._stage_fd)
             self._owner._registered_stage_names.remove(self._workspace_name)
+            self._owner._release_live_external_order_store(self)
             self._cleanup_state = "CLEANED"
         except (
             ArtifactContractError,
@@ -1567,6 +1633,7 @@ def _open_external_order_store(
         value._workspace_identity = _directory_identity(os.fstat(workspace_fd))
         value._workspace_name = workspace_name
         _require_external_order_workspace(value)
+        owner._register_live_external_order_store(value)
         return value
     except BaseException as exc:
         if connection is not None:
@@ -1804,6 +1871,12 @@ class _OwnedParquetLeaf:
 
         trusted_parent = _TrustedWorkspaceParent._from_open_descriptor(self._owner._stage_fd)
         return _final_verification_workspace(trusted_parent=trusted_parent)
+
+    def _register_parquet_writer(self, writer: object) -> None:
+        self._owner._register_live_parquet_writer(writer, self)
+
+    def _release_parquet_writer(self, writer: object) -> None:
+        self._owner._release_live_parquet_writer(writer)
 
     def assert_unchanged(self) -> None:
         self._require_owner()
@@ -2099,6 +2172,9 @@ def _initialize_session(
         value._registered_stage_names = {"parquet"}
         value._claimed_specs = set()
         value._leaf_objects = {}
+        value._live_parquet_writers = {}
+        value._live_external_order_stores = {}
+        value._live_database_workspaces = {}
         value._staged_pairs = {}
         value._staged_sets = {}
         value._database_claimed = False

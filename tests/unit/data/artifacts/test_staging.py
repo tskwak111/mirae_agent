@@ -585,6 +585,130 @@ def test_candidate_discard_removes_recognized_nonempty_stage_and_preserves_live_
     assert not stage_path.exists()
 
 
+@pytest.mark.parametrize("kind", ["parquet-writer", "external-order", "database"])
+def test_session_registers_exact_live_working_object_and_transfers_only_after_close(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.parquet_io import ParquetBatchWriter
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.data.artifacts.table_specs import table_spec
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    context: Any | None = None
+    if kind == "parquet-writer":
+        spec = table_spec("bronze_source_column")
+        resource = ParquetBatchWriter(spec, session.claim_parquet_leaf(spec))
+        registry_name = "_live_parquet_writers"
+    elif kind == "external-order":
+        context = session.open_external_order_store(
+            config=ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG, strict=True)
+        )
+        resource = context.__enter__()
+        registry_name = "_live_external_order_stores"
+    else:
+        context = session.create_database_build_workspace()
+        resource = context.__enter__()
+        registry_name = "_live_database_workspaces"
+
+    registry = getattr(session, registry_name, {})
+    assert tuple(registry.values()) == (resource,)
+    with pytest.raises(ArtifactContractError):
+        session.transfer_candidate_stage()
+    session.assert_live()
+
+    if kind == "parquet-writer":
+        resource.close()
+    else:
+        assert context is not None
+        context.__exit__(None, None, None)
+    assert not registry
+    session.transfer_candidate_stage().close()
+
+
+def test_session_abort_closes_all_exact_live_working_objects_in_fixed_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.parquet_io import ParquetBatchWriter
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.data.artifacts.table_specs import table_spec
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    spec = table_spec("bronze_source_column")
+    writer = ParquetBatchWriter(spec, session.claim_parquet_leaf(spec))
+    store_context = session.open_external_order_store(
+        config=ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG, strict=True)
+    )
+    store = store_context.__enter__()
+    database_context = session.create_database_build_workspace()
+    database = database_context.__enter__()
+    events: list[tuple[str, object]] = []
+    writer_abort = ParquetBatchWriter.abort
+    store_close = type(store).close_and_remove_working_state
+    database_discard = type(database)._discard
+
+    def abort_writer(value: ParquetBatchWriter) -> None:
+        events.append(("parquet-writer", value))
+        writer_abort(value)
+
+    def close_store(value: Any) -> None:
+        events.append(("external-order", value))
+        store_close(value)
+
+    def discard_database(value: Any) -> None:
+        events.append(("database", value))
+        database_discard(value)
+
+    monkeypatch.setattr(ParquetBatchWriter, "abort", abort_writer)
+    monkeypatch.setattr(type(store), "close_and_remove_working_state", close_store)
+    monkeypatch.setattr(type(database), "_discard", discard_database)
+
+    session.abort()
+
+    assert events == [
+        ("parquet-writer", writer),
+        ("external-order", store),
+        ("database", database),
+    ]
+    assert not next(
+        (
+            path
+            for path in settings.repository_root.iterdir()
+            if path.name.startswith(".artifacts.finproof-stage-")
+        ),
+        None,
+    )
+    with pytest.raises(ArtifactContractError):
+        session.assert_live()
+
+
 def test_production_external_order_store_does_not_call_test_only_factory() -> None:
     from finproof.data.artifacts.staging import ArtifactBuildSession
 

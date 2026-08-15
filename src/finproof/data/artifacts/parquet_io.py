@@ -184,6 +184,19 @@ class ParquetBatchWriter:
                 raise _serialization_error("construct-parquet-writer", leaf) from exit_exc
             raise _serialization_error("construct-parquet-writer", leaf) from exc
         self._closed = False
+        self._owner_registered = False
+        register = getattr(self._leaf, "_register_parquet_writer", None)
+        if register is not None:
+            try:
+                register(self)
+                self._owner_registered = True
+            except BaseException as exc:
+                self._closed = True
+                with suppress(BaseException):
+                    self._writer.close()
+                with suppress(BaseException):
+                    self._context.__exit__(type(exc), exc, exc.__traceback__)
+                raise _serialization_error("register-parquet-writer", leaf) from exc
 
     def write_batch(self, rows: object) -> None:
         if self._closed:
@@ -232,6 +245,7 @@ class ParquetBatchWriter:
             self._context.__exit__(None, None, None)
         except BaseException as exc:
             raise _serialization_error("exit-parquet-leaf", self._leaf) from exc
+        self._release_owner_registration()
 
     def abort(self) -> None:
         if self._closed:
@@ -257,6 +271,16 @@ class ParquetBatchWriter:
             self._leaf.unlink_if_exact_writer_owned()
         except BaseException as exc:
             raise _serialization_error("abort-parquet-unlink", self._leaf) from exc
+        self._release_owner_registration()
+
+    def _release_owner_registration(self) -> None:
+        if not self._owner_registered:
+            return
+        release = getattr(self._leaf, "_release_parquet_writer", None)
+        if release is None:
+            raise _serialization_error("release-parquet-writer", self._leaf)
+        release(self)
+        self._owner_registered = False
 
 
 def _arrow_schema(spec: TableSpec) -> pa.Schema:
