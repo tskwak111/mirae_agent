@@ -6,6 +6,7 @@ import copy
 import inspect
 import os
 import stat
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -1454,6 +1455,81 @@ def test_default_trusted_parent_open_dup_and_fstat_faults_are_typed_and_release_
     assert list(tmp_path.iterdir()) == []
 
 
+def test_default_trusted_parent_close_then_raise_invalidates_original_and_releases_duplicate_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError
+
+    sentinel_path = tmp_path / "sentinel.bin"
+    sentinel_path.write_bytes(b"live")
+    real_open = os.open
+    real_dup = os.dup
+    real_dup2 = os.dup2
+    real_close = os.close
+    real_fstat = os.fstat
+    sentinel_source = real_open(sentinel_path, os.O_RDONLY)
+    original_parent = -1
+    duplicate_parent = -1
+    sentinel_descriptor = -1
+    close_attempts: list[int] = []
+    close_faulted = False
+
+    monkeypatch.setattr(parquet_io.tempfile, "gettempdir", lambda: os.fspath(tmp_path))
+
+    def tracked_open(path, flags, *args, **kwargs):
+        nonlocal original_parent
+        descriptor = real_open(path, flags, *args, **kwargs)
+        if path == os.fspath(tmp_path):
+            original_parent = descriptor
+        return descriptor
+
+    def tracked_dup(descriptor):
+        nonlocal duplicate_parent
+        duplicate_parent = real_dup(descriptor)
+        return duplicate_parent
+
+    def close_then_raise(descriptor):
+        nonlocal close_faulted, sentinel_descriptor
+        close_attempts.append(descriptor)
+        if descriptor == original_parent and not close_faulted:
+            close_faulted = True
+            real_close(descriptor)
+            real_dup2(sentinel_source, descriptor)
+            sentinel_descriptor = descriptor
+            raise OSError("injected close-after-kernel-close failure")
+        return real_close(descriptor)
+
+    monkeypatch.setattr(os, "open", tracked_open)
+    monkeypatch.setattr(os, "dup", tracked_dup)
+    monkeypatch.setattr(os, "close", close_then_raise)
+
+    try:
+        with pytest.raises(ArtifactContractError) as raised:
+            with parquet_io._final_verification_workspace():
+                raise AssertionError("workspace creation must not be reached")
+
+        error = raised.value
+        assert error.code.value == "exact_tree_mismatch"
+        assert error.operation_id == "parquet-workspace-open"
+        assert error.published is False
+        assert error.target_basename is None
+        assert dict(error.internal_context) == {"reason": "workspace_open_failed"}
+        assert close_attempts.count(original_parent) == 1
+        assert close_attempts.count(duplicate_parent) == 1
+        assert len(close_attempts) == len(set(close_attempts)) == 2
+        assert real_fstat(sentinel_descriptor).st_ino == sentinel_path.stat().st_ino
+        with pytest.raises(OSError):
+            real_fstat(duplicate_parent)
+        assert list(tmp_path.iterdir()) == [sentinel_path]
+    finally:
+        for descriptor in {sentinel_descriptor, sentinel_source, duplicate_parent}:
+            if descriptor >= 0:
+                with suppress(OSError):
+                    real_close(descriptor)
+
+
 @pytest.mark.parametrize("source", ["default", "supplied"])
 def test_trusted_parent_identity_fault_is_typed_and_releases_before_workspace_creation(
     tmp_path: Path,
@@ -2311,6 +2387,7 @@ def test_workspace_cleanup_os_faults_are_typed_staging_cleanup_failed(
     marker_removed = False
     root_removed = False
     fault_seen = False
+    cleanup_descriptors: dict[str, int] = {}
     original_rename = os.rename
     original_unlink = os.unlink
     original_close = os.close
@@ -2378,10 +2455,10 @@ def test_workspace_cleanup_os_faults_are_typed_staging_cleanup_failed(
     def faulting_close(descriptor):
         if workspace is not None and not fault_seen:
             targets = {
-                "spill-close": workspace._spill_fd,
+                "spill-close": cleanup_descriptors.get("spill"),
                 "marker-close": marker_tombstone_fd,
-                "root-close": workspace._root_fd,
-                "parent-close": workspace._parent_fd,
+                "root-close": cleanup_descriptors.get("root"),
+                "parent-close": cleanup_descriptors.get("parent"),
             }
             if targets.get(fault) == descriptor:
                 original_close(descriptor)
@@ -2450,6 +2527,11 @@ def test_workspace_cleanup_os_faults_are_typed_staging_cleanup_failed(
 
     with pytest.raises(ArtifactContractError) as caught:
         with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            cleanup_descriptors.update(
+                spill=workspace._spill_fd,
+                root=workspace._root_fd,
+                parent=workspace._parent_fd,
+            )
             descriptor = original_open(
                 "spill-entry.bin",
                 os.O_WRONLY | os.O_CREAT | os.O_EXCL,
@@ -2642,6 +2724,150 @@ def test_cleanup_post_rename_fault_context_matches_spill_entry_spill_marker_and_
     else:
         assert not (root_path / workspace._MARKER_NAME).exists()
         assert not (root_path / workspace._MARKER_TOMBSTONE).exists()
+
+
+@pytest.mark.parametrize("target", ["spill", "root", "parent"])
+def test_workspace_cleanup_close_then_raise_releases_each_owned_descriptor_once_without_fd_reuse(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    target: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    trusted_parent = _trusted_workspace_parent(parent)
+    sentinel_path = tmp_path / f"{target}-sentinel.bin"
+    sentinel_path.write_bytes(b"sentinel")
+    control_path = tmp_path / "control.bin"
+    control_path.write_bytes(b"control")
+    real_open = os.open
+    real_dup2 = os.dup2
+    real_close = os.close
+    real_fstat = os.fstat
+    sentinel_source = real_open(sentinel_path, os.O_RDONLY)
+    control_descriptor = real_open(control_path, os.O_RDONLY)
+    held: dict[str, int] = {}
+    held_identities: dict[str, tuple[int, int]] = {}
+    owned_close_attempts: list[str] = []
+    sentinel_close_attempts: list[int] = []
+    sentinel_descriptor = -1
+    faulted = False
+    workspace: Any = None
+
+    def close_then_raise(descriptor):
+        nonlocal faulted, sentinel_descriptor
+        try:
+            current = real_fstat(descriptor)
+        except OSError:
+            current_identity = None
+        else:
+            current_identity = (current.st_dev, current.st_ino)
+        owned_name = next(
+            (
+                name
+                for name, held_descriptor in held.items()
+                if descriptor == held_descriptor and current_identity == held_identities[name]
+            ),
+            None,
+        )
+        if owned_name is not None:
+            owned_close_attempts.append(owned_name)
+        elif descriptor == sentinel_descriptor and sentinel_descriptor >= 0:
+            sentinel_close_attempts.append(descriptor)
+        if owned_name == target and not faulted:
+            faulted = True
+            real_close(descriptor)
+            real_dup2(sentinel_source, descriptor)
+            sentinel_descriptor = descriptor
+            raise OSError(f"injected {target} close-after-kernel-close failure")
+        return real_close(descriptor)
+
+    monkeypatch.setattr(os, "close", close_then_raise)
+
+    try:
+        with pytest.raises(ArtifactContractError) as caught:
+            with parquet_io._final_verification_workspace(
+                trusted_parent=trusted_parent
+            ) as workspace:
+                held = {
+                    "spill": workspace._spill_fd,
+                    "root": workspace._root_fd,
+                    "parent": workspace._parent_fd,
+                }
+                held_identities = {
+                    name: (real_fstat(descriptor).st_dev, real_fstat(descriptor).st_ino)
+                    for name, descriptor in held.items()
+                }
+
+        assert faulted
+        error = caught.value
+        assert error.code is ArtifactErrorCode.STAGING_CLEANUP_FAILED
+        assert error.operation_id == "parquet-workspace-cleanup"
+        assert error.published is False
+        assert error.target_basename is None
+        state = {
+            "spill": _fixed_retained_state(
+                root="O",
+                spill="T",
+                marker="O",
+                total=0,
+                owned=0,
+                tombstoned=0,
+                removed=0,
+            ),
+            "root": _fixed_retained_state(
+                root="T",
+                spill="R",
+                marker="R",
+                total=0,
+                owned=0,
+                tombstoned=0,
+                removed=0,
+            ),
+            "parent": _fixed_retained_state(
+                root="R",
+                spill="R",
+                marker="R",
+                total=0,
+                owned=0,
+                tombstoned=0,
+                removed=0,
+            ),
+        }[target]
+        assert dict(error.internal_context) == {
+            "reason": "workspace_cleanup_failed",
+            "retained_state": state,
+        }
+        assert owned_close_attempts == ["spill", "root", "parent"]
+        assert sentinel_close_attempts == []
+        assert real_fstat(sentinel_descriptor).st_ino == sentinel_path.stat().st_ino
+        assert real_fstat(control_descriptor).st_ino == control_path.stat().st_ino
+        for name, descriptor in held.items():
+            if name != target:
+                with pytest.raises(OSError):
+                    real_fstat(descriptor)
+            assert held_identities[name][0] >= 0
+
+        if target == "spill":
+            root_path = parent / workspace._root_name
+            assert root_path.is_dir()
+            assert (root_path / workspace._SPILL_TOMBSTONE).is_dir()
+        elif target == "root":
+            assert (parent / f"{workspace._root_name}.cleanup").is_dir()
+        else:
+            assert list(parent.iterdir()) == []
+    finally:
+        for descriptor in {
+            sentinel_descriptor,
+            sentinel_source,
+            control_descriptor,
+            *held.values(),
+        }:
+            if descriptor >= 0:
+                with suppress(OSError):
+                    real_close(descriptor)
 
 
 @pytest.mark.parametrize("case", ["reordered", "duplicate"])

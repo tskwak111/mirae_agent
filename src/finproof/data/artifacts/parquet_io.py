@@ -1183,8 +1183,9 @@ class _FinalVerificationWorkspace:
             expected_mode=0o700,
             on_renamed=lambda: setattr(self, "_spill_state", "T"),
         )
-        os.close(self._spill_fd)
+        descriptor_to_close = self._spill_fd
         self._spill_fd = -1
+        os.close(descriptor_to_close)
         os.rmdir(self._SPILL_TOMBSTONE, dir_fd=self._root_fd)
         self._spill_state = "R"
         _rename_owned_for_cleanup(
@@ -1222,14 +1223,16 @@ class _FinalVerificationWorkspace:
             expected_mode=0o700,
             on_renamed=lambda: setattr(self, "_root_state", "T"),
         )
-        os.close(self._root_fd)
+        descriptor_to_close = self._root_fd
         self._root_fd = -1
+        os.close(descriptor_to_close)
         os.rmdir(root_tombstone, dir_fd=self._parent_fd)
         self._root_state = "R"
         if _descriptor_identity(self._parent_fd, directory=True) != self._parent_identity:
             raise _workspace_error("workspace_parent_changed")
-        os.close(self._parent_fd)
+        descriptor_to_close = self._parent_fd
         self._parent_fd = -1
+        os.close(descriptor_to_close)
 
     def _spill_entry_renamed(self, index: int) -> None:
         self._spill_entry_owned -= 1
@@ -1278,9 +1281,9 @@ class _FinalVerificationWorkspace:
         for attribute in ("_spill_fd", "_root_fd", "_parent_fd"):
             descriptor = getattr(self, attribute)
             if descriptor >= 0:
+                setattr(self, attribute, -1)
                 with suppress(OSError):
                     os.close(descriptor)
-                setattr(self, attribute, -1)
 
 
 def _rename_owned_for_cleanup(
@@ -1397,6 +1400,7 @@ def _final_verification_workspace(
 ) -> Iterator[_FinalVerificationWorkspace]:
     parent_descriptor = -1
     parent_fd = -1
+    setup_parent: _TrustedWorkspaceParent | None = None
     try:
         if trusted_parent is None:
             parent_descriptor = os.open(
@@ -1404,13 +1408,26 @@ def _final_verification_workspace(
                 os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
             )
             trusted_parent = _TrustedWorkspaceParent._from_open_descriptor(parent_descriptor)
-            os.close(parent_descriptor)
+            setup_parent = trusted_parent
+            descriptor_to_close = parent_descriptor
             parent_descriptor = -1
+            os.close(descriptor_to_close)
+        else:
+            setup_parent = trusted_parent
         parent_fd, parent_identity = trusted_parent._take()
+        setup_parent = None
     except BaseException as exc:
         if parent_descriptor >= 0:
+            descriptor_to_close = parent_descriptor
+            parent_descriptor = -1
             with suppress(OSError):
-                os.close(parent_descriptor)
+                os.close(descriptor_to_close)
+        if setup_parent is not None:
+            descriptor_to_close = setup_parent._descriptor
+            object.__setattr__(setup_parent, "_descriptor", -1)
+            if descriptor_to_close >= 0:
+                with suppress(OSError):
+                    os.close(descriptor_to_close)
         if isinstance(exc, ArtifactContractError):
             raise
         raise _workspace_error("workspace_open_failed") from exc
