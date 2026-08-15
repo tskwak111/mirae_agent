@@ -3784,7 +3784,7 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
   Silver/builder; Silver imports its predecessors and authoritative normalizers;
   builder alone orchestrates forward. Runtime local imports may not hide a cycle.
 
-**Serial selector ledger (34 mandatory RED/GREEN + 2 derived first-GREEN):**
+**Serial selector ledger (31 mandatory RED/GREEN + 5 derived first-GREEN):**
 
 Each numbered selector below is authored alone, run to its stated missing-behavior
 RED, given the smallest GREEN, and followed by its directly related regression before
@@ -3809,14 +3809,14 @@ later in this checkpoint are aggregate gates, never RED evidence.
 14 tests/unit/data/artifacts/test_staging.py::test_bounded_relation_verifier_has_exact_cp5_cp6_closed_signatures
 15 tests/unit/data/artifacts/test_staging.py::test_external_order_store_closed_quality_join_revalidates_exact_live_staged_set
 16 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_persistence_accepts_only_exact_untimestamped_data_quality_issue_and_utc_build_time
-17 tests/unit/data/artifacts/test_quality_persistence.py::test_persisted_quality_row_and_record_json_match_exact_d021_schema
+17 tests/unit/data/artifacts/test_quality_persistence.py::test_persisted_quality_row_and_record_json_match_exact_d021_schema [derived first-GREEN acceptance: CP3's exact serializer/schema boundary composed with selector 16's persisted issue already entails this row/record contract; do not manufacture a failure]
 18 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_external_sort_is_unique_and_globally_ordered
 19 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_join_observations_are_immutable_strict_and_internally_consistent
 20 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_rejects_foreign_copied_incomplete_reordered_closed_or_timestamp_mismatched_set
 21 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_rejects_missing_row_cell_raw_hash_timestamp_and_record_json_mismatches
 22 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_factory_accepts_only_exact_persisted_issue_stream_and_verified_join_observations
-23 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_derives_closed_lexical_groups_counts_and_excluded_grains
-24 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_semantic_projection_is_timestamp_path_and_rendering_independent
+23 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_derives_closed_lexical_groups_counts_and_excluded_grains [derived first-GREEN acceptance: selector 22 cannot construct the strict report without deriving these required closed groups and counts; do not manufacture a failure]
+24 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_semantic_projection_is_timestamp_path_and_rendering_independent [derived first-GREEN acceptance: CP2's timestamp-free semantic model composed with selector 22's factory already entails this independence; do not manufacture a failure]
 25 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_factory_accepts_exact_live_session_and_held_rating_registry
 26 tests/integration/artifacts/test_silver_fixture_build.py::test_silver_builder_opens_rating_only_through_exact_build_input_identity_and_calls_in_order
 27 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_uses_exact_nonfund_normalizers
@@ -3958,8 +3958,8 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/performance/test_artifact_fund_streaming.py -q
 ```
 
-Record all 34 mandatory RED reasons and smallest-GREEN results plus selectors 6 and
-13's derived first-GREEN acceptances separately. Then run the unchanged
+Record all 31 mandatory RED reasons and smallest-GREEN results plus selectors 6, 13,
+17, 23, and 24's derived first-GREEN acceptances separately. Then run the unchanged
 Task 1-4 regression command from the checkpoint execution rule and record its exact
 start/end time, exit code, pass/fail/skip counts and duration. Run static checks over
 the exact 17-file implementation inventory, then the full required gates:
@@ -4039,7 +4039,7 @@ git diff --name-only
 git status --short
 ```
 
-Expected GREEN: all 34 mandatory RED/GREEN selectors, the two derived first-GREEN
+Expected GREEN: all 31 mandatory RED/GREEN selectors, the five derived first-GREEN
 selectors, and aggregate/static/full gates pass;
 direct/current normalizers and serialized Silver agree from one Bronze-fed source pass;
 fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact; the
@@ -4097,8 +4097,8 @@ git status --porcelain
 ```
 
 Fresh review compares the clean approved CP5 plan base, implementation commit, and
-36-selector report, explicitly distinguishing 34 mandatory RED/GREEN selectors from
-the two derived first-GREEN acceptances. It verifies held rating identity/revalidation, every typed external
+36-selector report, explicitly distinguishing 31 mandatory RED/GREEN selectors from
+the five derived first-GREEN acceptances. It verifies held rating identity/revalidation, every typed external
 relation/key/join boundary, exact call order and one-use finalization, same-object
 result issuance, all wide fields, Task 4 public-fund equivalence, bounded one-pass
 collapse, exact D-021 type/schema/timestamp/order, quality-to-Bronze relation/hash,
@@ -4108,8 +4108,8 @@ unchanged Task 1-4 regression evidence. It confirms 6,032 is observation-only. R
 fix, separate correction commit and another fresh review.
 
 Only after a fresh 0/0 verdict, make a separate docs-only closure. Update exactly this
-dedicated plan, the legacy phase plan, and `docs/implementation/STATUS.md` with all 34
-mandatory RED/GREEN observations and the two derived first-GREEN acceptances, exact gate results, implementation/correction hashes, review
+dedicated plan, the legacy phase plan, and `docs/implementation/STATUS.md` with all 31
+mandatory RED/GREEN observations and the five derived first-GREEN acceptances, exact gate results, implementation/correction hashes, review
 verdict/report, clean tree, and Checkpoint 6 as the exact next task. Mark only CP5
 complete. Re-run audit/handoff/catalog/absence/source-permission/diff checks, stage
 exactly the three docs, commit, and require empty porcelain:
