@@ -114,6 +114,62 @@ def test_bronze_ingestion_accepts_none_consumer_without_rescan(
     )
 
 
+@pytest.mark.parametrize(
+    ("name", "before", "after"),
+    [
+        (
+            "artifact_build.yaml",
+            b"artifact_set_id: finproof-data-artifacts/v1",
+            b"artifact_set_id: forged",
+        ),
+        ("datasets.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+        ("quality_rules.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+        ("rating_scale.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+        ("state_rules.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+    ],
+)
+def test_bronze_ingestion_rejects_invalid_held_config_before_workbook_iteration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    name: str,
+    before: bytes,
+    after: bytes,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import bronze
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    target = settings.repository_root / "config" / name
+    payload = target.read_bytes()
+    assert before in payload
+    target.write_bytes(payload.replace(before, after, 1))
+    identity = _build_identity(settings)
+    workbook_calls = 0
+
+    def reject_workbook_touch(source: VerifiedSourceFile) -> Iterator[SourceRow]:
+        nonlocal workbook_calls
+        workbook_calls += 1
+        raise AssertionError(f"workbook touched before rejecting {source.table_id}")
+
+    monkeypatch.setattr(bronze, "iter_xlsx_rows", reject_workbook_touch)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=identity,
+        ) as session,
+        pytest.raises(ArtifactContractError) as caught,
+    ):
+        session.ingest_bronze()
+
+    assert caught.value.code is ArtifactErrorCode.CONFIG_INVALID
+    assert workbook_calls == 0
+
+
 def test_bronze_result_retains_exact_session_build_input_identity(tmp_path: Path) -> None:
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.config import ArtifactBuildOptions

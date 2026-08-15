@@ -199,6 +199,26 @@ class _HeldArtifactRootAdoptionOwner:
         self.adoption: HeldArtifactRootAdoption | None = None
 
 
+class _DescriptorTransferLedger:
+    """Single-close ownership ledger invalidated before each descriptor close."""
+
+    __slots__ = ("_descriptors",)
+
+    def __init__(self, *descriptors: int) -> None:
+        self._descriptors = list(dict.fromkeys(descriptors))
+
+    def release(self) -> tuple[int, ...]:
+        descriptors = tuple(self._descriptors)
+        self._descriptors.clear()
+        return descriptors
+
+    def close(self) -> None:
+        while self._descriptors:
+            descriptor = self._descriptors.pop()
+            with suppress(OSError):
+                os.close(descriptor)
+
+
 class HeldArtifactRootAdoption:
     """Opaque one-use transfer of duplicated held artifact-root custody."""
 
@@ -239,6 +259,9 @@ def _issue_held_artifact_root_adoption(
     basename: str,
     root_fd: int,
 ) -> HeldArtifactRootAdoption:
+    ledger = _DescriptorTransferLedger(
+        *(value for value in (parent_fd, root_fd) if type(value) is int)
+    )
     try:
         if (
             type(parent_fd) is not int
@@ -264,12 +287,11 @@ def _issue_held_artifact_root_adoption(
             parent_identity=parent_identity,
             root_identity=root_identity,
         )
-        return HeldArtifactRootAdoption._issue(owner)
+        adoption = HeldArtifactRootAdoption._issue(owner)
+        ledger.release()
+        return adoption
     except (OSError, TypeError, ValueError) as exc:
-        for descriptor in (root_fd, parent_fd):
-            if type(descriptor) is int:
-                with suppress(OSError):
-                    os.close(descriptor)
+        ledger.close()
         raise _held_root_adoption_error() from exc
 
 
@@ -279,15 +301,21 @@ def adopt_held_artifact_root(
 ) -> Iterator[ManagedArtifactVerificationRoot]:
     """Consume an opaque held-root adoption into a managed adapter."""
     owner = _consume_held_root_adoption(adoption)
+    ledger = _DescriptorTransferLedger(owner.parent_fd, owner.root_fd)
+    owner.parent_fd = -1
+    owner.root_fd = -1
+    parent_fd, root_fd = ledger.release()
+    ledger = _DescriptorTransferLedger(parent_fd, root_fd)
     tree: _HeldArtifactTree | None = None
     managed: _ManagedArtifactVerificationRoot | None = None
     try:
         tree = _HeldArtifactTree.from_adopted(
-            parent_fd=owner.parent_fd,
+            parent_fd=parent_fd,
             basename=owner.basename,
-            root_fd=owner.root_fd,
-            root_identity=_stat_identity(os.fstat(owner.root_fd)),
+            root_fd=root_fd,
+            root_identity=_stat_identity(os.fstat(root_fd)),
         )
+        ledger.release()
         managed = _ManagedArtifactVerificationRoot(tree)
         tree = None
         yield managed
@@ -302,9 +330,7 @@ def adopt_held_artifact_root(
             with suppress(OSError):
                 tree.close()
         else:
-            for descriptor in (owner.root_fd, owner.parent_fd):
-                with suppress(OSError):
-                    os.close(descriptor)
+            ledger.close()
 
 
 class _ManagedArtifactVerificationRoot:
@@ -374,9 +400,10 @@ def _consume_held_root_adoption(
             if type(owner) is _HeldArtifactRootAdoptionOwner and not getattr(
                 adoption, "_consumed", True
             ):
-                for descriptor in (owner.root_fd, owner.parent_fd):
-                    with suppress(OSError):
-                        os.close(descriptor)
+                ledger = _DescriptorTransferLedger(owner.parent_fd, owner.root_fd)
+                owner.parent_fd = -1
+                owner.root_fd = -1
+                ledger.close()
         except AttributeError:
             pass
         raise _held_root_adoption_error() from exc
@@ -1592,12 +1619,12 @@ class _HeldArtifactTree:
             return
         self._closed = True
         close_failed = False
-        for descriptor in reversed(self._descriptors):
+        while self._descriptors:
+            descriptor = self._descriptors.pop()
             try:
                 os.close(descriptor)
             except OSError:
                 close_failed = True
-        self._descriptors.clear()
         if close_failed:
             raise OSError("artifact descriptor close failed")
 

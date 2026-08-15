@@ -30,6 +30,7 @@ from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactBuildOpt
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 from finproof.data.artifacts.input_identity import BuildInputIdentity
 from finproof.data.artifacts.manifest import (
+    HeldArtifactRootAdoption,
     ManagedArtifactVerificationRoot,
     _issue_held_artifact_root_adoption,
     adopt_held_artifact_root,
@@ -44,7 +45,11 @@ from finproof.data.artifacts.table_specs import (
 )
 
 if TYPE_CHECKING:
-    from finproof.data.artifacts.bronze import BronzeBuildResult, SourceRowConsumer
+    from finproof.data.artifacts.bronze import (
+        BronzeBuildResult,
+        SourceRowConsumer,
+        _BronzeSession,
+    )
 
 _TRANSFERRED_STAGE_SLOTS = (
     "_database_claimed",
@@ -109,6 +114,7 @@ class ArtifactBuildSession:
         "_state",
         "_target_basename",
         "_timestamp",
+        "_versions",
     )
 
     def __new__(cls) -> "ArtifactBuildSession":
@@ -159,11 +165,13 @@ class ArtifactBuildSession:
     ) -> "BronzeBuildResult":
         from finproof.data.artifacts.bronze import ingest_bronze_for_session
 
-        return ingest_bronze_for_session(self, consumer=consumer)
+        return ingest_bronze_for_session(cast("_BronzeSession", self), consumer=consumer)
 
     def transfer_candidate_stage(self) -> "OwnedCandidateStage":
         self.assert_live()
         _require_session_generation(self)
+        if self._registered_stage_names - {"parquet", "finproof.duckdb"}:
+            raise _staging_error("working_state_not_closed")
         value = object.__new__(OwnedCandidateStage)
         for name in _TRANSFERRED_STAGE_SLOTS:
             setattr(value, name, getattr(self, name))
@@ -263,10 +271,10 @@ class ArtifactBuildSession:
         *,
         config: ArtifactBuildConfig,
     ) -> AbstractContextManager["ExternalOrderStore"]:
-        return _open_external_order_store_for_test(
+        return _open_external_order_store(
             owner=self,
             config=config,
-            limits=ExternalOrderStoreTestLimits(
+            limits=_ExternalOrderLimits(
                 batch_rows=65_536,
                 memory_limit_bytes=1 << 30,
             ),
@@ -362,7 +370,12 @@ class ArtifactBuildSession:
         failed = False
         try:
             _require_session_generation(self)
-            for leaf in reversed(tuple(self._leaf_objects.values())):
+            if self._registered_stage_names - {"parquet", "finproof.duckdb"}:
+                raise ValueError("live working state remains registered")
+            for leaf in sorted(
+                self._leaf_objects.values(),
+                key=lambda value: PurePosixPath(value._spec.parquet_path).name,
+            ):
                 if not leaf._created or leaf._identity is None:
                     continue
                 leaf_name = PurePosixPath(leaf._spec.parquet_path).name
@@ -373,6 +386,20 @@ class ArtifactBuildSession:
                 self._registered_parquet_names.remove(leaf_name)
                 leaf._created = False
                 leaf._identity = None
+            database_leaf = self._database_leaf
+            if database_leaf is not None and database_leaf._created:
+                named = os.stat(
+                    "finproof.duckdb",
+                    dir_fd=self._stage_fd,
+                    follow_symlinks=False,
+                )
+                if _leaf_identity(named) != database_leaf._identity:
+                    raise ValueError("owned database leaf changed before abort")
+                os.unlink("finproof.duckdb", dir_fd=self._stage_fd)
+                self._registered_stage_names.remove("finproof.duckdb")
+                database_leaf._created = False
+                database_leaf._identity = None
+                database_leaf._parent_mutation = None
             os.close(self._parquet_fd)
             self._parquet_fd = -1
             os.rmdir("parquet", dir_fd=self._stage_fd)
@@ -468,34 +495,7 @@ class OwnedCandidateStage:
         return value
 
     def close(self) -> None:
-        self.assert_live()
-        self._state = "CLOSING"
-        failed = False
-        try:
-            os.close(self._parquet_fd)
-            self._parquet_fd = -1
-            os.rmdir("parquet", dir_fd=self._stage_fd)
-            os.close(self._stage_fd)
-            self._stage_fd = -1
-            os.rmdir(self._stage_name, dir_fd=self._parent_fd)
-            os.unlink(self._marker_name, dir_fd=self._parent_fd)
-        except (OSError, TypeError, ValueError):
-            failed = True
-        finally:
-            for descriptor in (self._parquet_fd, self._stage_fd):
-                if descriptor >= 0:
-                    with suppress(OSError):
-                        os.close(descriptor)
-            self._input_identity.close()
-            with suppress(OSError):
-                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
-            for descriptor in (self._lock_fd, self._parent_fd):
-                with suppress(OSError):
-                    os.close(descriptor)
-            self._closed = True
-            self._state = "CLOSED"
-        if failed:
-            raise _staging_error("candidate_stage_cleanup_failed")
+        _discard_exact_candidate(self, reason="candidate_stage_cleanup_failed")
 
     def __copy__(self) -> "OwnedCandidateStage":
         raise TypeError("OwnedCandidateStage cannot be copied")
@@ -533,11 +533,7 @@ class CandidateStageCustody:
     ) -> AbstractContextManager[ManagedArtifactVerificationRoot]:
         self.assert_live()
         try:
-            adoption = _issue_held_artifact_root_adoption(
-                parent_fd=os.dup(self._parent_fd),
-                basename=self._stage_name,
-                root_fd=os.dup(self._stage_fd),
-            )
+            adoption = _duplicate_candidate_root_adoption(self)
             return adopt_held_artifact_root(adoption)
         except (ArtifactContractError, OSError, TypeError, ValueError) as exc:
             raise _staging_error("candidate_verification_root_unavailable") from exc
@@ -546,34 +542,7 @@ class CandidateStageCustody:
         self.close()
 
     def close(self) -> None:
-        self.assert_live()
-        self._state = "CLOSING"
-        failed = False
-        try:
-            os.close(self._parquet_fd)
-            self._parquet_fd = -1
-            os.rmdir("parquet", dir_fd=self._stage_fd)
-            os.close(self._stage_fd)
-            self._stage_fd = -1
-            os.rmdir(self._stage_name, dir_fd=self._parent_fd)
-            os.unlink(self._marker_name, dir_fd=self._parent_fd)
-        except (OSError, TypeError, ValueError):
-            failed = True
-        finally:
-            for descriptor in (self._parquet_fd, self._stage_fd):
-                if descriptor >= 0:
-                    with suppress(OSError):
-                        os.close(descriptor)
-            self._input_identity.close()
-            with suppress(OSError):
-                fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
-            for descriptor in (self._lock_fd, self._parent_fd):
-                with suppress(OSError):
-                    os.close(descriptor)
-            self._closed = True
-            self._state = "CLOSED"
-        if failed:
-            raise _staging_error("candidate_custody_cleanup_failed")
+        _discard_exact_candidate(self, reason="candidate_custody_cleanup_failed")
 
     def transfer_expected_accepted(
         self,
@@ -615,6 +584,12 @@ class ExternalOrderStoreTestLimits:
             or self.memory_limit_bytes <= 0
         ):
             raise ValueError("external order limits must be strict positive integers")
+
+
+@dataclass(frozen=True, slots=True)
+class _ExternalOrderLimits:
+    batch_rows: int
+    memory_limit_bytes: int
 
 
 class ExternalOrderRelation(StrEnum):
@@ -1491,11 +1466,29 @@ def _open_external_order_store_for_test(
     config: ArtifactBuildConfig,
     limits: ExternalOrderStoreTestLimits,
 ) -> AbstractContextManager[ExternalOrderStore]:
+    if type(limits) is not ExternalOrderStoreTestLimits:
+        raise _stage_contract_error("invalid_external_order_store_contract")
+    return _open_external_order_store(
+        owner=owner,
+        config=config,
+        limits=_ExternalOrderLimits(
+            batch_rows=limits.batch_rows,
+            memory_limit_bytes=limits.memory_limit_bytes,
+        ),
+    )
+
+
+def _open_external_order_store(
+    *,
+    owner: ArtifactBuildSession,
+    config: ArtifactBuildConfig,
+    limits: _ExternalOrderLimits,
+) -> AbstractContextManager[ExternalOrderStore]:
     owner.assert_live()
     if (
         type(owner) is not ArtifactBuildSession
         or type(config) is not ArtifactBuildConfig
-        or type(limits) is not ExternalOrderStoreTestLimits
+        or type(limits) is not _ExternalOrderLimits
         or config.staging.threads != 1
         or config.staging.memory_limit != "1GiB"
     ):
@@ -1876,6 +1869,138 @@ class ExpectedAcceptedCustodyReceiver(Protocol):
     ) -> None: ...
 
 
+def _discard_exact_candidate(
+    owner: OwnedCandidateStage | CandidateStageCustody,
+    *,
+    reason: str,
+) -> None:
+    """Discard only a completely recognized candidate generation."""
+
+    owner.assert_live()
+    try:
+        _require_exact_candidate_children(owner)
+    except ArtifactContractError:
+        raise
+    except (KeyError, OSError, StopIteration, TypeError, ValueError) as exc:
+        raise _staging_error("candidate_discard_preflight_failed") from exc
+    owner._state = "CLOSING"
+    failed = False
+    try:
+        for leaf_name in sorted(owner._registered_parquet_names):
+            leaf = next(
+                value
+                for value in owner._leaf_objects.values()
+                if PurePosixPath(value._spec.parquet_path).name == leaf_name
+            )
+            named = os.stat(leaf_name, dir_fd=owner._parquet_fd, follow_symlinks=False)
+            if _leaf_identity(named) != leaf._identity:
+                raise ValueError("candidate Parquet leaf changed before unlink")
+            os.unlink(leaf_name, dir_fd=owner._parquet_fd)
+            leaf._created = False
+            leaf._identity = None
+            leaf._parent_mutation = None
+        owner._registered_parquet_names.clear()
+        database_leaf = owner._database_leaf
+        if database_leaf is not None and database_leaf._created:
+            named = os.stat(
+                "finproof.duckdb",
+                dir_fd=owner._stage_fd,
+                follow_symlinks=False,
+            )
+            if _leaf_identity(named) != database_leaf._identity:
+                raise ValueError("candidate database leaf changed before unlink")
+            os.unlink("finproof.duckdb", dir_fd=owner._stage_fd)
+            owner._registered_stage_names.remove("finproof.duckdb")
+            database_leaf._created = False
+            database_leaf._identity = None
+            database_leaf._parent_mutation = None
+        os.close(owner._parquet_fd)
+        owner._parquet_fd = -1
+        os.rmdir("parquet", dir_fd=owner._stage_fd)
+        owner._registered_stage_names.remove("parquet")
+        os.close(owner._stage_fd)
+        owner._stage_fd = -1
+        os.rmdir(owner._stage_name, dir_fd=owner._parent_fd)
+        os.unlink(owner._marker_name, dir_fd=owner._parent_fd)
+    except (ArtifactContractError, KeyError, OSError, StopIteration, TypeError, ValueError):
+        failed = True
+    finally:
+        for descriptor_name in ("_parquet_fd", "_stage_fd"):
+            descriptor = getattr(owner, descriptor_name)
+            if descriptor >= 0:
+                with suppress(OSError):
+                    os.close(descriptor)
+                setattr(owner, descriptor_name, -1)
+        owner._input_identity.close()
+        with suppress(OSError):
+            fcntl.flock(owner._lock_fd, fcntl.LOCK_UN)
+        for descriptor_name in ("_lock_fd", "_parent_fd"):
+            descriptor = getattr(owner, descriptor_name)
+            if descriptor >= 0:
+                with suppress(OSError):
+                    os.close(descriptor)
+                setattr(owner, descriptor_name, -1)
+        owner._closed = True
+        owner._state = "CLOSED"
+    if failed:
+        raise _staging_error(reason)
+
+
+def _duplicate_candidate_root_adoption(
+    custody: CandidateStageCustody,
+) -> HeldArtifactRootAdoption:
+    acquired: list[int] = []
+    try:
+        acquired.append(os.dup(custody._parent_fd))
+        acquired.append(os.dup(custody._stage_fd))
+        parent_fd, root_fd = acquired
+        acquired.clear()
+        return _issue_held_artifact_root_adoption(
+            parent_fd=parent_fd,
+            basename=custody._stage_name,
+            root_fd=root_fd,
+        )
+    except BaseException:
+        while acquired:
+            descriptor = acquired.pop()
+            with suppress(OSError):
+                os.close(descriptor)
+        raise
+
+
+def _require_exact_candidate_children(
+    owner: OwnedCandidateStage | CandidateStageCustody,
+) -> None:
+    expected_parquet: dict[str, _OwnedParquetLeaf] = {}
+    for leaf in owner._leaf_objects.values():
+        if not leaf._created:
+            continue
+        leaf_name = PurePosixPath(leaf._spec.parquet_path).name
+        if leaf._identity is None or leaf_name in expected_parquet:
+            raise _staging_error("candidate_leaf_registry_invalid")
+        named = os.stat(leaf_name, dir_fd=owner._parquet_fd, follow_symlinks=False)
+        if _leaf_identity(named) != leaf._identity:
+            raise _staging_error("candidate_parquet_leaf_changed")
+        expected_parquet[leaf_name] = leaf
+    if set(expected_parquet) != owner._registered_parquet_names:
+        raise _staging_error("candidate_parquet_registry_mismatch")
+    expected_stage_names = {"parquet"}
+    database_leaf = owner._database_leaf
+    if database_leaf is not None and database_leaf._created:
+        if database_leaf._identity is None:
+            raise _staging_error("candidate_database_registry_invalid")
+        named = os.stat(
+            "finproof.duckdb",
+            dir_fd=owner._stage_fd,
+            follow_symlinks=False,
+        )
+        if _leaf_identity(named) != database_leaf._identity:
+            raise _staging_error("candidate_database_leaf_changed")
+        expected_stage_names.add("finproof.duckdb")
+    if expected_stage_names != owner._registered_stage_names:
+        raise _staging_error("candidate_stage_registry_mismatch")
+
+
 def _initialize_session(
     settings: Settings,
     versions: VersionBundle,
@@ -1969,6 +2094,7 @@ def _initialize_session(
         value._state = "LIVE"
         value._target_basename = target_basename
         value._timestamp = options.persistence_timestamp
+        value._versions = versions
         value._registered_parquet_names = set()
         value._registered_stage_names = {"parquet"}
         value._claimed_specs = set()

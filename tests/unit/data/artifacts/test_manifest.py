@@ -494,6 +494,44 @@ def test_held_artifact_root_adoption_consumes_same_descriptor_generation_once_re
             managed.open_inventory(manifest=manifest)
 
 
+def test_held_root_descriptor_ledger_never_recloses_reused_descriptor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts.manifest import _issue_held_artifact_root_adoption
+
+    root = tmp_path / "artifacts"
+    root.mkdir()
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+    parent_fd = os.open(tmp_path, flags)
+    transferred = os.dup(parent_fd)
+    real_close = os.close
+    reused: list[int] = []
+
+    def close_and_reuse(descriptor: int) -> None:
+        real_close(descriptor)
+        if descriptor == transferred and not reused:
+            replacement = os.open(os.devnull, os.O_RDONLY | os.O_CLOEXEC)
+            assert replacement == descriptor
+            reused.append(replacement)
+
+    monkeypatch.setattr(os, "close", close_and_reuse)
+    try:
+        with pytest.raises(ArtifactContractError):
+            _issue_held_artifact_root_adoption(
+                parent_fd=transferred,
+                basename="artifacts",
+                root_fd=transferred,
+            )
+        assert reused
+        os.fstat(reused[0])
+    finally:
+        monkeypatch.undo()
+        for descriptor in (*reused, parent_fd):
+            with contextlib.suppress(OSError):
+                real_close(descriptor)
+
+
 def test_inventory_streams_all_declared_digests_without_materializing_payloads(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

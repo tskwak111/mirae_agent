@@ -9,6 +9,11 @@ from datetime import datetime
 from typing import Literal, Protocol, cast
 
 from finproof.core.settings import Settings
+from finproof.core.versions import VersionBundle
+from finproof.data.artifacts.config import (
+    ArtifactBuildConfig,
+    validate_build_registry_versions_from_held_streams,
+)
 from finproof.data.artifacts.input_identity import BuildInputIdentity
 from finproof.data.artifacts.parquet_io import (
     OwnedStageArtifactOwner,
@@ -42,6 +47,7 @@ class _BronzeBatchWriter(Protocol):
 class _BronzeSession(OwnedStageArtifactOwner, Protocol):
     _input_identity: BuildInputIdentity
     _settings: Settings
+    _versions: VersionBundle
 
     def claim_parquet_leaf(self, spec: TableSpec) -> OwnedStageParquetLeaf: ...
 
@@ -232,10 +238,30 @@ def ingest_bronze_for_session(
         identity.open_verified_input(
             kind=ArtifactInputKind.SOURCE_SCHEMA_CATALOG
         ) as catalog_stream,
+        identity.open_verified_input(
+            kind=ArtifactInputKind.ARTIFACT_BUILD_CONFIG
+        ) as build_config_stream,
+        identity.open_verified_input(kind=ArtifactInputKind.DATASET_REGISTRY) as datasets_stream,
+        identity.open_verified_input(
+            kind=ArtifactInputKind.QUALITY_RULE_REGISTRY
+        ) as quality_stream,
+        identity.open_verified_input(kind=ArtifactInputKind.RATING_SCALE_REGISTRY) as rating_stream,
+        identity.open_verified_input(kind=ArtifactInputKind.STATE_RULE_REGISTRY) as state_stream,
     ):
         manifest = SourceFileManifest.from_held_streams(
             manifest_stream=manifest_stream,
             schema_catalog_stream=catalog_stream,
+        )
+        ArtifactBuildConfig.from_held_stream(
+            build_config_stream,
+            versions=session._versions,
+        )
+        validate_build_registry_versions_from_held_streams(
+            datasets=datasets_stream,
+            quality=quality_stream,
+            rating=rating_stream,
+            state=state_stream,
+            versions=session._versions,
         )
     sources = manifest.verify(session._settings.source_root)
     specs = tuple(

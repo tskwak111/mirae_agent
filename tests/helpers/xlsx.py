@@ -198,6 +198,7 @@ def write_complete_bronze_repository(repository_root: Path):
 
     config_root = repository_root / "config"
     config_root.mkdir()
+    project_root = Path(__file__).resolve().parents[2]
     for name in (
         "artifact_build.yaml",
         "datasets.yaml",
@@ -205,7 +206,7 @@ def write_complete_bronze_repository(repository_root: Path):
         "rating_scale.yaml",
         "state_rules.yaml",
     ):
-        (config_root / name).write_text("version: 1.0.0\n", encoding="utf-8")
+        (config_root / name).write_bytes((project_root / "config" / name).read_bytes())
     schema_root = repository_root / "schemas"
     schema_root.mkdir()
     for name in ("artifact_manifest.schema.json", "quality_issue.schema.json"):

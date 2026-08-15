@@ -471,6 +471,128 @@ def test_build_session_candidate_transfer_moves_descriptors_marker_registrations
         owned.assert_live()
 
 
+@pytest.mark.parametrize("kind", ["external-order", "database"])
+def test_candidate_transfer_rejects_every_live_registered_workspace(
+    tmp_path: Path,
+    kind: str,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    workspace = (
+        session.open_external_order_store(
+            config=ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG, strict=True)
+        )
+        if kind == "external-order"
+        else session.create_database_build_workspace()
+    )
+    live = workspace.__enter__()
+    try:
+        with pytest.raises(ArtifactContractError):
+            session.transfer_candidate_stage()
+        session.assert_live()
+    finally:
+        workspace.__exit__(None, None, None)
+    owned = session.transfer_candidate_stage()
+    owned.close()
+    del live
+
+
+def test_session_abort_removes_exact_registered_children_in_fixed_order(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.data.artifacts.table_specs import table_spec
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    for name in ("bronze_source_row", "bronze_source_cell"):
+        with session.claim_parquet_leaf(table_spec(name)).create_exclusive() as stream:
+            stream.write(name.encode())
+    with session.claim_database_leaf().create_exclusive() as stream:
+        stream.write(b"database")
+    stage_path = settings.repository_root / session._stage_name
+    unlinked: list[str] = []
+    real_unlink = os.unlink
+
+    def unlink_spy(path: str, *, dir_fd: int | None = None) -> None:
+        unlinked.append(path)
+        real_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "unlink", unlink_spy)
+    session.abort()
+
+    assert unlinked[:3] == [
+        "bronze_source_cell.parquet",
+        "bronze_source_row.parquet",
+        "finproof.duckdb",
+    ]
+    assert not stage_path.exists()
+
+
+@pytest.mark.parametrize("case", ["recognized", "failed-preflight-retry"])
+def test_candidate_discard_removes_recognized_nonempty_stage_and_preserves_live_retry(
+    tmp_path: Path,
+    case: str,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.data.artifacts.table_specs import table_spec
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    with session.claim_parquet_leaf(table_spec("bronze_source_row")).create_exclusive() as stream:
+        stream.write(b"row")
+    stage_path = settings.repository_root / session._stage_name
+    owned = session.transfer_candidate_stage()
+    custody = owned.issue_candidate_custody()
+    if case == "failed-preflight-retry":
+        unexpected = stage_path / "unexpected"
+        unexpected.write_bytes(b"foreign")
+        with pytest.raises(ArtifactContractError):
+            custody.discard_if_exact()
+        unexpected.unlink()
+        custody.assert_live()
+    custody.discard_if_exact()
+    assert not stage_path.exists()
+
+
+def test_production_external_order_store_does_not_call_test_only_factory() -> None:
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+
+    source = inspect.getsource(ArtifactBuildSession.open_external_order_store)
+    assert "_open_external_order_store_for_test" not in source
+    assert "ExternalOrderStoreTestLimits" not in source
+
+
 @pytest.mark.parametrize(
     "case",
     ["valid-root", "copy", "issue-reuse", "forged", "close-reuse"],
@@ -528,6 +650,46 @@ def test_candidate_stage_custody_is_instance_owned_and_opens_only_capability_bou
     finally:
         with contextlib.suppress(ArtifactContractError):
             custody.close()
+
+
+def test_candidate_verification_root_second_dup_failure_closes_first_acquisition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import staging as staging_module
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    )
+    custody = session.transfer_candidate_stage().issue_candidate_custody()
+    real_dup = os.dup
+    acquired: list[int] = []
+
+    def fail_second_dup(descriptor: int) -> int:
+        if acquired:
+            raise OSError("second duplicate failed")
+        duplicate = real_dup(descriptor)
+        acquired.append(duplicate)
+        return duplicate
+
+    monkeypatch.setattr(staging_module.os, "dup", fail_second_dup)
+    try:
+        with pytest.raises(ArtifactContractError), custody.open_verification_root():
+            pass
+        assert acquired
+        with pytest.raises(OSError, match="Bad file descriptor"):
+            os.fstat(acquired[0])
+        custody.assert_live()
+    finally:
+        custody.close()
 
 
 @pytest.mark.parametrize("case", ["valid", "duplicate", "foreign-spec"])
