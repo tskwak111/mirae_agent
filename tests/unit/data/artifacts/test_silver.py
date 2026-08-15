@@ -171,6 +171,61 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
             assert batches[0][0].payload_json == canonical_record_json(result.record)
 
 
+def test_issue_bearing_silver_build_uses_numeric_source_table_order_key_end_to_end(
+    tmp_path: Path,
+) -> None:
+    import hashlib
+    import json
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactBuildOptions
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.source_rows import BOND_COLUMNS
+    from tests.helpers.xlsx import write_complete_bronze_repository, write_xlsx
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    issue_row = source_row("PRBD01N001", {"PD_NO": '"'})
+    workbook = settings.source_root / "data/PRBD01N001_data.xlsx"
+    write_xlsx(workbook, rows=(BOND_COLUMNS, issue_row.raw_payload))
+    manifest_path = settings.source_root / "input_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item.get("table_id") == "PRBD01N001")
+    payload = workbook.read_bytes()
+    entry["size_bytes"] = len(payload)
+    entry["sha256"] = hashlib.sha256(payload).hexdigest()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    base_config = _silver_fixture_config(settings, versions)
+    config_payload = base_config.model_dump(mode="python")
+    config_payload["silver_counts"]["bond_instrument"] = 0
+    config_payload["quarantine_source_rows"] = 1
+    config = ArtifactBuildConfig.model_validate(config_payload, strict=True)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+
+        assert result.quality_join_observations.total_issues == 1
+        assert result.quality_join_observations.quarantined_source_row_count == 1
+        assert result.quality_report.by_source_table[0].source_table == "PRBD01N001"
+
+
 def test_silver_emitter_consumes_each_row_once_only_after_bronze_enqueue(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -476,7 +531,9 @@ def test_silver_build_result_is_factory_only_with_exact_six_field_order_and_obje
         bronze_result = session.ingest_bronze(consumer=emitter)
         result = emitter.finalize(bronze_result=bronze_result)
 
-        assert tuple(SilverBuildResult.__annotations__) == (
+        assert tuple(
+            name for name in SilverBuildResult.__annotations__ if not name.startswith("_")
+        ) == (
             "input_identity",
             "staged_tables",
             "observations",
@@ -509,6 +566,101 @@ def test_silver_build_result_is_factory_only_with_exact_six_field_order_and_obje
             require_silver_build_result(result)
         object.__setattr__(result, "quality_report", original_report)
         assert require_silver_build_result(result) is result
+
+
+def test_silver_build_result_is_frozen_finalizer_issued_and_revalidates_predecessor_relationships(
+    tmp_path: Path,
+) -> None:
+    import inspect
+    from dataclasses import fields, is_dataclass, replace
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.bronze import BronzeBuildResult
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.parquet_io import StagedParquetSet
+    from finproof.data.artifacts.silver import SilverArtifactEmitter, SilverBuildResult
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+
+        assert is_dataclass(SilverBuildResult)
+        assert SilverBuildResult.__dataclass_params__.frozen is True
+        assert SilverBuildResult.__dataclass_params__.init is False
+        assert tuple(field.name for field in fields(SilverBuildResult) if field.repr) == (
+            "input_identity",
+            "staged_tables",
+            "observations",
+            "quality_join_observations",
+            "quality_report",
+            "instrumentation",
+        )
+        assert tuple(inspect.signature(SilverBuildResult._issue_from_finalizer).parameters) == (
+            "bronze_result",
+            "staged_tables",
+            "observations",
+            "quality_join_observations",
+            "quality_report",
+            "instrumentation",
+        )
+        prefix = StagedParquetSet.from_verified(
+            owner=session,
+            verifications=result.staged_tables.verifications[:3],
+        )
+        fresh_bronze = BronzeBuildResult._issue(
+            staged_tables=prefix,
+            observations=bronze_result.observations,
+            input_identity=bronze_result.input_identity,
+        )
+        with pytest.raises((ArtifactContractError, TypeError, ValueError)):
+            SilverBuildResult._issue_from_finalizer(
+                bronze_result=fresh_bronze,
+                staged_tables=prefix,
+                observations=result.observations,
+                quality_join_observations=result.quality_join_observations,
+                quality_report=result.quality_report,
+                instrumentation=result.instrumentation,
+            )
+        with pytest.raises((TypeError, ValueError)):
+            SilverBuildResult._issue_from_finalizer(
+                bronze_result=fresh_bronze,
+                staged_tables=result.staged_tables,
+                observations=result.observations,
+                quality_join_observations=result.quality_join_observations,
+                quality_report=result.quality_report,
+                instrumentation=replace(
+                    result.instrumentation,
+                    staged_relation_rows=(
+                        *result.instrumentation.staged_relation_rows[:3],
+                        replace(
+                            result.instrumentation.staged_relation_rows[3],
+                            observed=result.instrumentation.staged_relation_rows[3].observed + 1,
+                        ),
+                        result.instrumentation.staged_relation_rows[4],
+                    ),
+                ),
+            )
 
 
 def test_silver_instrumentation_has_exact_names_counts_and_bounds(tmp_path: Path) -> None:

@@ -698,6 +698,95 @@ class ExternalOrderJoinRow:
     values: tuple[str | int, ...]
 
 
+_QUALITY_TO_BRONZE_SQL = """
+SELECT
+    CASE q.source_table
+        WHEN 'PRBD01N001' THEN 0
+        WHEN 'PREF01N001' THEN 1
+        WHEN 'PREF02N001' THEN 2
+        WHEN 'PRFD01N001' THEN 3
+        ELSE -1
+    END AS source_table_order,
+    q.source_file,
+    q.source_sheet,
+    q.source_row_number,
+    q.source_column_number,
+    q.rule_id,
+    q.issue_id,
+    q.record_json,
+    CAST(q.quarantined AS BIGINT),
+    CASE WHEN
+        r.source_table_order = CASE q.source_table
+            WHEN 'PRBD01N001' THEN 0
+            WHEN 'PREF01N001' THEN 1
+            WHEN 'PREF02N001' THEN 2
+            WHEN 'PRFD01N001' THEN 3
+            ELSE -1
+        END
+        AND c.source_table_order = r.source_table_order
+        AND q.source_checksum = r.source_checksum
+        AND q.source_checksum = c.source_checksum
+        AND q.source_snapshot_date = r.source_snapshot_date
+        AND q.source_snapshot_date = c.source_snapshot_date
+        AND q.source_column_name = c.source_column_name
+        AND q.source_column_letter = c.source_column_letter
+        AND q.source_applicable_date IS NOT DISTINCT FROM c.source_applicable_date
+        AND q.raw_payload_sha256 = r.raw_payload_sha256
+        AND q.first_detected_at = r.loaded_at
+    THEN 1 ELSE 0 END AS matched
+FROM join_quality AS q
+LEFT JOIN join_bronze_row AS r
+    ON q.source_table = r.source_table
+    AND q.source_file = r.source_file
+    AND q.source_sheet = r.source_sheet
+    AND q.source_row_number = r.source_row_number
+LEFT JOIN join_bronze_cell AS c
+    ON q.source_table = c.source_table
+    AND q.source_file = c.source_file
+    AND q.source_sheet = c.source_sheet
+    AND q.source_row_number = c.source_row_number
+    AND q.source_column_number = c.source_column_number
+ORDER BY 1, 2, 3, 4, 5, 6, 7
+"""
+
+_EXACT_EVIDENCE_TO_BRONZE_SQL = """
+SELECT
+    e.link_id,
+    e.evidence_role_order,
+    e.evidence_ordinal,
+    e.raw_identifier,
+    CASE WHEN c.raw_value IS NOT NULL THEN 1 ELSE 0 END AS matched
+FROM join_exact_evidence AS e
+LEFT JOIN join_bronze_cell AS c
+    ON e.source_table = c.source_table
+    AND e.source_file = c.source_file
+    AND e.source_sheet = c.source_sheet
+    AND e.source_row_number = c.source_row_number
+    AND e.source_column_name = c.source_column_name
+    AND e.source_column_number = c.source_column_number
+    AND e.source_column_letter = c.source_column_letter
+    AND e.source_checksum = c.source_checksum
+    AND e.source_snapshot_date = c.source_snapshot_date
+    AND e.source_applicable_date IS NOT DISTINCT FROM c.source_applicable_date
+    AND e.raw_identifier = c.raw_value
+ORDER BY 1, 2, 3
+"""
+
+_LINKED_DOMESTIC_RECORD_JSON_SQL = """
+SELECT i.exact_id, r.record_json
+FROM join_exact_ids AS i
+JOIN join_linked_domestic AS r ON i.exact_id = r.product_id
+ORDER BY 1
+"""
+
+_LINKED_FUND_RECORD_JSON_SQL = """
+SELECT i.exact_id, r.record_json
+FROM join_exact_ids AS i
+JOIN join_linked_fund AS r ON i.exact_id = r.fund_item_id
+ORDER BY 1
+"""
+
+
 class OwnedStageDatabaseLeaf(Protocol):
     """Owner-bound final database leaf capability."""
 
@@ -1438,11 +1527,250 @@ class ExternalOrderStore:
                 tables.require_tables(required)
                 if tuple(item.logical.name for item in tables.verifications) != required:
                     raise ValueError("quality join requires the exact nine-table set")
-                yield from ()
+                yield from self._iter_quality_to_bronze_batches(tables)
+                return
+            required = tuple(spec.table_name for spec in TABLE_SPECS)
+            tables.require_tables(required)
+            if tuple(item.logical.name for item in tables.verifications) != required:
+                raise ValueError("forward joins require the exact complete table set")
+            if operation is ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE:
+                if exact_ids:
+                    raise ValueError("evidence join does not accept exact IDs")
+                yield from self._iter_exact_evidence_to_bronze_batches(tables)
+                return
+            if tuple(sorted(set(exact_ids))) != exact_ids:
+                raise ValueError("linked record IDs are not canonical")
+            if operation is ExternalOrderJoinOperation.LINKED_DOMESTIC_RECORD_JSON:
+                yield from self._iter_linked_record_json_batches(
+                    tables=tables,
+                    exact_ids=exact_ids,
+                    staged_name="silver_domestic_listed_product",
+                    join_table="join_linked_domestic",
+                    id_column="product_id",
+                    sql=_LINKED_DOMESTIC_RECORD_JSON_SQL,
+                )
+                return
+            if operation is ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON:
+                yield from self._iter_linked_record_json_batches(
+                    tables=tables,
+                    exact_ids=exact_ids,
+                    staged_name="silver_fund_item",
+                    join_table="join_linked_fund",
+                    id_column="fund_item_id",
+                    sql=_LINKED_FUND_RECORD_JSON_SQL,
+                )
                 return
             raise ValueError("join operation is unavailable before CP6")
-        except (AttributeError, TypeError, ValueError) as exc:
+        except (AttributeError, duckdb.Error, TypeError, ValueError) as exc:
             raise _stage_contract_error("external_order_join_failed") from exc
+
+    def _iter_quality_to_bronze_batches(
+        self,
+        tables: StagedParquetSet,
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        projections = (
+            (
+                "join_quality",
+                "silver_quality_issue",
+                (
+                    ("source_table", "VARCHAR"),
+                    ("source_file", "VARCHAR"),
+                    ("source_sheet", "VARCHAR"),
+                    ("source_row_number", "BIGINT"),
+                    ("source_column_name", "VARCHAR"),
+                    ("source_column_number", "BIGINT"),
+                    ("source_column_letter", "VARCHAR"),
+                    ("source_checksum", "VARCHAR"),
+                    ("source_snapshot_date", "DATE"),
+                    ("source_applicable_date", "DATE"),
+                    ("raw_payload_sha256", "VARCHAR"),
+                    ("first_detected_at", "TIMESTAMPTZ"),
+                    ("rule_id", "VARCHAR"),
+                    ("issue_id", "VARCHAR"),
+                    ("quarantined", "BOOLEAN"),
+                    ("record_json", "VARCHAR"),
+                ),
+            ),
+            (
+                "join_bronze_row",
+                "bronze_source_row",
+                (
+                    ("source_table_order", "BIGINT"),
+                    ("source_table", "VARCHAR"),
+                    ("source_file", "VARCHAR"),
+                    ("source_sheet", "VARCHAR"),
+                    ("source_row_number", "BIGINT"),
+                    ("source_checksum", "VARCHAR"),
+                    ("source_snapshot_date", "DATE"),
+                    ("raw_payload_sha256", "VARCHAR"),
+                    ("loaded_at", "TIMESTAMPTZ"),
+                ),
+            ),
+            (
+                "join_bronze_cell",
+                "bronze_source_cell",
+                (
+                    ("source_table_order", "BIGINT"),
+                    ("source_table", "VARCHAR"),
+                    ("source_file", "VARCHAR"),
+                    ("source_sheet", "VARCHAR"),
+                    ("source_row_number", "BIGINT"),
+                    ("source_column_name", "VARCHAR"),
+                    ("source_column_number", "BIGINT"),
+                    ("source_column_letter", "VARCHAR"),
+                    ("source_checksum", "VARCHAR"),
+                    ("source_snapshot_date", "DATE"),
+                    ("source_applicable_date", "DATE"),
+                ),
+            ),
+        )
+        try:
+            for table_name, staged_name, columns in projections:
+                self._load_staged_join_projection(
+                    tables=tables,
+                    table_name=table_name,
+                    staged_name=staged_name,
+                    columns=columns,
+                )
+            cursor = self._connection.execute(_QUALITY_TO_BRONZE_SQL)
+            while rows := cursor.fetchmany(self._limits.batch_rows):
+                yield tuple(
+                    ExternalOrderJoinRow(
+                        key=tuple(row[:7]),
+                        values=(str(row[7]), int(row[8]), int(row[9])),
+                    )
+                    for row in rows
+                )
+        finally:
+            for table_name, _staged_name, _columns in reversed(projections):
+                self._connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+
+    def _iter_exact_evidence_to_bronze_batches(
+        self,
+        tables: StagedParquetSet,
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        projections = (
+            (
+                "join_exact_evidence",
+                "gold_exact_cross_source_link_evidence",
+                (
+                    ("link_id", "VARCHAR"),
+                    ("evidence_role_order", "BIGINT"),
+                    ("evidence_ordinal", "BIGINT"),
+                    ("raw_identifier", "VARCHAR"),
+                    ("source_table", "VARCHAR"),
+                    ("source_file", "VARCHAR"),
+                    ("source_sheet", "VARCHAR"),
+                    ("source_row_number", "BIGINT"),
+                    ("source_column_name", "VARCHAR"),
+                    ("source_column_number", "BIGINT"),
+                    ("source_column_letter", "VARCHAR"),
+                    ("source_checksum", "VARCHAR"),
+                    ("source_snapshot_date", "DATE"),
+                    ("source_applicable_date", "DATE"),
+                ),
+            ),
+            (
+                "join_bronze_cell",
+                "bronze_source_cell",
+                (
+                    ("source_table", "VARCHAR"),
+                    ("source_file", "VARCHAR"),
+                    ("source_sheet", "VARCHAR"),
+                    ("source_row_number", "BIGINT"),
+                    ("source_column_name", "VARCHAR"),
+                    ("source_column_number", "BIGINT"),
+                    ("source_column_letter", "VARCHAR"),
+                    ("source_checksum", "VARCHAR"),
+                    ("source_snapshot_date", "DATE"),
+                    ("source_applicable_date", "DATE"),
+                    ("raw_value", "VARCHAR"),
+                ),
+            ),
+        )
+        try:
+            for table_name, staged_name, columns in projections:
+                self._load_staged_join_projection(
+                    tables=tables,
+                    table_name=table_name,
+                    staged_name=staged_name,
+                    columns=columns,
+                )
+            cursor = self._connection.execute(_EXACT_EVIDENCE_TO_BRONZE_SQL)
+            while rows := cursor.fetchmany(self._limits.batch_rows):
+                yield tuple(
+                    ExternalOrderJoinRow(
+                        key=(str(row[0]), int(row[1]), int(row[2])),
+                        values=(str(row[3]), int(row[4])),
+                    )
+                    for row in rows
+                )
+        finally:
+            for table_name, _staged_name, _columns in reversed(projections):
+                self._connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+
+    def _iter_linked_record_json_batches(
+        self,
+        *,
+        tables: StagedParquetSet,
+        exact_ids: tuple[str, ...],
+        staged_name: str,
+        join_table: str,
+        id_column: str,
+        sql: str,
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        try:
+            self._connection.execute(
+                "CREATE TEMP TABLE join_exact_ids (exact_id VARCHAR PRIMARY KEY)"
+            )
+            if exact_ids:
+                self._connection.executemany(
+                    "INSERT INTO join_exact_ids VALUES (?)",
+                    ((value,) for value in exact_ids),
+                )
+            self._load_staged_join_projection(
+                tables=tables,
+                table_name=join_table,
+                staged_name=staged_name,
+                columns=((id_column, "VARCHAR"), ("record_json", "VARCHAR")),
+            )
+            cursor = self._connection.execute(sql)
+            while rows := cursor.fetchmany(self._limits.batch_rows):
+                yield tuple(
+                    ExternalOrderJoinRow(key=(str(row[0]),), values=(str(row[1]),)) for row in rows
+                )
+        finally:
+            self._connection.execute(f"DROP TABLE IF EXISTS {join_table}")
+            self._connection.execute("DROP TABLE IF EXISTS join_exact_ids")
+
+    def _load_staged_join_projection(
+        self,
+        *,
+        tables: StagedParquetSet,
+        table_name: str,
+        staged_name: str,
+        columns: tuple[tuple[str, str], ...],
+    ) -> None:
+        definitions = ", ".join(f"{name} {logical_type}" for name, logical_type in columns)
+        self._connection.execute(f"CREATE TEMP TABLE {table_name} ({definitions})")
+        verification = tables.verification_for(staged_name)
+        names = tuple(name for name, _logical_type in columns)
+        placeholders = ", ".join("?" for _ in columns)
+        with verification.handle.iter_batches(batch_size=self._limits.batch_rows) as batches:
+            for batch in batches:
+                rows = batch.select(names).to_pylist()
+                if len(rows) > self._limits.batch_rows:
+                    raise ValueError("staged join batch exceeds the fixed bound")
+                values = []
+                for row in rows:
+                    if type(row) is not dict or tuple(row) != names:
+                        raise ValueError("staged join projection changed")
+                    values.append(tuple(row[name] for name in names))
+                if values:
+                    self._connection.executemany(
+                        f"INSERT INTO {table_name} VALUES ({placeholders})",  # noqa: S608
+                        values,
+                    )
 
     def _insert_forced_spill_runs(
         self,

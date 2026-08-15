@@ -1256,6 +1256,174 @@ def test_external_order_store_closed_quality_join_revalidates_exact_live_staged_
         )
 
 
+def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
+    tmp_path: Path,
+) -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.parquet_io import (
+        ParquetBatchWriter,
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+    from finproof.data.artifacts.serialization import (
+        BronzeSourceCellRecord,
+        ExactCrossSourceLinkEvidenceRecord,
+        ExactCrossSourceLinkRecord,
+        canonical_record_json,
+        serialize_table_row,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderJoinOperation,
+        ExternalOrderJoinRow,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+    from finproof.data.normalization.domestic_listed import normalize_domestic_listed
+    from finproof.data.normalization.public_funds import (
+        collapse_fund_items,
+        normalize_fund_attribute,
+    )
+    from tests.helpers.source_rows import source_row
+
+    domestic_source = source_row("PREF01N001")
+    domestic_result = normalize_domestic_listed(domestic_source, date(2026, 7, 11))
+    assert domestic_result.record is not None
+    domestic = domestic_result.record
+    fund_result = normalize_fund_attribute(source_row("PRFD01N001"))
+    assert fund_result.record is not None
+    fund = collapse_fund_items((fund_result.record,)).items[0]
+    cell = domestic_source.cell("pd_itm_no")
+    bronze_cell = BronzeSourceCellRecord(
+        source_table_order=1,
+        source_table=domestic_source.source_table,
+        source_file=domestic_source.source_file,
+        source_sheet=domestic_source.source_sheet,
+        source_row_number=domestic_source.source_row_number,
+        source_column_name=cell.column_name,
+        source_column_number=cell.excel_column_number,
+        source_column_letter=cell.excel_column_letter,
+        source_checksum=domestic_source.source_checksum,
+        source_snapshot_date=domestic_source.source_snapshot_date,
+        source_applicable_date=cell.applicable_date,
+        raw_value=cell.raw_value,
+    )
+    link = ExactCrossSourceLinkRecord(
+        link_id="b" * 64,
+        left_table="silver_domestic_listed_product",
+        left_product_id=str(domestic.product_id.normalized_value),
+        left_identifier_field="pd_itm_no",
+        right_table="silver_fund_item",
+        right_product_id=str(fund.fund_item_id.representative.normalized_value),
+        right_identifier_field="ksd_itm_no",
+        matched_raw_identifier=cell.raw_value,
+        link_type="exact_identifier",
+        confidence=Decimal("1.0"),
+        rule_id="cross_source.domestic_etf_public_fund.exact_raw_identifier",
+        rule_version="1.0.0",
+    )
+    evidence = ExactCrossSourceLinkEvidenceRecord(
+        link_id=link.link_id,
+        evidence_role="left_identifier",
+        evidence_role_order=0,
+        evidence_ordinal=0,
+        raw_identifier=cell.raw_value,
+        source_table=bronze_cell.source_table,
+        source_file=bronze_cell.source_file,
+        source_sheet=bronze_cell.source_sheet,
+        source_row_number=bronze_cell.source_row_number,
+        source_column_name=bronze_cell.source_column_name,
+        source_column_number=bronze_cell.source_column_number,
+        source_column_letter=bronze_cell.source_column_letter,
+        source_checksum=bronze_cell.source_checksum,
+        source_snapshot_date=bronze_cell.source_snapshot_date,
+        source_applicable_date=bronze_cell.source_applicable_date,
+    )
+    rows_by_table = {
+        "bronze_source_cell": (serialize_table_row(TABLE_SPECS[2], bronze_cell),),
+        "silver_domestic_listed_product": (serialize_table_row(TABLE_SPECS[4], domestic),),
+        "silver_fund_item": (serialize_table_row(TABLE_SPECS[6], fund),),
+        "gold_exact_cross_source_link": (serialize_table_row(TABLE_SPECS[9], link),),
+        "gold_exact_cross_source_link_evidence": (serialize_table_row(TABLE_SPECS[10], evidence),),
+    }
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        verifications = []
+        for spec in TABLE_SPECS:
+            leaf = session.claim_parquet_leaf(spec)
+            writer = ParquetBatchWriter(spec, leaf)
+            if rows := rows_by_table.get(spec.table_name):
+                writer.write_batch(rows)
+            writer.close()
+            verifications.append(verify_staged_parquet_table(owner=session, leaf=leaf, spec=spec))
+        tables = StagedParquetSet.from_verified(
+            owner=session,
+            verifications=tuple(verifications),
+        )
+
+        evidence_rows = tuple(
+            row
+            for batch in store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE,
+                tables=tables,
+            )
+            for row in batch
+        )
+        domestic_rows = tuple(
+            row
+            for batch in store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.LINKED_DOMESTIC_RECORD_JSON,
+                tables=tables,
+                exact_ids=(str(domestic.product_id.normalized_value),),
+            )
+            for row in batch
+        )
+        fund_rows = tuple(
+            row
+            for batch in store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON,
+                tables=tables,
+                exact_ids=(str(fund.fund_item_id.representative.normalized_value),),
+            )
+            for row in batch
+        )
+
+        assert evidence_rows == (
+            ExternalOrderJoinRow(
+                key=(link.link_id, 0, 0),
+                values=(cell.raw_value, 1),
+            ),
+        )
+        assert domestic_rows == (
+            ExternalOrderJoinRow(
+                key=(str(domestic.product_id.normalized_value),),
+                values=(canonical_record_json(domestic),),
+            ),
+        )
+        assert fund_rows == (
+            ExternalOrderJoinRow(
+                key=(str(fund.fund_item_id.representative.normalized_value),),
+                values=(canonical_record_json(fund),),
+            ),
+        )
+
+
 def test_external_order_store_fixes_production_settings_and_isolates_private_test_limits(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

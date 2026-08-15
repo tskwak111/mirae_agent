@@ -294,7 +294,7 @@ class SilverSourceAuditObservations:
     source_tables: tuple[SourceTableAudit, ...]
     silver_tables: tuple[NamedExpectedObservedCount, ...]
     quarantine_source_rows: ExpectedObservedCount
-    _issuance: object
+    _issuance: _SilverObservationIssuance
 
     def __new__(cls, *args: object, **kwargs: object) -> SilverSourceAuditObservations:
         del args, kwargs

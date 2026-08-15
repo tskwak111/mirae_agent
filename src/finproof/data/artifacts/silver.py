@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, cast
 
 from finproof.core.versions import VersionBundle
@@ -45,6 +45,7 @@ from finproof.data.normalization.public_funds import (
     classify_public_fund_row,
     normalize_public_fund_item_group,
 )
+from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
 from finproof.domain.bonds import BondInstrument
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.normalization import NormalizationResult
@@ -156,18 +157,9 @@ class _SilverBatchSink:
             self._rows.clear()
 
 
+@dataclass(frozen=True, init=False, slots=True)
 class SilverBuildResult:
     """Builder-issued carrier for one verified nine-table Silver stage."""
-
-    __slots__ = (
-        "_issuance",
-        "input_identity",
-        "instrumentation",
-        "observations",
-        "quality_join_observations",
-        "quality_report",
-        "staged_tables",
-    )
 
     input_identity: BuildInputIdentity
     staged_tables: StagedParquetSet
@@ -175,30 +167,101 @@ class SilverBuildResult:
     quality_join_observations: QualityJoinObservations
     quality_report: QualitySummaryReport
     instrumentation: SilverBuildInstrumentation
+    _issuance: _SilverBuildResultIssuance = field(init=False, repr=False, compare=False)
 
     def __new__(cls, *args: object, **kwargs: object) -> SilverBuildResult:
         del args, kwargs
         raise TypeError("SilverBuildResult is builder-issued")
 
     @classmethod
-    def _issue(
+    def _issue_from_finalizer(
         cls,
         *,
-        input_identity: BuildInputIdentity,
+        bronze_result: BronzeBuildResult,
         staged_tables: StagedParquetSet,
         observations: SilverSourceAuditObservations,
         quality_join_observations: QualityJoinObservations,
         quality_report: QualitySummaryReport,
         instrumentation: SilverBuildInstrumentation,
     ) -> SilverBuildResult:
+        exact_bronze = require_bronze_build_result(bronze_result)
+        require_silver_source_audit_observations(observations)
+        validated_join = QualityJoinObservations.model_validate(
+            quality_join_observations.model_dump(mode="python"), strict=True
+        )
+        validated_report = QualitySummaryReport.model_validate(
+            quality_report.model_dump(mode="python"), strict=True
+        )
+        if (
+            type(staged_tables) is not StagedParquetSet
+            or type(observations) is not SilverSourceAuditObservations
+            or type(quality_join_observations) is not QualityJoinObservations
+            or validated_join != quality_join_observations
+            or type(quality_report) is not QualitySummaryReport
+            or validated_report != quality_report
+            or type(instrumentation) is not SilverBuildInstrumentation
+        ):
+            raise TypeError("Silver result requires exact finalizer members")
+        staged_tables.assert_live()
+        staged_names = tuple(item.logical.name for item in staged_tables.verifications)
+        bronze_verifications = exact_bronze.staged_tables.verifications
+        if (
+            staged_tables._owner is not exact_bronze.staged_tables._owner
+            or staged_tables.persistence_timestamp
+            != exact_bronze.staged_tables.persistence_timestamp
+            or staged_names != tuple(TABLE_SPEC_BY_NAME)[:9]
+            or len(bronze_verifications) != 3
+            or any(
+                staged_tables.verifications[index] is not bronze_verifications[index]
+                for index in range(3)
+            )
+            or observations._issuance.predecessor is not exact_bronze.observations
+        ):
+            raise ValueError("Silver result predecessor relationship changed")
+        observed_rows = {
+            item.logical.name: item.logical.row_count for item in staged_tables.verifications
+        }
+        quality_verification = staged_tables.verification_for("silver_quality_issue")
+        if (
+            quality_join_observations.persistence_timestamp != staged_tables.persistence_timestamp
+            or quality_join_observations.quality_table_logical_hash
+            != quality_verification.logical.logical_hash
+            or quality_join_observations.total_issues != quality_verification.logical.row_count
+            or quality_report.total_issues != quality_join_observations.total_issues
+            or quality_report.distinct_affected_source_rows
+            != quality_join_observations.distinct_affected_source_rows
+            or quality_report.quarantined_issue_count
+            != quality_join_observations.quarantined_issue_count
+            or quality_report.quarantined_source_row_count
+            != quality_join_observations.quarantined_source_row_count
+            or quality_report.quality_table_logical_hash
+            != quality_join_observations.quality_table_logical_hash
+        ):
+            raise ValueError("Silver result quality relationship changed")
+        source_counts = tuple(
+            item.observed_rows for item in exact_bronze.observations.source_tables
+        )
+        staged_counts = {item.name: item.observed for item in instrumentation.staged_relation_rows}
+        if (
+            tuple(item.observed for item in instrumentation.source_consume_counts) != source_counts
+            or instrumentation.source_rows_consumed != sum(source_counts)
+            or staged_counts["SILVER_BOND_INSTRUMENT"] != observed_rows["silver_bond_instrument"]
+            or staged_counts["SILVER_DOMESTIC_LISTED_PRODUCT"]
+            != observed_rows["silver_domestic_listed_product"]
+            or staged_counts["SILVER_OVERSEAS_LISTED_PRODUCT"]
+            != observed_rows["silver_overseas_listed_product"]
+            or staged_counts["PUBLIC_FUND_SOURCE_ROW"] != source_counts[3]
+            or staged_counts["SILVER_QUALITY_ISSUE"] != observed_rows["silver_quality_issue"]
+        ):
+            raise ValueError("Silver result instrumentation relationship changed")
         value = object.__new__(cls)
-        value.input_identity = input_identity
-        value.staged_tables = staged_tables
-        value.observations = observations
-        value.quality_join_observations = quality_join_observations
-        value.quality_report = quality_report
-        value.instrumentation = instrumentation
-        value._issuance = _SilverBuildResultIssuance(value)  # type: ignore[attr-defined]
+        object.__setattr__(value, "input_identity", exact_bronze.input_identity)
+        object.__setattr__(value, "staged_tables", staged_tables)
+        object.__setattr__(value, "observations", observations)
+        object.__setattr__(value, "quality_join_observations", quality_join_observations)
+        object.__setattr__(value, "quality_report", quality_report)
+        object.__setattr__(value, "instrumentation", instrumentation)
+        object.__setattr__(value, "_issuance", _SilverBuildResultIssuance(value))
         return value
 
 
@@ -462,7 +525,7 @@ class SilverArtifactEmitter:
                 rows=(
                     ExternalOrderRow(
                         key=(
-                            source.source_table,
+                            OFFICIAL_TABLE_IDS.index(source.source_table),
                             source.source_file.as_posix(),
                             source.source_sheet,
                             source.source_row_number,
@@ -570,8 +633,8 @@ class SilverArtifactEmitter:
             max_relation_batch_rows=self._max_relation_batch_rows,
         )
         self._order_store.close_and_remove_working_state()
-        return SilverBuildResult._issue(
-            input_identity=exact.input_identity,
+        return SilverBuildResult._issue_from_finalizer(
+            bronze_result=exact,
             staged_tables=self._staged_tables,
             observations=self._observations,
             quality_join_observations=self._quality_join_observations,

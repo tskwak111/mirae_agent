@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+import json
+from collections.abc import Iterator
 from datetime import datetime
-from typing import Any
 
+from jsonschema import Draft202012Validator, FormatChecker
+from jsonschema.exceptions import SchemaError as JsonSchemaSchemaError
+from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 from pydantic import ValidationError
 
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
@@ -15,9 +18,15 @@ from finproof.data.artifacts.reports import (
     LinkedRecordJson,
     QualityJoinObservations,
 )
+from finproof.data.artifacts.resources import quality_issue_schema_bytes
 from finproof.data.artifacts.serialization import serialize_table_row
-from finproof.data.artifacts.staging import ExternalOrderJoinOperation, ExternalOrderStore
+from finproof.data.artifacts.staging import (
+    ExternalOrderJoinOperation,
+    ExternalOrderJoinRow,
+    ExternalOrderStore,
+)
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
 from finproof.domain.quality import DataQualityIssue
 
 
@@ -39,7 +48,22 @@ def persist_quality_issue(
         raise ValueError("quality persistence timestamp must be exact aware UTC")
     payload = issue.model_dump(mode="python")
     payload["first_detected_at"] = persistence_timestamp
-    return DataQualityIssue.model_validate(payload, strict=True)
+    persisted = DataQualityIssue.model_validate(payload, strict=True)
+    try:
+        schema = json.loads(quality_issue_schema_bytes())
+        Draft202012Validator.check_schema(schema)
+        Draft202012Validator(
+            schema,
+            format_checker=FormatChecker(),
+        ).validate(persisted.model_dump(mode="json"))
+    except (
+        json.JSONDecodeError,
+        JsonSchemaSchemaError,
+        JsonSchemaValidationError,
+        TypeError,
+    ) as exc:
+        raise ValueError("quality issue schema validation failed") from exc
+    return persisted
 
 
 class StagedBoundedRelationVerifier:
@@ -65,49 +89,66 @@ class StagedBoundedRelationVerifier:
         tables: StagedParquetSet,
     ) -> QualityJoinObservations:
         try:
-            tuple(
-                self._store.iter_join_batches(
-                    operation=ExternalOrderJoinOperation.QUALITY_TO_BRONZE,
-                    tables=tables,
-                )
-            )
-            quality_rows = _iter_staged_rows(tables, "silver_quality_issue")
-            bronze_rows = _iter_staged_rows(tables, "bronze_source_row")
-            bronze_cells = _iter_staged_rows(tables, "bronze_source_cell")
-            current_row = next(bronze_rows, None)
-            current_cell = next(bronze_cells, None)
             total = affected = quarantined_issues = quarantined_rows = 0
-            previous_source_key: tuple[object, ...] | None = None
-            previous_quarantined_key: tuple[object, ...] | None = None
-            for quality in quality_rows:
-                source_key = _quality_source_key(quality)
-                while current_row is not None and _bronze_row_key(current_row) < source_key:
-                    current_row = next(bronze_rows, None)
-                cell_key = (*source_key, quality["source_column_number"])
-                while current_cell is not None and _bronze_cell_key(current_cell) < cell_key:
-                    current_cell = next(bronze_cells, None)
-                if (
-                    current_row is None
-                    or _bronze_row_key(current_row) != source_key
-                    or current_cell is None
-                    or _bronze_cell_key(current_cell) != cell_key
-                ):
-                    raise ValueError("quality issue does not match one Bronze row and cell")
-                _validate_quality_join_match(
-                    quality,
-                    current_row,
-                    current_cell,
-                    tables.persistence_timestamp,
-                )
-                total += 1
-                if source_key != previous_source_key:
-                    affected += 1
-                    previous_source_key = source_key
-                if quality["quarantined"] is True:
-                    quarantined_issues += 1
-                    if source_key != previous_quarantined_key:
-                        quarantined_rows += 1
-                        previous_quarantined_key = source_key
+            previous_key: tuple[str | int, ...] | None = None
+            previous_source_key: tuple[str | int, ...] | None = None
+            previous_quarantined_key: tuple[str | int, ...] | None = None
+            for batch in self._store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.QUALITY_TO_BRONZE,
+                tables=tables,
+            ):
+                if type(batch) is not tuple or len(batch) > 65_536:
+                    raise ValueError("quality join batch is not bounded")
+                for joined in batch:
+                    if (
+                        type(joined) is not ExternalOrderJoinRow
+                        or len(joined.key) != 7
+                        or len(joined.values) != 3
+                    ):
+                        raise ValueError("quality join row is not exact")
+                    record_json, quarantined, matched = joined.values
+                    if (
+                        type(record_json) is not str
+                        or type(quarantined) is not int
+                        or quarantined not in (0, 1)
+                        or type(matched) is not int
+                        or matched != 1
+                        or (previous_key is not None and joined.key <= previous_key)
+                    ):
+                        raise ValueError("quality join facts are invalid")
+                    issue = DataQualityIssue.model_validate_json(record_json, strict=True)
+                    source = issue.source
+                    expected_key = (
+                        OFFICIAL_TABLE_IDS.index(source.source_table),
+                        source.source_file.as_posix(),
+                        source.source_sheet,
+                        source.source_row_number,
+                        source.source_column_number,
+                        issue.rule_id,
+                        issue.issue_id,
+                    )
+                    expected = serialize_table_row(
+                        TABLE_SPEC_BY_NAME["silver_quality_issue"],
+                        issue,
+                    )
+                    if (
+                        joined.key != expected_key
+                        or quarantined != int(issue.quarantined)
+                        or issue.first_detected_at != tables.persistence_timestamp
+                        or expected["record_json"] != record_json
+                    ):
+                        raise ValueError("quality join projection is inconsistent")
+                    total += 1
+                    source_key = joined.key[:4]
+                    if source_key != previous_source_key:
+                        affected += 1
+                        previous_source_key = source_key
+                    if quarantined == 1:
+                        quarantined_issues += 1
+                        if source_key != previous_quarantined_key:
+                            quarantined_rows += 1
+                            previous_quarantined_key = source_key
+                    previous_key = joined.key
             quality_verification = tables.verification_for("silver_quality_issue")
             return QualityJoinObservations(
                 total_issues=total,
@@ -126,8 +167,33 @@ class StagedBoundedRelationVerifier:
             raise _quality_contract_error() from exc
 
     def verify_exact_evidence_to_bronze(self, *, tables: StagedParquetSet) -> None:
-        del tables
-        raise _quality_contract_error()
+        try:
+            previous_key: tuple[str | int, ...] | None = None
+            for batch in self._store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE,
+                tables=tables,
+            ):
+                if type(batch) is not tuple or len(batch) > 65_536:
+                    raise ValueError("evidence join batch is not bounded")
+                for joined in batch:
+                    if (
+                        type(joined) is not ExternalOrderJoinRow
+                        or len(joined.key) != 3
+                        or type(joined.key[0]) is not str
+                        or type(joined.key[1]) is not int
+                        or type(joined.key[2]) is not int
+                        or len(joined.values) != 2
+                        or type(joined.values[0]) is not str
+                        or type(joined.values[1]) is not int
+                        or joined.values[1] != 1
+                        or (previous_key is not None and joined.key <= previous_key)
+                    ):
+                        raise ValueError("evidence join row is invalid")
+                    previous_key = joined.key
+        except ArtifactContractError:
+            raise
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise _quality_contract_error() from exc
 
     def iter_linked_record_json(
         self,
@@ -136,80 +202,53 @@ class StagedBoundedRelationVerifier:
         side: ExactLinkedSide,
         exact_ids: tuple[str, ...],
     ) -> Iterator[tuple[LinkedRecordJson, ...]]:
-        del tables, side, exact_ids
-        yield from ()
-        raise _quality_contract_error()
-
-
-def _iter_staged_rows(
-    tables: StagedParquetSet,
-    table_name: str,
-) -> Iterator[dict[str, Any]]:
-    verification = tables.verification_for(table_name)
-    with verification.handle.iter_batches(batch_size=65_536) as batches:
-        for batch in batches:
-            for row in batch.to_pylist():
-                if type(row) is not dict:
-                    raise ValueError("staged relation row is not a mapping")
-                yield row
-
-
-def _quality_source_key(row: Mapping[str, object]) -> tuple[object, ...]:
-    return (
-        row["source_table"],
-        row["source_file"],
-        row["source_sheet"],
-        row["source_row_number"],
-    )
-
-
-def _bronze_row_key(row: Mapping[str, object]) -> tuple[object, ...]:
-    return (
-        row["source_table"],
-        row["source_file"],
-        row["source_sheet"],
-        row["source_row_number"],
-    )
-
-
-def _bronze_cell_key(row: Mapping[str, object]) -> tuple[object, ...]:
-    return (*_bronze_row_key(row), row["source_column_number"])
-
-
-def _validate_quality_join_match(
-    quality: Mapping[str, object],
-    bronze_row: Mapping[str, object],
-    bronze_cell: Mapping[str, object],
-    timestamp: datetime,
-) -> None:
-    for name in (
-        "source_table",
-        "source_file",
-        "source_sheet",
-        "source_row_number",
-        "source_column_name",
-        "source_column_number",
-        "source_column_letter",
-        "source_checksum",
-        "source_snapshot_date",
-    ):
-        counterpart = bronze_cell[name] if name in bronze_cell else bronze_row[name]
-        if quality[name] != counterpart:
-            raise ValueError("quality source locator does not match Bronze")
-    if (
-        quality["source_applicable_date"] != bronze_cell["source_applicable_date"]
-        or quality["raw_payload_sha256"] != bronze_row["raw_payload_sha256"]
-        or quality["first_detected_at"] != timestamp
-        or bronze_row["loaded_at"] != timestamp
-    ):
-        raise ValueError("quality row facts do not match Bronze")
-    record_json = quality["record_json"]
-    if type(record_json) is not str:
-        raise ValueError("quality record_json is not exact")
-    parsed = DataQualityIssue.model_validate_json(record_json)
-    expected = serialize_table_row(TABLE_SPEC_BY_NAME["silver_quality_issue"], parsed)
-    if dict(expected) != dict(quality):
-        raise ValueError("quality record_json and typed projection disagree")
+        try:
+            if type(side) is not ExactLinkedSide:
+                raise TypeError("linked side is not exact")
+            if (
+                type(exact_ids) is not tuple
+                or any(type(value) is not str or not value for value in exact_ids)
+                or tuple(sorted(set(exact_ids))) != exact_ids
+            ):
+                raise ValueError("linked IDs are not canonical")
+            operation = (
+                ExternalOrderJoinOperation.LINKED_DOMESTIC_RECORD_JSON
+                if side is ExactLinkedSide.DOMESTIC
+                else ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON
+            )
+            observed_ids: list[str] = []
+            for batch in self._store.iter_join_batches(
+                operation=operation,
+                tables=tables,
+                exact_ids=exact_ids,
+            ):
+                if type(batch) is not tuple or len(batch) > 65_536:
+                    raise ValueError("linked record batch is not bounded")
+                converted: list[LinkedRecordJson] = []
+                for joined in batch:
+                    if (
+                        type(joined) is not ExternalOrderJoinRow
+                        or len(joined.key) != 1
+                        or type(joined.key[0]) is not str
+                        or len(joined.values) != 1
+                        or type(joined.values[0]) is not str
+                        or (observed_ids and joined.key[0] <= observed_ids[-1])
+                    ):
+                        raise ValueError("linked record row is invalid")
+                    observed_ids.append(joined.key[0])
+                    converted.append(
+                        LinkedRecordJson(
+                            product_id=joined.key[0],
+                            record_json=joined.values[0],
+                        )
+                    )
+                yield tuple(converted)
+            if tuple(observed_ids) != exact_ids:
+                raise ValueError("linked record IDs are incomplete")
+        except ArtifactContractError:
+            raise
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise _quality_contract_error() from exc
 
 
 def _quality_contract_error() -> ArtifactContractError:

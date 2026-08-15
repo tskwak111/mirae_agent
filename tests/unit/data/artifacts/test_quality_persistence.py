@@ -155,6 +155,29 @@ def test_quality_persistence_accepts_only_exact_untimestamped_data_quality_issue
             )
 
 
+def test_quality_persistence_validates_packaged_schema_and_rejects_schema_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts import quality_persistence
+
+    calls = 0
+
+    def drifted_schema() -> bytes:
+        nonlocal calls
+        calls += 1
+        return b'{"$schema":"https://json-schema.org/draft/2020-12/schema","required":["missing"]}'
+
+    monkeypatch.setattr(quality_persistence, "quality_issue_schema_bytes", drifted_schema)
+
+    with pytest.raises(ValueError, match="quality issue schema"):
+        persist_quality_issue(
+            _issue(),
+            persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC),
+        )
+
+    assert calls == 1
+
+
 def test_persisted_quality_row_and_record_json_match_exact_d021_schema() -> None:
     persisted = persist_quality_issue(
         _issue(),
@@ -413,3 +436,120 @@ def test_quality_relation_rejects_missing_row_cell_raw_hash_timestamp_and_record
 
                 with pytest.raises((ArtifactContractError, ValueError)):
                     verify_invalid_case()
+
+
+def test_quality_verifier_consumes_only_typed_static_join_batches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import quality_persistence
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.quality_persistence import StagedBoundedRelationVerifier
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderJoinOperation,
+    )
+
+    settings = artifact_staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=artifact_build_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        tables = _quality_staged_set(session)
+        batches = tuple(
+            store.iter_join_batches(
+                operation=ExternalOrderJoinOperation.QUALITY_TO_BRONZE,
+                tables=tables,
+            )
+        )
+
+        assert len(batches) == 1
+        assert len(batches[0]) == 1
+        assert batches[0][0].key[0] == 0
+        assert batches[0][0].values[-1] == 1
+        monkeypatch.setattr(
+            quality_persistence,
+            "_iter_staged_rows",
+            lambda *_args, **_kwargs: pytest.fail("verifier bypassed the typed join"),
+            raising=False,
+        )
+
+        observed = StagedBoundedRelationVerifier.for_store(store).verify_quality_to_bronze(
+            tables=tables
+        )
+
+        assert observed.total_issues == 1
+        assert observed.matched_bronze_cells == 1
+
+
+def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.quality_persistence import StagedBoundedRelationVerifier
+    from finproof.data.artifacts.reports import ExactLinkedSide, LinkedRecordJson
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderJoinOperation,
+        ExternalOrderJoinRow,
+        ExternalOrderStore,
+    )
+
+    def typed_batches(
+        self: ExternalOrderStore,
+        *,
+        operation: ExternalOrderJoinOperation,
+        tables: Any,
+        exact_ids: tuple[str, ...] = (),
+    ) -> Any:
+        del self, tables
+        if operation is ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE:
+            assert exact_ids == ()
+            yield (ExternalOrderJoinRow(key=("a" * 64, 0, 0), values=("ID", 1)),)
+            return
+        assert exact_ids == ("product-1",)
+        yield (ExternalOrderJoinRow(key=("product-1",), values=("{}",)),)
+
+    monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
+    settings = artifact_staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=artifact_build_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        tables = _empty_staged_set(session, count=11)
+        verifier = StagedBoundedRelationVerifier.for_store(store)
+
+        verifier.verify_exact_evidence_to_bronze(tables=tables)
+        for side in (ExactLinkedSide.DOMESTIC, ExactLinkedSide.FUND):
+            assert tuple(
+                row
+                for batch in verifier.iter_linked_record_json(
+                    tables=tables,
+                    side=side,
+                    exact_ids=("product-1",),
+                )
+                for row in batch
+            ) == (LinkedRecordJson(product_id="product-1", record_json="{}"),)
