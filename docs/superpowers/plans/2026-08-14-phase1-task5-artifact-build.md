@@ -959,15 +959,18 @@ base `d983f1a`. Commit `065f68a` and the dirty worktree
 `/Users/ss020/Dev/Mirae_Agent/.worktrees/phase1-task5-artifact-build-fifth` are
 reference-only review evidence: prove `065f68a` is not an ancestor of the redo branch,
 and do not cherry-pick it or copy its production/test files wholesale. The selector
-sequence below supersedes that attempt's incomplete TDD evidence. Exactly eight selectors
-are labeled derived first-GREEN acceptances: exact-signature/Fund derivation,
+sequence below supersedes that attempt's incomplete TDD evidence. The initial
+implementation sequence has exactly eight selectors labeled derived first-GREEN
+acceptances: exact-signature/Fund derivation,
 frozen-spec hash metamorphism, the non-Bronze timestamp signature, serializer
 fingerprint integration, quality-specific duplicate integration, common-checker
 canonical-JSON integration, logical-mutation/physical-reencoding hash integration, and
 writer/verifier fingerprint integration. Every other behavior selector, including every substantive
 review-gap selector added below, is a mandatory newly observed RED on the clean-redo
-lineage. Never alter production code or manufacture a failure to turn one of those eight
-derived acceptances into RED evidence.
+lineage. The post-review correction adds 22 mandatory RED/GREEN selectors and four
+separate derived first-GREEN behavioral regressions; neither category rewrites the
+initial 69/8 evidence. Never alter production code or manufacture a failure to turn
+one of the twelve total derived acceptances into RED evidence.
 
 **Files:**
 
@@ -997,7 +1000,10 @@ derived acceptances into RED evidence.
   `serialize_bronze_source_row(spec: TableSpec, value: SourceRow, *,
   persistence_timestamp: datetime) -> Mapping[str, object]`. Only the latter accepts a
   timestamp. Quality accepts an already persisted CP5 row; all model/spec pairs are
-  exact closed-registry identities and are revalidated on every call.
+  exact closed-registry identities and are revalidated on every call. The quality and
+  fund serializers project every physical scalar from the same strict model instance
+  used to produce canonical `record_json`; reopened logical projection reconstructs
+  that model and compares the complete physical projection, not a selected subset.
 - Produces internal `OwnedStageArtifactOwner(Protocol)` and
   `OwnedStageParquetLeaf(Protocol)` with exact design-section-9.1 methods. CP3 has only
   test implementations; CP4 supplies the production marker/descriptor-owned
@@ -1012,12 +1018,18 @@ derived acceptances into RED evidence.
   StagedParquetVerification`. These are the
   per-leaf facts, but the only CP4-7 pre-manifest cross-stage table capability is
   direct-construction-disabled `StagedParquetSet.from_verified(owner=...,
-  verifications=...)` and its same-owner `extend_verified(...)`. It validates one exact
+  verifications=...)`, its exact `extend_verified(*, owner:
+  OwnedStageArtifactOwner, verifications:
+  tuple[StagedParquetVerification, ...]) -> StagedParquetSet`, and
+  `require_complete() -> None`. It validates one exact
   opaque owner token/object identity, every exact leaf/handle identity, frozen order,
   and the owner's UTC persistence timestamp; every consumer calls `assert_live()`,
   `require_tables(...)`, and `require_owned(...)`, while CP7 also calls
   `require_complete()`. The owner registers the exact canonical set object; extension
-  atomically registers the successor and supersedes its predecessor. Copies,
+  validates the whole prospective tuple before it atomically registers the successor
+  and supersedes its predecessor. A failed extension leaves the predecessor live; a
+  successful extension invalidates it exactly once. UTC timestamps compare by exact
+  value, not Python object identity. Copies,
   `object.__new__`/equal-field forgeries, superseded sets, and bare/mixed-session handle
   tuples are forbidden. Each verification carries logical facts plus staged physical
   size/SHA and the opaque token from atomic owner registration of that exact
@@ -1025,7 +1037,10 @@ derived acceptances into RED evidence.
   same frozen physical/identity facts. `verification_for(name)` revalidates logical and
   physical facts, while `table_declarations()` returns logical declarations only; CP7
   pairs each with its revalidated verification to construct the physical manifest
-  file entry. All facts are
+  file entry. `verification_for(name)` performs a fresh same-descriptor size/SHA and
+  leaf-identity check before returning, and every consumer encloses batch use plus the
+  post-read check in `finally`; an exception in caller code cannot skip the rescan or
+  exact context exit. All facts are
   independently recomputed on reopen; later final
   verification trusts none of them. `StagedParquetHandle.iter_batches(*,
   batch_size=65_536)` is a context manager that retains the leaf/stream/`ParquetFile`
@@ -1034,8 +1049,11 @@ derived acceptances into RED evidence.
 - Produces one private common bounded stream checker and a secure marker-owned managed
   exact unique-key-index context with one thread, `1GiB`, bounded inserts, owned spill,
   external access/extensions disabled, close-before-cleanup, and exact marker/
-  directory/leaf identity deletion. No database/spill path or generic connection
-  escapes. It catches nonadjacent duplicates across more than two batches and uses no
+  directory/leaf identity deletion. The workspace root itself is opened beneath a
+  held trusted-parent descriptor, all setup/rescan/cleanup is descriptor-relative, and
+  successful cleanup removes registered children in fixed order and the ownership
+  marker last. No database/spill path or generic connection escapes. It catches
+  nonadjacent duplicates across more than two batches and uses no
   Python key set or previous-key-only uniqueness.
   `OwnedStageParquetLeaf.create_verification_workspace()` supplies CP4's exact staged
   scratch capability; the final adapter uses its own trusted-OS-temp implementation of
@@ -1044,8 +1062,17 @@ derived acceptances into RED evidence.
   `ParquetArtifactTableVerifier`, implementing CP2
   `ArtifactTableVerifier.verify_tables(...)`. Only this adapter accepts
   `VerifiedPhysicalInventory`/`VerifiedPhysicalEntry`; it independently reruns the
-  common checker after the complete manifest tree exists, compares every fact with
-  `ArtifactTable`, and returns
+  common checker after the complete manifest tree exists. The common checker returns
+  only direct-construction-disabled immutable checked facts; it owns no authority and
+  never mints a final capability. Each `verify_tables` invocation creates one private
+  invocation-local issuer. Only after the exact inventory entry context exits cleanly,
+  the returned facts match the manifest, the deep spec fingerprint is rechecked, and
+  the live inventory rescans unchanged may that issuer mint an exact-object-registered,
+  one-use final-check seal. `VerifiedPhysicalInventory` accepts that exact seal and
+  atomically consumes it while issuing/registering the corresponding
+  `VerifiedParquetTable`; public fields, copied/equal/`object.__new__` objects, staged
+  seals, and foreign-inventory seals can never authorize issuance. The adapter compares
+  every fact with `ArtifactTable`, and returns
   `TableVerificationResult.from_verified(inventory=inventory, tables=..., handles=...)`.
   The inventory alone issues/registers each exact final handle object, and the result
   factory requires those exact live registered objects. A staged handle has no final
@@ -1610,6 +1637,356 @@ mutate every registered spec/nested-column field, inspect stream lifetime and
 collection. Require 0 Critical / 0 Important. Any correction begins with
 one focused observed RED, gets a separate `fix: close Task 5 checkpoint 3 review gaps`
 commit, reruns the complete Step 8 gates, and receives another independent 0/0 review.
+
+#### Checkpoint 3 post-review correction: close verdict 1C / 8I / 1M serially
+
+Commit `065e9fc` is the reviewed implementation candidate, not an accepted checkpoint.
+The reviewer found 1 Critical, 8 Important, and 1 Minor issue. Obtain independent
+approval of this correction plan before changing production or tests. After plan
+approval, commit only this dedicated plan as a separate documentation commit with
+subject `docs: plan Task 5 checkpoint 3 review corrections`, require an empty status,
+and record that commit as the clean correction base. No correction RED may be authored
+from the current uncommitted plan tree. Do not amend the
+initial report's 69 mandatory RED/GREEN selectors or eight derived acceptances; append
+a clearly separated correction section to the ignored report instead. Do not update
+`docs/implementation/STATUS.md`, mark this step complete, or name Checkpoint 4 as next
+until the correction commit itself receives a fresh 0 Critical / 0 Important verdict.
+
+After the plan-review approval and before implementation, run the separate plan commit
+boundary exactly:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: plan Task 5 checkpoint 3 review corrections"
+git status --porcelain
+```
+
+The two name-only outputs must contain only this dedicated plan, and the final status
+must be empty. Record the resulting plan hash as the correction base in the ignored
+report before authoring the first RED.
+
+The correction implementation has this exact file map:
+
+- Modify: `src/finproof/data/artifacts/serialization.py`
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
+- Modify: `src/finproof/data/artifacts/manifest.py`
+- Modify: `tests/unit/data/artifacts/test_serialization.py`
+- Modify: `tests/unit/data/artifacts/test_parquet_io.py`
+- Modify: `tests/unit/data/artifacts/test_manifest.py`
+- Modify: `tests/integration/artifacts/test_parquet_verification.py`
+- Modify only when a fixture genuinely requires it:
+  `tests/helpers/artifacts.py`
+
+No config, schema, source data, hashing primitive, table registry, later-checkpoint
+module, legacy plan, this plan, or STATUS file belongs in the correction implementation
+commit. A changed file outside that map is a stop condition requiring plan/reviewer
+approval, not an invitation to broaden the commit silently.
+
+This subsection is the explicit post-review override of Step 8's original implementation
+file map and its instruction to update/add STATUS before the implementation commit.
+For this correction only, use the narrower file map above and leave STATUS untouched
+through implementation and re-review. Every Step 8 verification command, absence gate,
+source write-permission gate, diff check, clean-worktree requirement, separate fix
+commit, and fresh-review requirement remains mandatory.
+
+Author and execute exactly one selector only after its predecessor is GREEN. For a
+parameter family, first add only enough test fixture to make every ID reach the intended
+production boundary; a missing import, first invalid ID, permissive spy, or shared setup
+failure is not family RED evidence. Observe the current defect, make the smallest
+production change, rerun the exact node GREEN, and run its immediately affected prior
+selectors before authoring the next node. Use this exact order:
+
+```text
+tests/integration/artifacts/test_parquet_verification.py::test_common_checker_returns_facts_only_and_final_adapter_mints_local_seal_after_clean_entry_exit
+tests/unit/data/artifacts/test_manifest.py::test_inventory_requires_exact_unconsumed_local_authority_seal_before_final_handle_issuance
+tests/integration/artifacts/test_parquet_verification.py::test_final_seal_rejects_copy_equal_object_new_staged_foreign_and_second_consumption  # derived first-GREEN seal-adversarial acceptance
+tests/unit/data/artifacts/test_serialization.py::test_quality_logical_projection_compares_each_uncovered_scalar_to_canonical_record_json
+tests/unit/data/artifacts/test_serialization.py::test_fund_attribute_logical_projection_compares_every_physical_column_to_canonical_record_json
+tests/integration/artifacts/test_parquet_verification.py::test_common_checker_rejects_each_quality_and_fund_attribute_physical_json_mismatch  # derived first-GREEN JSON-integration acceptance
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_snapshots_each_yielded_mapping_before_requesting_the_next_row
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_accepts_mapping_rows_and_rejects_each_non_mapping_before_arrow
+tests/unit/data/artifacts/test_parquet_io.py::test_writer_validates_every_exact_physical_scalar_on_each_frozen_snapshot
+tests/unit/data/artifacts/test_parquet_io.py::test_parquet_writer_constructor_failure_is_typed_and_exits_sink_exactly_once
+tests/integration/artifacts/test_parquet_verification.py::test_writer_rechecks_deep_spec_fingerprint_at_each_uncovered_post_construction_boundary
+tests/integration/artifacts/test_parquet_verification.py::test_staged_verifier_rechecks_deep_spec_fingerprint_at_each_uncovered_post_open_boundary
+tests/integration/artifacts/test_parquet_verification.py::test_final_verifier_rechecks_deep_spec_fingerprint_at_each_uncovered_post_open_boundary
+tests/integration/artifacts/test_parquet_verification.py::test_staged_set_exposes_only_exact_extend_verified_and_require_complete_signatures
+tests/integration/artifacts/test_parquet_verification.py::test_extend_verified_requires_explicit_owner_tuple_and_accepts_distinct_value_equal_utc
+tests/integration/artifacts/test_parquet_verification.py::test_extend_verified_supersession_is_atomic_on_validation_and_owner_registration_faults
+tests/integration/artifacts/test_parquet_verification.py::test_require_complete_accepts_only_exact_eleven_registered_tables_in_frozen_order
+tests/integration/artifacts/test_parquet_verification.py::test_staged_handle_and_verification_retain_exact_frozen_leaf_identity
+tests/integration/artifacts/test_parquet_verification.py::test_verification_for_reopens_and_rechecks_exact_bytes_and_leaf_identity_on_every_call
+tests/integration/artifacts/test_parquet_verification.py::test_staged_consumers_run_post_read_checks_and_context_exit_in_finally
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_root_is_created_and_held_beneath_a_trusted_parent_descriptor
+tests/integration/artifacts/test_parquet_verification.py::test_unique_workspace_cleanup_is_descriptor_relative_preflighted_and_removes_marker_last
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_root_child_and_marker_substitution_never_touch_external_victims  # derived first-GREEN victim-substitution acceptance
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_cleanup_fault_retains_ambiguous_owned_remainder_without_victim_deletion
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_faults_have_exact_nonreserved_typed_operations_and_redacted_context
+tests/integration/artifacts/test_parquet_verification.py::test_actual_install_and_load_fail_under_locked_workspace_configuration  # derived first-GREEN behavioral regression
+```
+
+Exactly 22 selectors are mandatory correction RED/GREEN evidence. The four inline-
+labeled seal-adversarial, JSON-integration, victim-substitution, and actual `INSTALL`/
+`LOAD` selectors are derived first-GREEN acceptances. The already-GREEN settings
+selector froze `enable_external_access=false`, `allow_unsigned_extensions=false`,
+`autoinstall_known_extensions=false`, and `autoload_known_extensions=false`; therefore
+the derived selector monkeypatches `duckdb.connect` with a test-only proxy around a real
+saved `duckdb.connect(":memory:")`. The proxy forwards every production `SET` to the real
+connection. Immediately and synchronously after it forwards the final
+`SET autoload_known_extensions = false`, and before the managed index context can yield,
+the proxy itself attempts real `INSTALL httpfs` and `LOAD httpfs` statements and records
+the two exact `duckdb.PermissionException` results in its closed test spy. It then
+continues forwarding only the production index DDL/DML/close calls. Neither the real
+connection nor a generic `execute` capability is returned by the managed workspace or
+exposed to the test/caller; the spy exposes only the immutable recorded statement/error
+facts after closure. Both attempts must fail without another production change. Record
+that first-run GREEN as behavioral regression evidence. Never enable an extension
+temporarily, add a bypass, or weaken configuration merely to manufacture a RED.
+
+The common checker returns only a private direct-construction-disabled immutable facts
+record containing its independently recomputed logical facts, physical size/SHA, leaf
+identity, and deep spec fingerprint. That record is evidence, never authority: the
+checker has no issuer registry and cannot create a staged or final seal. Each
+`ParquetArtifactTableVerifier.verify_tables` call creates one private local authority
+whose lifetime cannot escape that invocation. Only after the exact
+`inventory.open_verified(entry)` context has exited without a body or `__exit__`
+failure, the immutable facts match `ArtifactTable`, the registered spec's deep
+fingerprint is checked again, and `inventory.assert_unchanged()` succeeds may this
+authority mint/register a direct-construction-disabled one-use final seal. The seal
+binds by exact object identity to that local authority, live inventory,
+`VerifiedPhysicalEntry`, exact registered `TableSpec`, checked-facts object, and final
+facts. There is no public constructor, token accessor, leaf minting method, structural
+protocol shortcut, or caller-supplied facts route.
+
+`VerifiedPhysicalInventory.issue_verified_table_handle(*, seal=...)` validates through
+the seal's still-live local authority and performs one atomic transition: either it
+consumes that exact seal and registers one exact newly constructed final handle, or it
+does neither and exposes no handle. A second call cannot consume the same seal. A
+missing, copied, equal-field, `object.__new__`, foreign-inventory, staged,
+already-consumed, post-exit-failure, or post-seal-mutated capability fails before any
+handle exists. The third selector is deliberately a derived first-GREEN adversarial
+acceptance authored only after the first two mandatory selectors have driven the local
+authority and atomic issuance mechanism; it must require no further production change.
+This correction is owned jointly by CP3's checker/final adapter and CP2's inventory
+issuance hook; it does not alter CP2 tree inventory semantics or permit a staged-to-final
+promotion.
+
+For `silver_quality_issue`, the mandatory correction family owns only the uncovered
+scalar columns and derives each expected value from strict `DataQualityIssue` parsed
+from canonical `record_json`: `issue_id`, `rule_id`, `rule_version`, `severity`, `quality_status`,
+`source_table`, `source_file`, `source_sheet`, `source_row_number`,
+`source_column_name`, `source_column_number`, `source_column_letter`,
+`source_checksum`, `source_snapshot_date`, `source_applicable_date`, `reason`,
+`quarantined`, and `raw_payload_sha256`. It explicitly excludes `first_detected_at` and
+`record_json`. Before authoring this new quality selector, rerun the
+already-GREEN `test_persisted_quality_requires_typed_json_timestamp_agreement` and
+`test_logical_projection_rejects_noncanonical_record_json` controls; timestamp-only
+agreement and canonical-byte rejection remain separate regression evidence and are not
+claimed as correction REDs.
+
+The fund target is exact `FundItemAttribute` at
+`silver_fund_item_attribute`, not the already-complete wide
+`silver_public_fund_item`/`FundItemValue` projection. Independently derive and compare
+`grain`, `fund_item_id`, `fund_item_id__quality_status`, `attribute_code`,
+`attribute_code__quality_status`, `attribute_code_raw`, `source_row_number`, and
+canonical `record_json` from the strict parsed `FundItemAttribute`. The quality
+mandatory selector mutates each listed uncovered scalar, while the fund-attribute
+mandatory selector mutates each of its projected physical columns one at a time. The
+later common-checker selector combines those reached guards with the prior-GREEN quality
+timestamp/canonical-JSON controls in otherwise valid Parquet. Because the
+two mandatory logical-projection guards already entail rejection at the shared checker,
+record that integration selector first-GREEN without production changes. Production
+must parse once, canonicalize once, and compare the full projection; a handpicked field
+list or comparing JSON only to itself is forbidden.
+
+`ParquetBatchWriter.write_batch` consumes one outer iterable once. On each yield it
+requires `isinstance(row, Mapping)`, copies the exact ordered string-key mapping
+immediately before requesting the next item, and validates every column's exact
+physical scalar against that frozen copy before Arrow conversion. Exercise a reused
+mutable mapping that changes between yields, a custom read-once `Mapping`, dict and
+mapping-subclass controls, and non-mapping sequence/object IDs. Include all exact
+string/int/date/local-naive-datetime/UTC-aware-datetime/Decimal(38,18)/bool/null
+boundaries. No `len`, second iteration, delayed references to caller mappings, or
+Arrow coercion may define acceptance. Wrap the `pq.ParquetWriter(...)` constructor in
+the typed `SERIALIZATION_FAILED` boundary; constructor failure closes/exits the owned
+sink context exactly once with the original exception triple, marks the writer closed,
+does not unlink an ambiguous leaf, and never leaks the raw exception. Existing
+write/close/abort tests remain regression coverage for the same exactly-once exit rule.
+
+Recompute and compare the canonical deep `TableSpec` fingerprint at every trust
+boundary. The existing first-GREEN fingerprint integration already covers writer
+construction and verifier entry; rerun those IDs only as regressions and never count
+them as correction REDs. The three mandatory families contain only uncovered hooks:
+writer after construction and before each batch snapshot, Arrow write, close, and abort;
+staged verification after leaf open and before each read batch, after the last read,
+before registration, on every handle batch access, and on every set lookup/declaration;
+final verification after inventory entry open and before each read batch, checked-facts
+return, local-authority seal mint, inventory issuance, and result construction. Fault
+hooks mutate every top-level spec field and every nested `ColumnSpec` field at each
+uncovered boundary and restore it only after the assertion. Every mandatory ID must
+first fail for that uncovered hook and then fail closed before it can return facts, a
+seal, a handle, or a result.
+
+Replace the accidental `extend` surface with only
+`extend_verified(*, owner: OwnedStageArtifactOwner, verifications:
+tuple[StagedParquetVerification, ...]) -> StagedParquetSet`; keep direct construction
+disabled. Add exact
+`require_complete() -> None`. The first interface selector may make raising skeletons
+GREEN, after which the valid extension, atomic supersession, and completeness selectors
+must each independently RED before their behavior is added. Extension accepts a
+distinct but value-equal exact aware-UTC `datetime`, requires `owner is self._owner`,
+validates the exact supplied tuple and all prospective members, same-owner
+registrations, timestamp values, prefix/order/duplicates, and frozen leaf/
+spec/physical facts before calling the owner's one atomic replacement operation. If
+validation or owner registration raises, the predecessor remains the sole live set and
+no successor token escapes; on success the exact registered successor becomes live and
+the predecessor is superseded exactly once. `require_complete` accepts only the exact
+eleven registered tables in `TABLE_SPECS` order and reruns all live checks.
+
+Each staged verification and handle freezes the exact leaf object plus relative path,
+descriptor-derived device/inode/type/mode/link facts, owner registration identity,
+physical size/SHA, and deep spec fingerprint observed by the successful read. No caller
+can edit or replace these facts to pass registration. `verification_for(name)` must
+locate the exact registered pair, reopen the owner-held leaf, recompute size/SHA on the
+same descriptor, compare all frozen leaf/spec facts, close, run the owner rescan, and
+only then return it. `iter_batches` and every set/report/database consumer put the
+post-read digest, owner rescan, and exact context exit in `finally`; inject a consumer
+exception before the first batch, between batches, and after the final batch, plus
+digest/rescan/exit faults, and prove exactly-once close with no successful downstream
+fact.
+
+Replace lexical `Path` workspace ownership with a held trusted-parent directory
+descriptor capability. Production chooses and opens the trusted OS temp parent
+internally; the test seam supplies only a pre-opened descriptor/identity capability,
+never a mutable path. Generate an internal bounded random root basename, call
+`os.mkdir(name, mode=0o700, dir_fd=parent_fd)` with bounded `EEXIST` retries, then open
+that root using `O_DIRECTORY | O_NOFOLLOW` relative to the held parent and freeze its
+descriptor identity. Create the spill directory with descriptor-relative `os.mkdir`
+then open/revalidate it the same way; create only the ownership marker with
+descriptor-relative `O_CREAT | O_EXCL | O_NOFOLLOW`, exact `0o600` mode, and frozen
+descriptor identity. The unique-key database remains pathless `:memory:`; there is no
+root-level DuckDB store leaf, and any `keys.duckdb` or other unexpected root entry is an
+ambiguity that is preserved, never opened or removed. DuckDB may create bounded spill
+files only below the owned spill directory. Keep parent, root, and spill descriptors
+held through their last safe use. The lifecycle order is exact: first close DuckDB; only
+after a successful close enumerate and preflight the root, marker, spill directory, and
+every spill entry through held descriptors; remove only the exact registered spill
+entries in fixed order; close the spill descriptor and remove the spill directory
+relative to the root; remove the ownership marker last among root entries; revalidate
+that the root descriptor still identifies the frozen empty directory; close the root
+descriptor and remove that exact root relative to the held parent; then close the parent
+descriptor. A DuckDB close failure authorizes no enumeration or deletion and retains
+the entire workspace tree byte-for-byte; it only releases held OS descriptors without
+mutating the tree. A later unlink/rmdir failure retains the exact remaining tree and
+reports the last proven ownership state.
+Root/child/marker ABA,
+same-inode marker mutation, hardlink/symlink substitution, ambiguous enumeration, or a
+cleanup fault fails closed, records only redacted recovery state, and never opens,
+chmods, truncates, unlinks, or otherwise changes an external victim.
+
+Workspace failures use this closed non-publication taxonomy; the reserved catch-all
+`VERIFICATION_INCOMPLETE` is forbidden here. Freeze the exact mapping:
+
+- `parquet-workspace-create`, `parquet-workspace-open`, and
+  `parquet-workspace-revalidate` use `ArtifactContractError(EXACT_TREE_MISMATCH)` for
+  descriptor/tree creation, ownership, identity, marker content, mode/link,
+  unexpected-entry, and pre-cleanup rescan failures.
+- `parquet-workspace-configure`, `parquet-unique-index-create`,
+  `parquet-unique-index-insert`, `parquet-unique-index-query`, and
+  `parquet-unique-index-close` use
+  `ArtifactContractError(DATABASE_VALIDATION_FAILED)` for DuckDB connect/configuration,
+  operation, or connection-close failures.
+- `parquet-workspace-cleanup` uses
+  `ArtifactContractError(STAGING_CLEANUP_FAILED)` once cleanup is authorized, including
+  descriptor close, unlink, rmdir, or retained-remainder failure.
+
+An observed duplicate remains only
+`UNIQUE_KEY_MISMATCH`/`verify-parquet-unique-key`. These paths never reuse CP7
+publication/rollback codes or reserve a target basename. Public context contains no
+path or SQL; immutable internal context contains only exact allowlisted reason labels.
+Parameterize every fault site and assert exact code/operation/published-false/redaction,
+close ordering, retention state, and absence of a raw DuckDB/Arrow/OS exception.
+The external-victim selector is a derived first-GREEN acceptance authored after the
+mandatory descriptor-root and marker-last cleanup selectors have driven the no-follow,
+identity-preflight, and no-ambiguous-delete behavior; it must require no production
+change.
+
+After all 22 mandatory selectors and the four derived acceptances are individually
+recorded, run these correction-focused aggregates before the full Step 8 gates:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/integration/artifacts/test_parquet_verification.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/manifest.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/manifest.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/manifest.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/integration/artifacts/test_parquet_verification.py
+```
+
+Then rerun every command in Step 8, including full pytest, source audit, handoff,
+schema catalog, pre-commit, expected-resource/artifact absence, writable-source check,
+diff check, and status. Before the correction commit, `git diff --name-only` must equal
+the correction file map actually used and must not contain STATUS or any plan. Append
+the exact 22 RED/GREEN observations, four first-GREEN regressions, focused/full gate
+outputs, file list, and unresolved risk to the ignored correction report; label it
+“candidate for fresh review,” never “complete” or “Checkpoint 4 next.” Run
+`git diff --check`, stage only that exact implementation/test list, run
+`git diff --cached --check` and `git diff --cached --name-only`, then commit:
+
+```bash
+git add src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/manifest.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/integration/artifacts/test_parquet_verification.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "fix: close Task 5 checkpoint 3 review gaps"
+git status --porcelain
+```
+
+If and only if the approved fixture condition was actually reached, add
+`tests/helpers/artifacts.py` in a separate `git add` before the cached checks and require
+it in the cached name-only output. Otherwise it must be absent.
+
+Require an empty post-commit status and dispatch a fresh independent review of the
+original candidate plus correction commit. The reviewer must replay every finding,
+attack the private final seal and one-use inventory transition, enumerate every
+quality/fund physical/JSON field, mutate every spec boundary, fault every workspace
+operation, and verify descriptor-relative marker-last no-victim cleanup. Any remaining
+Critical or Important restarts this correction loop with a new focused RED and separate
+fix commit. STATUS and the three documentation-closure files remain untouched until a
+fresh 0 Critical / 0 Important verdict is recorded.
 
 Only after the final 0/0 verdict, make a separate docs-only closure: update
 `docs/implementation/STATUS.md` with reviewed commit hash(es), reviewer counts/evidence,
