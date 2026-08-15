@@ -1,4 +1,9 @@
-"""Strict artifact manifest and descriptor-bound verification foundation."""
+# mypy: disable-error-code="attr-defined,override"
+"""Strict artifact manifest and descriptor-bound verification foundation.
+
+Private one-use seals are slot-only objects allocated through guarded factories;
+public consumers remain explicitly typed.
+"""
 
 import hashlib
 import json
@@ -10,7 +15,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Annotated, BinaryIO, Literal, Protocol, Self, cast
+from typing import Annotated, BinaryIO, Literal, Protocol, Self, cast, runtime_checkable
 
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import (
@@ -45,6 +50,358 @@ class ArtifactInput(BaseModel):
     kind: str
     size_bytes: NonNegativeInt
     sha256: Sha256
+
+
+@runtime_checkable
+class BuildInputIdentityView(Protocol):
+    """Narrow manifest-side view of one descriptor-owned build identity."""
+
+    @property
+    def logical_inputs(self) -> tuple[ArtifactInput, ...]: ...
+
+    @property
+    def source_manifest_sha256(self) -> str: ...
+
+    @property
+    def schema_catalog_sha256(self) -> str: ...
+
+    def assert_unchanged(self) -> None: ...
+
+    def take_manifest_identity_seal(self) -> object: ...
+
+
+class _BuildInputManifestIssuer:
+    __slots__ = ("facts", "identity", "seal")
+
+    def __init__(
+        self,
+        identity: BuildInputIdentityView,
+        facts: tuple[ArtifactInput, ...],
+    ) -> None:
+        self.identity = identity
+        self.facts = facts
+        self.seal: _BuildInputManifestSeal | None = None
+
+
+class _BuildInputManifestSeal:
+    __slots__ = ("_consumed", "_issuer")
+
+    def __new__(cls) -> "_BuildInputManifestSeal":
+        raise TypeError("build-input manifest seals are issuer-owned")
+
+    @classmethod
+    def _issue(cls, issuer: _BuildInputManifestIssuer) -> "_BuildInputManifestSeal":
+        value = object.__new__(cls)
+        value._issuer = issuer
+        value._consumed = False
+        issuer.seal = value
+        return value
+
+    def __copy__(self) -> "_BuildInputManifestSeal":
+        raise TypeError("build-input manifest seals cannot be copied")
+
+    def __deepcopy__(self, memo: dict[int, object]) -> "_BuildInputManifestSeal":
+        del memo
+        raise TypeError("build-input manifest seals cannot be copied")
+
+    def __reduce__(self) -> object:
+        raise TypeError("build-input manifest seals cannot be copied")
+
+
+def _register_build_input_identity(
+    identity: BuildInputIdentityView,
+    facts: tuple[ArtifactInput, ...],
+) -> _BuildInputManifestIssuer:
+    """Register one concrete carrier without a module-global registry."""
+    return _BuildInputManifestIssuer(identity, facts)
+
+
+def _issue_build_input_manifest_seal(
+    issuer: _BuildInputManifestIssuer,
+    identity: BuildInputIdentityView,
+    facts: tuple[ArtifactInput, ...],
+) -> object:
+    if (
+        type(issuer) is not _BuildInputManifestIssuer
+        or issuer.identity is not identity
+        or issuer.facts is not facts
+        or issuer.seal is not None
+    ):
+        raise _invalid_build_input_identity()
+    return _BuildInputManifestSeal._issue(issuer)
+
+
+def _consume_build_input_manifest_seal(
+    seal: object,
+    identity: BuildInputIdentityView,
+) -> None:
+    try:
+        if type(seal) is not _BuildInputManifestSeal:
+            raise TypeError("wrong build-input manifest seal type")
+        issuer = seal._issuer
+        if (
+            type(issuer) is not _BuildInputManifestIssuer
+            or issuer.seal is not seal
+            or issuer.identity is not identity
+            or seal._consumed
+        ):
+            raise ValueError("invalid build-input manifest seal")
+        seal._consumed = True
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise _invalid_build_input_identity() from exc
+
+
+def _invalid_build_input_identity() -> ArtifactContractError:
+    return ArtifactContractError(
+        ArtifactErrorCode.MANIFEST_INVALID,
+        operation_id="build-artifact-manifest",
+        internal_context={"reason": "invalid_build_input_identity"},
+    )
+
+
+@runtime_checkable
+class ManagedArtifactVerificationRoot(Protocol):
+    """Path-free verification adapter over one exact retained artifact root."""
+
+    def open_inventory(
+        self,
+        *,
+        manifest: "ArtifactManifest",
+    ) -> AbstractContextManager["VerifiedPhysicalInventory"]: ...
+
+    def take_expected_acceptance_seal(self) -> object: ...
+
+
+class _HeldArtifactRootAdoptionOwner:
+    __slots__ = (
+        "adoption",
+        "basename",
+        "parent_fd",
+        "parent_identity",
+        "root_fd",
+        "root_identity",
+    )
+
+    def __init__(
+        self,
+        *,
+        parent_fd: int,
+        basename: str,
+        root_fd: int,
+        parent_identity: tuple[int, int, int, int, int],
+        root_identity: tuple[int, int, int, int, int],
+    ) -> None:
+        self.parent_fd = parent_fd
+        self.basename = basename
+        self.root_fd = root_fd
+        self.parent_identity = parent_identity
+        self.root_identity = root_identity
+        self.adoption: HeldArtifactRootAdoption | None = None
+
+
+class HeldArtifactRootAdoption:
+    """Opaque one-use transfer of duplicated held artifact-root custody."""
+
+    __slots__ = ("_consumed", "_owner")
+
+    def __new__(cls) -> "HeldArtifactRootAdoption":
+        raise TypeError("HeldArtifactRootAdoption is issuer-owned")
+
+    @classmethod
+    def _issue(
+        cls,
+        owner: _HeldArtifactRootAdoptionOwner,
+    ) -> "HeldArtifactRootAdoption":
+        value = object.__new__(cls)
+        value._owner = owner
+        value._consumed = False
+        owner.adoption = value
+        return value
+
+    def __copy__(self) -> "HeldArtifactRootAdoption":
+        raise TypeError("HeldArtifactRootAdoption cannot be copied")
+
+    def __deepcopy__(self, memo: dict[int, object]) -> "HeldArtifactRootAdoption":
+        del memo
+        raise TypeError("HeldArtifactRootAdoption cannot be copied")
+
+    def __reduce__(self) -> object:
+        raise TypeError("HeldArtifactRootAdoption cannot be copied")
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        del kwargs
+        raise TypeError("HeldArtifactRootAdoption cannot be subclassed")
+
+
+def _issue_held_artifact_root_adoption(
+    *,
+    parent_fd: int,
+    basename: str,
+    root_fd: int,
+) -> HeldArtifactRootAdoption:
+    try:
+        if (
+            type(parent_fd) is not int
+            or type(root_fd) is not int
+            or type(basename) is not str
+            or not basename
+            or "/" in basename
+            or "\\" in basename
+            or basename in {".", ".."}
+        ):
+            raise ValueError("invalid held artifact root issuance")
+        parent = os.fstat(parent_fd)
+        named = os.stat(basename, dir_fd=parent_fd, follow_symlinks=False)
+        opened = os.fstat(root_fd)
+        parent_identity = _adoption_directory_identity(parent)
+        root_identity = _adoption_directory_identity(opened)
+        if _adoption_directory_identity(named) != root_identity:
+            raise ValueError("artifact root descriptor differs from its held name")
+        owner = _HeldArtifactRootAdoptionOwner(
+            parent_fd=parent_fd,
+            basename=basename,
+            root_fd=root_fd,
+            parent_identity=parent_identity,
+            root_identity=root_identity,
+        )
+        return HeldArtifactRootAdoption._issue(owner)
+    except (OSError, TypeError, ValueError) as exc:
+        for descriptor in (root_fd, parent_fd):
+            if type(descriptor) is int:
+                with suppress(OSError):
+                    os.close(descriptor)
+        raise _held_root_adoption_error() from exc
+
+
+@contextmanager
+def adopt_held_artifact_root(
+    adoption: HeldArtifactRootAdoption,
+) -> Iterator[ManagedArtifactVerificationRoot]:
+    """Consume an opaque held-root adoption into a managed adapter."""
+    owner = _consume_held_root_adoption(adoption)
+    tree: _HeldArtifactTree | None = None
+    managed: _ManagedArtifactVerificationRoot | None = None
+    try:
+        tree = _HeldArtifactTree.from_adopted(
+            parent_fd=owner.parent_fd,
+            basename=owner.basename,
+            root_fd=owner.root_fd,
+            root_identity=_stat_identity(os.fstat(owner.root_fd)),
+        )
+        managed = _ManagedArtifactVerificationRoot(tree)
+        tree = None
+        yield managed
+    except ArtifactContractError:
+        raise
+    except (OSError, TypeError, ValueError) as exc:
+        raise _held_root_adoption_error() from exc
+    finally:
+        if managed is not None:
+            managed.close()
+        elif tree is not None:
+            with suppress(OSError):
+                tree.close()
+        else:
+            for descriptor in (owner.root_fd, owner.parent_fd):
+                with suppress(OSError):
+                    os.close(descriptor)
+
+
+class _ManagedArtifactVerificationRoot:
+    __slots__ = ("_closed", "_inventory_opened", "_tree")
+
+    def __init__(self, tree: "_HeldArtifactTree") -> None:
+        self._tree = tree
+        self._closed = False
+        self._inventory_opened = False
+
+    def open_inventory(
+        self,
+        *,
+        manifest: "ArtifactManifest",
+    ) -> AbstractContextManager["VerifiedPhysicalInventory"]:
+        self._require_live()
+        if self._inventory_opened:
+            raise _held_root_adoption_error()
+        self._inventory_opened = True
+        try:
+            return _inventory_from_held_tree(manifest, self._tree)
+        except (ArtifactContractError, OSError, TypeError, ValueError) as exc:
+            raise _inventory_error() from exc
+
+    def take_expected_acceptance_seal(self) -> object:
+        self._require_live()
+        raise _inventory_capability_error("expected_acceptance_unavailable")
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        try:
+            self._tree.close()
+        except OSError as exc:
+            raise _held_root_adoption_error() from exc
+
+    def _require_live(self) -> None:
+        if self._closed:
+            raise _held_root_adoption_error()
+
+
+def _consume_held_root_adoption(
+    adoption: HeldArtifactRootAdoption,
+) -> _HeldArtifactRootAdoptionOwner:
+    try:
+        if type(adoption) is not HeldArtifactRootAdoption:
+            raise TypeError("wrong held-root adoption type")
+        owner = adoption._owner
+        if (
+            type(owner) is not _HeldArtifactRootAdoptionOwner
+            or owner.adoption is not adoption
+            or adoption._consumed
+            or _adoption_directory_identity(os.fstat(owner.parent_fd)) != owner.parent_identity
+            or _adoption_directory_identity(os.fstat(owner.root_fd)) != owner.root_identity
+            or _adoption_directory_identity(
+                os.stat(owner.basename, dir_fd=owner.parent_fd, follow_symlinks=False)
+            )
+            != owner.root_identity
+        ):
+            raise ValueError("held artifact root generation changed")
+        adoption._consumed = True
+        return owner
+    except (AttributeError, OSError, TypeError, ValueError) as exc:
+        try:
+            owner = adoption._owner
+            if type(owner) is _HeldArtifactRootAdoptionOwner and not getattr(
+                adoption, "_consumed", True
+            ):
+                for descriptor in (owner.root_fd, owner.parent_fd):
+                    with suppress(OSError):
+                        os.close(descriptor)
+        except AttributeError:
+            pass
+        raise _held_root_adoption_error() from exc
+
+
+def _adoption_directory_identity(
+    value: os.stat_result,
+) -> tuple[int, int, int, int, int]:
+    if stat.S_IFMT(value.st_mode) != stat.S_IFDIR:
+        raise ValueError("held artifact root component is not a directory")
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+    )
+
+
+def _held_root_adoption_error() -> ArtifactContractError:
+    return ArtifactContractError(
+        ArtifactErrorCode.EXACT_TREE_MISMATCH,
+        operation_id="adopt-held-artifact-root",
+        internal_context={"reason": "invalid_held_artifact_root_adoption"},
+    )
 
 
 class ArtifactVersions(BaseModel):
@@ -375,6 +732,38 @@ def verify_declared_inventory(
         if held_tree is not None:
             with suppress(OSError):
                 held_tree.close()
+
+
+def _inventory_from_held_tree(
+    manifest: ArtifactManifest,
+    held_tree: "_HeldArtifactTree",
+) -> "VerifiedPhysicalInventory":
+    held_tree.revalidate_ancestors()
+    held_tree.open_required_directories()
+    held_tree.check_exact_tree(manifest)
+    manifest_entry, manifest_payload = held_tree.read_initial_entry(
+        PurePosixPath("manifest.json"),
+        "manifest",
+    )
+    if ArtifactManifest._from_bytes(manifest_payload) != manifest:
+        raise ValueError("held manifest does not match supplied manifest")
+    declared_entries = tuple(
+        held_tree.read_initial_digest_entry(PurePosixPath(entry.path), entry.kind)
+        for entry in manifest.files
+    )
+    if any(
+        observed.size_bytes != declared.size_bytes or observed.sha256 != declared.sha256
+        for observed, declared in zip(declared_entries, manifest.files, strict=True)
+    ):
+        raise ValueError("declared file size or digest does not match")
+    held_tree.revalidate_ancestors()
+    held_tree.check_exact_tree(manifest)
+    return VerifiedPhysicalInventory(
+        manifest=manifest,
+        held_tree=held_tree,
+        manifest_entry=manifest_entry,
+        declared_entries=declared_entries,
+    )
 
 
 def _check_exact_tree(root: Path, manifest: ArtifactManifest) -> None:
@@ -1034,6 +1423,30 @@ class _HeldArtifactTree:
                 with suppress(OSError):
                     os.close(descriptor)
             raise
+
+    @classmethod
+    def from_adopted(
+        cls,
+        *,
+        parent_fd: int,
+        basename: str,
+        root_fd: int,
+        root_identity: tuple[int, int, int],
+    ) -> "_HeldArtifactTree":
+        """Take exact duplicated parent/root descriptors without reopening a path."""
+        named = os.stat(basename, dir_fd=parent_fd, follow_symlinks=False)
+        opened = os.fstat(root_fd)
+        if (
+            _stat_identity(named) != root_identity
+            or _stat_identity(opened) != root_identity
+            or root_identity[2] != stat.S_IFDIR
+        ):
+            raise ValueError("adopted artifact root generation changed")
+        return cls(
+            descriptors=[parent_fd, root_fd],
+            chain_records=[(parent_fd, basename, root_identity, root_fd)],
+            root_fd=root_fd,
+        )
 
     def open_required_directories(self) -> None:
         self._require_live()

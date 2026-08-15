@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, BinaryIO, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -147,6 +147,23 @@ class ArtifactBuildConfig(BaseModel):
     staging: ArtifactStagingOptions
 
     @classmethod
+    def from_held_stream(
+        cls,
+        stream: BinaryIO,
+        *,
+        versions: VersionBundle,
+    ) -> Self:
+        """Parse the frozen build config from one caller-held verified stream."""
+        try:
+            return cls._parse_frozen_payload(_read_held_stream(stream), versions=versions)
+        except (OSError, UnicodeError, TypeError, ValueError, yaml.YAMLError) as exc:
+            raise ArtifactContractError(
+                ArtifactErrorCode.CONFIG_INVALID,
+                operation_id="load-artifact-config",
+                internal_context={"reason": "invalid_yaml_or_shape"},
+            ) from exc
+
+    @classmethod
     def load(
         cls,
         path: Path,
@@ -155,7 +172,6 @@ class ArtifactBuildConfig(BaseModel):
         versions: VersionBundle,
     ) -> Self:
         """Parse one artifact baseline; later validators close its trust boundary."""
-        del versions
         try:
             repository_stat = repository_root.lstat()
             if not repository_root.is_absolute() or not repository_root.is_dir():
@@ -167,20 +183,8 @@ class ArtifactBuildConfig(BaseModel):
             )
             if path != repository_root / "config/artifact_build.yaml":
                 raise SafeFileReadError("config path is not the frozen repository path")
-            payload = yaml.load(
-                read_held_regular_file(path, expected_directory=repository_identity).decode(
-                    "utf-8"
-                ),
-                Loader=_UniqueKeyLoader,  # noqa: S506
-            )
-            model_payload = payload
-            if isinstance(payload, dict) and isinstance(payload.get("sources"), list):
-                model_payload = {**payload, "sources": tuple(payload["sources"])}
-            config = cls.model_validate(model_payload)
-            expected = cls.model_validate(_EXPECTED_ARTIFACT_CONFIG)
-            if config != expected or not _same_container_shape(payload, _EXPECTED_ARTIFACT_CONFIG):
-                raise ValueError("artifact config does not match the frozen baseline")
-            return config
+            payload = read_held_regular_file(path, expected_directory=repository_identity)
+            return cls._parse_frozen_payload(payload, versions=versions)
         except (
             OSError,
             SafeFileReadError,
@@ -194,6 +198,19 @@ class ArtifactBuildConfig(BaseModel):
                 operation_id="load-artifact-config",
                 internal_context={"reason": "invalid_yaml_or_shape"},
             ) from exc
+
+    @classmethod
+    def _parse_frozen_payload(cls, raw: bytes, *, versions: VersionBundle) -> Self:
+        _require_config_versions(versions)
+        payload = yaml.load(raw.decode("utf-8"), Loader=_UniqueKeyLoader)  # noqa: S506
+        model_payload = payload
+        if isinstance(payload, dict) and isinstance(payload.get("sources"), list):
+            model_payload = {**payload, "sources": tuple(payload["sources"])}
+        config = cls.model_validate(model_payload)
+        expected = cls.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+        if config != expected or not _same_container_shape(payload, _EXPECTED_ARTIFACT_CONFIG):
+            raise ValueError("artifact config does not match the frozen baseline")
+        return config
 
 
 def _same_container_shape(actual: object, expected: object) -> bool:
@@ -469,11 +486,80 @@ def validate_build_registry_versions(
         ) from exc
 
 
+def validate_build_registry_versions_from_held_streams(
+    *,
+    datasets: BinaryIO,
+    quality: BinaryIO,
+    rating: BinaryIO,
+    state: BinaryIO,
+    versions: VersionBundle,
+) -> None:
+    """Validate exact registry headers from four caller-held verified streams."""
+    try:
+        _validate_registry_payloads(
+            datasets=_load_registry_bytes(_read_held_stream(datasets)),
+            quality=_load_registry_bytes(_read_held_stream(quality)),
+            rating=_load_registry_bytes(_read_held_stream(rating)),
+            state=_load_registry_bytes(_read_held_stream(state)),
+            versions=versions,
+        )
+    except (OSError, UnicodeError, TypeError, ValueError, yaml.YAMLError) as exc:
+        raise ArtifactContractError(
+            ArtifactErrorCode.CONFIG_INVALID,
+            operation_id="validate-build-registry-versions",
+            internal_context={"reason": "registry_version_mismatch"},
+        ) from exc
+
+
 def _load_registry(path: Path) -> Mapping[str, object]:
-    payload = yaml.load(
-        read_held_regular_file(path).decode("utf-8"),
-        Loader=_UniqueKeyLoader,  # noqa: S506
-    )
+    return _load_registry_bytes(read_held_regular_file(path))
+
+
+def _load_registry_bytes(raw: bytes) -> Mapping[str, object]:
+    payload = yaml.load(raw.decode("utf-8"), Loader=_UniqueKeyLoader)  # noqa: S506
     if not isinstance(payload, Mapping):
         raise TypeError("registry must be a mapping")
+    return payload
+
+
+def _validate_registry_payloads(
+    *,
+    datasets: Mapping[str, object],
+    quality: Mapping[str, object],
+    rating: Mapping[str, object],
+    state: Mapping[str, object],
+    versions: VersionBundle,
+) -> None:
+    if (
+        datasets.get("version") != "1.0.0"
+        or datasets.get("snapshot_date") != "2026-07-11"
+        or quality.get("version") != versions.quality_rule_version
+        or rating.get("version") != versions.rating_rule_version
+        or state.get("version") != versions.state_rule_version
+        or versions.dataset_version != date(2026, 7, 11)
+        or versions.quality_rule_version != "1.0.0"
+        or versions.rating_rule_version != "1.0.0"
+        or versions.state_rule_version != "1.0.0"
+    ):
+        raise ValueError("build registry version mismatch")
+
+
+def _require_config_versions(versions: VersionBundle) -> None:
+    if (
+        type(versions) is not VersionBundle
+        or versions.dataset_version != date(2026, 7, 11)
+        or versions.quality_rule_version != "1.0.0"
+        or versions.rating_rule_version != "1.0.0"
+        or versions.state_rule_version != "1.0.0"
+    ):
+        raise ValueError("artifact config version bundle mismatch")
+
+
+def _read_held_stream(stream: BinaryIO, *, maximum_bytes: int = 1_048_576) -> bytes:
+    if not hasattr(stream, "seek") or not hasattr(stream, "read"):
+        raise TypeError("held input stream must be seekable binary IO")
+    stream.seek(0)
+    payload = stream.read(maximum_bytes + 1)
+    if type(payload) is not bytes or len(payload) > maximum_bytes:
+        raise ValueError("held input stream is invalid or exceeds its bound")
     return payload

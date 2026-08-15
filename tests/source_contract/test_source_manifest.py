@@ -1,5 +1,7 @@
+# mypy: disable-error-code="no-untyped-def"
 """Tests for fail-closed official manifest and schema-catalog loading."""
 
+import inspect
 import json
 import os
 from collections.abc import Callable
@@ -19,6 +21,36 @@ from finproof.data.source_manifest import (
 from tests.helpers.source_manifest import write_source_contract_fixture
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _held_source_settings(repository_root: Path):
+    from finproof.core.settings import Settings
+
+    source_root = repository_root / "source_material"
+    write_source_contract_fixture(source_root)
+    config_root = repository_root / "config"
+    config_root.mkdir()
+    for name in (
+        "artifact_build.yaml",
+        "datasets.yaml",
+        "quality_rules.yaml",
+        "rating_scale.yaml",
+        "state_rules.yaml",
+    ):
+        (config_root / name).write_text("version: 1.0.0\n", encoding="utf-8")
+    schema_root = repository_root / "schemas"
+    schema_root.mkdir()
+    for name in ("artifact_manifest.schema.json", "quality_issue.schema.json"):
+        (schema_root / name).write_bytes(b"{}")
+    return Settings(
+        repository_root=repository_root,
+        source_root=source_root,
+        data_dir=source_root / "data",
+        artifact_dir=repository_root / "artifacts",
+        database_path=repository_root / "artifacts/finproof.duckdb",
+        artifact_build_config_path=config_root / "artifact_build.yaml",
+        expected_artifact_contract_path=config_root / "expected_phase1_artifacts.json",
+    )
 
 
 def _load_payloads(tmp_path: Path) -> tuple[Path, Path, dict[str, object], dict[str, object]]:
@@ -67,7 +99,105 @@ def test_official_manifest_and_catalog_load_with_exact_tables() -> None:
     )
     assert tuple(entry.table_id for entry in manifest.data_files) == OFFICIAL_TABLE_IDS
     assert manifest.data_entry("PRBD01N001").expected_rows == 42_394
+
+
+@pytest.mark.parametrize("table_id", OFFICIAL_TABLE_IDS)
+def test_verified_source_file_preserves_exact_manifest_size_bytes(
+    tmp_path: Path,
+    table_id: str,
+) -> None:
+    manifest_path, catalog_path = write_source_contract_fixture(tmp_path)
+    manifest = SourceFileManifest.load(manifest_path, catalog_path)
+    verified = manifest.verify(tmp_path).data_file(table_id)
+
+    assert verified.size_bytes == manifest.data_entry(table_id).size_bytes
     assert manifest.expected_headers("PRBD01N001")[0] == "PD_NO"
+
+
+@pytest.mark.parametrize("case", ["manifest", "catalog"])
+def test_source_manifest_and_catalog_parser_consume_only_held_streams(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.data.artifacts.config import ArtifactInputKind
+    from finproof.data.artifacts.input_identity import (
+        BuildInputIdentity,
+        ResolvedBuildInputBundle,
+        verify_build_inputs,
+    )
+
+    settings = _held_source_settings(tmp_path / "repository")
+    resolved = ResolvedBuildInputBundle.from_settings(settings)
+    with verify_build_inputs(settings, resolved) as held:
+        seal = held.issue_identity_seal()
+    identity = BuildInputIdentity.from_verified(seal=seal)
+    monkeypatch.setattr(
+        SourceFileManifest,
+        "load",
+        classmethod(lambda _cls, *_args, **_kwargs: pytest.fail("path loader called")),
+    )
+    try:
+        assert tuple(inspect.signature(SourceFileManifest.from_held_streams).parameters) == (
+            "manifest_stream",
+            "schema_catalog_stream",
+        )
+        with (
+            identity.open_verified_input(kind=ArtifactInputKind.SOURCE_MANIFEST) as manifest_stream,
+            identity.open_verified_input(
+                kind=ArtifactInputKind.SOURCE_SCHEMA_CATALOG
+            ) as catalog_stream,
+        ):
+            loaded = SourceFileManifest.from_held_streams(
+                manifest_stream=manifest_stream,
+                schema_catalog_stream=catalog_stream,
+            )
+            assert not manifest_stream.closed
+            assert not catalog_stream.closed
+        assert loaded.data_entry("PRBD01N001").expected_rows == 1
+    finally:
+        identity.close()
+
+
+def test_held_source_manifest_parse_rejects_basename_aba_before_context_exit(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.config import ArtifactInputKind
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.input_identity import (
+        BuildInputIdentity,
+        ResolvedBuildInputBundle,
+        verify_build_inputs,
+    )
+
+    settings = _held_source_settings(tmp_path / "repository")
+    target = settings.source_root / "input_manifest.json"
+    parked = settings.source_root / "input_manifest.parked"
+    resolved = ResolvedBuildInputBundle.from_settings(settings)
+    with verify_build_inputs(settings, resolved) as held:
+        seal = held.issue_identity_seal()
+    identity = BuildInputIdentity.from_verified(seal=seal)
+    try:
+        with (  # noqa: PT012 -- mutation must occur while both held streams are live
+            pytest.raises(ArtifactContractError) as caught,
+            identity.open_verified_input(kind=ArtifactInputKind.SOURCE_MANIFEST) as manifest_stream,
+            identity.open_verified_input(
+                kind=ArtifactInputKind.SOURCE_SCHEMA_CATALOG
+            ) as catalog_stream,
+        ):
+            parsed = SourceFileManifest.from_held_streams(
+                manifest_stream=manifest_stream,
+                schema_catalog_stream=catalog_stream,
+            )
+            assert parsed.data_entry("PRBD01N001").expected_rows == 1
+            os.replace(target, parked)
+            target.write_bytes(b'{"replacement":true}')
+            target.unlink()
+            os.replace(parked, target)
+        assert caught.value.code is ArtifactErrorCode.CHECKSUM_MISMATCH
+        assert dict(caught.value.internal_context) == {"reason": "invalid_input_generation"}
+    finally:
+        identity.close()
 
 
 def test_loaded_catalog_tables_cannot_be_replaced_before_verification(tmp_path: Path) -> None:

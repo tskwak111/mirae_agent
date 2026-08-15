@@ -1,3 +1,4 @@
+# mypy: disable-error-code="arg-type,no-untyped-def"
 """Minimal XLSX builders for streaming-reader contract tests."""
 
 import json
@@ -10,10 +11,24 @@ from finproof.data.source_manifest import (
     VerifiedSourceFile,
 )
 from tests.helpers.source_manifest import write_source_contract_fixture
+from tests.helpers.source_rows import (
+    BOND_COLUMNS,
+    DOMESTIC_LISTED_COLUMNS,
+    OVERSEAS_LISTED_COLUMNS,
+    PUBLIC_FUND_COLUMNS,
+    source_row,
+)
 
 MAIN_URI = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_URI = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PACKAGE_REL_URI = "http://schemas.openxmlformats.org/package/2006/relationships"
+
+COMPLETE_BRONZE_COLUMNS = {
+    "PRBD01N001": BOND_COLUMNS,
+    "PREF01N001": DOMESTIC_LISTED_COLUMNS,
+    "PREF02N001": OVERSEAS_LISTED_COLUMNS,
+    "PRFD01N001": PUBLIC_FUND_COLUMNS,
+}
 
 
 def _column_letter(number: int) -> str:
@@ -129,3 +144,78 @@ def verified_fixture_source(
 
     verified = SourceFileManifest.load(manifest_path, catalog_path).verify(base_dir)
     return verified.data_file(table_id)
+
+
+def write_complete_bronze_repository(repository_root: Path):
+    """Write one complete four-workbook canonical-header CP4 repository fixture."""
+    from finproof.core.settings import Settings
+
+    source_root = repository_root / "source_material"
+    payloads: dict[str, bytes] = {}
+    for table_id, columns in COMPLETE_BRONZE_COLUMNS.items():
+        workbook = repository_root / f"{table_id}.xlsx"
+        value = source_row(table_id)
+        write_xlsx(workbook, rows=(columns, value.raw_payload))
+        payloads[f"data/{table_id}_data.xlsx"] = workbook.read_bytes()
+        workbook.unlink()
+    manifest_path, catalog_path = write_source_contract_fixture(
+        source_root,
+        data_payloads=payloads,
+    )
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    for entry in manifest["files"]:
+        table_id = entry.get("table_id")
+        if table_id not in COMPLETE_BRONZE_COLUMNS:
+            continue
+        columns = COMPLETE_BRONZE_COLUMNS[table_id]
+        entry["expected_columns"] = len(columns)
+        if entry["kind"] == "data":
+            entry["expected_rows"] = 1
+    for table_id, columns in COMPLETE_BRONZE_COLUMNS.items():
+        table = catalog["tables"][table_id]
+        table["column_count"] = len(columns)
+        table["schema_file"] = f"data/{table_id}_schema.xlsx"
+        table["columns"] = [
+            {
+                "column_name": name,
+                "column_type": "text",
+                "example": "",
+                "key": "",
+                "name_ko": "",
+                "schema_excel_row": number + 2,
+            }
+            for number, name in enumerate(columns, start=1)
+        ]
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    catalog_path.write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    config_root = repository_root / "config"
+    config_root.mkdir()
+    for name in (
+        "artifact_build.yaml",
+        "datasets.yaml",
+        "quality_rules.yaml",
+        "rating_scale.yaml",
+        "state_rules.yaml",
+    ):
+        (config_root / name).write_text("version: 1.0.0\n", encoding="utf-8")
+    schema_root = repository_root / "schemas"
+    schema_root.mkdir()
+    for name in ("artifact_manifest.schema.json", "quality_issue.schema.json"):
+        (schema_root / name).write_bytes(b"{}")
+    return Settings(
+        repository_root=repository_root,
+        source_root=source_root,
+        data_dir=source_root / "data",
+        artifact_dir=repository_root / "artifacts",
+        database_path=repository_root / "artifacts/finproof.duckdb",
+        artifact_build_config_path=config_root / "artifact_build.yaml",
+        expected_artifact_contract_path=config_root / "expected_phase1_artifacts.json",
+    )

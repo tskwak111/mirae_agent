@@ -1,6 +1,8 @@
 """Strict timestamp-free semantic artifact reports."""
 
+import re
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import date
 from typing import Annotated, Literal, Self
 
@@ -36,6 +38,97 @@ class SourceTableAudit(BaseModel):
         ):
             raise ValueError("source table expected and observed shape must match")
         return self
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class BronzeSourceAuditObservations:
+    """Exact CP4-only source-audit prefix issued from verified Bronze counts."""
+
+    source_snapshot_date: date
+    source_manifest_sha256: str
+    schema_catalog_sha256: str
+    source_tables: tuple[SourceTableAudit, ...]
+    _issuance: object
+
+    def __new__(cls, *args: object, **kwargs: object) -> "BronzeSourceAuditObservations":
+        del args, kwargs
+        raise TypeError("BronzeSourceAuditObservations is factory-issued")
+
+    @classmethod
+    def from_bronze(
+        cls,
+        *,
+        source_snapshot_date: date,
+        source_manifest_sha256: str,
+        schema_catalog_sha256: str,
+        source_tables: tuple[SourceTableAudit, ...],
+    ) -> "BronzeSourceAuditObservations":
+        if type(source_snapshot_date) is not date or source_snapshot_date != date(2026, 7, 11):
+            raise ValueError("Bronze observations require the official snapshot date")
+        for digest in (source_manifest_sha256, schema_catalog_sha256):
+            if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                raise ValueError("Bronze observations require lowercase SHA-256 values")
+        if type(source_tables) is not tuple or tuple(
+            entry.source_table for entry in source_tables
+        ) != ("PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001"):
+            raise ValueError("Bronze source tables require the exact closed order")
+        for entry in source_tables:
+            if type(entry) is not SourceTableAudit:
+                raise TypeError("Bronze source tables require exact SourceTableAudit values")
+            validated = SourceTableAudit.model_validate(
+                entry.model_dump(mode="python"),
+                strict=True,
+            )
+            if validated != entry:
+                raise ValueError("Bronze source-table facts changed during validation")
+        value = object.__new__(cls)
+        object.__setattr__(value, "source_snapshot_date", source_snapshot_date)
+        object.__setattr__(value, "source_manifest_sha256", source_manifest_sha256)
+        object.__setattr__(value, "schema_catalog_sha256", schema_catalog_sha256)
+        object.__setattr__(value, "source_tables", source_tables)
+        object.__setattr__(value, "_issuance", _BronzeObservationIssuance(value))
+        return value
+
+
+class _BronzeObservationIssuance:
+    __slots__ = ("facts", "value")
+
+    def __init__(self, value: BronzeSourceAuditObservations) -> None:
+        self.value = value
+        self.facts = (
+            value.source_snapshot_date,
+            value.source_manifest_sha256,
+            value.schema_catalog_sha256,
+            tuple(entry.model_dump_json() for entry in value.source_tables),
+        )
+
+
+def require_bronze_source_audit_observations(value: object) -> None:
+    """Reject copied, forged, later-phase, or mutated Bronze observations."""
+    try:
+        if type(value) is not BronzeSourceAuditObservations:
+            raise TypeError("observations must have the exact Bronze runtime type")
+        issuance = value._issuance
+        facts = (
+            value.source_snapshot_date,
+            value.source_manifest_sha256,
+            value.schema_catalog_sha256,
+            tuple(entry.model_dump_json() for entry in value.source_tables),
+        )
+        if (
+            type(issuance) is not _BronzeObservationIssuance
+            or issuance.value is not value
+            or issuance.facts != facts
+        ):
+            raise ValueError("Bronze observation issuance changed")
+        BronzeSourceAuditObservations.from_bronze(
+            source_snapshot_date=value.source_snapshot_date,
+            source_manifest_sha256=value.source_manifest_sha256,
+            schema_catalog_sha256=value.schema_catalog_sha256,
+            source_tables=value.source_tables,
+        )
+    except (AttributeError, TypeError, ValueError) as exc:
+        raise ValueError("invalid Bronze source-audit observations") from exc
 
 
 class NamedExpectedObservedCount(BaseModel):

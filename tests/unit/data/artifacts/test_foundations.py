@@ -1,10 +1,13 @@
+# mypy: disable-error-code="arg-type,attr-defined,unused-ignore"
 """Artifact build foundation contracts."""
 
 from __future__ import annotations
 
 import builtins
+import inspect
 import json
 import os
+from contextlib import ExitStack
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
@@ -1659,3 +1662,79 @@ def test_build_registry_versions_reject_every_mismatch(
             VersionBundle(**version_overrides),  # type: ignore[arg-type]
         )
     assert caught.value.code is ArtifactErrorCode.CONFIG_INVALID
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["artifact-config", "datasets", "quality", "rating", "state"],
+)
+def test_artifact_config_and_registry_parsers_consume_only_held_streams(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import config as artifact_config
+    from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactInputKind
+    from finproof.data.artifacts.input_identity import (
+        BuildInputIdentity,
+        ResolvedBuildInputBundle,
+        verify_build_inputs,
+    )
+
+    settings = _synthetic_build_settings(tmp_path / "repository")
+    settings.artifact_build_config_path.write_text(
+        _VALID_ARTIFACT_CONFIG,
+        encoding="utf-8",
+    )
+    resolved = ResolvedBuildInputBundle.from_settings(settings)
+    with verify_build_inputs(settings, resolved) as held:
+        seal = held.issue_identity_seal()
+    identity = BuildInputIdentity.from_verified(seal=seal)
+    monkeypatch.setattr(
+        ArtifactBuildConfig,
+        "load",
+        classmethod(lambda _cls, *_args, **_kwargs: pytest.fail("path loader called")),
+    )
+    monkeypatch.setattr(
+        artifact_config,
+        "validate_build_registry_versions",
+        lambda *_args, **_kwargs: pytest.fail("path registry loader called"),
+    )
+    try:
+        if case == "artifact-config":
+            assert tuple(inspect.signature(ArtifactBuildConfig.from_held_stream).parameters) == (
+                "stream",
+                "versions",
+            )
+            with identity.open_verified_input(
+                kind=ArtifactInputKind.ARTIFACT_BUILD_CONFIG
+            ) as stream:
+                loaded = ArtifactBuildConfig.from_held_stream(
+                    stream,
+                    versions=VersionBundle(),
+                )
+                assert not stream.closed
+            assert loaded.artifact_set_id == "finproof-data-artifacts/v1"
+            return
+
+        kinds = (
+            ArtifactInputKind.DATASET_REGISTRY,
+            ArtifactInputKind.QUALITY_RULE_REGISTRY,
+            ArtifactInputKind.RATING_SCALE_REGISTRY,
+            ArtifactInputKind.STATE_RULE_REGISTRY,
+        )
+        with ExitStack() as stack:
+            streams = tuple(
+                stack.enter_context(identity.open_verified_input(kind=kind)) for kind in kinds
+            )
+            artifact_config.validate_build_registry_versions_from_held_streams(
+                datasets=streams[0],
+                quality=streams[1],
+                rating=streams[2],
+                state=streams[3],
+                versions=VersionBundle(),
+            )
+            assert all(not stream.closed for stream in streams)
+    finally:
+        identity.close()

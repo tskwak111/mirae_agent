@@ -1,3 +1,4 @@
+# mypy: disable-error-code="arg-type"
 """Strict semantic artifact report contracts."""
 
 import hashlib
@@ -11,6 +12,166 @@ import pytest
 
 from finproof.data.artifacts.reports import QualitySummaryReport, SourceAuditReport
 from finproof.domain.quality import IssueSeverity, QualityStatus
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "snapshot",
+        "snapshot-string",
+        "manifest-uppercase",
+        "manifest-short",
+        "manifest-type",
+        "catalog-uppercase",
+        "catalog-short",
+        "catalog-type",
+        "tables-list",
+        "tables-missing",
+        "tables-reorder",
+        "tables-duplicate",
+        "expected-rows",
+        "observed-rows",
+        "expected-columns",
+        "observed-columns",
+        "expected-cells",
+        "observed-cells",
+        "bool-count",
+    ],
+)
+def test_bronze_observations_require_exact_hashes_and_four_ordered_source_tables(
+    case: str,
+) -> None:
+    from finproof.data.artifacts.reports import BronzeSourceAuditObservations, SourceTableAudit
+
+    source_tables = tuple(
+        SourceTableAudit.model_validate(entry, strict=True)
+        for entry in _source_audit_payload()["source_tables"]
+    )
+    payload: dict[str, object] = {
+        "source_snapshot_date": date(2026, 7, 11),
+        "source_manifest_sha256": "a" * 64,
+        "schema_catalog_sha256": "b" * 64,
+        "source_tables": source_tables,
+    }
+    if case == "snapshot":
+        payload["source_snapshot_date"] = date(2026, 7, 10)
+    elif case == "snapshot-string":
+        payload["source_snapshot_date"] = "2026-07-11"
+    elif case.startswith("manifest-"):
+        payload["source_manifest_sha256"] = {
+            "manifest-uppercase": "A" * 64,
+            "manifest-short": "a" * 63,
+            "manifest-type": b"a" * 64,
+        }[case]
+    elif case.startswith("catalog-"):
+        payload["schema_catalog_sha256"] = {
+            "catalog-uppercase": "B" * 64,
+            "catalog-short": "b" * 63,
+            "catalog-type": b"b" * 64,
+        }[case]
+    elif case == "tables-list":
+        payload["source_tables"] = list(source_tables)
+    elif case == "tables-missing":
+        payload["source_tables"] = source_tables[:-1]
+    elif case == "tables-reorder":
+        payload["source_tables"] = tuple(reversed(source_tables))
+    elif case == "tables-duplicate":
+        payload["source_tables"] = (source_tables[0], source_tables[0], *source_tables[2:])
+    else:
+        field = case.replace("-", "_")
+        if case == "bool-count":
+            field = "expected_rows"
+            replacement: object = True
+        else:
+            replacement = getattr(source_tables[0], field) + 1
+        forged = source_tables[0].model_copy(update={field: replacement})
+        payload["source_tables"] = (forged, *source_tables[1:])
+
+    with pytest.raises((TypeError, ValueError)):
+        BronzeSourceAuditObservations.from_bronze(**payload)
+
+    valid = BronzeSourceAuditObservations.from_bronze(
+        source_snapshot_date=date(2026, 7, 11),
+        source_manifest_sha256="a" * 64,
+        schema_catalog_sha256="b" * 64,
+        source_tables=source_tables,
+    )
+    assert valid.source_tables is source_tables
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["copy", "object-new", "subclass-suffix", "mapping", "report", "mutated"],
+)
+def test_cp4_bronze_observations_reject_forged_later_typestate_and_report_admission(
+    case: str,
+) -> None:
+    from copy import copy
+
+    from finproof.data.artifacts import reports
+    from finproof.data.artifacts.reports import (
+        BronzeSourceAuditObservations,
+        SourceTableAudit,
+        require_bronze_source_audit_observations,
+    )
+
+    source_tables = tuple(
+        SourceTableAudit.model_validate(entry, strict=True)
+        for entry in _source_audit_payload()["source_tables"]
+    )
+    value = BronzeSourceAuditObservations.from_bronze(
+        source_snapshot_date=date(2026, 7, 11),
+        source_manifest_sha256="a" * 64,
+        schema_catalog_sha256="b" * 64,
+        source_tables=source_tables,
+    )
+
+    def attempt_forgery() -> None:
+        if case == "copy":
+            forged: object = copy(value)
+        elif case == "object-new":
+            forged = object.__new__(BronzeSourceAuditObservations)
+            for name in (
+                "source_snapshot_date",
+                "source_manifest_sha256",
+                "schema_catalog_sha256",
+                "source_tables",
+            ):
+                object.__setattr__(forged, name, getattr(value, name))
+        elif case == "subclass-suffix":
+
+            class LaterPhase(BronzeSourceAuditObservations):
+                __slots__ = ("silver_tables",)
+
+            forged = object.__new__(LaterPhase)
+            for name in (
+                "source_snapshot_date",
+                "source_manifest_sha256",
+                "schema_catalog_sha256",
+                "source_tables",
+            ):
+                object.__setattr__(forged, name, getattr(value, name))
+            object.__setattr__(forged, "silver_tables", ())
+        elif case == "mapping":
+            forged = {
+                "source_snapshot_date": value.source_snapshot_date,
+                "source_manifest_sha256": value.source_manifest_sha256,
+                "schema_catalog_sha256": value.schema_catalog_sha256,
+                "source_tables": value.source_tables,
+            }
+        elif case == "report":
+            forged = SourceAuditReport.model_validate(_source_audit_payload(), strict=True)
+        else:
+            object.__setattr__(value, "source_manifest_sha256", "c" * 64)
+            forged = value
+        require_bronze_source_audit_observations(forged)
+
+    with pytest.raises((TypeError, ValueError)):
+        attempt_forgery()
+
+    assert not hasattr(reports, "SilverSourceAuditObservations")
+    assert not hasattr(reports, "CompleteSourceAuditObservations")
+    assert not hasattr(reports, "produce_source_audit_report")
 
 
 def _source_audit_payload() -> dict[str, Any]:

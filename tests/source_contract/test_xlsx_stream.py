@@ -1,7 +1,10 @@
+# mypy: disable-error-code="attr-defined"
 """Contracts for secure streaming of verified XLSX source rows."""
 
+import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
@@ -90,6 +93,161 @@ def _patch_zip_member_flags(
     if matches != 2:
         raise AssertionError("test ZIP member must have one local and one central header")
     path.write_bytes(payload)
+
+
+def test_xlsx_stream_parses_zip_from_one_held_nofollow_descriptor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data import xlsx_stream
+
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+    real_open = os.open
+    real_zip = ZipFile
+    workbook_descriptors: list[int] = []
+    zip_inputs: list[object] = []
+
+    def open_spy(path: Any, flags: int, *args: Any, **kwargs: Any) -> int:
+        descriptor = real_open(path, flags, *args, **kwargs)
+        if not flags & os.O_DIRECTORY:
+            assert flags & os.O_NOFOLLOW
+            workbook_descriptors.append(descriptor)
+        return descriptor
+
+    def zip_spy(file: Any, *args: Any, **kwargs: Any) -> ZipFile:
+        assert not isinstance(file, (str, Path))
+        assert callable(file.read)
+        assert callable(file.seek)
+        assert callable(file.fileno)
+        zip_inputs.append(file)
+        return real_zip(file, *args, **kwargs)
+
+    monkeypatch.setattr(os, "open", open_spy)
+    monkeypatch.setattr(xlsx_stream, "ZipFile", zip_spy)
+    rows = tuple(iter_xlsx_rows(verified))
+
+    assert len(rows) == 1
+    assert len(workbook_descriptors) == 1
+    assert len(zip_inputs) == 1
+    with pytest.raises(OSError, match="Bad file descriptor"):
+        os.fstat(workbook_descriptors[0])
+
+
+@pytest.mark.parametrize("case", ["size", "sha256"])
+def test_xlsx_stream_rejects_workbook_swap_before_descriptor_open(
+    tmp_path: Path,
+    case: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+    replacement = tmp_path / "replacement.xlsx"
+    write_xlsx(
+        replacement,
+        rows=(("ID",), ("a much larger replacement" if case == "size" else "9",)),
+    )
+    if case == "sha256":
+        assert replacement.stat().st_size == verified.size_bytes
+    rows = iter_xlsx_rows(verified)
+    os.replace(replacement, verified.verified_absolute_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        next(rows)
+
+    assert raised.value.code is (
+        SourceErrorCode.SIZE_MISMATCH if case == "size" else SourceErrorCode.CHECKSUM_MISMATCH
+    )
+
+
+def test_xlsx_stream_rejects_workbook_swap_during_row_iteration(
+    tmp_path: Path,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",), ("2",)))
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=2,
+    )
+    replacement = tmp_path / "replacement.xlsx"
+    replacement.write_bytes(verified.verified_absolute_path.read_bytes())
+    rows = iter_xlsx_rows(verified)
+    assert next(rows).raw_payload == ("1",)
+    os.replace(replacement, verified.verified_absolute_path)
+
+    with pytest.raises(SourceContractError) as raised:
+        next(rows)
+
+    assert raised.value.code is SourceErrorCode.FILE_TYPE_INVALID
+
+
+@pytest.mark.parametrize(
+    "case",
+    ["replacement-before-terminal-next", "same-inode-mutation", "replacement-before-close"],
+)
+def test_xlsx_stream_rejects_workbook_swap_after_last_yield_before_success(
+    tmp_path: Path,
+    case: str,
+) -> None:
+    workbook = tmp_path / "fixture.xlsx"
+    write_xlsx(workbook, rows=(("ID",), ("1",)))
+    verified = verified_fixture_source(
+        tmp_path,
+        table_id="PRBD01N001",
+        workbook=workbook,
+        expected_headers=("ID",),
+        expected_rows=1,
+    )
+    replacement = tmp_path / "replacement.xlsx"
+    replacement.write_bytes(verified.verified_absolute_path.read_bytes())
+    rows = iter_xlsx_rows(verified)
+    assert next(rows).raw_payload == ("1",)
+
+    if case == "same-inode-mutation":
+        before = verified.verified_absolute_path.stat()
+        payload = bytearray(verified.verified_absolute_path.read_bytes())
+        central_directory = payload.index(b"PK\x01\x02")
+        payload[central_directory + 4] ^= 1
+        verified.verified_absolute_path.write_bytes(payload)
+        after = verified.verified_absolute_path.stat()
+        assert (after.st_dev, after.st_ino, after.st_size) == (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+        )
+    else:
+        os.replace(replacement, verified.verified_absolute_path)
+
+    def finish_stream() -> None:
+        if case == "replacement-before-close":
+            rows.close()
+            return
+        next(rows)
+
+    with pytest.raises(SourceContractError) as raised:
+        finish_stream()
+
+    assert raised.value.code is (
+        SourceErrorCode.CHECKSUM_MISMATCH
+        if case == "same-inode-mutation"
+        else SourceErrorCode.FILE_TYPE_INVALID
+    )
 
 
 def test_reader_preserves_omitted_cells_and_exact_raw_lineage(tmp_path: Path) -> None:

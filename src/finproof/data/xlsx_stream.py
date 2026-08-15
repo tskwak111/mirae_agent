@@ -1,9 +1,13 @@
 """Secure bounded-memory streaming for manifest-verified XLSX sources."""
 
+import hashlib
+import os
 import re
+import stat
 from collections.abc import Iterator
+from contextlib import contextmanager, suppress
 from pathlib import PurePosixPath
-from typing import Final
+from typing import BinaryIO, Final
 from urllib.parse import quote, unquote, urlsplit
 from zipfile import BadZipFile, ZipFile
 
@@ -440,10 +444,164 @@ def _source_row(values: dict[int, str], row_number: int, source: VerifiedSourceF
     )
 
 
+class _HeldWorkbook:
+    __slots__ = (
+        "basename",
+        "descriptor",
+        "leaf_identity",
+        "parent_fd",
+        "parent_identity",
+        "stream",
+    )
+
+    def __init__(
+        self,
+        *,
+        basename: str,
+        descriptor: int,
+        leaf_identity: tuple[int, int, int, int, int],
+        parent_fd: int,
+        parent_identity: tuple[int, int, int, int],
+        stream: BinaryIO,
+    ) -> None:
+        self.basename = basename
+        self.descriptor = descriptor
+        self.leaf_identity = leaf_identity
+        self.parent_fd = parent_fd
+        self.parent_identity = parent_identity
+        self.stream = stream
+
+    def assert_unchanged(self, source: VerifiedSourceFile) -> None:
+        try:
+            named = os.stat(self.basename, dir_fd=self.parent_fd, follow_symlinks=False)
+            descriptor = os.fstat(self.descriptor)
+            parent = os.fstat(self.parent_fd)
+            if (
+                _workbook_identity(named) != self.leaf_identity
+                or _workbook_identity(descriptor) != self.leaf_identity
+                or _workbook_parent_identity(parent) != self.parent_identity
+            ):
+                raise ValueError("held workbook generation changed")
+        except (OSError, TypeError, ValueError) as exc:
+            raise _error(
+                source,
+                SourceErrorCode.FILE_TYPE_INVALID,
+                "verified workbook generation changed during iteration",
+            ) from exc
+
+    def assert_terminal(self, source: VerifiedSourceFile) -> None:
+        self.assert_unchanged(source)
+        try:
+            self.stream.seek(0)
+            digest = hashlib.sha256()
+            size_bytes = 0
+            while payload := self.stream.read(1024 * 1024):
+                size_bytes += len(payload)
+                digest.update(payload)
+        except OSError as exc:
+            raise _error(
+                source,
+                SourceErrorCode.FILE_TYPE_INVALID,
+                "held workbook could not be revalidated after iteration",
+            ) from exc
+        if size_bytes != source.size_bytes:
+            raise _error(
+                source,
+                SourceErrorCode.SIZE_MISMATCH,
+                "held workbook size changed during iteration",
+            )
+        if digest.hexdigest() != source.sha256:
+            raise _error(
+                source,
+                SourceErrorCode.CHECKSUM_MISMATCH,
+                "held workbook checksum changed during iteration",
+            )
+
+
+def _workbook_identity(value: os.stat_result) -> tuple[int, int, int, int, int]:
+    if stat.S_IFMT(value.st_mode) != stat.S_IFREG or value.st_nlink != 1:
+        raise ValueError("workbook is not a single-link regular file")
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        stat.S_IMODE(value.st_mode),
+        value.st_nlink,
+    )
+
+
+def _workbook_parent_identity(value: os.stat_result) -> tuple[int, int, int, int]:
+    if stat.S_IFMT(value.st_mode) != stat.S_IFDIR:
+        raise ValueError("workbook parent is not a directory")
+    return (
+        value.st_dev,
+        value.st_ino,
+        stat.S_IFMT(value.st_mode),
+        stat.S_IMODE(value.st_mode),
+    )
+
+
+@contextmanager
+def _open_held_workbook(source: VerifiedSourceFile) -> Iterator[_HeldWorkbook]:
+    parent_fd = -1
+    descriptor = -1
+    stream: BinaryIO | None = None
+    try:
+        parent_fd = os.open(
+            source.verified_absolute_path.parent,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW,
+        )
+        basename = source.verified_absolute_path.name
+        descriptor = os.open(
+            basename,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+            dir_fd=parent_fd,
+        )
+        observed = os.fstat(descriptor)
+        identity = _workbook_identity(observed)
+        parent_identity = _workbook_parent_identity(os.fstat(parent_fd))
+        if observed.st_size != source.size_bytes:
+            raise _error(
+                source,
+                SourceErrorCode.SIZE_MISMATCH,
+                "held workbook size does not match the verified manifest",
+            )
+        digest = hashlib.sha256()
+        while payload := os.read(descriptor, 1024 * 1024):
+            digest.update(payload)
+        if digest.hexdigest() != source.sha256:
+            raise _error(
+                source,
+                SourceErrorCode.CHECKSUM_MISMATCH,
+                "held workbook checksum does not match the verified manifest",
+            )
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        stream = os.fdopen(descriptor, "rb", closefd=True)
+        descriptor = -1
+        yield _HeldWorkbook(
+            basename=basename,
+            descriptor=stream.fileno(),
+            leaf_identity=identity,
+            parent_fd=parent_fd,
+            parent_identity=parent_identity,
+            stream=stream,
+        )
+    finally:
+        if stream is not None:
+            with suppress(OSError):
+                stream.close()
+        if descriptor >= 0:
+            with suppress(OSError):
+                os.close(descriptor)
+        if parent_fd >= 0:
+            with suppress(OSError):
+                os.close(parent_fd)
+
+
 def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
     """Yield exact source rows from one fully verified XLSX workbook."""
     try:
-        with ZipFile(source.verified_absolute_path) as archive:
+        with _open_held_workbook(source) as held, ZipFile(held.stream) as archive:
             _validate_archive_members(archive)
             sheet_target = _sheet_target(archive, source)
             shared_strings = _shared_strings(archive)
@@ -481,7 +639,12 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
                         header_seen = True
                     else:
                         data_row_count += 1
-                        yield _source_row(values, row_number, source)
+                        held.assert_unchanged(source)
+                        try:
+                            yield _source_row(values, row_number, source)
+                        except GeneratorExit:
+                            held.assert_terminal(source)
+                            raise
                     element.clear()
                     if parent is not None:
                         while element.getprevious() is not None:
@@ -507,6 +670,7 @@ def iter_xlsx_rows(source: VerifiedSourceFile) -> Iterator[SourceRow]:
                         SourceErrorCode.ROW_COUNT_MISMATCH,
                         "worksheet data-row count does not match the declared count",
                     )
+                held.assert_terminal(source)
     except SourceContractError:
         raise
     except (

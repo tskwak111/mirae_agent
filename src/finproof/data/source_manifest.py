@@ -9,7 +9,7 @@ from datetime import date
 from json import JSONDecodeError
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import Annotated, Literal, Self, cast
+from typing import Annotated, BinaryIO, Literal, Self, cast
 
 from pydantic import (
     BaseModel,
@@ -50,6 +50,7 @@ class VerifiedSourceFile(StrictModel):
     table_id: str
     sheet_name: str
     snapshot_date: date
+    size_bytes: int = Field(ge=0, strict=True)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     expected_rows: int = Field(ge=0)
     expected_columns: int = Field(gt=0)
@@ -232,6 +233,32 @@ class SourceFileManifest(StrictModel):
         """Load both metadata files and fail closed on malformed source contracts."""
         manifest_payload = _load_json(manifest_path, SourceErrorCode.MANIFEST_INVALID)
         catalog_payload = _load_json(schema_catalog_path, SourceErrorCode.CATALOG_INVALID)
+        return cls._from_payloads(manifest_payload, catalog_payload)
+
+    @classmethod
+    def from_held_streams(
+        cls,
+        *,
+        manifest_stream: BinaryIO,
+        schema_catalog_stream: BinaryIO,
+    ) -> Self:
+        """Parse source metadata from two caller-held verified streams."""
+        manifest_payload = _load_json_stream(
+            manifest_stream,
+            SourceErrorCode.MANIFEST_INVALID,
+        )
+        catalog_payload = _load_json_stream(
+            schema_catalog_stream,
+            SourceErrorCode.CATALOG_INVALID,
+        )
+        return cls._from_payloads(manifest_payload, catalog_payload)
+
+    @classmethod
+    def _from_payloads(
+        cls,
+        manifest_payload: dict[str, object],
+        catalog_payload: dict[str, object],
+    ) -> Self:
         if "schema_catalog" in manifest_payload:
             raise SourceContractError(
                 SourceErrorCode.MANIFEST_INVALID,
@@ -346,6 +373,7 @@ class SourceFileManifest(StrictModel):
                         table_id=entry.table_id,
                         sheet_name=entry.sheet_name,
                         snapshot_date=self.snapshot_date,
+                        size_bytes=entry.size_bytes,
                         sha256=entry.sha256,
                         expected_rows=entry.expected_rows,
                         expected_columns=entry.expected_columns,
@@ -360,6 +388,28 @@ def _load_json(path: Path, error_code: SourceErrorCode) -> dict[str, object]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (JSONDecodeError, OSError, UnicodeDecodeError):
+        raise SourceContractError(error_code, "official metadata could not be read") from None
+    if not isinstance(payload, dict):
+        raise SourceContractError(error_code, "official metadata must be a JSON object")
+    return cast(dict[str, object], payload)
+
+
+def _load_json_stream(
+    stream: BinaryIO,
+    error_code: SourceErrorCode,
+    *,
+    maximum_bytes: int = 16 * 1024 * 1024,
+) -> dict[str, object]:
+    """Bounded-read JSON from a seekable stream without closing it."""
+    try:
+        if not hasattr(stream, "seek") or not hasattr(stream, "read"):
+            raise TypeError("held metadata stream must be seekable binary IO")
+        stream.seek(0)
+        raw = stream.read(maximum_bytes + 1)
+        if type(raw) is not bytes or len(raw) > maximum_bytes:
+            raise ValueError("held metadata stream is invalid or exceeds its bound")
+        payload = json.loads(raw.decode("utf-8"))
+    except (JSONDecodeError, OSError, TypeError, UnicodeDecodeError, ValueError):
         raise SourceContractError(error_code, "official metadata could not be read") from None
     if not isinstance(payload, dict):
         raise SourceContractError(error_code, "official metadata must be a JSON object")

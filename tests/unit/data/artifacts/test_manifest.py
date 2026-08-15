@@ -1,7 +1,9 @@
+# mypy: disable-error-code="no-untyped-def"
 """Strict artifact manifest and descriptor-bound inventory contracts."""
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import shutil
@@ -323,6 +325,173 @@ def test_verified_inventory_exact_tree_and_entry_identities(tmp_path: Path) -> N
             assert entry.st_ino > 0
             assert entry.file_type > 0
             assert entry.st_nlink == 1
+
+
+def test_held_artifact_root_adoption_skeleton_rejects_valid_issued_generation(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.manifest import (
+        HeldArtifactRootAdoption,
+        _issue_held_artifact_root_adoption,
+        adopt_held_artifact_root,
+    )
+
+    root = tmp_path / "artifacts"
+    write_artifact_tree(root)
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+    parent_fd = os.open(tmp_path, flags)
+    root_fd = os.open("artifacts", flags, dir_fd=parent_fd)
+    try:
+        with pytest.raises(TypeError, match="issuer-owned"):
+            HeldArtifactRootAdoption()
+        adoption = _issue_held_artifact_root_adoption(
+            parent_fd=os.dup(parent_fd),
+            basename="artifacts",
+            root_fd=os.dup(root_fd),
+        )
+        with (
+            adopt_held_artifact_root(adoption) as managed,
+            pytest.raises(ArtifactContractError),
+        ):
+            managed.take_expected_acceptance_seal()
+    finally:
+        os.close(root_fd)
+        os.close(parent_fd)
+
+
+def _test_root_adoption(root: Path):
+    from finproof.data.artifacts.manifest import _issue_held_artifact_root_adoption
+
+    flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+    parent_fd = os.open(root.parent, flags)
+    root_fd = os.open(root.name, flags, dir_fd=parent_fd)
+    transferred_parent = os.dup(parent_fd)
+    transferred_root = os.dup(root_fd)
+    os.close(root_fd)
+    os.close(parent_fd)
+    return (
+        _issue_held_artifact_root_adoption(
+            parent_fd=transferred_parent,
+            basename=root.name,
+            root_fd=transferred_root,
+        ),
+        transferred_parent,
+        transferred_root,
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "copy",
+        "forged",
+        "reuse",
+        "foreign-descriptor",
+        "parent-substitution",
+        "basename-substitution",
+        "adoption-failure",
+        "inventory-failure",
+        "normal-exit",
+        "close-then-reuse",
+    ],
+)
+def test_held_artifact_root_adoption_consumes_same_descriptor_generation_once_revalidates_and_closes(  # noqa: E501
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.data.artifacts import manifest as manifest_module
+    from finproof.data.artifacts.manifest import (
+        HeldArtifactRootAdoption,
+        ManagedArtifactVerificationRoot,
+        _issue_held_artifact_root_adoption,
+        adopt_held_artifact_root,
+    )
+
+    root = tmp_path / "artifacts"
+    manifest = write_artifact_tree(root)
+
+    if case in {"foreign-descriptor", "parent-substitution"}:
+        foreign_parent = tmp_path / "foreign"
+        foreign_root = foreign_parent / "artifacts"
+        foreign_root.mkdir(parents=True)
+        flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+        parent_fd = os.open(
+            foreign_parent if case == "parent-substitution" else root.parent,
+            flags,
+        )
+        root_fd = os.open(root if case == "parent-substitution" else foreign_root, flags)
+        try:
+            with pytest.raises(ArtifactContractError):
+                _issue_held_artifact_root_adoption(
+                    parent_fd=parent_fd,
+                    basename=root.name,
+                    root_fd=root_fd,
+                )
+        finally:
+            for descriptor in (root_fd, parent_fd):
+                with contextlib.suppress(OSError):
+                    os.close(descriptor)
+        return
+
+    adoption, transferred_parent, transferred_root = _test_root_adoption(root)
+    if case == "copy":
+        with pytest.raises(TypeError, match="cannot be copied"):
+            copy(adoption)
+        with adopt_held_artifact_root(adoption):
+            pass
+        return
+    if case == "forged":
+        forged = object.__new__(HeldArtifactRootAdoption)
+        with pytest.raises(ArtifactContractError), adopt_held_artifact_root(forged):
+            pass
+        with adopt_held_artifact_root(adoption):
+            pass
+        return
+    if case == "basename-substitution":
+        parked = tmp_path / "parked-artifacts"
+        os.replace(root, parked)
+        root.mkdir()
+        with pytest.raises(ArtifactContractError), adopt_held_artifact_root(adoption):
+            pass
+        return
+    if case == "adoption-failure":
+        monkeypatch.setattr(
+            manifest_module._HeldArtifactTree,
+            "from_adopted",
+            classmethod(lambda _cls, **_kwargs: (_ for _ in ()).throw(OSError("boom"))),
+            raising=False,
+        )
+        with pytest.raises(ArtifactContractError), adopt_held_artifact_root(adoption):
+            pass
+        for descriptor in (transferred_root, transferred_parent):
+            with pytest.raises(OSError, match="Bad file descriptor"):
+                os.fstat(descriptor)
+        return
+
+    with adopt_held_artifact_root(adoption) as managed:
+        assert isinstance(managed, ManagedArtifactVerificationRoot)
+        if case == "reuse":
+            with pytest.raises(ArtifactContractError), adopt_held_artifact_root(adoption):
+                pass
+        elif case == "inventory-failure":
+            (root / "unexpected").write_bytes(b"x")
+            with pytest.raises(ArtifactContractError), managed.open_inventory(manifest=manifest):
+                pass
+        elif case == "close-then-reuse":
+            pass
+        else:
+            with managed.open_inventory(manifest=manifest) as inventory:
+                assert inventory.manifest_entry.path == PurePosixPath("manifest.json")
+            with pytest.raises(ArtifactContractError):
+                managed.take_expected_acceptance_seal()
+
+    for descriptor in (transferred_root, transferred_parent):
+        with pytest.raises(OSError, match="Bad file descriptor"):
+            os.fstat(descriptor)
+    if case == "close-then-reuse":
+        with pytest.raises(ArtifactContractError):
+            managed.open_inventory(manifest=manifest)
 
 
 def test_inventory_streams_all_declared_digests_without_materializing_payloads(
