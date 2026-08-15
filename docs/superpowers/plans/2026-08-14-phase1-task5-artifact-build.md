@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, D-023, D-024, and D-025. Stop and log any conflict instead of reconciling it in code.
+- Governing authority is `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`, D-014, D-017, D-021, D-022, D-023, D-024, D-025, and D-026. Stop and log any conflict instead of reconciling it in code.
 - Official source files, `source_material/input_manifest.json`, `source_material/schema_catalog.json`, and `tests/contracts/expected_source_audit.json` are immutable. Snapshot date is exactly `2026-07-11`.
 - Task 5 creates exactly three Bronze, six Silver, and two Gold logical tables. It creates no metric, family, eligibility/state, alias/fuzzy, search, runtime-evidence, QueryPlan, API, HCX, or release behavior.
 - Public funds are persisted at `fund_item` and `fund_attribute` grains. Artifact construction orders staged canonical `SourceRow` payloads and collapses one complete item group at a time; it never calls `normalize_public_funds` on all 95,619 rows.
@@ -57,18 +57,26 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 - `staging.py`: build advisory lock, build-stage/working markers, held descriptor
   custody, Parquet/database leaves, one-thread/1-GiB bounded stores, abort/discard,
   cleanup, the non-transitioning instance-owned candidate-stage custody capability,
-  and its typed atomic expected-accepted transfer boundary without global registries.
+  its typed atomic expected-accepted transfer boundary, and D-026's exact candidate
+  values/one-use candidate-store custody without global registries.
 - `bronze.py`: source-catalog/row/cell emission and source-audit observations.
-- `silver.py`: non-fund normalization staging and one-item-at-a-time public-fund collapse.
-- `quality_persistence.py`: D-021 timestamp injection, schema validation, and Bronze joins.
+- `silver.py`: non-fund normalization staging, one-item-at-a-time public-fund collapse,
+  exact live candidate emission, and private custody retention/take without changing
+  the six-field Silver result.
+- `quality_persistence.py`: D-021 timestamp injection, schema validation, Bronze joins,
+  and the custody-bound closed relation-verifier factory.
 - `reports.py`: the sole exact source-audit and quality-summary models, nested contracts,
-  semantic projections/hashes, and later phased producers/verifier port.
-- `links.py`: exact link/evidence models, raw join, conflicts, pair hash, and bidirectional evidence checks.
+  semantic projections/hashes, phased observation/report producers, and later verifier
+  port.
+- `links.py`: exact CP3-record link/evidence construction, canonical bounded pair bytes,
+  Gold write/reopen, evidence verification and the exact link build result; it defines
+  no parallel link DTO.
 - `database.py`: self-contained DuckDB construction, read-only open, and bounded typed `EXCEPT ALL` verification.
 - `publication.py`: target/backup/tombstone marker ownership, expected-authorization
   transition ports, guarded rename/rollback/commit, target recognition, and remnant
   recovery; it consumes staging custody but staging never imports it.
-- `builder.py`: build-session orchestration and the public `build_artifacts` boundary; no domain rule is reimplemented here.
+- `builder.py`: build-session orchestration, the CP6 complete-result capability and the
+  public `build_artifacts` boundary; no domain rule is reimplemented here.
 
 Create `src/finproof/resources/__init__.py` only as the stable resource anchor. Hatch force-includes root schema bytes beneath `finproof/resources/schemas/`; Checkpoint 8 additionally force-includes the reviewed expected contract beneath `finproof/resources/contracts/`. The loader accepts no caller path: it selects one exact frozen destination, tries the installed-wheel `importlib.resources` route first, and only when a regular `src/finproof` package shadows standard-editable distribution data uses `importlib.metadata.distribution("finproof").locate_file(exact_destination)`. No dev-mode-exact install workaround is allowed.
 
@@ -4178,6 +4186,31 @@ Observed Checkpoint 5 closure evidence on 2026-08-15:
 
 ### Checkpoint 6: Exact raw identifier links and complete bidirectional locator evidence
 
+**Approved-plan boundary:** begin CP6 implementation only from clean `0ec390cf` plus
+this independently approved documentation correction. Before code or tests, require a
+fresh reviewer verdict of 0 Critical / 0 Important, then stage exactly:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/10_DECISION_LOG.md \
+  docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: harden Task 5 checkpoint 6 contracts"
+git status --porcelain
+```
+
+Both name-only outputs must contain exactly those four docs and final porcelain must
+be empty. Record that commit as the clean CP6 implementation base in the ignored
+selector report. Do not edit `docs/implementation/STATUS.md`, code, tests, schemas,
+config, source data, expected-contract bytes or artifacts in this plan-approval
+commit. D-026 is additive to D-025 and does not activate CP7/8 verification or
+publication authority.
+
 **Files:**
 
 - Create: `src/finproof/data/artifacts/links.py`
@@ -4185,21 +4218,82 @@ Observed Checkpoint 5 closure evidence on 2026-08-15:
 - Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
+- Modify: `src/finproof/data/artifacts/quality_persistence.py`
 - Create: `tests/unit/data/artifacts/test_exact_links.py`
 - Create: `tests/unit/data/artifacts/test_source_audit_report.py`
+- Modify: `tests/unit/data/artifacts/test_staging.py`
+- Modify: `tests/unit/data/artifacts/test_silver.py`
+- Modify: `tests/unit/data/artifacts/test_quality_persistence.py`
 - Create: `tests/integration/artifacts/test_link_evidence_fixture.py`
+- Modify: `tests/integration/artifacts/test_silver_fixture_build.py`
 - Create: `tests/source_contract/test_official_exact_link_profile.py`
+- Create: `tests/performance/test_artifact_link_streaming.py`
 - Modify: `tests/helpers/artifacts.py`
 
 **Interfaces:**
 
-- Produces strict frozen `ExactCrossSourceLink` and `ExactCrossSourceLinkEvidence` matching Sections 5.10-5.11 exactly.
-- Produces: `build_exact_links(stage: ExternalOrderStore) -> ExactLinkBuildResult` over closed internally populated left/right candidate relations.
-- Produces: `verify_exact_link_evidence(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> ExactEvidenceVerificationObservations` with complete bidirectional validation. The set must contain/revalidate the required link, evidence, Bronze-cell, domestic, and fund handles under one live owner/timestamp; CP6 passes CP5's `StagedBoundedRelationVerifier` and does not introduce a bare tuple, final-inventory, or CP7-forward concrete type.
-- Produces: `canonical_link_pair_tsv(rows: Iterable[ExactCrossSourceLink]) -> bytes` and `exact_link_pair_sha256(...) -> str`.
+- Reuses only CP3's exact `ExactCrossSourceLinkRecord` and
+  `ExactCrossSourceLinkEvidenceRecord`; no parallel Gold domain/DTO/alias is created.
+- Additively implements D-026 in `staging.py`: strict
+  `ExactLinkIdentifierSource`, `DomesticExactLinkCandidate`, `FundExactLinkCandidate`,
+  `ExactLinkCandidateJoinRow`, and direct-init-disabled one-use
+  `ExactLinkCandidateStoreCustody`. Its exact data methods are bounded typed one-use
+  `iter_candidate_join_batches()` and, only after that stream is exhausted,
+  `admit_exact_evidence(rows: Iterable[ExactCrossSourceLinkEvidenceRecord]) -> None`.
+  Evidence admission validates exact numeric key arity/types, canonical payload/key
+  equality, strict order/uniqueness/config count and bounded batches, then seals that
+  relation read-only. Custody can issue exactly one existing closed
+  `BoundedRelationVerifier` only through
+  `StagedBoundedRelationVerifier.for_candidate_custody(custody)`. It exposes no
+  `ExternalOrderStore`, relation/operation
+  enum, SQL, DuckDB connection/cursor, table name, path, descriptor or token. The four
+  existing generic `ExternalOrderJoinOperation` values remain exactly unchanged.
+- CP5 Silver consumption now stages exact domestic-ETF and fund `ksd_itm_no`
+  candidates while authoritative records are live. Successful Silver finalization
+  seals the store custody into the private per-instance issuance but preserves the
+  exact six public `SilverBuildResult` fields/order. Produces one-use
+  `take_exact_link_candidate_store(*, silver_result: SilverBuildResult) ->
+  ExactLinkCandidateStoreCustody`.
+- Produces direct-construction-disabled
+  `ExactLinkBuildResult(links, evidence, canonical_pair_tsv, pair_sha256,
+  max_candidate_batch_rows)` and
+  `build_exact_links(*, silver_result: SilverBuildResult, custody:
+  ExactLinkCandidateStoreCustody, config: ArtifactBuildConfig) ->
+  ExactLinkBuildResult` over the one typed candidate stream. Both strict nonboolean
+  config counts and the observed batch maximum are generically bounded in
+  `0..65_536`; 47/371 remain official-input acceptance values, not algorithm constants.
+- Produces `canonical_link_pair_tsv(rows: Iterable[ExactCrossSourceLinkRecord], *,
+  expected_links: int) -> bytes` and `exact_link_pair_sha256(payload: bytes) -> str`
+  with exact type/constants/order/unique/UTF-8/control-character/count/one-pass/buffer
+  validation from design section 6.5.
+- Writes/reopens/verifies the two Gold tables and extends the exact same-owner/time
+  staged set atomically from nine to eleven. Produces
+  `require_silver_build_result_successor(*, silver_result: SilverBuildResult,
+  successor: StagedParquetSet) -> SilverBuildResult` for the exact superseded-prefix
+  relationship; ordinary bare/copy/rebuilt sets remain invalid.
+- Produces strict frozen
+  `ExactEvidenceBronzeJoinObservations(matched_bronze_cells, max_batch_rows)` in
+  `reports.py`; D-026 changes
+  `BoundedRelationVerifier.verify_exact_evidence_to_bronze(*, tables) ->
+  ExactEvidenceBronzeJoinObservations` while leaving the four join-operation enum
+  values and all other protocol signatures unchanged. Both members are measured,
+  strict nonboolean nonnegative and the maximum is at most 65,536. The operation
+  consumes the sealed custody relation and proves exact key/canonical physical-payload
+  equality with the reopened Gold evidence plus one exact Bronze match; it is not the
+  old Gold-to-Bronze-only placeholder.
+- Produces direct-construction-disabled
+  `ExactEvidenceVerificationObservations(exact_links, exact_link_evidence,
+  exact_link_pair_sha256, matched_bronze_cells, matched_left_records,
+  matched_right_records, max_relation_batch_rows)` and
+  `verify_exact_link_evidence(*, tables: StagedParquetSet, relation_verifier:
+  BoundedRelationVerifier, build_result: ExactLinkBuildResult, config:
+  ArtifactBuildConfig) -> ExactEvidenceVerificationObservations` with complete
+  bidirectional validation. No bare tuple, CP2 inventory or final handle is accepted.
 - Completes exact `SilverSourceAuditObservations` only through
-  `observations.with_links(link_count, evidence_count, pair_sha256) ->
-  CompleteSourceAuditObservations`, then produces
+  `observations.with_links(*, verified: ExactEvidenceVerificationObservations) ->
+  CompleteSourceAuditObservations`; the exact owned `ExpectedObservedCount`,
+  `ExpectedObservedCount`, and `ExpectedObservedSha256` members become its suffix.
+  Then produces
   `SourceAuditReport.from_complete_observations(config=..., observations:
   CompleteSourceAuditObservations) -> SourceAuditReport`. Both operations refuse the
   wrong typestate, unequal expected/observed, or reordered/recomputed pair data; this
@@ -4207,113 +4301,417 @@ Observed Checkpoint 5 closure evidence on 2026-08-15:
   final strict source-audit report producer can exist.
 - Populates the exact CP2 source-audit model/semantic projection only; report-file
   write/reparse/hash comparison remains the CP7 concrete `ArtifactReportVerifier` port.
+- Produces the sole CP7 input, direct-construction-disabled
+  `CompleteArtifactBuildResult`, with fields exactly in order: `silver_result`,
+  `staged_tables`, `exact_link_build_result`,
+  `exact_evidence_verification_observations`, `observations`,
+  `source_audit_report`. Its private issuance binds every exact object, first-nine
+  identity, same owner/time, link/evidence facts and successful custody close.
+- Produces sole CP7 admission
+  `require_complete_artifact_build_result(value: object) ->
+  CompleteArtifactBuildResult`, rejecting nonexact/copy/subclass/object-new/equal-
+  field/foreign/open-custody/superseded provenance before returning the exact result.
+- Produces exact orchestration
+  `build_complete_for_session(*, session: ArtifactBuildSession, config:
+  ArtifactBuildConfig, versions: VersionBundle) -> CompleteArtifactBuildResult` with
+  the design's Silver finalize -> take custody -> build -> exact evidence admission ->
+  9-to-11 -> relation verify -> Complete/report -> close custody -> issue result order.
+  Every failure closes once or leaves typed ambiguous cleanup to the managed session;
+  no partial result returns.
 
-- [ ] **Step 1: Write rule-boundary REDs that reject every non-exact link path**
+**Mandatory serial selector ledger (36 total, plus two derived acceptances):**
 
-Construct direct domain records with exact raw locators. Assert one equal raw domestic ETF/fund ID links. Parameterize non-links for whitespace/padding mismatch, equal only after trim, case-fold/name/family/standard-ID equality, domestic ETN, overseas product, missing representative raw value, and normalized-value-only equality. Assert confidence serializes as shared `DECIMAL(38,18)` exact `1.0` and constants equal the approved rule/table/field/version values.
-
-Add one-to-many left, many-to-one right, duplicate pair, and disagreeing `FundItemValue.equivalent_sources` raw-value cases; each must raise `EXACT_LINK_CONFLICT` before output. Reverse candidate input and assert byte-identical order/link IDs.
-
-Run:
-
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/unit/data/artifacts/test_exact_links.py -q
-```
-
-Expected RED: exact-link contracts/rule/candidate relations are absent.
-
-- [ ] **Step 2: Implement the closed raw rule and deterministic conflict validation**
-
-While domestic records are live in Checkpoint 5, stage only ETF candidate product ID/raw ID/full `pd_itm_no` locator. While one fund item is live, stage its item ID, representative KSD raw value, representative locator, and every ordered equivalent KSD locator/raw value. Do not rescan all wide `record_json` into Python.
-
-Use static staging SQL only to order/join exact raw strings and detect cardinality conflicts. Build `link_id` from the NUL-separated rule ID/version/left table/ID/right table/ID/matched raw identifier. Keep trimming in a separate acceptance measurement and never feed a trimmed value into the link result.
-
-- [ ] **Step 3: Write full evidence relation REDs**
-
-First close CP6's Complete/report authorization boundary in this exact serial order,
-one focused RED and smallest GREEN at a time:
+Each numbered selector is authored alone, observed RED for its own missing behavior,
+given the smallest GREEN, and followed by its direct regression before the next
+selector. A missing symbol permits only a skeleton and the same final selector must
+then reach a narrower behavioral RED. Grouped commands are GREEN gates only.
 
 ```text
-tests/unit/data/artifacts/test_source_audit_report.py::test_complete_observations_skeleton_rejects_valid_silver_fixture
-tests/unit/data/artifacts/test_source_audit_report.py::test_silver_observations_with_links_preserves_exact_prefix_and_adds_closed_link_facts
-tests/unit/data/artifacts/test_source_audit_report.py::test_source_audit_report_factory_accepts_only_exact_complete_observations
+01 tests/unit/data/artifacts/test_staging.py::test_exact_link_candidate_custody_is_factory_only_live_generation_bound_noncopyable_and_nonserializable
+02 tests/unit/data/artifacts/test_staging.py::test_exact_link_candidate_schemas_require_exact_role_locator_and_ordered_fund_sources
+03 tests/unit/data/artifacts/test_staging.py::test_candidate_custody_streams_only_bounded_typed_exact_join_rows_without_generic_surface
+04 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_stages_only_domestic_etf_exact_raw_identifier_candidates
+05 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_stages_fund_representative_and_every_equal_ordered_locator
+06 tests/unit/data/artifacts/test_silver.py::test_silver_result_preserves_exact_six_fields_and_retains_only_private_candidate_custody
+07 tests/unit/data/artifacts/test_silver.py::test_take_exact_link_candidate_store_is_same_result_instance_bound_and_one_use
+08 tests/unit/data/artifacts/test_silver.py::test_take_exact_link_candidate_store_rejects_copy_equal_forge_foreign_and_mutated_result_without_slot_move
+09 tests/unit/data/artifacts/test_staging.py::test_candidate_custody_close_closes_and_deregisters_store_exactly_once
+10 tests/unit/data/artifacts/test_staging.py::test_candidate_custody_close_abort_and_cleanup_faults_are_typed_and_never_retry
+11 tests/unit/data/artifacts/test_exact_links.py::test_exact_untrimmed_candidate_match_builds_exact_cp3_link_record
+12 tests/unit/data/artifacts/test_exact_links.py::test_exact_link_builder_rejects_one_left_to_multiple_rights_before_output
+13 tests/unit/data/artifacts/test_exact_links.py::test_exact_link_builder_rejects_one_right_to_multiple_lefts_before_output
+14 tests/unit/data/artifacts/test_exact_links.py::test_exact_evidence_emits_one_left_and_all_contiguous_ordered_right_locators
+15 tests/unit/data/artifacts/test_exact_links.py::test_exact_evidence_rejects_missing_duplicate_reordered_role_ordinal_field_raw_parent_and_extra_locator
+16 tests/unit/data/artifacts/test_exact_links.py::test_reversed_candidates_produce_identical_order_ids_records_and_evidence
+DERIVED-NO-DTO tests/unit/data/artifacts/test_exact_links.py::test_link_module_defines_no_parallel_gold_record_model_or_dto
+17 tests/unit/data/artifacts/test_staging.py::test_candidate_custody_admits_exact_evidence_once_with_numeric_key_payload_order_and_bounded_batches
+18 tests/unit/data/artifacts/test_exact_links.py::test_canonical_pair_tsv_rejects_wrong_type_constants_order_duplicates_utf8_controls_and_count
+19 tests/unit/data/artifacts/test_exact_links.py::test_canonical_pair_tsv_is_one_pass_buffer_bounded_and_hashes_exact_bytes
+20 tests/unit/data/artifacts/test_exact_links.py::test_exact_link_build_result_is_factory_only_provenance_bound_and_count_and_batch_bounded
+21 tests/integration/artifacts/test_link_evidence_fixture.py::test_exact_gold_writers_use_only_registered_link_and_evidence_specs
+22 tests/integration/artifacts/test_link_evidence_fixture.py::test_exact_gold_verification_extends_same_set_atomically_from_nine_to_eleven_and_preserves_prefix_identity
+23 tests/unit/data/artifacts/test_silver.py::test_silver_result_successor_validator_accepts_only_exact_registered_eleven_table_successor
+24 tests/integration/artifacts/test_link_evidence_fixture.py::test_preadmission_and_preextension_faults_leave_no_successor_or_result
+25 tests/unit/data/artifacts/test_quality_persistence.py::test_candidate_custody_issues_one_exact_closed_relation_verifier_without_store_access
+26 tests/unit/data/artifacts/test_quality_persistence.py::test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_returns_measured_bounds
+27 tests/unit/data/artifacts/test_exact_links.py::test_evidence_relation_is_bidirectionally_equal_to_bronze_cells_and_parent_links
+28 tests/unit/data/artifacts/test_exact_links.py::test_linked_record_verification_filters_exact_ids_before_strict_json_parse
+29 tests/unit/data/artifacts/test_exact_links.py::test_exact_evidence_observations_are_factory_only_owned_consistent_and_bounded
+30 tests/unit/data/artifacts/test_source_audit_report.py::test_with_links_preserves_silver_prefix_and_uses_owned_expected_observed_members
+31 tests/unit/data/artifacts/test_source_audit_report.py::test_complete_observations_reject_wrong_phase_copy_forge_reuse_and_unowned_link_facts
+32 tests/unit/data/artifacts/test_source_audit_report.py::test_source_audit_report_factory_accepts_only_exact_complete_observations
+33 tests/integration/artifacts/test_link_evidence_fixture.py::test_complete_builder_follows_exact_order_closes_custody_then_issues_exact_six_field_result
+34 tests/integration/artifacts/test_link_evidence_fixture.py::test_postextension_relation_report_and_close_faults_leave_only_successor_for_managed_abort
+35 tests/integration/artifacts/test_link_evidence_fixture.py::test_complete_result_validator_rejects_copy_forge_mutation_open_custody_and_nonlive_successor
+36 tests/performance/test_artifact_link_streaming.py::test_exact_link_candidate_and_evidence_pipeline_stays_within_closed_one_pass_bounds
+DERIVED-OFFICIAL tests/source_contract/test_official_exact_link_profile.py::test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes
 ```
 
-The skeleton adds only the direct-init-disabled Complete name and rejects a valid
-Silver fixture. The transition selector requires CP5's exact Silver object/type,
-preserves every prefix object/value/order, and adds only the closed equal link/evidence
-counts and canonical pair hash. The factory selector is the first build-producer
-authorization: it rejects Bronze/Silver, direct/copy/subclass/`object.__new__`/equal-
-looking Complete forgeries, repeated extension, and model-dump/reparse/cast bypasses.
-CP2 parsing remains verification-only and cannot satisfy this producer gate.
+- [ ] **Step 1: Establish candidate schemas, custody, and Silver handoff with selectors 1-10**
 
-For one link with multiple fund source rows, assert one left evidence at role order 0/ordinal 0 and every right `ksd_itm_no` locator at role order 1/contiguous ordinal in exact `equivalent_sources` order. Parameterize missing, duplicate, reordered, swapped-role, noncontiguous ordinal, wrong field, wrong raw value, wrong parent link, wrong Bronze locator, omitted authoritative locator, and extra proximity-derived locator. Each must fail verification.
+Selector 1 first fails on the absent custody factory; add only a direct-init-disabled
+skeleton, rerun the same final-success selector to a narrower behavioral RED, then
+issue it from one exact live registered CP5 store generation. Candidate models strictly
+validate the exact ETF/fund roles and locator fields described in design section 6.5.
+The custody streams only typed batches ordered by raw identifier/left/right IDs and
+has no generic join/execute or public/private-state escape.
+Its candidate iterator is one-shot/exhaustive; overlap/replay fails before a row and
+early abandonment leaves only the close path.
 
-Assert every evidence row joins exactly one complete Bronze cell, `evidence.raw_identifier == bronze.raw_value == parent.matched_raw_identifier`, and the evidence relation is bidirectionally equal to the two authoritative wrapper sources. Permit buffering only the bounded 47 link keys and 371 evidence keys. Require the verifier to select and strict-parse only the linked 47 domestic and 47 fund `record_json` values by exact IDs, and validate all Bronze locator/raw joins through internal allowlisted typed SQL plus bounded mismatch streams. Sentinels must fail on `len`, second iteration, whole-table list/tuple/DataFrame creation, parsing any unrelated wide record, or retaining a previous stream batch.
+Freeze the reserved relation keys exactly as left `(raw_identifier, left_product_id)`,
+right `(raw_identifier, right_product_id)`, and evidence
+`(link_id, evidence_role_order, evidence_ordinal)`; role/ordinal stay numeric exact
+nonboolean integers. Canonical Pydantic payloads must duplicate and equal their keys.
 
-Repeat the staged-set boundary mutations at CP6: foreign/copied/mixed/closed owner,
-wrong timestamp, missing/reordered required table, and bare handles all fail before a
-link/evidence/Bronze relation is registered. The accepted case uses the exact CP5 set
-extended under the same owner.
+Modify Silver emission while the authoritative normalized objects are live. Domestic
+only stages records whose source product type is exactly ETF, with exact
+`pd_itm_no.raw_value` and locator. Fund staging retains item ID, representative
+`ksd_itm_no` raw value and the complete ordered `equivalent_sources`; disagreement
+fails before candidate admission. ETN, overseas, missing raw, normalized-only and
+malformed/excluded records never enter candidates.
 
-In `test_source_audit_report.py`, begin from a CP5 Silver/quarantine-complete observation fixture. Assert the exact-link/evidence counts and canonical pair hash extend it to the complete phase, and only that complete phase can construct the final strict `SourceAuditReport`. Parameterize missing/extra/repeated phases, wrong expected or observed count, wrong source-manifest/catalog hash, changed pair hash, link/evidence relation mismatch, and attempts to copy the tests baseline; each must fail before report serialization. Assert the report is timestamp/path-free and semantically stable across pretty rendering.
+Silver finalization still produces the identical six fields and existing semantic
+facts. It seals custody only after quality/report success instead of closing the store.
+The private issuance retains it; no seventh dataclass field/property/serialization
+member appears. Taking validates exact same result/provenance and atomically empties
+the slot. Selector 8 separately proves copied/equal-field/object-new/subclass/foreign/
+mutated results fail before that slot moves, after which the original exact result can
+still take it once. Success closes/deregisters exactly once. Original failure plus successful
+close preserves the original exception; close/cleanup fault becomes the exact typed
+staging cleanup error, leaves only owner-managed ambiguous state and is never retried
+by custody/caller.
+Custody close faults use `STAGING_CLEANUP_FAILED`, operation `build-session`, reason
+`exact_link_candidate_store_close_failed`; managed-abort cleanup faults use reason
+`exact_link_candidate_store_abort_cleanup_failed`. Close-then-raise fault cases assert
+one attempt per connection/workspace descriptor, cleared/transferred ownership before
+close, no retry, no unrelated descriptor close and no safe-output reason leakage.
 
-Expected RED: evidence construction/verification is absent or incomplete.
+- [ ] **Step 2: Implement exact links, evidence, canonical bytes, and results with selectors 11-20**
 
-- [ ] **Step 4: Implement exact evidence emission and bidirectional validation**
+Join only exact untrimmed raw strings. Require all frozen section 5.10 constants,
+confidence `Decimal("1.0")` in `DECIMAL(38,18)`, and link ID from the exact NUL-
+separated fields. Reject every nonexact route and detect left/right cardinality or
+duplicate conflict before output. Reverse/interleave candidate input and require the
+same exact externally ordered records/evidence/IDs.
 
-Emit evidence from the staged authoritative candidates, never from inferred adjacent Bronze cells. Validate relation cardinality and order before Parquet writing and again after reopen. Use external stage ordering for links/evidence; no table-sized list or Python sort. The reopened validation passes only the same live owner-bound `StagedParquetSet` to the one-thread/1-GiB relation verifier, which resolves and revalidates exact required handles; it buffers the closed small link/evidence key sets, filters wide records by those exact IDs before strict JSON parsing, and streams Bronze join mismatches/counts. It never scans wide `record_json` into Python or materializes the Bronze cell table. After the reopened staged relations establish exact counts and `exact_link_pair_sha256`, advance the CP5 observations once and construct the final `SourceAuditReport` from `config/artifact_build.yaml` expected values plus the fully observed source/catalog/Bronze/Silver/quarantine/link/evidence data. Keep the strict model and staged set in the private live build session only; CP7 owns writing reports/database/manifest, checking the set timestamp against the manifest, creating the final CP2 inventory, independently rebuilding final handles, and full verification.
+The direct regression after selector 11 reruns trim/case/name/family/standard-ID,
+ETN/overseas and missing-raw exclusions already owned by selectors 2/4/5 and the exact
+candidate join. The selector-13 regression also reruns duplicate candidate keys and
+the selector-5 regression reruns disagreeing fund raw values. These are regression
+evidence for the already-owned admission behavior, not new selector REDs; do not add a
+duplicate downstream rejection or manufacture a bypass.
 
-- [ ] **Step 5: Add the official profile acceptance and observe it only after unit behavior is green**
+Selector 11 owns only exact CP3 link-record construction; it neither asserts nor
+authorizes evidence construction. Selectors 11-15 exercise narrow module-private pure
+record/evidence constructors; selector 16 first composes them into the deterministic
+ordered `(links, evidence)` tuple pair. They do not prematurely construct
+`ExactLinkBuildResult` or expose a second public result type. Emit the exact left/right
+evidence directly from each accepted typed candidate match only at selector 14, then
+run the full mutation family at selector 15, so Gold evidence behavior is not
+implemented ahead of its focused RED. The module imports CP3
+record classes and must not declare an `ExactCrossSourceLink`,
+`ExactCrossSourceLinkEvidence`, replacement Pydantic model, dataclass, TypedDict or
+mapping DTO. That absence check is a derived first-GREEN acceptance after selector 11
+has already required exact CP3 output types; do not manufacture a temporary duplicate
+model to make it RED. Selector 17 then adds the sole custody evidence-admission path,
+proving numeric three-part keys, exact payload equality, one-use ordering/count and
+bounded batches before any verifier can issue; an expected zero still requires one
+explicit empty admission and seal. Selector 20 alone adds
+`ExactLinkBuildResult` and composes the already-proven tuple pair plus the
+selector-18/19 canonical bytes/hash into the final
+public `build_exact_links` return. `ExactLinkBuildResult` validates exact tuple types/order/uniqueness,
+strict nonboolean config link/evidence counts in `0..65_536`, pair bytes/hash and a
+candidate batch maximum in `0..65_536`, then binds the consumed custody/Silver
+issuance. Selector 20 includes negative, boolean and 65,537 count/batch attacks; no
+official 47/371 literal is used for these generic bounds.
 
-`tests/source_contract/test_official_exact_link_profile.py` declares `pytestmark = pytest.mark.source_contract`, loads verified official source descriptors, and reuses the bounded internal candidate path without building a full runtime artifact. Assert exactly 47 one-to-one raw pairs, zero ETN links, raw and trimmed pair sets equal, canonical TSV length 1,222 and SHA-256 `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`, and exactly 371 evidence locators (47 left + 324 right).
+The canonical TSV function consumes once and rejects `len`, a second iterator request,
+wrong runtime record, changed constant, disorder/duplicate, invalid/empty/over-4096-
+byte UTF-8 ID, NUL/tab/CR/LF, a boolean/negative/65,537 expected count, count mismatch
+and buffer overflow. It does not sort in Python. Exact bytes use one tab and terminal
+newline per pair; hashing accepts only exact bytes and returns lowercase SHA-256.
 
-This acceptance may pass on its first run because unit RED/GREEN already introduced the behavior; do not manufacture a production failure. Record that fact explicitly in status later.
+- [ ] **Step 3: Write, reopen, and atomically extend 9 -> 11 with selectors 21-24**
 
-- [ ] **Step 6: Run GREEN and checkpoint gates**
+Claim only the registered Gold link/evidence leaves, write bounded exact rows, close,
+reopen and run CP3's common checker. Call `extend_verified` once with the exact owner
+and two ordered verifications. The new set has exactly all eleven registered names,
+the same timestamp, and the exact first-nine verification/handle object identities;
+the old nine-table set becomes superseded only after the successor registers.
 
-Run:
+Selector 22's CP6-specific integration owns the call of CP3's already mandatory
+generic `extend_verified` contract with the two ordered Gold verifications and asserts
+the resulting prefix verification/handle identities and timestamp. It does not
+reimplement or weaken the common extension.
+
+`require_silver_build_result_successor(*, silver_result: SilverBuildResult,
+successor: StagedParquetSet) -> SilverBuildResult` validates the unchanged six-field
+result and its issuance against that successor and returns that same exact object; it
+never revives the old set or accepts equal reconstruction. Parameterize evidence-
+admission/claim/open/write/close/reopen/hash/schema/count/order/extension failures: no
+successor/result, session owns cleanup. Selector 24 covers only behavior reachable
+through evidence admission and the Gold extension helper; later relation/report/
+custody-close faults are not introduced before their successful producers.
+
+- [ ] **Step 4: Verify evidence, Complete typestate/report, and CP7 result with selectors 25-35**
+
+The custody issues one exact stage verifier only after candidate exhaustion and exact
+evidence admission; copied/foreign/reused/closed/unsealed custody fails before issuance
+and neither verifier nor caller can recover the store.
+
+Selector 26 changes the previously placeholder evidence-to-Bronze return from `None`
+to exact `ExactEvidenceBronzeJoinObservations` measured from the stage fetch loop. It
+consumes the custody's sealed relation and proves one-to-one key/canonical physical-
+payload equality with reopened Gold evidence plus an exact Bronze-cell join; missing,
+extra, duplicate, reordered and mutated admitted/Gold rows are the same selector's
+coherent failure family. Selector 27 then consumes that exact object for complete
+Bronze/parent equality; the
+final verifier takes the maximum of its owned batch observation and the two linked-
+record batch lengths it observes directly, never a fabricated counter.
+
+On the exact eleven-table set, prove every evidence row joins one complete Bronze cell,
+raw values equal the parent match, evidence is bidirectionally complete, and only the
+`exact_links.observed` linked domestic plus the same number of fund rows are selected
+before strict JSON parse. Buffer at most the config-bounded link/evidence keys; stream
+all Bronze mismatches in batches at most 65,536. A foreign/copy/mixed/closed owner,
+timestamp drift, missing/reordered
+table, bare handle or wrong first-nine prefix fails before relation registration.
+
+Issue verification observations only after table/build/Bronze/wide equality. Its exact
+owned expected/observed count/hash objects feed `with_links(verified=...)`; Complete
+retains those same objects plus every exact Silver prefix object. Reject freely
+constructed equal count/hash values, wrong phase, copies, subclasses, object-new,
+repeated transition and report model parse/cast bypass. Build the source-audit report
+only from exact Complete observations.
+
+Selector 33 implements `build_complete_for_session` in the exact eight-event design
+order and issues its
+six-field complete result only after custody close succeeds. The result retains the
+exact Silver object, successor, link result, verification observations, Complete
+observations and report. Only then does selector 34 inject relation/report/custody-
+close faults; every case emits no CP6 result, leaves only the exact successor
+registered, and defers exact cleanup to session abort without deleting foreign state.
+Selector 35 first implements the named
+`require_complete_artifact_build_result(value)` validator and attacks every member/
+issuance mutation, copied/forged result, open custody and nonlive/superseded successor.
+CP7 handoff calls that exact validator; parallel values are rejected.
+
+- [ ] **Step 5: Prove generic bounds, then record the official profile as derived acceptance**
+
+Selector 36 uses low test limits, thousands of irrelevant candidates, forced spill,
+nonadjacent conflicts and sentinels against full-table list/DataFrame/second iteration/
+prior-batch retention. It requires candidate/link/evidence buffers bounded by config,
+all streamed batches `<= 65_536`, exact-ID-filtered wide parse and deterministic output.
+
+Only after all 36 mandatory selectors and the no-parallel-DTO derived acceptance are
+GREEN, run the official marked selector. Its 47 links,
+zero ETN links, separately measured raw/trimmed pair-set equality, 371 evidence rows
+(47 left plus 324 right), 1,222 TSV bytes and frozen SHA are logically entailed by generic
+behavior plus official inputs and therefore may be first-GREEN. Record it as one
+derived acceptance; never manufacture a production failure or use 47/371/1,222 as
+generic algorithm constants.
+
+- [ ] **Step 6: Run exact aggregate, static, regression, and repository gates**
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_exact_links.py \
   tests/unit/data/artifacts/test_source_audit_report.py \
-  tests/integration/artifacts/test_link_evidence_fixture.py -q
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/integration/artifacts/test_link_evidence_fixture.py \
+  tests/performance/test_artifact_link_streaming.py -q
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/source_contract/test_official_exact_link_profile.py -q -m source_contract
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
-  src/finproof/data/artifacts/links.py src/finproof/data/artifacts/silver.py \
-  src/finproof/data/artifacts/reports.py \
-  tests/unit/data/artifacts/test_exact_links.py \
-  tests/unit/data/artifacts/test_source_audit_report.py \
-  tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/source_contract/test_official_exact_link_profile.py
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
-  src/finproof/data/artifacts/links.py src/finproof/data/artifacts/silver.py \
-  src/finproof/data/artifacts/reports.py \
-  tests/unit/data/artifacts/test_exact_links.py \
-  tests/unit/data/artifacts/test_source_audit_report.py \
-  tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/source_contract/test_official_exact_link_profile.py
 ```
 
-Expected GREEN: only exact raw ETF/item links exist; conflicts block; every evidence locator is complete, ordered, bidirectional, and Bronze-backed; the final source-audit report is constructed only from complete equal observations; official profile is 47/371 with the frozen pair hash.
-
-- [ ] **Step 7: Commit and obtain a fresh review**
-
-Run regressions/source audit/diff checks, then commit:
+Record each of 36 expected REDs/smallest GREENs and the two derived acceptances
+separately. Run the unchanged Task 1-4 regression command from the global checkpoint
+rule with start/end time, exit code, counts and duration. Then run static checks over
+the exact 16-file implementation inventory and every full gate:
 
 ```bash
-git add src/finproof/data/artifacts tests/helpers/artifacts.py \
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/artifacts/quality_persistence.py \
   tests/unit/data/artifacts/test_exact_links.py \
   tests/unit/data/artifacts/test_source_audit_report.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/source_contract/test_official_exact_link_profile.py
-git commit -m "feat: add exact cross-source link artifacts"
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/source_contract/test_official_exact_link_profile.py \
+  tests/performance/test_artifact_link_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  tests/unit/data/artifacts/test_exact_links.py \
+  tests/unit/data/artifacts/test_source_audit_report.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_link_evidence_fixture.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/source_contract/test_official_exact_link_profile.py \
+  tests/performance/test_artifact_link_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  tests/unit/data/artifacts/test_exact_links.py \
+  tests/unit/data/artifacts/test_source_audit_report.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_link_evidence_fixture.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/source_contract/test_official_exact_link_profile.py \
+  tests/performance/test_artifact_link_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --stat
+git diff --name-only
+git status --short
 ```
 
-Fresh review must independently recompute the 47-pair TSV/hash and 371 locator profile, inject every conflict/evidence mutation, confirm no trim/name/family/ETN route, inspect link ID/confidence/types, and verify candidates are bounded/staged while records are live. Require 0 Critical / 0 Important.
+Expected GREEN: 36 mandatory selectors and both derived acceptances pass; only
+exact raw ETF/item links exist; conflicts block; every evidence locator is ordered,
+bidirectional and Bronze-backed; 9 -> 11 identity/supersession and custody cleanup are
+exact; Complete/report/result provenance is valid; official profile is 47/371 with the
+frozen bytes/hash; CP7 remains unimplemented.
+
+- [ ] **Step 7: Stage exactly 16 files, commit, review, then close exactly three docs**
+
+Before staging, the implementation name-only inventory is exactly these files and no
+docs/STATUS/decision/design/schema/config/source/expected-contract/artifact file:
+
+```text
+src/finproof/data/artifacts/links.py
+src/finproof/data/artifacts/silver.py
+src/finproof/data/artifacts/staging.py
+src/finproof/data/artifacts/builder.py
+src/finproof/data/artifacts/reports.py
+src/finproof/data/artifacts/quality_persistence.py
+tests/unit/data/artifacts/test_exact_links.py
+tests/unit/data/artifacts/test_source_audit_report.py
+tests/unit/data/artifacts/test_staging.py
+tests/unit/data/artifacts/test_silver.py
+tests/unit/data/artifacts/test_quality_persistence.py
+tests/integration/artifacts/test_link_evidence_fixture.py
+tests/integration/artifacts/test_silver_fixture_build.py
+tests/source_contract/test_official_exact_link_profile.py
+tests/performance/test_artifact_link_streaming.py
+tests/helpers/artifacts.py
+```
+
+```bash
+git add src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  tests/unit/data/artifacts/test_exact_links.py \
+  tests/unit/data/artifacts/test_source_audit_report.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_link_evidence_fixture.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/source_contract/test_official_exact_link_profile.py \
+  tests/performance/test_artifact_link_streaming.py \
+  tests/helpers/artifacts.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "feat: add exact cross-source link artifacts"
+git status --porcelain
+```
+
+Fresh review compares the clean approved CP6 plan base, implementation commit, and
+38-entry selector report. It independently recomputes 47/371/1,222/hash; attacks
+custody take/close/abort and every candidate schema/join boundary; confirms the Silver
+six-field result is unchanged; injects every conflict/evidence/TSV/9-to-11/successor/
+report/result mutation; verifies no trim/name/family/ETN route, generic query surface,
+parallel Gold DTO or wide-table rescan; checks bounds, full gates and separate Task 1-4
+evidence. Require 0 Critical / 0 Important. Findings receive new focused RED, smallest
+fix, correction commit and another fresh review.
+
+Only after fresh 0/0, update exactly this dedicated plan, the legacy plan and
+`docs/implementation/STATUS.md` with 36 RED/GREEN entries, two derived acceptances,
+exact gates, hashes, review report, clean tree and CP7 as exact next. Mark only CP6
+complete. Re-run audit/handoff/catalog/absence/source-permission/diff gates, stage
+exactly those three docs, commit, and require empty porcelain:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --name-only
+git status --short
+git add docs/implementation/STATUS.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: close Task 5 checkpoint 6 review"
+git status --porcelain
+```
 
 ---
 
@@ -4341,6 +4739,12 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 **Interfaces:**
 
+- CP7 orchestration begins only with CP6's exact
+  `CompleteArtifactBuildResult = build_complete_for_session(...)`, invokes its exact
+  `require_complete_artifact_build_result(value) -> CompleteArtifactBuildResult`
+  validator, and consumes that object's eleven-table successor, Complete/report facts,
+  and nested Silver input/quality provenance. It never calls the Silver builder in
+  parallel, accepts the superseded nine-table set, or reconstructs the six CP6 fields.
 - Produces private `build_self_contained_database(*, owner:
   OwnedStageDatabaseOwner, tables: StagedParquetSet, database_leaf:
   OwnedStageDatabaseLeaf) -> StagedDatabaseVerification`. It requires
@@ -5231,6 +5635,10 @@ Expected: all gates pass; porcelain is empty; tracked runtime-artifact query pri
   timestamp, exact Parquet/database leaves, and `StagedParquetSet`; CP5/6/7 reject bare,
   copied, mixed, closed, incomplete, or timestamp-mismatched sets; CP7 alone transitions
   to independently rebuilt final inventory handles.
+- [x] D-026 preserves CP5's exact six-field result while giving CP6 one instance-owned,
+  one-use typed candidate-store custody; generic join enums stay unchanged, the exact
+  first-nine staged identities survive only through the atomic eleven-table successor,
+  and CP7 accepts one provenance-bound Complete result rather than parallel fields.
 - [x] CP2 uses the valid `os.scandir(held_dir_fd)` plus
   `DirEntry.stat(follow_symlinks=False)` API, binds `manifest.json` to the retained root,
   and gives CP3 one identity-revalidating entry reopen capability with no lexical

@@ -5,7 +5,7 @@
 **Scope:** Reproducible Bronze/Silver/Gold Parquet, self-contained DuckDB, data-artifact
 manifest, reports, exact domestic ETF/public-fund links, and guarded publication
 
-**Governing decisions:** D-014, D-017, D-021, D-022, D-023, D-024, D-025
+**Governing decisions:** D-014, D-017, D-021, D-022, D-023, D-024, D-025, D-026
 
 ## 1. Purpose and completion boundary
 
@@ -1041,10 +1041,12 @@ The closed `ExternalOrderRelation` inventory becomes exactly
 `SILVER_DOMESTIC_LISTED_PRODUCT`, `SILVER_OVERSEAS_LISTED_PRODUCT`,
 `PUBLIC_FUND_SOURCE_ROW`, `SILVER_QUALITY_ISSUE`,
 `EXACT_LINK_LEFT_CANDIDATE`, `EXACT_LINK_RIGHT_CANDIDATE`, and
-`EXACT_LINK_EVIDENCE`. The last three reserve the same typed boundary for CP6; CP5
-does not populate them. Each name maps internally to one frozen key schema. Text keys
-are exact strings; numeric keys are exact nonboolean integers stored and ordered as
-numeric DuckDB columns, never decimal-padded/string-coerced keys. The mixed fund key is
+`EXACT_LINK_EVIDENCE`. At the CP5 checkpoint boundary the last three are reserved and
+empty. D-026's CP6 implementation modifies the same Silver pass to populate the left
+and right candidate relations while authoritative values are live; only CP6 link
+construction populates evidence. Each name maps internally to one frozen key schema.
+Text keys are exact strings; numeric keys are exact nonboolean integers stored and
+ordered as numeric DuckDB columns, never decimal-padded/string-coerced keys. The mixed fund key is
 exactly `(item_key: str, source_row_number: int)` and the quality key is exactly
 `(source_table_order: int, source_file: str, source_sheet: str,
 source_row_number: int, source_column_number: int, rule_id: str, issue_id: str)`.
@@ -1215,7 +1217,7 @@ class BoundedRelationVerifier(Protocol):
 
     def verify_exact_evidence_to_bronze(
         self, *, tables: StagedParquetSet
-    ) -> None: ...
+    ) -> ExactEvidenceBronzeJoinObservations: ...
 
     def iter_linked_record_json(
         self,
@@ -1361,13 +1363,267 @@ contracts but not `silver.py` or builder; `silver.py` imports Bronze, staging, q
 report, rating, serialization, and authoritative normalizers; builder imports Silver
 and orchestrates. No reverse import or runtime local import may hide a cycle.
 
-### 6.5 Candidate finalization
+### 6.5 Exact-link candidate custody and CP6 completion
+
+D-026 freezes a separate typed candidate capability rather than adding a fifth generic
+`ExternalOrderJoinOperation`. `staging.py` owns the strict frozen candidate schemas:
+
+```python
+class ExactLinkIdentifierSource(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+    raw_identifier: str
+    locator: SourceCellLocator
+
+
+class DomesticExactLinkCandidate(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+    left_product_id: str
+    source_product_type: Literal["ETF"]
+    identifier: ExactLinkIdentifierSource
+
+
+class FundExactLinkCandidate(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+    right_product_id: str
+    identifiers: tuple[ExactLinkIdentifierSource, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ExactLinkCandidateJoinRow:
+    matched_raw_identifier: str
+    left: DomesticExactLinkCandidate
+    right: FundExactLinkCandidate
+
+
+class ExactLinkCandidateStoreCustody:
+    def iter_candidate_join_batches(
+        self,
+    ) -> Iterator[tuple[ExactLinkCandidateJoinRow, ...]]: ...
+
+    def admit_exact_evidence(
+        self,
+        rows: Iterable[ExactCrossSourceLinkEvidenceRecord],
+    ) -> None: ...
+
+    def close(self) -> None: ...
+```
+
+All four value contracts require exact runtime types, strict nonempty identifiers/raw
+strings, canonical `SourceCellLocator` objects and frozen field/role identity.
+Domestic candidates are only ETF records and their locator is exactly `pd_itm_no`;
+fund candidates use exactly `ksd_itm_no`, require a nonempty ordered unique source
+tuple whose first entry is the representative source, and require every source's raw
+identifier to equal the representative raw value. Candidate join batches are
+ordered by `(matched_raw_identifier, left_product_id, right_product_id)`, contain at
+most 65,536 rows and join exact untrimmed strings only.
+The candidate iterator is issued once and must be consumed to exhaustion; a second or
+overlapping request fails before a row, and early abandonment puts custody into a
+failed-close-only state rather than permitting replay.
+
+Only after that iterator is exhausted, `admit_exact_evidence` accepts one iterator
+once, requires exact CP3 `ExactCrossSourceLinkEvidenceRecord` values in strictly
+increasing unique `(link_id, evidence_role_order, evidence_ordinal)` order, checks the
+exact configured count, canonical physical projection and payload/key equality, and
+inserts bounded internal batches. A second/overlapping/short/long/disordered/foreign
+record admission fails closed before verifier issuance. It returns no row, store,
+relation, SQL, connection, cursor, path or token; successful admission seals the
+evidence relation for read-only verification. The method must be called and seal even
+when the exact configured count is zero; absence of that explicit empty admission is
+not equivalent to success.
+
+D-026 also freezes the three previously reserved store key schemas without changing
+the relation enum: left candidate key is `(raw_identifier: str, left_product_id: str)`,
+right candidate key is `(raw_identifier: str, right_product_id: str)`, and evidence
+ordering key is `(link_id: str, evidence_role_order: int, evidence_ordinal: int)`.
+Numeric role/ordinal components are true nonboolean integer columns. Each canonical
+payload is the exact owning Pydantic model JSON; payload cannot replace or disagree
+with its duplicated ordering key.
+
+`ExactLinkCandidateStoreCustody` is direct-init-disabled, instance-owned, noncopyable,
+nonserializable and one-use. It is sealed from the exact live CP5 store only after
+quality verification and retains the exact stage owner/store generation. The existing
+six public dataclass fields and order of `SilverBuildResult` do not change: its private
+per-instance issuance retains the custody, and
+`take_exact_link_candidate_store(*, silver_result: SilverBuildResult) ->
+ExactLinkCandidateStoreCustody` exact-validates that result and atomically clears the
+one slot. Equal-field/copy/subclass/object-new/foreign/previously-taken/closed results
+cannot take it. Neither the result nor custody exposes the store, connection, cursor,
+SQL, relation/table spelling, path, basename, descriptor or token.
+
+`StagedBoundedRelationVerifier.for_candidate_custody(custody)` in
+`quality_persistence.py` issues exactly one verifier after the staging-owned custody
+registers that exact verifier object and only after the candidate iterator finished
+and exact evidence admission sealed successfully.
+The verifier retains only the custody and invokes
+its narrow module-private quality/evidence/linked-record batch methods; neither module
+nor caller receives the store. Candidate
+iteration and the verifier are valid only until custody close. Successful `close()`
+closes/deregisters the store once before any CP6 result can issue. A candidate/build/
+write/verification/report failure still attempts that one close; if close succeeds the
+original failure propagates, while close/cleanup ambiguity raises the typed staging
+cleanup fault, emits no CP6 result and leaves the exact registered store/session state
+for the managed session abort path. No caller retries close or unlinks store state.
+Specifically, custody close failure is `ArtifactErrorCode.STAGING_CLEANUP_FAILED` with
+operation ID `build-session` and bounded internal reason
+`exact_link_candidate_store_close_failed`; a later managed-abort cleanup failure uses
+the same code/operation and reason `exact_link_candidate_store_abort_cleanup_failed`.
+Neither reason enters safe output. Each connection/workspace descriptor is cleared or
+transferred before its single close attempt, so close-then-raise cannot trigger a
+second close or touch an unrelated descriptor.
+
+CP6 reuses only CP3's exact `ExactCrossSourceLinkRecord` and
+`ExactCrossSourceLinkEvidenceRecord`; it defines no parallel Gold DTO. Its strict
+immutable observation/result contracts follow; the three dataclass results disable
+direct construction, while the bounded join observation is an ordinary strict frozen
+Pydantic value whose provenance is established by the issuing verifier:
+
+```python
+class ExactEvidenceBronzeJoinObservations(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    matched_bronze_cells: int
+    max_batch_rows: int
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class ExactLinkBuildResult:
+    links: tuple[ExactCrossSourceLinkRecord, ...]
+    evidence: tuple[ExactCrossSourceLinkEvidenceRecord, ...]
+    canonical_pair_tsv: bytes
+    pair_sha256: str
+    max_candidate_batch_rows: int
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class ExactEvidenceVerificationObservations:
+    exact_links: ExpectedObservedCount
+    exact_link_evidence: ExpectedObservedCount
+    exact_link_pair_sha256: ExpectedObservedSha256
+    matched_bronze_cells: int
+    matched_left_records: int
+    matched_right_records: int
+    max_relation_batch_rows: int
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class CompleteArtifactBuildResult:
+    silver_result: SilverBuildResult
+    staged_tables: StagedParquetSet
+    exact_link_build_result: ExactLinkBuildResult
+    exact_evidence_verification_observations: ExactEvidenceVerificationObservations
+    observations: CompleteSourceAuditObservations
+    source_audit_report: SourceAuditReport
+```
+
+`reports.py` owns `ExactEvidenceBronzeJoinObservations`; both fields are exact
+nonboolean nonnegative integers, `max_batch_rows <= 65_536`, and the matched count is
+the number of exact evidence rows consumed. D-026 additively changes only the existing
+closed protocol return to
+`BoundedRelationVerifier.verify_exact_evidence_to_bronze(*, tables:
+StagedParquetSet) -> ExactEvidenceBronzeJoinObservations`; the four
+`ExternalOrderJoinOperation` values and other method signatures remain unchanged. The
+stage implementation consumes the custody's sealed `EXACT_LINK_EVIDENCE` relation,
+requires one-to-one exact key and canonical physical-payload equality against every
+reopened Gold evidence row, and joins that same row to exactly one Bronze cell; a
+missing, extra, duplicated, reordered or mutated admitted/Gold row fails. It returns
+this strict object from its measured fetch batches, never from a caller-supplied/
+fabricated counter. CP6 binds that exact returned object
+into the later verification issuance and computes `max_relation_batch_rows` as the
+maximum of its measured batch maximum and the batch lengths it directly observes from
+both linked-record iterators.
+
+`ExactLinkBuildResult` is issued only from one completely consumed exact candidate
+stream and successful explicit evidence admission. Its tuples contain the exact CP3 models in table sort order, are unique, equal
+the strict config link/evidence counts, and remain bounded by those expected counts;
+both strict nonboolean expected counts are in the generic closed interval
+`0..65_536`, and the observed maximum batch is a nonboolean integer in
+`0..65_536`. Its private
+provenance binds the exact Silver result and taken custody generation. The verification
+observations are issued only after reopened 11-table relation verification. Their
+three exact Pydantic expected/observed contracts are owned members with identity bound
+to the issuance; counts/hash equal config, build result, reopened table facts and
+relations. `matched_bronze_cells == exact_link_evidence.observed`, while matched left
+and right record counts each equal `exact_links.observed`; its maximum is bounded by
+65,536.
+
+`canonical_link_pair_tsv(rows, *, expected_links)` consumes one iterator once. It
+accepts only exact `ExactCrossSourceLinkRecord`, requires the frozen constants,
+strictly increasing unique `(left_product_id, right_product_id)` order and an exact
+nonboolean expected count in `0..65_536`, and validates each identifier as nonempty strict
+UTF-8 of at most 4,096 bytes containing no NUL, tab, CR or LF. It appends exactly
+`left_id + b"\t" + right_id + b"\n"` into a buffer bounded by
+`expected_links * 8_194` bytes and rejects overflow, disorder, duplicates, second-use
+requirements or a short/long stream. `exact_link_pair_sha256` hashes exactly those
+bytes. The official 47 rows, 1,222 bytes, frozen digest and 371 locators are derived
+acceptance after these generic rules, never generic implementation constants.
+
+CP6 writes the two exact Gold tables through new same-session exclusive leaves,
+reopens/verifies them, then calls the existing atomic
+`nine_table_set.extend_verified(owner=same_owner, verifications=(link, evidence))`.
+The successor has the same timestamp and preserves all first-nine verification and
+handle object identities in order; only then is the nine-table set superseded. A new
+`require_silver_build_result_successor(*, silver_result: SilverBuildResult,
+successor: StagedParquetSet) -> SilverBuildResult` validates the unchanged six-field
+Silver issuance plus that exact registered successor without
+reviving or treating the superseded set as live. Bare/rebuilt/reordered/foreign/
+different-time sets fail. Pre-extension faults leave the nine-table set live until
+session abort; post-extension faults leave only the eleven-table successor live and
+emit no result.
+
+`SilverSourceAuditObservations.with_links(*, verified:
+ExactEvidenceVerificationObservations) -> CompleteSourceAuditObservations` accepts only
+the exact issued verification object and retains its exact owned
+`ExpectedObservedCount`, `ExpectedObservedCount`, and `ExpectedObservedSha256` members
+as the three new fields while preserving every Silver prefix object identity. The sole
+report producer remains `SourceAuditReport.from_complete_observations(...)`.
+`CompleteArtifactBuildResult` issues only after exact successor/relation/report facts
+and successful custody close. It retains the exact six-field Silver result, eleven-
+table successor, build/verification results, Complete observations and report in the
+order above. CP7 accepts only this result and revalidates its private issuance; it does
+not accept six parallel values, the superseded nine-table set or candidate custody.
+`require_complete_artifact_build_result(value: object) ->
+CompleteArtifactBuildResult` is the sole CP7 admission validator. It requires the exact
+runtime/result issuance and member object identities, the live registered eleven-table
+successor and unchanged Silver-prefix relationship, exact bounded facts, and proof
+that candidate custody was taken and successfully closed; copy/subclass/object-new/
+equal-field/foreign/open-custody/superseded provenance is rejected.
+
+The CP6 import graph is acyclic. `staging.py` owns candidate values/custody and imports
+neither reports, quality persistence, links nor Silver; `reports.py` owns
+`ExactEvidenceVerificationObservations`, Complete observations and report production
+and imports neither staging nor links at runtime; `quality_persistence.py` imports the
+staging custody plus report contracts and owns the custody-bound verifier factory;
+`silver.py` imports staging but not links; staging imports only the CP3 evidence record
+and serializer projection in addition to its predecessor contracts, never links;
+`links.py` owns `ExactLinkBuildResult` and
+imports staging, serialization, Parquet, quality-verifier and report contracts;
+`builder.py` owns `CompleteArtifactBuildResult`, imports Silver, links and reports,
+and alone orchestrates and issues the CP7 handoff. `TYPE_CHECKING` forward references
+may close annotations; runtime local imports may not hide a cycle.
+
+The builder order is exact: (1) create the CP5 emitter; (2) one Bronze-fed pass stages
+Silver plus typed link candidates; (3) Silver finalization creates/validates its exact
+nine-table six-field result and seals candidate-store custody instead of closing that
+store; (4) CP6 exact-validates the Silver result and atomically takes custody; (5) it
+streams/builds links/evidence, admits the exact ordered evidence relation, writes/
+reopens the two Gold tables and atomically extends 9 -> 11; (6) it issues the one
+bounded relation verifier, verifies evidence/Bronze and
+only exact-ID-filtered linked records, constructs owned completion observations and
+the source-audit report; (7) it closes custody successfully; and only then (8) issues
+the single CP7-consumed complete result. Every failure goes through the exact close/
+managed-abort rule above and cannot return a partial result.
+
+### 6.6 Candidate finalization
 
 Each Parquet writer is closed, then its exact CP4-owned stage leaf is reopened and
 checked by CP3's common bounded checker against frozen schema, count, sort order,
 uniqueness, and logical hash. Those verifications/handles enter only one owner-bound
 `StagedParquetSet`, which remains live inside the marker-owned build session and feeds CP5/6
-relations, reports, and DuckDB construction. Reports/database and then the manifest are
+relations and the CP6 Complete result. CP7 begins only from that exact
+`CompleteArtifactBuildResult`, revalidates its issuance, and passes its exact eleven-
+table successor/report observations into DuckDB/report/manifest construction; it does
+not separately call CP5, reconstruct six parallel CP6 values, or accept the superseded
+nine-table set. Reports/database and then the manifest are
 written from those verified observations. Once the complete declared 14-file tree
 exists, CP7 opens CP2's distinct final `VerifiedPhysicalInventory` and independently
 reruns the same checker to create new manifest-owned `VerifiedParquetTable` handles;
@@ -3026,9 +3282,12 @@ reviewable checkpoints are required:
    `DataQualityIssue` D-021 injection/schema/joins and immutable join observations;
    exact nine-table/result/instrumentation custody; the first Silver audit successor;
    quality-summary semantic production; and no new metric/family/eligibility behavior.
-6. **Exact links:** raw identifier rule v1.0.0, one-to-one conflict rejection, 47-pair
-   TSV hash, 371 locators, no trimming/name/fuzzy/family links, CP6's first Complete
-   successor, and the sole source-audit report producer.
+6. **Exact links:** D-026 one-use typed candidate-store custody retained privately by
+   the unchanged six-field Silver result; raw identifier rule v1.0.0; CP3 Gold-record
+   reuse; one-to-one conflict rejection; bounded canonical TSV/hash; atomic same-owner/
+   time 9-to-11 successor; complete Bronze/wide-record evidence for 371 locators; no
+   trimming/name/fuzzy/family links; CP6's first Complete successor and sole source-
+   audit report producer; and one provenance-bound CP7 handoff result.
 7. **DuckDB, reports, pre-baseline publication mechanics, CLI:** write/reparse and
    verify both completed report payloads, perform the complete operational timestamp/
    link rechecks, materialize self-contained tables, enforce read-only rejection, run
