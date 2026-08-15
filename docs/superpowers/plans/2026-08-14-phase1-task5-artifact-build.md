@@ -3700,12 +3700,14 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
 
 - Modify: `src/finproof/registry/rating.py`
 - Modify: `src/finproof/data/normalization/public_funds.py`
+- Modify: `src/finproof/data/artifacts/bronze.py`
 - Create: `src/finproof/data/artifacts/silver.py`
 - Create: `src/finproof/data/artifacts/quality_persistence.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
 - Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
 - Modify: `tests/unit/registry/test_rating_registry.py`
+- Modify: `tests/unit/data/artifacts/test_bronze.py`
 - Create: `tests/unit/data/normalization/test_public_fund_group_adapter.py`
 - Modify: `tests/unit/data/artifacts/test_staging.py`
 - Create: `tests/unit/data/artifacts/test_silver.py`
@@ -3962,18 +3964,20 @@ Record all 31 mandatory RED reasons and smallest-GREEN results plus selectors 6,
 17, 23, and 24's derived first-GREEN acceptances separately. Then run the unchanged
 Task 1-4 regression command from the checkpoint execution rule and record its exact
 start/end time, exit code, pass/fail/skip counts and duration. Run static checks over
-the exact 17-file implementation inventory, then the full required gates:
+the exact 19-file implementation inventory, then the full required gates:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   src/finproof/registry/rating.py \
   src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/bronze.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/quality_persistence.py \
   src/finproof/data/artifacts/builder.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/reports.py \
   tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/normalization/test_public_fund_group_adapter.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
@@ -3986,12 +3990,14 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   src/finproof/registry/rating.py \
   src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/bronze.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/quality_persistence.py \
   src/finproof/data/artifacts/builder.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/reports.py \
   tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/normalization/test_public_fund_group_adapter.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
@@ -4004,12 +4010,14 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   src/finproof/registry/rating.py \
   src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/bronze.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/quality_persistence.py \
   src/finproof/data/artifacts/builder.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/reports.py \
   tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/normalization/test_public_fund_group_adapter.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
@@ -4046,7 +4054,7 @@ fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact;
 quality report contains no operational identity; Silver observations are valid while
 Complete/source-audit production remains impossible before CP6.
 
-- [ ] **Step 7: Stage exactly 17 files, commit, review, then close with exactly three docs**
+- [ ] **Step 7: Stage exactly 19 files, commit, review, then close with exactly three docs**
 
 Before staging, `git diff --name-only` must be exactly the following inventory and no
 other file. In particular no docs, STATUS, schema, config, source material, expected
@@ -4055,12 +4063,14 @@ contract or generated artifact belongs in the implementation commit:
 ```text
 src/finproof/registry/rating.py
 src/finproof/data/normalization/public_funds.py
+src/finproof/data/artifacts/bronze.py
 src/finproof/data/artifacts/silver.py
 src/finproof/data/artifacts/quality_persistence.py
 src/finproof/data/artifacts/builder.py
 src/finproof/data/artifacts/staging.py
 src/finproof/data/artifacts/reports.py
 tests/unit/registry/test_rating_registry.py
+tests/unit/data/artifacts/test_bronze.py
 tests/unit/data/normalization/test_public_fund_group_adapter.py
 tests/unit/data/artifacts/test_staging.py
 tests/unit/data/artifacts/test_silver.py
@@ -4075,12 +4085,14 @@ tests/helpers/artifacts.py
 ```bash
 git add src/finproof/registry/rating.py \
   src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/bronze.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/quality_persistence.py \
   src/finproof/data/artifacts/builder.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/reports.py \
   tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/normalization/test_public_fund_group_adapter.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
