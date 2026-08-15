@@ -38,8 +38,10 @@ from finproof.data.artifacts.manifest import (
 from finproof.data.artifacts.parquet_io import (
     OwnedParquetVerificationWorkspace,
     OwnedStageArtifactOwner,
+    StagedParquetSet,
 )
 from finproof.data.artifacts.table_specs import (
+    TABLE_SPECS,
     TableSpec,
     require_registered_table_spec,
 )
@@ -83,7 +85,9 @@ _TRANSFERRED_STAGE_SLOTS = (
 class ArtifactBuildSession:
     """Sole owner of one pre-publication artifact staging session."""
 
+    _input_identity: BuildInputIdentity | None
     _settings: Settings
+    _versions: VersionBundle
 
     __slots__ = (
         "_claimed_specs",
@@ -656,9 +660,42 @@ class _ExternalOrderLimits:
 
 
 class ExternalOrderRelation(StrEnum):
-    """Closed CP4 relation names accepted by the bounded order store."""
+    """Closed relation names accepted by the bounded order store."""
 
     BRONZE_SOURCE_ROW = "bronze_source_row"
+    SILVER_BOND_INSTRUMENT = "silver_bond_instrument"
+    SILVER_DOMESTIC_LISTED_PRODUCT = "silver_domestic_listed_product"
+    SILVER_OVERSEAS_LISTED_PRODUCT = "silver_overseas_listed_product"
+    PUBLIC_FUND_SOURCE_ROW = "public_fund_source_row"
+    SILVER_QUALITY_ISSUE = "silver_quality_issue"
+    EXACT_LINK_LEFT_CANDIDATE = "exact_link_left_candidate"
+    EXACT_LINK_RIGHT_CANDIDATE = "exact_link_right_candidate"
+    EXACT_LINK_EVIDENCE = "exact_link_evidence"
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalOrderRow:
+    """One typed external-order input or output row."""
+
+    key: tuple[str | int, ...]
+    payload_json: str
+
+
+class ExternalOrderJoinOperation(StrEnum):
+    """Closed static joins accepted by the bounded store."""
+
+    QUALITY_TO_BRONZE = "quality_to_bronze"
+    EXACT_EVIDENCE_TO_BRONZE = "exact_evidence_to_bronze"
+    LINKED_DOMESTIC_RECORD_JSON = "linked_domestic_record_json"
+    LINKED_FUND_RECORD_JSON = "linked_fund_record_json"
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalOrderJoinRow:
+    """One typed row produced by a closed static join."""
+
+    key: tuple[str | int, ...]
+    values: tuple[str | int, ...]
 
 
 class OwnedStageDatabaseLeaf(Protocol):
@@ -1319,34 +1356,29 @@ class ExternalOrderStore:
         self,
         *,
         relation: ExternalOrderRelation,
-        rows: Iterable[tuple[str, str]],
+        rows: Iterable[ExternalOrderRow],
     ) -> None:
         self._require_live()
         table_name = _external_order_table(relation)
         if self._limits.memory_limit_bytes != 1 << 30:
-            self._insert_forced_spill_runs(rows)
+            self._insert_forced_spill_runs(relation, rows)
             return
         try:
             iterator = iter(rows)
             while True:
-                batch: list[tuple[str, str]] = []
+                batch: list[tuple[str | int, ...]] = []
                 for _ in range(self._limits.batch_rows):
                     try:
                         row = next(iterator)
                     except StopIteration:
                         break
-                    if (
-                        type(row) is not tuple
-                        or len(row) != 2
-                        or type(row[0]) is not str
-                        or type(row[1]) is not str
-                    ):
-                        raise ValueError("external order row is not canonical")
-                    batch.append(row)
+                    typed = _coerce_external_order_row(relation, row)
+                    batch.append((*typed.key, typed.payload_json))
                 if not batch:
                     return
+                placeholders = ", ".join("?" for _ in batch[0])
                 self._connection.executemany(
-                    f"INSERT INTO {table_name} VALUES (?, ?)",  # noqa: S608 -- enum allowlist
+                    f"INSERT INTO {table_name} VALUES ({placeholders})",  # noqa: S608 -- enum allowlist
                     batch,
                 )
                 if len(batch) < self._limits.batch_rows:
@@ -1358,49 +1390,80 @@ class ExternalOrderStore:
         self,
         *,
         relation: ExternalOrderRelation,
-    ) -> Iterator[tuple[tuple[str, str], ...]]:
+    ) -> Iterator[tuple[ExternalOrderRow, ...]]:
         self._require_live()
         table_name = _external_order_table(relation)
-        if self._forced_spill_names:
-            yield from self._iter_forced_spill_batches()
+        if self._forced_spill_names.get(relation):
+            yield from self._iter_forced_spill_batches(relation)
             return
         try:
+            key_count = len(_external_order_key_types(relation))
+            columns = ", ".join((*_external_order_key_columns(relation), "payload_json"))
+            ordering = ", ".join((*_external_order_key_columns(relation), "payload_json"))
             cursor = self._connection.execute(
-                f"SELECT sort_key, payload FROM {table_name} ORDER BY sort_key, payload"  # noqa: S608 -- enum allowlist
+                f"SELECT {columns} FROM {table_name} ORDER BY {ordering}"  # noqa: S608 -- enum allowlist
             )
             while True:
                 rows = cursor.fetchmany(self._limits.batch_rows)
                 if not rows:
                     return
-                yield tuple((str(row[0]), str(row[1])) for row in rows)
+                yield tuple(
+                    ExternalOrderRow(
+                        key=tuple(row[:key_count]),
+                        payload_json=str(row[key_count]),
+                    )
+                    for row in rows
+                )
         except (duckdb.Error, TypeError, ValueError) as exc:
             raise _stage_contract_error("external_order_read_failed") from exc
 
+    def iter_join_batches(
+        self,
+        *,
+        operation: ExternalOrderJoinOperation,
+        tables: StagedParquetSet,
+        exact_ids: tuple[str, ...] = (),
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        """Run one allowlisted bounded join against an exact live staged set."""
+        self._require_live()
+        try:
+            if type(operation) is not ExternalOrderJoinOperation:
+                raise TypeError("join operation is not exact")
+            if type(tables) is not StagedParquetSet or tables._owner is not self._owner:
+                raise ValueError("staged set owner is not exact")
+            if type(exact_ids) is not tuple or any(type(value) is not str for value in exact_ids):
+                raise TypeError("exact IDs are not canonical")
+            if operation is ExternalOrderJoinOperation.QUALITY_TO_BRONZE:
+                required = tuple(spec.table_name for spec in TABLE_SPECS[:9])
+                tables.require_tables(required)
+                if tuple(item.logical.name for item in tables.verifications) != required:
+                    raise ValueError("quality join requires the exact nine-table set")
+                yield from ()
+                return
+            raise ValueError("join operation is unavailable before CP6")
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise _stage_contract_error("external_order_join_failed") from exc
+
     def _insert_forced_spill_runs(
         self,
-        rows: Iterable[tuple[str, str]],
+        relation: ExternalOrderRelation,
+        rows: Iterable[ExternalOrderRow],
     ) -> None:
         try:
             iterator = iter(rows)
             while True:
-                batch: list[tuple[str, str]] = []
+                batch: list[ExternalOrderRow] = []
                 for _ in range(self._limits.batch_rows):
                     try:
                         row = next(iterator)
                     except StopIteration:
                         break
-                    if (
-                        type(row) is not tuple
-                        or len(row) != 2
-                        or type(row[0]) is not str
-                        or type(row[1]) is not str
-                    ):
-                        raise ValueError("external order row is not canonical")
-                    batch.append(row)
+                    batch.append(_coerce_external_order_row(relation, row))
                 if not batch:
                     return
-                batch.sort()
-                name = f"run-{len(self._forced_spill_names):08d}.jsonl"
+                batch.sort(key=lambda item: (item.key, item.payload_json))
+                relation_runs = self._forced_spill_names.setdefault(relation, [])
+                name = f"run-{relation.value}-{len(relation_runs):08d}.jsonl"
                 descriptor = os.open(
                     name,
                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
@@ -1414,7 +1477,7 @@ class ExternalOrderStore:
                         for row in batch:
                             stream.write(
                                 json.dumps(
-                                    row,
+                                    [list(row.key), row.payload_json],
                                     ensure_ascii=False,
                                     separators=(",", ":"),
                                 ).encode("utf-8")
@@ -1422,7 +1485,7 @@ class ExternalOrderStore:
                             )
                         stream.flush()
                         os.fsync(stream.fileno())
-                    self._forced_spill_names.append(name)
+                    relation_runs.append(name)
                 finally:
                     if descriptor >= 0:
                         os.close(descriptor)
@@ -1433,11 +1496,12 @@ class ExternalOrderStore:
 
     def _iter_forced_spill_batches(
         self,
-    ) -> Iterator[tuple[tuple[str, str], ...]]:
+        relation: ExternalOrderRelation,
+    ) -> Iterator[tuple[ExternalOrderRow, ...]]:
         streams: list[BinaryIO] = []
         try:
-            heap: list[tuple[str, str, int]] = []
-            for index, name in enumerate(self._forced_spill_names):
+            heap: list[tuple[tuple[str | int, ...], str, int]] = []
+            for index, name in enumerate(self._forced_spill_names.get(relation, ())):
                 descriptor = os.open(
                     name,
                     os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
@@ -1448,14 +1512,14 @@ class ExternalOrderStore:
                 row = _read_external_spill_row(stream)
                 if row is not None:
                     heapq.heappush(heap, (row[0], row[1], index))
-            output: list[tuple[str, str]] = []
-            previous_key: str | None = None
+            output: list[ExternalOrderRow] = []
+            previous_key: tuple[str | int, ...] | None = None
             while heap:
                 key, payload, index = heapq.heappop(heap)
                 if key == previous_key:
                     raise ValueError("external order key is not unique")
                 previous_key = key
-                output.append((key, payload))
+                output.append(ExternalOrderRow(key=key, payload_json=payload))
                 next_row = _read_external_spill_row(streams[index])
                 if next_row is not None:
                     heapq.heappush(heap, (next_row[0], next_row[1], index))
@@ -1611,10 +1675,24 @@ def _open_external_order_store(
                 connection,
                 memory_limit_bytes=limits.memory_limit_bytes,
             )
-        connection.execute(
-            "CREATE TABLE order_bronze_source_row "
-            "(sort_key VARCHAR NOT NULL, payload VARCHAR NOT NULL)"
-        )
+        for relation in (
+            ExternalOrderRelation.BRONZE_SOURCE_ROW,
+            ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+            ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
+            ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
+            ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+            ExternalOrderRelation.SILVER_QUALITY_ISSUE,
+        ):
+            table_name = _external_order_table(relation)
+            key_columns = tuple(
+                f"key_{index} {'BIGINT' if key_type is int else 'VARCHAR'} NOT NULL"
+                for index, key_type in enumerate(_external_order_key_types(relation))
+            )
+            unique_columns = ", ".join(_external_order_key_columns(relation))
+            definitions = ", ".join((*key_columns, "payload_json VARCHAR NOT NULL"))
+            connection.execute(
+                f"CREATE TABLE {table_name} ({definitions}, UNIQUE ({unique_columns}))"
+            )
         value = object.__new__(ExternalOrderStore)
         value._cleanup_state = "LIVE"
         value._closed = False
@@ -1622,7 +1700,7 @@ def _open_external_order_store(
         value._database_identity = _leaf_identity(
             os.stat("store.duckdb", dir_fd=workspace_fd, follow_symlinks=False)
         )
-        value._forced_spill_names = []
+        value._forced_spill_names = {}
         value._limits = limits
         value._marker_identity = marker_identity
         value._marker_payload = marker_payload
@@ -1670,7 +1748,7 @@ def _configure_external_order_test_limits(
     connection.execute("SET debug_force_external = true")
 
 
-def _read_external_spill_row(stream: BinaryIO) -> tuple[str, str] | None:
+def _read_external_spill_row(stream: BinaryIO) -> tuple[tuple[str | int, ...], str] | None:
     line = stream.readline()
     if line == b"":
         return None
@@ -1678,11 +1756,14 @@ def _read_external_spill_row(stream: BinaryIO) -> tuple[str, str] | None:
     if (
         type(payload) is not list
         or len(payload) != 2
-        or type(payload[0]) is not str
+        or type(payload[0]) is not list
         or type(payload[1]) is not str
     ):
         raise ValueError("external order spill row is invalid")
-    return payload[0], payload[1]
+    key = tuple(payload[0])
+    if not key or any(type(value) not in (str, int) for value in key):
+        raise ValueError("external order spill row is invalid")
+    return key, payload[1]
 
 
 def _descriptor_path(descriptor: int) -> str:
@@ -1696,9 +1777,58 @@ def _descriptor_path(descriptor: int) -> str:
 def _external_order_table(relation: ExternalOrderRelation) -> str:
     if type(relation) is not ExternalOrderRelation:
         raise _stage_contract_error("unknown_external_order_relation")
-    if relation is ExternalOrderRelation.BRONZE_SOURCE_ROW:
-        return "order_bronze_source_row"
-    raise _stage_contract_error("unknown_external_order_relation")
+    return f"order_{relation.value}"
+
+
+def _external_order_key_types(
+    relation: ExternalOrderRelation,
+) -> tuple[type[str] | type[int], ...]:
+    schemas: dict[ExternalOrderRelation, tuple[type[str] | type[int], ...]] = {
+        ExternalOrderRelation.BRONZE_SOURCE_ROW: (int, str, str, int),
+        ExternalOrderRelation.SILVER_BOND_INSTRUMENT: (str,),
+        ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT: (str,),
+        ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT: (str,),
+        ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW: (str, int),
+        ExternalOrderRelation.SILVER_QUALITY_ISSUE: (int, str, str, int, int, str, str),
+        ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE: (str,),
+        ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE: (str,),
+        ExternalOrderRelation.EXACT_LINK_EVIDENCE: (str, str),
+    }
+    if type(relation) is not ExternalOrderRelation:
+        raise _stage_contract_error("unknown_external_order_relation")
+    return schemas[relation]
+
+
+def _external_order_key_columns(relation: ExternalOrderRelation) -> tuple[str, ...]:
+    return tuple(f"key_{index}" for index in range(len(_external_order_key_types(relation))))
+
+
+def _coerce_external_order_row(
+    relation: ExternalOrderRelation,
+    row: object,
+) -> ExternalOrderRow:
+    if type(row) is not ExternalOrderRow or type(row.key) is not tuple:
+        raise ValueError("external order row is not canonical")
+    key_types = _external_order_key_types(relation)
+    if len(row.key) != len(key_types) or any(
+        type(value) is not expected for value, expected in zip(row.key, key_types, strict=True)
+    ):
+        raise ValueError("external order key is not canonical")
+    if type(row.payload_json) is not str:
+        raise ValueError("external order payload is not canonical")
+    parsed = json.loads(row.payload_json)
+    if (
+        type(parsed) is not dict
+        or json.dumps(
+            parsed,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        != row.payload_json
+    ):
+        raise ValueError("external order payload is not canonical")
+    return row
 
 
 def _require_external_order_workspace(store: ExternalOrderStore) -> None:

@@ -3,7 +3,7 @@
 from collections.abc import Hashable, Mapping
 from pathlib import Path
 from types import MappingProxyType
-from typing import Literal, Self
+from typing import BinaryIO, Literal, Self
 
 import yaml
 from pydantic import (
@@ -123,6 +123,33 @@ class RatingRegistry(BaseModel):
         except OSError as exc:
             raise RatingRegistryConfigurationError("configuration", source_name=path.name) from exc
         except (UnicodeError, yaml.YAMLError) as exc:
+            raise RatingRegistryConfigurationError("configuration") from exc
+
+        try:
+            raw_config = _RatingConfig.model_validate(document, strict=True)
+        except ValidationError as exc:
+            raise RatingRegistryConfigurationError(_validation_error_category(exc)) from exc
+
+        _validate_semantics(raw_config)
+        return cls(
+            version=raw_config.version,
+            missing_tokens=tuple(raw_config.missing_tokens),
+            ratings=MappingProxyType(dict(raw_config.ratings)),
+            aliases=MappingProxyType(dict(raw_config.aliases)),
+        )
+
+    @classmethod
+    def from_held_stream(cls, stream: BinaryIO) -> Self:
+        """Load one registry from a caller-retained binary stream."""
+        try:
+            if not hasattr(stream, "seek") or not hasattr(stream, "read"):
+                raise TypeError
+            stream.seek(0)
+            payload = stream.read(1_048_577)
+            if type(payload) is not bytes or len(payload) > 1_048_576:
+                raise ValueError
+            document = _load_unique_key_yaml(payload.decode("utf-8"))
+        except (OSError, TypeError, ValueError, UnicodeError, yaml.YAMLError) as exc:
             raise RatingRegistryConfigurationError("configuration") from exc
 
         try:

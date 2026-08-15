@@ -1,6 +1,7 @@
 # mypy: disable-error-code="attr-defined,no-untyped-call,no-untyped-def"
 """Scale contracts for bounded artifact staging."""
 
+import json
 import os
 import threading
 import time
@@ -40,6 +41,7 @@ def test_external_order_store_spills_and_orders_131073_rows_with_bounded_state(
     from finproof.data.artifacts.staging import (
         ArtifactBuildSession,
         ExternalOrderRelation,
+        ExternalOrderRow,
         ExternalOrderStoreTestLimits,
         _open_external_order_store_for_test,
     )
@@ -55,7 +57,15 @@ def test_external_order_store_spills_and_orders_131073_rows_with_bounded_state(
         nonlocal consumed
         for ordinal in range(total - 1, -1, -1):
             consumed += 1
-            yield f"{ordinal:09d}", f"{ordinal:09d}:{payload}"
+            key = (ordinal, "table", "sheet", ordinal + 1)
+            yield ExternalOrderRow(
+                key=key,
+                payload_json=json.dumps(
+                    {"ordinal": ordinal, "payload": payload},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+            )
 
     with ArtifactBuildSession.initialize(
         settings,
@@ -79,7 +89,7 @@ def test_external_order_store_spills_and_orders_131073_rows_with_bounded_state(
             assert not hasattr(store, "spill_path")
             assert not hasattr(store, "workspace_path")
             assert store._connection.execute("SELECT current_setting('threads')").fetchone() == (1,)
-            previous = ""
+            previous = -1
             observed = 0
             maximum_batch = 0
             spill_observed = bool(os.listdir(store._spill_fd))
@@ -98,9 +108,14 @@ def test_external_order_store_spills_and_orders_131073_rows_with_bounded_state(
                     relation=ExternalOrderRelation.BRONZE_SOURCE_ROW
                 ):
                     maximum_batch = max(maximum_batch, len(batch))
-                    for key, value in batch:
+                    for item in batch:
+                        key = item.key[0]
+                        assert type(key) is int
                         assert key > previous
-                        assert value.startswith(f"{key}:")
+                        assert json.loads(item.payload_json) == {
+                            "ordinal": key,
+                            "payload": payload,
+                        }
                         previous = key
                         observed += 1
             finally:

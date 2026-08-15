@@ -6,7 +6,9 @@ import contextlib
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Literal, Protocol, cast
+from typing import BinaryIO, Literal, Protocol, cast
+
+import yaml
 
 from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
@@ -14,6 +16,7 @@ from finproof.data.artifacts.config import (
     ArtifactBuildConfig,
     validate_build_registry_versions_from_held_streams,
 )
+from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 from finproof.data.artifacts.input_identity import BuildInputIdentity
 from finproof.data.artifacts.parquet_io import (
     OwnedStageArtifactOwner,
@@ -30,6 +33,7 @@ from finproof.data.source_manifest import (
 )
 from finproof.data.xlsx_stream import iter_xlsx_rows
 from finproof.domain.source import SourceRow
+from finproof.registry.rating import RatingRegistry
 
 
 class _BronzeRowSink(Protocol):
@@ -101,6 +105,49 @@ class SourceRowConsumer(Protocol):
     """One-pass downstream consumer of an already-enqueued exact source row."""
 
     def consume(self, row: SourceRow) -> None: ...
+
+
+def _consumer_rating_registry(consumer: SourceRowConsumer | None) -> RatingRegistry | None:
+    if consumer is None or not hasattr(consumer, "_held_rating_registry"):
+        return None
+    registry = consumer._held_rating_registry
+    if type(registry) is not RatingRegistry:
+        raise ArtifactContractError(
+            ArtifactErrorCode.CONFIG_INVALID,
+            operation_id="validate-build-registry-versions",
+            internal_context={"reason": "registry_version_mismatch"},
+        )
+    return registry
+
+
+def _validate_registry_versions_with_retained_rating(
+    *,
+    datasets: BinaryIO,
+    quality: BinaryIO,
+    state: BinaryIO,
+    rating: RatingRegistry,
+    versions: VersionBundle,
+) -> None:
+    from finproof.data.artifacts.config import (
+        _load_registry_bytes,
+        _read_held_stream,
+        _validate_registry_payloads,
+    )
+
+    try:
+        _validate_registry_payloads(
+            datasets=_load_registry_bytes(_read_held_stream(datasets)),
+            quality=_load_registry_bytes(_read_held_stream(quality)),
+            rating={"version": rating.version},
+            state=_load_registry_bytes(_read_held_stream(state)),
+            versions=versions,
+        )
+    except (OSError, UnicodeError, TypeError, ValueError, yaml.YAMLError) as exc:
+        raise ArtifactContractError(
+            ArtifactErrorCode.CONFIG_INVALID,
+            operation_id="validate-build-registry-versions",
+            internal_context={"reason": "registry_version_mismatch"},
+        ) from exc
 
 
 class BronzeFanoutSink:
@@ -194,6 +241,7 @@ class BronzeBuildResult:
     staged_tables: StagedParquetSet
     observations: BronzeSourceAuditObservations
     input_identity: BuildInputIdentity
+    _issuance: object
 
     def __new__(cls, *args: object, **kwargs: object) -> BronzeBuildResult:
         del args, kwargs
@@ -211,7 +259,37 @@ class BronzeBuildResult:
         object.__setattr__(value, "staged_tables", staged_tables)
         object.__setattr__(value, "observations", observations)
         object.__setattr__(value, "input_identity", input_identity)
+        object.__setattr__(value, "_issuance", _BronzeBuildResultIssuance(value))
         return value
+
+
+class _BronzeBuildResultIssuance:
+    __slots__ = ("input_identity", "observations", "staged_tables", "value")
+
+    def __init__(self, value: BronzeBuildResult) -> None:
+        self.value = value
+        self.staged_tables = value.staged_tables
+        self.observations = value.observations
+        self.input_identity = value.input_identity
+
+
+def require_bronze_build_result(value: object) -> BronzeBuildResult:
+    """Require one unchanged exact builder-issued Bronze result object."""
+    if type(value) is not BronzeBuildResult:
+        raise TypeError("Bronze result must have the exact runtime type")
+    try:
+        issuance = object.__getattribute__(value, "_issuance")
+        if (
+            type(issuance) is not _BronzeBuildResultIssuance
+            or issuance.value is not value
+            or issuance.staged_tables is not value.staged_tables
+            or issuance.observations is not value.observations
+            or issuance.input_identity is not value.input_identity
+        ):
+            raise ValueError("Bronze result issuance changed")
+    except AttributeError as exc:
+        raise ValueError("Bronze result issuance is absent") from exc
+    return value
 
 
 def ingest_bronze_for_session(
@@ -233,21 +311,26 @@ def ingest_bronze_for_session(
 
     session.assert_live()
     identity = session._input_identity
-    with (
-        identity.open_verified_input(kind=ArtifactInputKind.SOURCE_MANIFEST) as manifest_stream,
-        identity.open_verified_input(
-            kind=ArtifactInputKind.SOURCE_SCHEMA_CATALOG
-        ) as catalog_stream,
-        identity.open_verified_input(
-            kind=ArtifactInputKind.ARTIFACT_BUILD_CONFIG
-        ) as build_config_stream,
-        identity.open_verified_input(kind=ArtifactInputKind.DATASET_REGISTRY) as datasets_stream,
-        identity.open_verified_input(
-            kind=ArtifactInputKind.QUALITY_RULE_REGISTRY
-        ) as quality_stream,
-        identity.open_verified_input(kind=ArtifactInputKind.RATING_SCALE_REGISTRY) as rating_stream,
-        identity.open_verified_input(kind=ArtifactInputKind.STATE_RULE_REGISTRY) as state_stream,
-    ):
+    retained_rating = _consumer_rating_registry(consumer)
+    with contextlib.ExitStack() as inputs:
+        manifest_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.SOURCE_MANIFEST)
+        )
+        catalog_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.SOURCE_SCHEMA_CATALOG)
+        )
+        build_config_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.ARTIFACT_BUILD_CONFIG)
+        )
+        datasets_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.DATASET_REGISTRY)
+        )
+        quality_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.QUALITY_RULE_REGISTRY)
+        )
+        state_stream = inputs.enter_context(
+            identity.open_verified_input(kind=ArtifactInputKind.STATE_RULE_REGISTRY)
+        )
         manifest = SourceFileManifest.from_held_streams(
             manifest_stream=manifest_stream,
             schema_catalog_stream=catalog_stream,
@@ -256,13 +339,25 @@ def ingest_bronze_for_session(
             build_config_stream,
             versions=session._versions,
         )
-        validate_build_registry_versions_from_held_streams(
-            datasets=datasets_stream,
-            quality=quality_stream,
-            rating=rating_stream,
-            state=state_stream,
-            versions=session._versions,
-        )
+        if retained_rating is None:
+            rating_stream = inputs.enter_context(
+                identity.open_verified_input(kind=ArtifactInputKind.RATING_SCALE_REGISTRY)
+            )
+            validate_build_registry_versions_from_held_streams(
+                datasets=datasets_stream,
+                quality=quality_stream,
+                rating=rating_stream,
+                state=state_stream,
+                versions=session._versions,
+            )
+        else:
+            _validate_registry_versions_with_retained_rating(
+                datasets=datasets_stream,
+                quality=quality_stream,
+                rating=retained_rating,
+                state=state_stream,
+                versions=session._versions,
+            )
     sources = manifest.verify(session._settings.source_root)
     specs = tuple(
         TABLE_SPEC_BY_NAME[name]

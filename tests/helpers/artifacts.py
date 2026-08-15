@@ -46,6 +46,53 @@ INPUTS: Final[tuple[tuple[str, str, str], ...]] = (
 )
 
 
+def artifact_staging_settings(repository_root: Path) -> Any:
+    """Create one complete synthetic repository Settings boundary."""
+    from finproof.core.settings import Settings
+
+    source_root = repository_root / "source_material"
+    (source_root / "data").mkdir(parents=True)
+    (source_root / "input_manifest.json").write_bytes(b"{}")
+    (source_root / "schema_catalog.json").write_bytes(b"{}")
+    config_root = repository_root / "config"
+    config_root.mkdir()
+    for name in (
+        "artifact_build.yaml",
+        "datasets.yaml",
+        "quality_rules.yaml",
+        "rating_scale.yaml",
+        "state_rules.yaml",
+    ):
+        (config_root / name).write_text("version: 1.0.0\n", encoding="utf-8")
+    schema_root = repository_root / "schemas"
+    schema_root.mkdir()
+    for name in ("artifact_manifest.schema.json", "quality_issue.schema.json"):
+        (schema_root / name).write_bytes(b"{}")
+    return Settings(
+        repository_root=repository_root,
+        source_root=source_root,
+        data_dir=source_root / "data",
+        artifact_dir=repository_root / "artifacts",
+        database_path=repository_root / "artifacts/finproof.duckdb",
+        artifact_build_config_path=config_root / "artifact_build.yaml",
+        expected_artifact_contract_path=config_root / "expected_phase1_artifacts.json",
+    )
+
+
+def artifact_build_input_identity(settings: Any) -> Any:
+    """Issue one exact synthetic build-input identity."""
+    from finproof.data.artifacts.input_identity import (
+        BuildInputIdentity,
+        ResolvedBuildInputBundle,
+        verify_build_inputs,
+    )
+
+    resolved = ResolvedBuildInputBundle.from_settings(settings)
+    with verify_build_inputs(settings, resolved) as held:
+        seal = held.issue_identity_seal()
+    return BuildInputIdentity.from_verified(seal=seal)
+
+
 def expected_contract_payload(*, json_compatible: bool = False) -> dict[str, Any]:
     """Return one complete official-shaped Phase 1 logical contract fixture."""
     logical_inputs: tuple[dict[str, Any], ...] = tuple(

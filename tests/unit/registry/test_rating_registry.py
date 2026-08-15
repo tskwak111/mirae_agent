@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from io import BytesIO
 from pathlib import Path
 
 import pytest
@@ -28,6 +29,77 @@ def test_official_rating_registry_resolves_canonical_alias_and_same_ordinal(
     assert registry.compare("AAA", "AA-") == -1
     assert registry.compare("AA-", "AAA") == 1
     assert registry.compare("AA", "AA0") == 0
+
+
+def test_rating_registry_from_held_stream_parses_valid_yaml() -> None:
+    stream = BytesIO((ROOT / "config/rating_scale.yaml").read_bytes())
+
+    registry = RatingRegistry.from_held_stream(stream)
+
+    assert registry.version == "1.0.0"
+    assert registry.resolve("AA-").ordinal == 4
+
+
+def test_rating_registry_from_held_stream_matches_path_parser_and_never_closes_stream() -> None:
+    path = ROOT / "config/rating_scale.yaml"
+    stream = BytesIO(path.read_bytes())
+
+    held = RatingRegistry.from_held_stream(stream)
+
+    assert held == RatingRegistry.from_yaml(path)
+    assert not stream.closed
+    stream.seek(0)
+    assert stream.read(7) == b"version"
+
+
+@pytest.mark.parametrize(
+    ("raw_yaml", "category"),
+    [
+        pytest.param(
+            'version: "1.0.0"\nversion: "1.0.0"\n'
+            'missing_tokens: [""]\nratings: {AAA: 1}\naliases: {}\n',
+            "configuration",
+            id="duplicate-key",
+        ),
+        pytest.param("[]\n", "configuration", id="invalid-shape"),
+        pytest.param(
+            'version: "2.0.0"\nmissing_tokens: [""]\nratings: {AAA: 1}\naliases: {}\n',
+            "version",
+            id="invalid-version",
+        ),
+        pytest.param(
+            'version: "1.0.0"\nmissing_tokens: []\nratings: {AAA: 1}\naliases: {}\n',
+            "missing token",
+            id="invalid-missing-token",
+        ),
+        pytest.param(
+            'version: "1.0.0"\nmissing_tokens: [""]\nratings: {AAA: 0}\naliases: {}\n',
+            "ordinal",
+            id="invalid-ordinal",
+        ),
+        pytest.param(
+            'version: "1.0.0"\nmissing_tokens: [""]\nratings: {" AAA": 1}\naliases: {}\n',
+            "rating",
+            id="invalid-rating",
+        ),
+        pytest.param(
+            'version: "1.0.0"\nmissing_tokens: [""]\nratings: {AAA: 1}\naliases: {ALT: AA0}\n',
+            "alias",
+            id="invalid-alias",
+        ),
+    ],
+)
+def test_rating_registry_held_stream_preserves_duplicate_shape_and_semantic_errors(
+    raw_yaml: str,
+    category: str,
+) -> None:
+    stream = BytesIO(raw_yaml.encode())
+
+    with pytest.raises(RatingRegistryConfigurationError) as captured:
+        RatingRegistry.from_held_stream(stream)
+
+    assert captured.value.category == category
+    assert not stream.closed
 
 
 def test_public_rating_models_are_explicitly_frozen_forbid_and_strict() -> None:

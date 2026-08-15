@@ -4,9 +4,11 @@
 import gc
 import hashlib
 import inspect
+import io
 import json
 import weakref
 from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -236,3 +238,81 @@ def test_bronze_fanout_enqueues_complete_row_before_one_consumer_call() -> None:
         "self",
         "row",
     )
+
+
+def test_bronze_uses_consumer_retained_rating_registry_without_reopening_input(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import bronze
+    from finproof.data.artifacts.config import ArtifactInputKind
+    from finproof.registry.rating import RatingRegistry
+
+    opened: list[ArtifactInputKind] = []
+    payloads = {
+        ArtifactInputKind.SOURCE_MANIFEST: b"{}",
+        ArtifactInputKind.SOURCE_SCHEMA_CATALOG: b"{}",
+        ArtifactInputKind.ARTIFACT_BUILD_CONFIG: b"{}",
+        ArtifactInputKind.DATASET_REGISTRY: (b'version: "1.0.0"\nsnapshot_date: "2026-07-11"\n'),
+        ArtifactInputKind.QUALITY_RULE_REGISTRY: b'version: "1.0.0"\n',
+        ArtifactInputKind.STATE_RULE_REGISTRY: b'version: "1.0.0"\n',
+    }
+
+    class Identity:
+        @contextmanager
+        def open_verified_input(self, *, kind: ArtifactInputKind):
+            opened.append(kind)
+            if kind is ArtifactInputKind.RATING_SCALE_REGISTRY:
+                raise AssertionError("Bronze reopened the held-parsed rating registry")
+            with io.BytesIO(payloads[kind]) as stream:
+                yield stream
+
+    class Manifest:
+        def verify(self, source_root: object) -> None:
+            del source_root
+            raise RuntimeError("configuration boundary completed")
+
+    class Session:
+        _input_identity = Identity()
+        _settings = type("SettingsStub", (), {"source_root": object()})()
+        _versions = VersionBundle()
+
+        def assert_live(self) -> None:
+            return None
+
+    rating = RatingRegistry(
+        version="1.0.0",
+        missing_tokens=("",),
+        ratings={"AAA": 1},
+        aliases={},
+    )
+
+    class Consumer:
+        _held_rating_registry = rating
+
+        def consume(self, row: SourceRow) -> None:
+            del row
+
+    monkeypatch.setattr(
+        bronze.SourceFileManifest,  # type: ignore[attr-defined]
+        "from_held_streams",
+        lambda **_kwargs: Manifest(),
+    )
+    monkeypatch.setattr(
+        bronze.ArtifactBuildConfig,  # type: ignore[attr-defined]
+        "from_held_stream",
+        lambda *_args, **_kwargs: None,
+    )
+
+    with pytest.raises(RuntimeError, match="configuration boundary completed"):
+        bronze.ingest_bronze_for_session(Session(), consumer=Consumer())  # type: ignore[arg-type]
+
+    assert ArtifactInputKind.RATING_SCALE_REGISTRY not in opened
+    assert opened == [
+        ArtifactInputKind.SOURCE_MANIFEST,
+        ArtifactInputKind.SOURCE_SCHEMA_CATALOG,
+        ArtifactInputKind.ARTIFACT_BUILD_CONFIG,
+        ArtifactInputKind.DATASET_REGISTRY,
+        ArtifactInputKind.QUALITY_RULE_REGISTRY,
+        ArtifactInputKind.STATE_RULE_REGISTRY,
+    ]

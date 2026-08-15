@@ -1,0 +1,733 @@
+"""Bounded one-pass Silver artifact emission."""
+
+from __future__ import annotations
+
+import contextlib
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass
+from typing import Literal, cast
+
+from finproof.core.versions import VersionBundle
+from finproof.data.artifacts.bronze import BronzeBuildResult, require_bronze_build_result
+from finproof.data.artifacts.config import ArtifactBuildConfig
+from finproof.data.artifacts.input_identity import BuildInputIdentity
+from finproof.data.artifacts.parquet_io import (
+    ParquetBatchWriter,
+    StagedParquetSet,
+    verify_staged_parquet_table,
+)
+from finproof.data.artifacts.quality_persistence import (
+    StagedBoundedRelationVerifier,
+    persist_quality_issue,
+)
+from finproof.data.artifacts.reports import (
+    ExcludedSilverCount,
+    ExpectedObservedCount,
+    NamedExpectedObservedCount,
+    QualityJoinObservations,
+    QualitySummaryReport,
+    SilverSourceAuditObservations,
+    require_bronze_source_audit_observations,
+    require_silver_source_audit_observations,
+)
+from finproof.data.artifacts.serialization import canonical_record_json, serialize_table_row
+from finproof.data.artifacts.staging import (
+    ArtifactBuildSession,
+    ExternalOrderRelation,
+    ExternalOrderRow,
+    ExternalOrderStore,
+)
+from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TableSpec
+from finproof.data.normalization.bonds import normalize_bond
+from finproof.data.normalization.domestic_listed import normalize_domestic_listed
+from finproof.data.normalization.overseas_listed import normalize_overseas_listed
+from finproof.data.normalization.public_funds import (
+    classify_public_fund_row,
+    normalize_public_fund_item_group,
+)
+from finproof.domain.bonds import BondInstrument
+from finproof.domain.domestic_listed import ListedProduct
+from finproof.domain.normalization import NormalizationResult
+from finproof.domain.overseas_listed import OverseasListedProduct
+from finproof.domain.public_funds import FundCollapseResult
+from finproof.domain.quality import DataQualityIssue
+from finproof.domain.source import SourceRow
+from finproof.registry.rating import RatingRegistry
+
+_SOURCE_NAMES = ("PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001")
+_STAGED_RELATION_NAMES = (
+    "SILVER_BOND_INSTRUMENT",
+    "SILVER_DOMESTIC_LISTED_PRODUCT",
+    "SILVER_OVERSEAS_LISTED_PRODUCT",
+    "PUBLIC_FUND_SOURCE_ROW",
+    "SILVER_QUALITY_ISSUE",
+)
+
+
+@dataclass(frozen=True, slots=True)
+class NamedObservedCount:
+    """One exact closed instrumentation name and its observed count."""
+
+    name: str
+    observed: int
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.name) is not str
+            or self.name not in (*_SOURCE_NAMES, *_STAGED_RELATION_NAMES)
+            or type(self.observed) is not int
+            or self.observed < 0
+        ):
+            raise ValueError("observed count is outside the closed contract")
+
+
+@dataclass(frozen=True, slots=True)
+class SilverBuildInstrumentation:
+    """Strict bounded counters for one complete Silver source pass."""
+
+    source_rows_consumed: int
+    source_consume_counts: tuple[NamedObservedCount, ...]
+    normalizer_call_counts: tuple[NamedObservedCount, ...]
+    staged_relation_rows: tuple[NamedObservedCount, ...]
+    max_live_fund_group_rows: int
+    max_writer_batch_rows: int
+    max_relation_batch_rows: int
+
+    def __post_init__(self) -> None:
+        scalar_values = (
+            self.source_rows_consumed,
+            self.max_live_fund_group_rows,
+            self.max_writer_batch_rows,
+            self.max_relation_batch_rows,
+        )
+        if any(type(value) is not int or value < 0 for value in scalar_values):
+            raise ValueError("Silver instrumentation requires nonnegative exact integers")
+        if (
+            tuple(item.name for item in self.source_consume_counts) != _SOURCE_NAMES
+            or tuple(item.name for item in self.normalizer_call_counts) != _SOURCE_NAMES
+            or tuple(item.name for item in self.staged_relation_rows) != _STAGED_RELATION_NAMES
+            or any(
+                type(item) is not NamedObservedCount
+                for values in (
+                    self.source_consume_counts,
+                    self.normalizer_call_counts,
+                    self.staged_relation_rows,
+                )
+                for item in values
+            )
+            or sum(item.observed for item in self.source_consume_counts)
+            != self.source_rows_consumed
+            or self.normalizer_call_counts != self.source_consume_counts
+            or self.max_live_fund_group_rows > 16
+            or self.max_writer_batch_rows > 65_536
+            or self.max_relation_batch_rows > 65_536
+        ):
+            raise ValueError("Silver instrumentation inventory or bounds changed")
+
+
+class _SilverBatchSink:
+    __slots__ = ("_closed", "_limit", "_max_batch_rows", "_rows", "_writer")
+
+    def __init__(self, writer: ParquetBatchWriter, *, limit: int) -> None:
+        self._writer = writer
+        self._limit = limit
+        self._rows: list[Mapping[str, object]] = []
+        self._closed = False
+        self._max_batch_rows = 0
+
+    def enqueue(self, row: Mapping[str, object]) -> None:
+        if self._closed:
+            raise ValueError("Silver batch sink is closed")
+        self._rows.append(row)
+        self._max_batch_rows = max(self._max_batch_rows, len(self._rows))
+        if len(self._rows) == self._limit:
+            self._flush()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._flush()
+        self._writer.close()
+        self._closed = True
+
+    def _flush(self) -> None:
+        if self._rows:
+            self._writer.write_batch(tuple(self._rows))
+            self._rows.clear()
+
+
+class SilverBuildResult:
+    """Builder-issued carrier for one verified nine-table Silver stage."""
+
+    __slots__ = (
+        "_issuance",
+        "input_identity",
+        "instrumentation",
+        "observations",
+        "quality_join_observations",
+        "quality_report",
+        "staged_tables",
+    )
+
+    input_identity: BuildInputIdentity
+    staged_tables: StagedParquetSet
+    observations: SilverSourceAuditObservations
+    quality_join_observations: QualityJoinObservations
+    quality_report: QualitySummaryReport
+    instrumentation: SilverBuildInstrumentation
+
+    def __new__(cls, *args: object, **kwargs: object) -> SilverBuildResult:
+        del args, kwargs
+        raise TypeError("SilverBuildResult is builder-issued")
+
+    @classmethod
+    def _issue(
+        cls,
+        *,
+        input_identity: BuildInputIdentity,
+        staged_tables: StagedParquetSet,
+        observations: SilverSourceAuditObservations,
+        quality_join_observations: QualityJoinObservations,
+        quality_report: QualitySummaryReport,
+        instrumentation: SilverBuildInstrumentation,
+    ) -> SilverBuildResult:
+        value = object.__new__(cls)
+        value.input_identity = input_identity
+        value.staged_tables = staged_tables
+        value.observations = observations
+        value.quality_join_observations = quality_join_observations
+        value.quality_report = quality_report
+        value.instrumentation = instrumentation
+        value._issuance = _SilverBuildResultIssuance(value)  # type: ignore[attr-defined]
+        return value
+
+
+class _SilverBuildResultIssuance:
+    __slots__ = ("facts", "members", "value")
+
+    def __init__(self, value: SilverBuildResult) -> None:
+        self.value = value
+        self.members = (
+            value.input_identity,
+            value.staged_tables,
+            value.observations,
+            value.quality_join_observations,
+            value.quality_report,
+            value.instrumentation,
+        )
+        self.facts = (
+            value.quality_join_observations.model_dump_json(),
+            value.quality_report.model_dump_json(),
+            _instrumentation_facts(value.instrumentation),
+        )
+
+
+def require_silver_build_result(value: object) -> SilverBuildResult:
+    """Require one unchanged exact builder-issued Silver result object."""
+    if type(value) is not SilverBuildResult:
+        raise TypeError("Silver result must have the exact runtime type")
+    try:
+        issuance = object.__getattribute__(value, "_issuance")
+        members = (
+            value.input_identity,
+            value.staged_tables,
+            value.observations,
+            value.quality_join_observations,
+            value.quality_report,
+            value.instrumentation,
+        )
+        if (
+            type(issuance) is not _SilverBuildResultIssuance
+            or issuance.value is not value
+            or any(left is not right for left, right in zip(issuance.members, members, strict=True))
+            or issuance.facts
+            != (
+                value.quality_join_observations.model_dump_json(),
+                value.quality_report.model_dump_json(),
+                _instrumentation_facts(value.instrumentation),
+            )
+        ):
+            raise ValueError("Silver result issuance changed")
+        value.input_identity.assert_unchanged()
+        value.staged_tables.assert_live()
+        require_silver_source_audit_observations(value.observations)
+        QualityJoinObservations.model_validate(
+            value.quality_join_observations.model_dump(mode="python"),
+            strict=True,
+        )
+        QualitySummaryReport.model_validate(
+            value.quality_report.model_dump(mode="python"),
+            strict=True,
+        )
+        if type(value.instrumentation) is not SilverBuildInstrumentation:
+            raise TypeError("Silver instrumentation must have the exact runtime type")
+    except AttributeError as exc:
+        raise ValueError("Silver result issuance is absent") from exc
+    return value
+
+
+def _instrumentation_facts(value: SilverBuildInstrumentation) -> tuple[object, ...]:
+    return (
+        value.source_rows_consumed,
+        tuple((item.name, item.observed) for item in value.source_consume_counts),
+        tuple((item.name, item.observed) for item in value.normalizer_call_counts),
+        tuple((item.name, item.observed) for item in value.staged_relation_rows),
+        value.max_live_fund_group_rows,
+        value.max_writer_batch_rows,
+        value.max_relation_batch_rows,
+    )
+
+
+class SilverArtifactEmitter:
+    """Session-owned one-pass consumer and finalizer for the six Silver tables."""
+
+    __slots__ = (
+        "_config",
+        "_excluded_counts",
+        "_held_rating_registry",
+        "_instrumentation",
+        "_last_fund_group_size",
+        "_max_live_fund_group_rows",
+        "_max_relation_batch_rows",
+        "_max_writer_batch_rows",
+        "_normalizer_call_counts",
+        "_observations",
+        "_order_store",
+        "_quality_join_observations",
+        "_quality_report",
+        "_session",
+        "_source_consume_counts",
+        "_source_rows_consumed",
+        "_staged_relation_rows",
+        "_staged_tables",
+        "_versions",
+    )
+
+    _config: ArtifactBuildConfig
+    _excluded_counts: dict[str, int]
+    _held_rating_registry: RatingRegistry
+    _instrumentation: SilverBuildInstrumentation | None
+    _last_fund_group_size: int
+    _max_live_fund_group_rows: int
+    _max_relation_batch_rows: int
+    _max_writer_batch_rows: int
+    _normalizer_call_counts: dict[str, int]
+    _observations: SilverSourceAuditObservations | None
+    _order_store: ExternalOrderStore
+    _quality_join_observations: QualityJoinObservations | None
+    _quality_report: QualitySummaryReport | None
+    _session: ArtifactBuildSession
+    _source_consume_counts: dict[str, int]
+    _source_rows_consumed: int
+    _staged_relation_rows: dict[str, int]
+    _staged_tables: StagedParquetSet | None
+    _versions: VersionBundle
+
+    def __new__(cls) -> SilverArtifactEmitter:
+        raise TypeError("SilverArtifactEmitter is factory-owned")
+
+    @classmethod
+    def for_session(
+        cls,
+        *,
+        session: ArtifactBuildSession,
+        config: ArtifactBuildConfig,
+        versions: VersionBundle,
+        rating_registry: RatingRegistry,
+    ) -> SilverArtifactEmitter:
+        if (
+            cls is not SilverArtifactEmitter
+            or type(session) is not ArtifactBuildSession
+            or type(config) is not ArtifactBuildConfig
+            or type(versions) is not VersionBundle
+            or type(rating_registry) is not RatingRegistry
+            or session._versions is not versions
+        ):
+            raise TypeError("Silver emitter requires exact retained build inputs")
+        session.assert_live()
+        value = object.__new__(cls)
+        value._session = session
+        value._config = config
+        value._versions = versions
+        value._held_rating_registry = rating_registry
+        value._max_live_fund_group_rows = 0
+        value._last_fund_group_size = 0
+        value._max_relation_batch_rows = 0
+        value._max_writer_batch_rows = 0
+        value._source_rows_consumed = 0
+        value._source_consume_counts = dict.fromkeys(_SOURCE_NAMES, 0)
+        value._normalizer_call_counts = dict.fromkeys(_SOURCE_NAMES, 0)
+        value._staged_relation_rows = dict.fromkeys(_STAGED_RELATION_NAMES, 0)
+        value._excluded_counts = dict.fromkeys(
+            ("instrument", "listed_product", "fund_item", "fund_attribute"),
+            0,
+        )
+        value._observations = None
+        value._quality_join_observations = None
+        value._quality_report = None
+        value._instrumentation = None
+        value._staged_tables = None
+        order_store = session.open_external_order_store(config=config)
+        value._order_store = order_store.__enter__()
+        return value
+
+    def consume(self, row: SourceRow) -> None:
+        """Normalize and stage one exact already-Bronze-enqueued source row."""
+        if type(row) is not SourceRow:
+            raise TypeError("Silver emitter requires an exact SourceRow")
+        if row.source_table not in self._source_consume_counts:
+            raise ValueError("Silver source table is outside the closed inventory")
+        self._source_rows_consumed += 1
+        self._source_consume_counts[row.source_table] += 1
+        self._normalizer_call_counts[row.source_table] += 1
+        result: (
+            NormalizationResult[BondInstrument]
+            | NormalizationResult[ListedProduct]
+            | NormalizationResult[OverseasListedProduct]
+        )
+        if row.source_table == "PRBD01N001":
+            result = normalize_bond(
+                row,
+                self._versions.dataset_version,
+                self._held_rating_registry,
+            )
+            relation = ExternalOrderRelation.SILVER_BOND_INSTRUMENT
+        elif row.source_table == "PREF01N001":
+            result = normalize_domestic_listed(row, self._versions.dataset_version)
+            relation = ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
+        elif row.source_table == "PREF02N001":
+            result = normalize_overseas_listed(row)
+            relation = ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT
+        else:
+            classification = classify_public_fund_row(row)
+            if classification.issue is not None:
+                self._stage_quality_issues((classification.issue,))
+                return
+            if type(classification.item_key) is not str:
+                raise ValueError("classified fund item key is missing")
+            self._order_store.insert_batch(
+                relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+                rows=(
+                    ExternalOrderRow(
+                        key=(classification.item_key, row.source_row_number),
+                        payload_json=canonical_record_json(row),
+                    ),
+                ),
+            )
+            self._staged_relation_rows[ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW.name] += 1
+            return
+        self._stage_nonfund_result(relation, result)
+        self._stage_quality_issues(result.issues)
+
+    def _stage_nonfund_result(
+        self,
+        relation: ExternalOrderRelation,
+        result: (
+            NormalizationResult[BondInstrument]
+            | NormalizationResult[ListedProduct]
+            | NormalizationResult[OverseasListedProduct]
+        ),
+    ) -> None:
+        if result.record is None:
+            grain = (
+                "instrument"
+                if relation is ExternalOrderRelation.SILVER_BOND_INSTRUMENT
+                else "listed_product"
+            )
+            self._excluded_counts[grain] += 1
+            return
+        product_id = result.record.product_id.normalized_value
+        if type(product_id) is not str:
+            raise ValueError("normalized Silver product ID is missing")
+        self._order_store.insert_batch(
+            relation=relation,
+            rows=(
+                ExternalOrderRow(
+                    key=(product_id,),
+                    payload_json=canonical_record_json(result.record),
+                ),
+            ),
+        )
+        self._staged_relation_rows[relation.name] += 1
+
+    def _stage_quality_issues(self, issues: Sequence[DataQualityIssue]) -> None:
+        for issue in issues:
+            persisted = persist_quality_issue(
+                issue,
+                persistence_timestamp=self._session.persistence_timestamp,
+            )
+            source = persisted.source
+            self._order_store.insert_batch(
+                relation=ExternalOrderRelation.SILVER_QUALITY_ISSUE,
+                rows=(
+                    ExternalOrderRow(
+                        key=(
+                            source.source_table,
+                            source.source_file.as_posix(),
+                            source.source_sheet,
+                            source.source_row_number,
+                            source.source_column_number,
+                            persisted.rule_id,
+                            persisted.issue_id,
+                        ),
+                        payload_json=canonical_record_json(persisted),
+                    ),
+                ),
+            )
+            self._staged_relation_rows[ExternalOrderRelation.SILVER_QUALITY_ISSUE.name] += 1
+
+    def finalize(self, *, bronze_result: BronzeBuildResult) -> SilverBuildResult:
+        """Validate the exact Bronze predecessor before any Silver drain."""
+        exact = require_bronze_build_result(bronze_result)
+        if (
+            exact.input_identity is not self._session._input_identity
+            or exact.staged_tables._owner is not self._session
+            or exact.staged_tables.persistence_timestamp != self._session.persistence_timestamp
+        ):
+            raise ValueError("Bronze result does not belong to this Silver emitter")
+        exact.staged_tables.assert_live()
+        names = tuple(item.logical.name for item in exact.staged_tables.verifications)
+        if names != (
+            "bronze_source_column",
+            "bronze_source_row",
+            "bronze_source_cell",
+        ):
+            raise ValueError("Silver finalization requires the exact Bronze prefix")
+        require_bronze_source_audit_observations(exact.observations)
+        self._staged_tables = self._drain_silver_tables(exact.staged_tables)
+        relation_verifier = StagedBoundedRelationVerifier.for_store(self._order_store)
+        self._quality_join_observations = relation_verifier.verify_quality_to_bronze(
+            tables=self._staged_tables
+        )
+        self._quality_report = QualitySummaryReport.from_verified_quality(
+            issues=self._iter_persisted_quality_issues(),
+            join_observations=self._quality_join_observations,
+            excluded_silver_records=tuple(
+                ExcludedSilverCount(
+                    grain=cast(
+                        Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
+                        grain,
+                    ),
+                    count=count,
+                )
+                for grain, count in sorted(self._excluded_counts.items())
+                if count > 0
+            ),
+        )
+        observed_counts = {
+            verification.logical.name: verification.logical.row_count
+            for verification in self._staged_tables.verifications
+        }
+        self._observations = exact.observations.with_silver(
+            (
+                NamedExpectedObservedCount(
+                    name="bond_instrument",
+                    expected=self._config.silver_counts.bond_instrument,
+                    observed=observed_counts["silver_bond_instrument"],
+                ),
+                NamedExpectedObservedCount(
+                    name="domestic_listed_product",
+                    expected=self._config.silver_counts.domestic_listed_product,
+                    observed=observed_counts["silver_domestic_listed_product"],
+                ),
+                NamedExpectedObservedCount(
+                    name="overseas_listed_product",
+                    expected=self._config.silver_counts.overseas_listed_product,
+                    observed=observed_counts["silver_overseas_listed_product"],
+                ),
+                NamedExpectedObservedCount(
+                    name="fund_item",
+                    expected=self._config.silver_counts.fund_item,
+                    observed=observed_counts["silver_fund_item"],
+                ),
+                NamedExpectedObservedCount(
+                    name="fund_item_attribute",
+                    expected=self._config.silver_counts.fund_item_attribute,
+                    observed=observed_counts["silver_fund_item_attribute"],
+                ),
+            ),
+            ExpectedObservedCount(
+                expected=self._config.quarantine_source_rows,
+                observed=self._quality_join_observations.quarantined_source_row_count,
+            ),
+        )
+        self._instrumentation = SilverBuildInstrumentation(
+            source_rows_consumed=self._source_rows_consumed,
+            source_consume_counts=tuple(
+                NamedObservedCount(name=name, observed=self._source_consume_counts[name])
+                for name in _SOURCE_NAMES
+            ),
+            normalizer_call_counts=tuple(
+                NamedObservedCount(name=name, observed=self._normalizer_call_counts[name])
+                for name in _SOURCE_NAMES
+            ),
+            staged_relation_rows=tuple(
+                NamedObservedCount(name=name, observed=self._staged_relation_rows[name])
+                for name in _STAGED_RELATION_NAMES
+            ),
+            max_live_fund_group_rows=self._max_live_fund_group_rows,
+            max_writer_batch_rows=self._max_writer_batch_rows,
+            max_relation_batch_rows=self._max_relation_batch_rows,
+        )
+        self._order_store.close_and_remove_working_state()
+        return SilverBuildResult._issue(
+            input_identity=exact.input_identity,
+            staged_tables=self._staged_tables,
+            observations=self._observations,
+            quality_join_observations=self._quality_join_observations,
+            quality_report=self._quality_report,
+            instrumentation=self._instrumentation,
+        )
+
+    def _drain_silver_tables(self, bronze_tables: StagedParquetSet) -> StagedParquetSet:
+        table_names = (
+            "silver_bond_instrument",
+            "silver_domestic_listed_product",
+            "silver_overseas_listed_product",
+            "silver_fund_item",
+            "silver_fund_item_attribute",
+            "silver_quality_issue",
+        )
+        specs = tuple(TABLE_SPEC_BY_NAME[name] for name in table_names)
+        leaves = tuple(self._session.claim_parquet_leaf(spec) for spec in specs)
+        writers: list[ParquetBatchWriter] = []
+        sinks: list[_SilverBatchSink] = []
+        try:
+            for spec, leaf in zip(specs, leaves, strict=True):
+                writer = ParquetBatchWriter(spec, leaf)
+                writers.append(writer)
+                sinks.append(
+                    _SilverBatchSink(
+                        writer,
+                        limit=self._config.parquet.writer_batch_rows,
+                    )
+                )
+            self._drain_model_relation(
+                ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+                BondInstrument,
+                specs[0],
+                sinks[0],
+            )
+            self._drain_model_relation(
+                ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
+                ListedProduct,
+                specs[1],
+                sinks[1],
+            )
+            self._drain_model_relation(
+                ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
+                OverseasListedProduct,
+                specs[2],
+                sinks[2],
+            )
+            self._drain_fund_relation(specs[3], specs[4], sinks[3], sinks[4])
+            self._drain_model_relation(
+                ExternalOrderRelation.SILVER_QUALITY_ISSUE,
+                DataQualityIssue,
+                specs[5],
+                sinks[5],
+            )
+            for sink in sinks:
+                sink.close()
+            self._max_writer_batch_rows = max(
+                (sink._max_batch_rows for sink in sinks),
+                default=0,
+            )
+            writers.clear()
+            verifications = tuple(
+                verify_staged_parquet_table(owner=self._session, leaf=leaf, spec=spec)
+                for spec, leaf in zip(specs, leaves, strict=True)
+            )
+            return bronze_tables.extend_verified(
+                owner=self._session,
+                verifications=verifications,
+            )
+        except BaseException:
+            for writer in reversed(writers):
+                with contextlib.suppress(BaseException):
+                    writer.abort()
+            raise
+
+    def _drain_model_relation(
+        self,
+        relation: ExternalOrderRelation,
+        model_type: type[BondInstrument]
+        | type[ListedProduct]
+        | type[OverseasListedProduct]
+        | type[DataQualityIssue],
+        spec: TableSpec,
+        sink: _SilverBatchSink,
+    ) -> None:
+        for batch in self._order_store.iter_ordered_batches(relation=relation):
+            self._max_relation_batch_rows = max(
+                self._max_relation_batch_rows,
+                len(batch),
+            )
+            for staged in batch:
+                model = model_type.model_validate_json(staged.payload_json, strict=True)
+                sink.enqueue(serialize_table_row(spec, model))
+
+    def _drain_fund_relation(
+        self,
+        item_spec: TableSpec,
+        attribute_spec: TableSpec,
+        item_sink: _SilverBatchSink,
+        attribute_sink: _SilverBatchSink,
+    ) -> None:
+        for result in self._iter_normalized_fund_groups():
+            if not result.items:
+                self._excluded_counts["fund_item"] += 1
+            self._excluded_counts["fund_attribute"] += self._last_fund_group_size - len(
+                result.attributes
+            )
+            for item in result.items:
+                item_sink.enqueue(serialize_table_row(item_spec, item))
+            for attribute in result.attributes:
+                attribute_sink.enqueue(serialize_table_row(attribute_spec, attribute))
+            self._stage_quality_issues(result.issues)
+
+    def _iter_normalized_fund_groups(self) -> Iterator[FundCollapseResult]:
+        current_key: str | None = None
+        group: list[SourceRow] = []
+
+        def take_group() -> FundCollapseResult:
+            self._last_fund_group_size = len(group)
+            result = normalize_public_fund_item_group(tuple(group))
+            group.clear()
+            return result
+
+        for batch in self._order_store.iter_ordered_batches(
+            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW
+        ):
+            self._max_relation_batch_rows = max(
+                self._max_relation_batch_rows,
+                len(batch),
+            )
+            for staged in batch:
+                item_key = staged.key[0]
+                if type(item_key) is not str:
+                    raise ValueError("fund staging key changed")
+                if current_key is not None and item_key != current_key:
+                    yield take_group()
+                current_key = item_key
+                group.append(SourceRow.model_validate_json(staged.payload_json, strict=True))
+                self._max_live_fund_group_rows = max(
+                    self._max_live_fund_group_rows,
+                    len(group),
+                )
+        if group:
+            yield take_group()
+
+    def _iter_persisted_quality_issues(self) -> Iterator[DataQualityIssue]:
+        for batch in self._order_store.iter_ordered_batches(
+            relation=ExternalOrderRelation.SILVER_QUALITY_ISSUE
+        ):
+            self._max_relation_batch_rows = max(
+                self._max_relation_batch_rows,
+                len(batch),
+            )
+            for staged in batch:
+                yield DataQualityIssue.model_validate_json(
+                    staged.payload_json,
+                    strict=True,
+                )

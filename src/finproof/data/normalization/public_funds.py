@@ -1,8 +1,11 @@
 """Pure public-fund attribute-row normalization with exact source lineage."""
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from decimal import Decimal
+from itertools import pairwise
+
+from pydantic import BaseModel, ConfigDict
 
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.numeric import parse_decimal
@@ -41,6 +44,24 @@ _COLLAPSE_ISSUE_REASONS = {
         "Public-fund non-attribute source values disagree within one item."
     ),
 }
+
+
+class FundRowKeyClassification(BaseModel):
+    """Authoritative item-key classification without attribute normalization."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    item_key: str | None
+    issue: DataQualityIssue | None
+
+
+def classify_public_fund_row(row: SourceRow) -> FundRowKeyClassification:
+    """Classify one source row using only the authoritative key validator."""
+    fund_item_id, _attribute_code_value, issue = _validate_fund_keys(row)
+    return FundRowKeyClassification(
+        item_key=fund_item_id.normalized_value,
+        issue=issue,
+    )
 
 
 def normalize_fund_attribute(
@@ -205,15 +226,15 @@ def normalize_public_funds(rows: Iterable[SourceRow]) -> FundCollapseResult:
     issue_order: dict[tuple[object, ...], tuple[str, str]] = {}
     seen_source_locations: set[tuple[object, ...]] = set()
     for row in rows:
-        fund_item_id, _attribute_code_value, key_issue = _validate_fund_keys(row)
+        classification = classify_public_fund_row(row)
         source_identity = _register_source_location(seen_source_locations, row)
-        normalized_item_key = fund_item_id.normalized_value
+        normalized_item_key = classification.item_key
         issue_order[source_identity] = (
             normalized_item_key or "",
             "" if normalized_item_key is not None else row.cell("itm_no").raw_value,
         )
-        if key_issue is not None:
-            issues.append(key_issue)
+        if classification.issue is not None:
+            issues.append(classification.issue)
             continue
         item_key = normalized_item_key
         if item_key is None:
@@ -223,7 +244,7 @@ def normalize_public_funds(rows: Iterable[SourceRow]) -> FundCollapseResult:
     items: list[FundItem] = []
     attributes: list[FundItemAttribute] = []
     for item_key in sorted(source_groups):
-        item, group_attributes, group_issues = _normalize_and_collapse_source_group(
+        group_result = normalize_public_fund_item_group(
             tuple(
                 sorted(
                     source_groups[item_key],
@@ -231,16 +252,36 @@ def normalize_public_funds(rows: Iterable[SourceRow]) -> FundCollapseResult:
                 )
             )
         )
-        if item is not None:
-            items.append(item)
-        attributes.extend(group_attributes)
-        issues.extend(group_issues)
+        items.extend(group_result.items)
+        attributes.extend(group_result.attributes)
+        issues.extend(group_result.issues)
 
     attributes.sort(key=_attribute_sort_key)
     return FundCollapseResult(
         items=tuple(items),
         attributes=tuple(attributes),
         issues=_ordered_issues(issues, issue_order),
+    )
+
+
+def normalize_public_fund_item_group(rows: Sequence[SourceRow]) -> FundCollapseResult:
+    """Normalize one already source-row-ordered public-fund item group."""
+    group = tuple(rows)
+    if not group:
+        raise ValueError("invalid public-fund item group")
+    if any(left.source_row_number >= right.source_row_number for left, right in pairwise(group)):
+        raise ValueError("invalid public-fund item group")
+    classifications = tuple(classify_public_fund_row(row) for row in group)
+    if any(classification.issue is not None for classification in classifications):
+        raise ValueError("invalid public-fund item group")
+    item_keys = {classification.item_key for classification in classifications}
+    if None in item_keys or len(item_keys) != 1:
+        raise ValueError("invalid public-fund item group")
+    item, attributes, issues = _normalize_and_collapse_source_group(group)
+    return FundCollapseResult(
+        items=() if item is None else (item,),
+        attributes=attributes,
+        issues=issues,
     )
 
 

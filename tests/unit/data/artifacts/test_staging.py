@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 
 from finproof.core.settings import Settings
+from finproof.data.artifacts.staging import ExternalOrderRow
 
 
 def _staging_settings(repository_root: Path):
@@ -958,6 +959,303 @@ def test_external_order_store_production_entry_is_pathless_owner_config_only(
         assert type(store).__name__ == "ExternalOrderStore"
 
 
+def test_external_order_store_cp5_relation_inventory_is_exact_and_closed() -> None:
+    from finproof.data.artifacts.staging import (
+        ExternalOrderJoinOperation,
+        ExternalOrderJoinRow,
+        ExternalOrderRelation,
+        ExternalOrderRow,
+    )
+
+    assert tuple(ExternalOrderRelation) == (
+        ExternalOrderRelation.BRONZE_SOURCE_ROW,
+        ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+        ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
+        ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
+        ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+        ExternalOrderRelation.SILVER_QUALITY_ISSUE,
+        ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE,
+        ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
+        ExternalOrderRelation.EXACT_LINK_EVIDENCE,
+    )
+    assert tuple(ExternalOrderJoinOperation) == (
+        ExternalOrderJoinOperation.QUALITY_TO_BRONZE,
+        ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE,
+        ExternalOrderJoinOperation.LINKED_DOMESTIC_RECORD_JSON,
+        ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON,
+    )
+    row = ExternalOrderRow(key=(1, "x"), payload_json='{"x":1}')
+    join_row = ExternalOrderJoinRow(key=(1, "x"), values=("v", 2))
+    assert row.key == (1, "x")
+    assert join_row.values == ("v", 2)
+    with pytest.raises((AttributeError, TypeError)):
+        row.key = (2,)
+
+
+def test_external_order_store_typed_batch_insert_and_export_are_bounded(tmp_path: Path) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderRelation,
+        ExternalOrderRow,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    rows = tuple(
+        ExternalOrderRow(key=(key,), payload_json=f'{{"key":"{key}"}}')
+        for key in ("k7", "k2", "k5", "k1", "k6", "k3", "k4")
+    )
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(batch_rows=3, memory_limit_bytes=1 << 20),
+        ) as store,
+    ):
+        store.insert_batch(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT, rows=iter(rows))
+        batches = tuple(
+            store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT)
+        )
+
+    assert all(1 <= len(batch) <= 3 for batch in batches)
+    assert tuple(row.key for batch in batches for row in batch) == tuple(
+        (key,) for key in ("k1", "k2", "k3", "k4", "k5", "k6", "k7")
+    )
+    assert all(type(row) is ExternalOrderRow for batch in batches for row in batch)
+
+
+def test_external_order_store_preserves_numeric_and_string_key_order(tmp_path: Path) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderRelation,
+        ExternalOrderRow,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    rows = tuple(
+        ExternalOrderRow(key=key, payload_json=f'{{"id":"{index}"}}')
+        for index, key in enumerate((("z", 10), ("z", 2), ("a", 2), ("A", 10)))
+    )
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        store.insert_batch(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW, rows=rows)
+        ordered = tuple(
+            row
+            for batch in store.iter_ordered_batches(
+                relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW
+            )
+            for row in batch
+        )
+
+    assert tuple(row.key for row in ordered) == (("A", 10), ("a", 2), ("z", 2), ("z", 10))
+
+
+@pytest.mark.parametrize(
+    "rows",
+    [
+        pytest.param(
+            (ExternalOrderRow(key=("item", 2, "extra"), payload_json='{"id":1}'),),
+            id="wrong-arity",
+        ),
+        pytest.param(
+            (ExternalOrderRow(key=("item", True), payload_json='{"id":1}'),),
+            id="bool-numeric-key",
+        ),
+        pytest.param(
+            (ExternalOrderRow(key=("item", "2"), payload_json='{"id":1}'),),
+            id="numeric-string-key",
+        ),
+        pytest.param(
+            (ExternalOrderRow(key=("item", 2), payload_json='{"b":2, "a":1}'),),
+            id="noncanonical-payload",
+        ),
+        pytest.param(
+            (
+                ExternalOrderRow(key=("item", 2), payload_json='{"id":1}'),
+                ExternalOrderRow(key=("item", 2), payload_json='{"id":2}'),
+            ),
+            id="duplicate-key",
+        ),
+    ],
+)
+def test_external_order_store_rejects_wrong_arity_bool_coercion_noncanonical_payload_and_duplicate_key(  # noqa: E501
+    tmp_path: Path,
+    rows: tuple[object, ...],
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderRelation,
+        ExternalOrderStore,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+
+    def insert_and_read(store: ExternalOrderStore) -> None:
+        store.insert_batch(
+            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+            rows=rows,  # type: ignore[arg-type]
+        )
+        tuple(store.iter_ordered_batches(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW))
+
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(batch_rows=2, memory_limit_bytes=1 << 20),
+        ) as store,
+        pytest.raises(ArtifactContractError),
+    ):
+        insert_and_read(store)
+
+
+def test_external_order_store_exposes_no_public_connection_sql_table_cursor_or_path_surface() -> (
+    None
+):
+    from finproof.data.artifacts.staging import ExternalOrderStore
+
+    public_names = {name for name in dir(ExternalOrderStore) if not name.startswith("_")}
+    assert public_names <= {
+        "close_and_remove_working_state",
+        "insert_batch",
+        "iter_join_batches",
+        "iter_ordered_batches",
+    }
+    assert {
+        "close_and_remove_working_state",
+        "insert_batch",
+        "iter_ordered_batches",
+    } <= public_names
+    for forbidden in (
+        "connection",
+        "execute",
+        "sql",
+        "table",
+        "cursor",
+        "path",
+        "join",
+        "register",
+    ):
+        assert forbidden not in public_names
+    assert tuple(inspect.signature(ExternalOrderStore.insert_batch).parameters) == (
+        "self",
+        "relation",
+        "rows",
+    )
+
+
+def test_bounded_relation_verifier_has_exact_cp5_cp6_closed_signatures() -> None:
+    from finproof.data.artifacts.reports import BoundedRelationVerifier
+
+    assert tuple(
+        inspect.signature(BoundedRelationVerifier.verify_quality_to_bronze).parameters
+    ) == ("self", "tables")
+    assert tuple(
+        inspect.signature(BoundedRelationVerifier.verify_exact_evidence_to_bronze).parameters
+    ) == ("self", "tables")
+    assert tuple(inspect.signature(BoundedRelationVerifier.iter_linked_record_json).parameters) == (
+        "self",
+        "tables",
+        "side",
+        "exact_ids",
+    )
+
+
+def test_external_order_store_closed_quality_join_revalidates_exact_live_staged_set(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.parquet_io import (
+        ParquetBatchWriter,
+        StagedParquetSet,
+        verify_staged_parquet_table,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderJoinOperation,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        verifications = []
+        for spec in TABLE_SPECS[:9]:
+            leaf = session.claim_parquet_leaf(spec)
+            ParquetBatchWriter(spec, leaf).close()
+            verifications.append(verify_staged_parquet_table(owner=session, leaf=leaf, spec=spec))
+        tables = StagedParquetSet.from_verified(
+            owner=session,
+            verifications=tuple(verifications),
+        )
+
+        assert (
+            tuple(
+                store.iter_join_batches(
+                    operation=ExternalOrderJoinOperation.QUALITY_TO_BRONZE,
+                    tables=tables,
+                )
+            )
+            == ()
+        )
+
+
 def test_external_order_store_fixes_production_settings_and_isolates_private_test_limits(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1026,6 +1324,7 @@ def test_external_order_store_orders_bounded_single_pass_batches_without_materia
     from finproof.data.artifacts.staging import (
         ArtifactBuildSession,
         ExternalOrderRelation,
+        ExternalOrderRow,
         ExternalOrderStoreTestLimits,
         _open_external_order_store_for_test,
     )
@@ -1037,12 +1336,12 @@ def test_external_order_store_orders_bounded_single_pass_batches_without_materia
         def __len__(self) -> int:
             raise AssertionError("the source must never be materialized for sizing")
 
-        def __iter__(self) -> Iterator[tuple[str, str]]:
+        def __iter__(self) -> Iterator[ExternalOrderRow]:
             if self.iterations:
                 raise AssertionError("the source must be consumed exactly once")
             self.iterations += 1
             for key in ("k7", "k2", "k5", "k1", "k6", "k3", "k4"):
-                yield key, f'{{"key":"{key}"}}'
+                yield ExternalOrderRow(key=(key,), payload_json=f'{{"key":"{key}"}}')
 
     settings = _staging_settings(tmp_path / "repository")
     config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
@@ -1062,15 +1361,15 @@ def test_external_order_store_orders_bounded_single_pass_batches_without_materia
         ) as store,
     ):
         store.insert_batch(
-            relation=ExternalOrderRelation.BRONZE_SOURCE_ROW,
+            relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
             rows=rows,
         )
         batches = tuple(
-            store.iter_ordered_batches(relation=ExternalOrderRelation.BRONZE_SOURCE_ROW)
+            store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT)
         )
         assert all(1 <= len(batch) <= limits.batch_rows for batch in batches)
-        assert tuple(row for batch in batches for row in batch) == tuple(
-            (key, f'{{"key":"{key}"}}') for key in ("k1", "k2", "k3", "k4", "k5", "k6", "k7")
+        assert tuple(row.key for batch in batches for row in batch) == tuple(
+            (key,) for key in ("k1", "k2", "k3", "k4", "k5", "k6", "k7")
         )
     assert rows.iterations == 1
 
