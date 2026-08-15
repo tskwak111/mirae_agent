@@ -48,17 +48,18 @@ class ClosedTableSpecRegistry:
     """The sole closed registry for the exact reviewed table-spec tuple."""
 
     def __init__(self, specs: tuple[TableSpec, ...]) -> None:
+        if type(specs) is not tuple:
+            raise TypeError("registry requires a tuple")
+        if (
+            specs is not TABLE_SPECS
+            or len(specs) != len(TABLE_SPECS)
+            or any(specs[index] is not TABLE_SPECS[index] for index in range(len(specs)))
+        ):
+            raise ValueError("registry requires the exact frozen table specs tuple")
         for spec in specs:
             names = tuple(column.name for column in spec.columns)
             if len(names) != len(set(names)):
                 raise ValueError("column names must be unique")
-        if (
-            type(specs) is not tuple
-            or specs is not TABLE_SPECS
-            or len(specs) != len(TABLE_SPECS)
-            or any(spec is not TABLE_SPECS[index] for index, spec in enumerate(specs))
-        ):
-            raise ValueError("registry requires the exact frozen table specs tuple")
         self._specs = specs
 
     def ordered_specs(self) -> tuple[TableSpec, ...]:

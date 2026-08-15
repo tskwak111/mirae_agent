@@ -805,6 +805,143 @@ def test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and
     assert canonical_calls == 0
 
 
+@pytest.mark.parametrize(
+    "case",
+    [
+        "grain-str-subclass",
+        "locator-str-subclass",
+        "locator-path-subclass",
+        "locator-int-subclass",
+        "locator-bool",
+        "locator-datetime",
+        "locator-date-subclass",
+        "locator-applicable-datetime",
+        "equivalent-locator-int-subclass",
+        "row-str-subclass",
+        "row-path-subclass",
+        "row-int-subclass",
+        "raw-payload-str-subclass",
+        "cells-list",
+        "cell-subclass",
+        "cell-str-subclass",
+        "cell-int-subclass",
+    ],
+)
+def test_fund_python_graph_recursively_rejects_exact_model_children_with_forged_scalar_subclasses(
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from datetime import datetime
+    from pathlib import PurePosixPath
+
+    from finproof.data.artifacts import serialization
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.domain.source import SourceCell
+
+    class ForgedText(str):
+        pass
+
+    class ForgedInt(int):
+        pass
+
+    class ForgedDate(date):
+        pass
+
+    class ForgedPath(PurePosixPath):
+        pass
+
+    class ForgedSourceCell(SourceCell):
+        pass
+
+    value = _fund_record().model_copy(deep=True)
+    representative = value.fund_item_id.representative
+    locator = representative.source
+    equivalent_locator = value.fund_item_id.equivalent_sources[1]
+    row = value.contributing_rows[0]
+    cell = row.cells[0]
+
+    if case == "grain-str-subclass":
+        object.__setattr__(value, "grain", ForgedText(value.grain))
+    elif case == "locator-str-subclass":
+        object.__setattr__(locator, "source_table", ForgedText(locator.source_table))
+    elif case == "locator-path-subclass":
+        object.__setattr__(locator, "source_file", ForgedPath(locator.source_file))
+    elif case == "locator-int-subclass":
+        object.__setattr__(
+            locator,
+            "source_row_number",
+            ForgedInt(locator.source_row_number),
+        )
+    elif case == "locator-bool":
+        object.__setattr__(locator, "source_row_number", True)
+    elif case == "locator-datetime":
+        object.__setattr__(
+            locator,
+            "source_snapshot_date",
+            datetime(2026, 7, 11),
+        )
+    elif case == "locator-date-subclass":
+        object.__setattr__(locator, "source_snapshot_date", ForgedDate(2026, 7, 11))
+    elif case == "locator-applicable-datetime":
+        object.__setattr__(
+            locator,
+            "source_applicable_date",
+            datetime(2026, 7, 11),
+        )
+    elif case == "equivalent-locator-int-subclass":
+        object.__setattr__(
+            equivalent_locator,
+            "source_column_number",
+            ForgedInt(equivalent_locator.source_column_number),
+        )
+    elif case == "row-str-subclass":
+        object.__setattr__(row, "source_table", ForgedText(row.source_table))
+    elif case == "row-path-subclass":
+        object.__setattr__(row, "source_file", ForgedPath(row.source_file))
+    elif case == "row-int-subclass":
+        object.__setattr__(row, "source_row_number", ForgedInt(row.source_row_number))
+    elif case == "raw-payload-str-subclass":
+        object.__setattr__(
+            row,
+            "raw_payload",
+            (ForgedText(row.raw_payload[0]), *row.raw_payload[1:]),
+        )
+    elif case == "cells-list":
+        object.__setattr__(row, "cells", list(row.cells))
+    elif case == "cell-subclass":
+        object.__setattr__(
+            row,
+            "cells",
+            (
+                ForgedSourceCell.model_construct(**cell.model_dump(mode="python")),
+                *row.cells[1:],
+            ),
+        )
+    elif case == "cell-str-subclass":
+        object.__setattr__(cell, "raw_value", ForgedText(cell.raw_value))
+    else:
+        object.__setattr__(
+            cell,
+            "excel_column_number",
+            ForgedInt(cell.excel_column_number),
+        )
+
+    canonical_calls = 0
+
+    def fail_canonical(_model: BaseModel) -> str:
+        nonlocal canonical_calls
+        canonical_calls += 1
+        raise AssertionError("canonical serialization must not be reached")
+
+    monkeypatch.setattr(serialization, "canonical_record_json", fail_canonical)
+    with pytest.raises(ValueError, match="physical model values"):
+        serialization.serialize_table_row(
+            TABLE_SPEC_BY_NAME["silver_fund_item"],
+            value,
+        )
+    assert canonical_calls == 0
+
+
 @pytest.mark.parametrize("case", ["table-grain", "nested-column-arrow-type"])
 def test_serialization_rejects_mutated_registered_spec_fingerprint(case: str) -> None:
     from finproof.data.artifacts.serialization import serialize_table_row

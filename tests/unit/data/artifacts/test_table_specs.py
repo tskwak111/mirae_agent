@@ -1,7 +1,8 @@
 """Frozen table-spec contracts for artifact persistence."""
 
+from collections.abc import Iterator
 from inspect import signature
-from typing import cast
+from typing import NoReturn, Self, cast
 
 import pytest
 
@@ -54,31 +55,21 @@ def _wide_columns(
 
 def test_table_spec_module_skeleton_rejects_closed_registry_fixture() -> None:
     from finproof.data.artifacts.table_specs import (
+        TABLE_SPECS,
         ClosedTableSpecRegistry,
-        ColumnSpec,
-        TableSpec,
+        require_registered_table_spec,
     )
 
-    duplicate = ColumnSpec(
-        name="duplicate",
-        logical_type="text",
-        arrow_type="utf8",
-        duckdb_type="VARCHAR",
-        nullable=False,
-    )
-    malformed = TableSpec(
-        table_name="not_registered",
-        layer="bronze",
-        grain="test",
-        columns=(duplicate, duplicate),
-        unique_key=("duplicate",),
-        sort_key=("duplicate",),
-        logical_projection=("duplicate",),
-        parquet_path="parquet/not_registered.parquet",
-    )
+    spec = TABLE_SPECS[0]
+    original_columns = spec.columns
+    try:
+        object.__setattr__(spec, "columns", (*original_columns, original_columns[0]))
+        with pytest.raises(ValueError, match="column names"):
+            ClosedTableSpecRegistry(TABLE_SPECS)
+    finally:
+        object.__setattr__(spec, "columns", original_columns)
 
-    with pytest.raises(ValueError, match="column names"):
-        ClosedTableSpecRegistry((malformed,))
+    require_registered_table_spec(spec)
 
 
 @pytest.mark.parametrize(
@@ -128,10 +119,60 @@ def test_closed_table_spec_registry_accepts_only_exact_frozen_table_specs_tuple(
     else:
         candidate = tuple(reversed(TABLE_SPECS))
 
-    with pytest.raises(ValueError, match="exact frozen table specs"):
+    expected_error = TypeError if case in {"list", "generator"} else ValueError
+    expected_message = "tuple" if expected_error is TypeError else "exact frozen table specs"
+    with pytest.raises(expected_error, match=expected_message):
         ClosedTableSpecRegistry(cast(tuple[TableSpec, ...], candidate))
 
     ClosedTableSpecRegistry(TABLE_SPECS)
+
+
+@pytest.mark.parametrize("case", ["iterable", "generator", "list", "iterator"])
+def test_closed_registry_rejects_foreign_generator_typed_without_pulling_it(
+    case: str,
+) -> None:
+    from finproof.data.artifacts.table_specs import ClosedTableSpecRegistry, TableSpec
+
+    pulls = 0
+
+    class ForeignIterable:
+        def __iter__(self) -> NoReturn:
+            nonlocal pulls
+            pulls += 1
+            raise RuntimeError("foreign iterable was pulled")
+
+    class ForeignIterator:
+        def __iter__(self) -> Self:
+            return self
+
+        def __next__(self) -> NoReturn:
+            nonlocal pulls
+            pulls += 1
+            raise RuntimeError("foreign iterator was pulled")
+
+    class ForeignElement:
+        @property
+        def columns(self) -> NoReturn:
+            nonlocal pulls
+            pulls += 1
+            raise RuntimeError("foreign list element was inspected")
+
+    def foreign_generator() -> Iterator[object]:
+        nonlocal pulls
+        pulls += 1
+        yield ForeignElement()
+
+    candidates = {
+        "iterable": ForeignIterable(),
+        "generator": foreign_generator(),
+        "list": [ForeignElement()],
+        "iterator": ForeignIterator(),
+    }
+
+    with pytest.raises(TypeError, match="tuple"):
+        ClosedTableSpecRegistry(cast(tuple[TableSpec, ...], candidates[case]))
+
+    assert pulls == 0
 
 
 def test_closed_table_spec_registry_ordered_specs_satisfies_cp2_kernel_port() -> None:

@@ -22,8 +22,8 @@ from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.locators import SourceCellLocator
 from finproof.domain.overseas_listed import OverseasListedProduct
 from finproof.domain.public_funds import FundItem, FundItemAttribute, FundItemValue
-from finproof.domain.quality import DataQualityIssue
-from finproof.domain.source import SourceRow
+from finproof.domain.quality import DataQualityIssue, QualityStatus
+from finproof.domain.source import SourceCell, SourceRow
 from finproof.domain.values import DerivedValue, NormalizedValue
 
 
@@ -243,14 +243,86 @@ def _serialize_explicit(spec: TableSpec, value: BaseModel) -> Mapping[str, objec
     return row
 
 
-def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
-    if type(value) is not FundItem or type(value.contributing_rows) is not tuple:
+def _exact_source_cell(cell: object) -> SourceCell:
+    if (
+        type(cell) is not SourceCell
+        or type(cell.column_name) is not str
+        or type(cell.excel_column_number) is not int
+        or type(cell.excel_column_letter) is not str
+        or type(cell.raw_value) is not str
+        or (cell.applicable_date is not None and type(cell.applicable_date) is not date)
+    ):
         raise ValueError("physical model values do not match the frozen contract")
-    if any(type(row) is not SourceRow for row in value.contributing_rows):
+    return SourceCell.model_validate(
+        {name: getattr(cell, name) for name in SourceCell.model_fields},
+        strict=True,
+    )
+
+
+def _exact_source_row(row: object) -> SourceRow:
+    if (
+        type(row) is not SourceRow
+        or type(row.source_table) is not str
+        or type(row.source_file) is not PurePosixPath
+        or type(row.source_sheet) is not str
+        or type(row.source_row_number) is not int
+        or type(row.source_checksum) is not str
+        or type(row.source_snapshot_date) is not date
+        or type(row.raw_payload) is not tuple
+        or any(type(raw) is not str for raw in row.raw_payload)
+        or type(row.cells) is not tuple
+    ):
+        raise ValueError("physical model values do not match the frozen contract")
+    cells = tuple(_exact_source_cell(cell) for cell in row.cells)
+    return SourceRow.model_validate(
+        {
+            "source_table": row.source_table,
+            "source_file": row.source_file,
+            "source_sheet": row.source_sheet,
+            "source_row_number": row.source_row_number,
+            "source_checksum": row.source_checksum,
+            "source_snapshot_date": row.source_snapshot_date,
+            "raw_payload": row.raw_payload,
+            "cells": cells,
+        },
+        strict=True,
+    )
+
+
+def _exact_source_locator(locator: object) -> SourceCellLocator:
+    if (
+        type(locator) is not SourceCellLocator
+        or type(locator.source_table) is not str
+        or type(locator.source_file) is not PurePosixPath
+        or type(locator.source_sheet) is not str
+        or type(locator.source_row_number) is not int
+        or type(locator.source_column_name) is not str
+        or type(locator.source_column_number) is not int
+        or type(locator.source_column_letter) is not str
+        or type(locator.source_checksum) is not str
+        or type(locator.source_snapshot_date) is not date
+        or (
+            locator.source_applicable_date is not None
+            and type(locator.source_applicable_date) is not date
+        )
+    ):
+        raise ValueError("physical model values do not match the frozen contract")
+    return SourceCellLocator.model_validate(
+        {name: getattr(locator, name) for name in SourceCellLocator.model_fields},
+        strict=True,
+    )
+
+
+def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
+    if (
+        type(value) is not FundItem
+        or type(value.grain) is not str
+        or type(value.contributing_rows) is not tuple
+    ):
         raise ValueError("physical model values do not match the frozen contract")
     payload: dict[str, object] = {
         "grain": value.grain,
-        "contributing_rows": value.contributing_rows,
+        "contributing_rows": tuple(_exact_source_row(row) for row in value.contributing_rows),
     }
     for name, field in FundItem.model_fields.items():
         if name in {"grain", "contributing_rows"}:
@@ -269,13 +341,16 @@ def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
             not isinstance(representative_type, type)
             or type(representative) is not representative_type
             or type(representative.raw_value) is not str
+            or type(representative.quality_status) is not QualityStatus
             or type(representative.rule_id) is not str
             or type(representative.rule_version) is not str
-            or type(representative.source) is not SourceCellLocator
             or type(wrapped.equivalent_sources) is not tuple
-            or any(type(source) is not SourceCellLocator for source in wrapped.equivalent_sources)
         ):
             raise ValueError("physical model values do not match the frozen contract")
+        representative_source = _exact_source_locator(representative.source)
+        equivalent_sources = tuple(
+            _exact_source_locator(source) for source in wrapped.equivalent_sources
+        )
         annotation = representative_type.model_fields["normalized_value"].annotation
         expected_types = tuple(
             arg for arg in getattr(annotation, "__args__", ()) if arg is not type(None)
@@ -289,13 +364,14 @@ def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
             {
                 field_name: getattr(representative, field_name)
                 for field_name in representative_type.model_fields
-            },
+            }
+            | {"source": representative_source},
             strict=True,
         )
         payload[name] = wrapper_type.model_validate(
             {
                 "representative": rebuilt_representative,
-                "equivalent_sources": wrapped.equivalent_sources,
+                "equivalent_sources": equivalent_sources,
             },
             strict=True,
         )
