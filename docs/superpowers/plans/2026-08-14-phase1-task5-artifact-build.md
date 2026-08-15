@@ -2773,7 +2773,6 @@ frozen decision.
 - Create: `tests/performance/test_artifact_external_staging.py`
 - Modify: `tests/source_contract/test_source_manifest.py`
 - Modify: `tests/source_contract/test_xlsx_stream.py`
-- Modify: `tests/helpers/artifacts.py`
 - Modify: `tests/helpers/xlsx.py`
 
 `tests/unit/data/artifacts/test_parquet_io.py` remains outside this checkpoint's exact
@@ -3472,7 +3471,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   src/finproof/data/artifacts/reports.py \
   src/finproof/data/source_manifest.py \
   src/finproof/data/xlsx_stream.py \
-  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/helpers/xlsx.py \
   tests/source_contract/test_source_manifest.py \
   tests/source_contract/test_xlsx_stream.py \
   tests/unit/data/artifacts/test_foundations.py \
@@ -3493,7 +3492,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   src/finproof/data/artifacts/reports.py \
   src/finproof/data/source_manifest.py \
   src/finproof/data/xlsx_stream.py \
-  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/helpers/xlsx.py \
   tests/source_contract/test_source_manifest.py \
   tests/source_contract/test_xlsx_stream.py \
   tests/unit/data/artifacts/test_foundations.py \
@@ -3514,7 +3513,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   src/finproof/data/artifacts/reports.py \
   src/finproof/data/source_manifest.py \
   src/finproof/data/xlsx_stream.py \
-  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/helpers/xlsx.py \
   tests/source_contract/test_source_manifest.py \
   tests/source_contract/test_xlsx_stream.py \
   tests/unit/data/artifacts/test_foundations.py \
@@ -3568,7 +3567,7 @@ command, start/end time, exit code, observed pass/fail/skip counts and duration,
 implementation commit hash. It may not cite the full-suite result as a substitute. Any
 Task 1–4 failure is a hard stop before commit/review.
 
-The exact implementation name-only inventory is these twenty-one files and no others:
+The exact implementation name-only inventory is these twenty files and no others:
 
 ```text
 src/finproof/data/artifacts/bronze.py
@@ -3580,7 +3579,6 @@ src/finproof/data/artifacts/reports.py
 src/finproof/data/artifacts/staging.py
 src/finproof/data/source_manifest.py
 src/finproof/data/xlsx_stream.py
-tests/helpers/artifacts.py
 tests/helpers/xlsx.py
 tests/integration/artifacts/test_bronze_fixture_build.py
 tests/performance/test_artifact_external_staging.py
@@ -3597,7 +3595,7 @@ tests/unit/data/artifacts/test_staging.py
 STATUS, the legacy plan, this dedicated plan, design/decision docs, schemas, config,
 source files, CP5+ modules, the ignored report, and
 `tests/unit/data/artifacts/test_parquet_io.py` are absent. Stage exact names rather than
-directories, recheck the cache, commit the 21 behavioral files, and require clean
+directories, recheck the cache, commit the 20 behavioral files, and require clean
 status:
 
 ```bash
@@ -3610,7 +3608,6 @@ git add src/finproof/data/artifacts/bronze.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/source_manifest.py \
   src/finproof/data/xlsx_stream.py \
-  tests/helpers/artifacts.py \
   tests/helpers/xlsx.py \
   tests/integration/artifacts/test_bronze_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
