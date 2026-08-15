@@ -969,8 +969,10 @@ writer/verifier fingerprint integration. Every other behavior selector, includin
 review-gap selector added below, is a mandatory newly observed RED on the clean-redo
 lineage. The post-review correction adds 22 mandatory RED/GREEN selectors and four
 separate derived first-GREEN behavioral regressions; neither category rewrites the
-initial 69/8 evidence. Never alter production code or manufacture a failure to turn
-one of the twelve total derived acceptances into RED evidence.
+initial 69/8 evidence. The third fresh-review correction adds seven more mandatory
+RED/GREEN selectors and no derived acceptance; it is reported separately from both
+earlier matrices. Never alter production code or manufacture a failure to turn one of
+the twelve total derived acceptances into RED evidence.
 
 **Files:**
 
@@ -991,7 +993,7 @@ one of the twelve total derived acceptances into RED evidence.
 
 **Interfaces:**
 
-- Produces strict frozen `ColumnSpec(name, logical_type, arrow_type, duckdb_type, nullable)`, `TableSpec(table_name, layer, grain, columns, unique_key, sort_key, logical_projection, parquet_path)`, and deeply immutable `TABLE_SPECS` in exact artifact order.
+- Produces strict frozen `ColumnSpec(name, logical_type, arrow_type, duckdb_type, nullable)`, `TableSpec(table_name, layer, grain, columns, unique_key, sort_key, logical_projection, parquet_path)`, and deeply immutable `TABLE_SPECS` in exact artifact order. Produces the sole `TABLE_SPEC_REGISTRY = ClosedTableSpecRegistry(TABLE_SPECS)`: its constructor accepts only that exact tuple and exact member identities, and `ordered_specs()` returns that exact tuple for CP2's kernel port after revalidating every frozen spec fingerprint.
 - Produces `derive_wide_columns(model_type: type[BaseModel]) -> tuple[ColumnSpec, ...]`;
   there is no `skip_fields` parameter. Only exact `FundItem.contributing_rows` is
   skipped, and only when `model_type is FundItem`.
@@ -1004,10 +1006,15 @@ one of the twelve total derived acceptances into RED evidence.
   fund serializers project every physical scalar from the same strict model instance
   used to produce canonical `record_json`; reopened logical projection reconstructs
   that model and compares the complete physical projection, not a selected subset.
+  FundItem wide revalidation uses exact strict Python scalar/wrapper/model identities;
+  it never JSON-round-trips an untrusted model as a validation/coercion mechanism.
 - Produces internal `OwnedStageArtifactOwner(Protocol)` and
   `OwnedStageParquetLeaf(Protocol)` with exact design-section-9.1 methods. CP3 has only
   test implementations; CP4 supplies the production marker/descriptor-owned
-  capabilities. CP4 separately owns the section-9.2 database-stage protocols/results;
+  capabilities. Every staged owner registration/require/replace method is annotated
+  with the exact forward-referenced `StagedParquetVerification`,
+  `StagedParquetHandle`, or `StagedParquetSet` type it consumes; no `object`-typed
+  staged value/handle/set parameter is permitted. CP4 separately owns the section-9.2 database-stage protocols/results;
   no CP3 module references a CP7 result type. Produces
   `ParquetBatchWriter(spec: TableSpec, leaf:
   OwnedStageParquetLeaf)` with `write_batch`, `close() -> None`, `abort()`, and metrics.
@@ -1987,6 +1994,256 @@ operation, and verify descriptor-relative marker-last no-victim cleanup. Any rem
 Critical or Important restarts this correction loop with a new focused RED and separate
 fix commit. STATUS and the three documentation-closure files remain untouched until a
 fresh 0 Critical / 0 Important verdict is recorded.
+
+#### Checkpoint 3 third correction: close fresh verdict 0C / 4I serially
+
+Fresh review of `07aeca26` found 0 Critical and 4 Important issues. That commit remains
+an unaccepted CP3 candidate. This third correction owns only the four findings below;
+it does not rewrite the initial 69/8 evidence or the prior correction's 22/4 evidence.
+Obtain independent approval of this plan-only addition first. After approval, make one
+separate documentation commit from the current plan-only diff, then require a clean
+worktree before authoring any new test:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: plan Task 5 checkpoint 3 third review correction"
+git status --porcelain
+```
+
+Both name-only outputs must contain only this dedicated plan, and final status must be
+empty. Record the resulting docs commit as the clean third-correction base in the
+ignored CP3 report. This subsection again overrides Step 8's original instruction to
+update/add STATUS before implementation: STATUS, the legacy plan, and all completion
+checkboxes remain untouched through the fix commit and its fresh review. All Step 8
+repository gates and absence/source-permission/diff/clean checks remain mandatory.
+
+The exact third-correction implementation file map is:
+
+- Modify: `src/finproof/data/artifacts/table_specs.py`
+- Modify: `src/finproof/data/artifacts/serialization.py`
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
+- Modify: `tests/unit/data/artifacts/test_table_specs.py`
+- Modify: `tests/unit/data/artifacts/test_serialization.py`
+- Modify: `tests/unit/data/artifacts/test_parquet_io.py`
+- Modify: `tests/integration/artifacts/test_parquet_verification.py`
+- Modify: `tests/helpers/artifacts.py`
+
+No manifest implementation, other helper, config, schema, hashing primitive, source data,
+later-checkpoint module, STATUS, legacy plan, or this plan belongs in the implementation
+commit. Stop for plan/reviewer approval if the correction truly requires any other
+file.
+
+Author one selector only after its predecessor is GREEN. These are seven mandatory
+RED/GREEN selectors and there are no derived acceptances in this third correction. All
+symbols already exist at `07aeca26`, so a missing import, newly inserted raising
+skeleton, broad exception assertion, or earlier invalid fixture is not acceptable RED
+evidence. Each parameter family must prove every ID reaches the one uncovered boundary;
+do not reuse already-rejected foreign models, pre-close workspace faults, or earlier
+copy/forge cases as new REDs. Run the exact nodes in this order:
+
+```text
+tests/unit/data/artifacts/test_table_specs.py::test_closed_table_spec_registry_accepts_only_exact_frozen_table_specs_tuple
+tests/unit/data/artifacts/test_table_specs.py::test_closed_table_spec_registry_ordered_specs_satisfies_cp2_kernel_port
+tests/unit/data/artifacts/test_serialization.py::test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and_nested_model_leaves
+tests/unit/data/artifacts/test_parquet_io.py::test_owned_stage_owner_protocol_resolves_exact_staged_types_without_object_parameters
+tests/integration/artifacts/test_parquet_verification.py::test_post_close_spill_enumeration_os_fault_is_typed_exact_tree_mismatch
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_parent_and_precleanup_revalidation_os_faults_are_typed_exact_tree_mismatch
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_cleanup_os_faults_are_typed_staging_cleanup_failed
+```
+
+The concrete `ClosedTableSpecRegistry` in `table_specs.py` is the sole production
+implementation of CP2 manifest's structural `ClosedTableSpecRegistry` port. Its
+constructor requires `type(specs) is tuple`, `specs is TABLE_SPECS`, exact length/order,
+and `specs[index] is TABLE_SPECS[index]` for all eleven entries; construct the singleton
+only after the frozen tuple exists. Reject a list, generator/arbitrary iterable,
+equal-valued rebuilt tuple, tuple containing one copied/equal `TableSpec`, foreign spec,
+short/long tuple, duplicate, and adjacent/full reversal. Every invalid parameter ID
+uses otherwise valid frozen specs and must be observed admitted by the current
+constructor before the exact identity gate is added. Export only
+`TABLE_SPEC_REGISTRY = ClosedTableSpecRegistry(TABLE_SPECS)`; do not add a general
+registry factory or caller-extensible registration route.
+
+Only after that constructor family is GREEN, author the missing-port selector.
+`ordered_specs() -> tuple[TableSpec, ...]` must re-run the existing exact registered/deep
+fingerprint guard for each member and return `TABLE_SPECS` itself, not a list, rebuilt
+tuple, structural copy, iterator, or mutable view. Type a local assignment from
+`TABLE_SPEC_REGISTRY` to CP2 manifest's `ClosedTableSpecRegistry` protocol and pass it
+through a synthetic kernel spy that calls `ordered_specs()` and observes the exact
+eleven identities/order. This selector's RED is the genuinely absent method, not one of
+the constructor failures. Focused and repository mypy must prove the structural port
+without changing CP2's protocol or kernel.
+
+The FundItem selector targets only the remaining Fund-specific JSON-coercion hole.
+Build an otherwise exact registered `silver_fund_item`/`FundItem` pair, then use
+test-only `model_construct`/`object.__setattr__` to place: a JSON-coercible `str` where
+one nested representative normalized value is declared `Decimal`; a `str` subclass in
+an exact string leaf; and an equal-field subclass/forged instance at a nested
+`FundItemValue` or representative `NormalizedValue` model boundary. Every ID must be
+accepted by the current Fund-only canonical-JSON round trip and reach no earlier
+top-level registered-pair or Decimal-range failure. `_revalidate_wide` must instead
+validate the original Python object graph with exact model/wrapper/scalar identities
+and strict Python-mode reconstruction. It rejects before producing canonical JSON or
+physical columns; it never invokes `canonical_record_json`/`model_validate_json` as a
+validation step, never converts string to Decimal/path/date/enum, and preserves the
+already-GREEN valid FundItem round trip plus representative/lineage behavior. Do not
+claim the existing top-level subclass, nonfinite Decimal, overflow, or generic physical
+scalar selectors as new RED evidence.
+
+Resolve the staged owner protocol annotations through forward references rather than
+weakening them to `object`. Freeze these exact parameters while token return/arguments
+remain opaque `object`:
+
+```python
+def _register_staged_verification(
+    self,
+    value: "StagedParquetVerification",
+    handle: "StagedParquetHandle",
+) -> object: ...
+
+def _require_registered_staged_verification(
+    self,
+    value: "StagedParquetVerification",
+    handle: "StagedParquetHandle",
+    token: object,
+) -> None: ...
+
+def _require_registered_staged_handle(
+    self,
+    handle: "StagedParquetHandle",
+    token: object,
+) -> None: ...
+
+def _register_staged_set(self, value: "StagedParquetSet") -> object: ...
+
+def _replace_registered_staged_set(
+    self,
+    previous: "StagedParquetSet",
+    value: "StagedParquetSet",
+) -> object: ...
+
+def _require_registered_staged_set(
+    self,
+    value: "StagedParquetSet",
+    token: object,
+) -> None: ...
+```
+
+Use the quoted annotations shown because the protocol precedes the three classes.
+`typing.get_type_hints` must resolve every value/handle/set parameter to the exact class
+and find no `object` there. In `tests/helpers/artifacts.py`, update all staged
+value/handle/set parameters across its six owner registration/require/replace methods
+to the same quoted exact staged types; only opaque token parameters and token returns
+remain `object`. Update other CP3 test owner/spy annotations to conform without adding
+`Any`, casts, or cross-domain unions. Rerun the already-GREEN staged
+registration/copy/forge/mixed-owner selectors as regressions: exact runtime type checks
+must still prevent an arbitrary object from reaching an owner registration/require/
+replace callback. The new RED is only the protocol's current object-typed parameter
+surface; do not manufacture another runtime acceptance already covered by those prior
+selectors.
+
+The final workspace has three distinct typed OS-fault phases. First, after DuckDB closes
+successfully but before deletion is authorized, enumerate spill entries and revalidate
+their relative identities. Inject `OSError` independently at post-close spill
+`listdir`/`scandir`, relative `stat/open`, and descriptor `fstat` sites; every ID must
+raise only `ArtifactContractError(EXACT_TREE_MISMATCH)` with operation
+`parquet-workspace-revalidate`, `published=False`, redacted public output, and the exact
+allowlisted internal reason. Second, inject the same OS fault class at trusted-parent,
+root, marker, and spill pre-cleanup descriptor/relative revalidation sites, including
+parent `fstat`, root/spill enumeration, marker open/read/close, and relative identity
+checks. They have the same exact-tree code/operation. No family may use
+`pytest.raises(Exception)` or accept a raw/wrapped-only `OSError`; every parameter ID
+asserts the exact `ArtifactContractError` fields and that no deletion began.
+
+Third, once cleanup is authorized, every OS failure belongs only to
+`ArtifactContractError(STAGING_CLEANUP_FAILED)` with operation
+`parquet-workspace-cleanup`, including spill-entry rename/unlink, spill descriptor
+close, spill rmdir, marker rename/read/close/unlink, empty-root verification, root
+rename/descriptor close/rmdir, parent revalidation/descriptor close, and any retained
+remainder. Introduce an explicit internal cleanup phase so helpers translate according
+to phase rather than their generic pre-cleanup reason. Inject one otherwise valid fault
+at every named site and prove no raw `OSError` escapes, no external/unowned entry is
+touched, already ambiguous entries are retained, and the exact remaining owned tree is
+reported only in immutable internal context. Connection close remains the prior
+`DATABASE_VALIDATION_FAILED` boundary because deletion has not been authorized. These
+three selectors are intentionally split so post-close enumeration, ordinary
+revalidation, and destructive cleanup cannot mask one another.
+
+After all seven selectors have individual RED/GREEN and immediate regression evidence,
+run:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+```
+
+Then run every Step 8 command unchanged: focused CP2/CP3 tests, unchanged Task 1-4
+regressions, repository Ruff format/check, repository mypy, full pytest, source audit,
+handoff, schema catalog, pre-commit, expected-resource/artifact absence, writable-source
+check, diff check/stat/name-only, and status. Append a distinct “third correction”
+section to the ignored report with all seven exact RED reasons, smallest GREEN results,
+aggregate/full outputs, diff list, and unresolved risk; label it only “candidate for
+fresh review.” Before commit, name-only must contain exactly the eight implementation/
+test files above and no docs/STATUS. Stage and commit only:
+
+```bash
+git add src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/helpers/artifacts.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "fix: close Task 5 checkpoint 3 registry and boundary gaps"
+git status --porcelain
+```
+
+Require empty status and dispatch a fresh independent review against `07aeca26`, the
+approved third-correction plan commit, and the fix commit. The reviewer must independently
+attack registry container/member identity/order/length and CP2 port conformance, forged
+Fund nested models/scalars without JSON coercion, every post-close/revalidation/cleanup
+OS fault mapping, and resolved staged-owner annotations plus mypy. Any Critical or
+Important finding restarts a new serial correction with its own approved plan and fix
+commit. Only a fresh 0 Critical / 0 Important verdict unlocks the existing docs-only
+closure below.
 
 Only after the final 0/0 verdict, make a separate docs-only closure: update
 `docs/implementation/STATUS.md` with reviewed commit hash(es), reviewer counts/evidence,
