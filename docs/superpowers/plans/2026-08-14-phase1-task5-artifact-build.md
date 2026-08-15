@@ -3834,7 +3834,7 @@ later in this checkpoint are aggregate gates, never RED evidence.
 36 tests/performance/test_artifact_fund_streaming.py::test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds
 ```
 
-- [ ] **Step 1: Implement held rating parsing with selectors 1-3**
+- [x] **Step 1: Implement held rating parsing with selectors 1-3**
 
 Selector 1 initially fails because the classmethod is absent; add only a signature that
 raises `NotImplementedError`, rerun the same final-success selector to the narrower
@@ -3843,7 +3843,7 @@ output and no-close behavior. Selector 3 reuses every path-parser duplicate-key,
 invalid-shape, invalid-code/range and semantic fixture and requires identical typed
 failure.
 
-- [ ] **Step 2: Implement the public-fund adapter with selectors 4-8**
+- [x] **Step 2: Implement the public-fund adapter with selectors 4-8**
 
 For `classify_public_fund_row`, use every existing valid and malformed raw-key fixture from `test_public_fund_collapse.py`; assert the exact authoritative item key or classifier-only key issue and prove `normalize_fund_attribute` is never called. A malformed row is consumed only by this classifier path and is never passed to the group adapter.
 
@@ -3864,7 +3864,7 @@ Empty/multi-key/unsorted/duplicate-location/malformed-key groups fail before att
 normalization. Promote only the authoritative classifier and one-group adapter; make
 global `normalize_public_funds` reuse them and keep every Task 4 edge fixture unchanged.
 
-- [ ] **Step 3: Extend typed external ordering and the bounded relation port with selectors 9-15**
+- [x] **Step 3: Extend typed external ordering and the bounded relation port with selectors 9-15**
 
 Add only the exact relation enum inventory and typed row/join models before relation
 behavior. Each boundary checks exact enum/runtime scalar/key arity, canonical payload,
@@ -3878,7 +3878,7 @@ connection, SQL, table spelling, cursor, registration name, filesystem path or g
 execute/join surface is caller-accessible. Underscored state may be touched only by the
 owning module and narrow fault-injection tests, never a production consumer.
 
-- [ ] **Step 4: Persist and verify D-021 quality/report semantics with selectors 16-24**
+- [x] **Step 4: Persist and verify D-021 quality/report semantics with selectors 16-24**
 
 Pure normalizer issues retain `first_detected_at is None`. The persistence boundary
 accepts only exact `DataQualityIssue`, rejects alias/mapping/subclass/pre-timestamped/
@@ -3901,7 +3901,7 @@ independently recomputes the timestamp-neutral quality logical hash. Moving or
 pretty-rendering the report cannot change its semantic projection; timestamp/path
 cannot enter it.
 
-- [ ] **Step 5: Build the one-pass Silver emitter/result with selectors 25-35**
+- [x] **Step 5: Build the one-pass Silver emitter/result with selectors 25-35**
 
 Selector 25 first fails on the absent factory. Add only the direct-init-disabled class,
 then rerun the same final-success selector to the narrower factory-behavior RED before
@@ -3940,7 +3940,7 @@ counts plus the quarantine fact. It rejects direct/copy/subclass/object-new/equa
 wrong expected/observed values, repeated transition, link/evidence suffixes and report
 admission. CP5 does not create Complete observations or `SourceAuditReport`.
 
-- [ ] **Step 6: Prove closed memory/batch bounds with selector 36, then run aggregate gates**
+- [x] **Step 6: Prove closed memory/batch bounds with selector 36, then run aggregate gates**
 
 Mark the performance file explicitly. Generate thousands of interleaved fund rows with
 maximum group 16, reverse/interleave them and force external spill. Require byte-equal
@@ -4059,7 +4059,7 @@ fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact;
 quality report contains no operational identity; Silver observations are valid while
 Complete/source-audit production remains impossible before CP6.
 
-- [ ] **Step 7: Stage exactly 20 files, commit, review, then close with exactly three docs**
+- [x] **Step 7: Stage exactly 20 files, commit, review, then close with exactly three docs**
 
 Before staging, `git diff --name-only` must be exactly the following inventory and no
 other file. In particular no docs, STATUS, schema, config, source material, expected
@@ -4153,6 +4153,26 @@ git diff --cached --name-only
 git commit -m "docs: close Task 5 checkpoint 5 review"
 git status --porcelain
 ```
+
+Observed Checkpoint 5 closure evidence on 2026-08-15:
+
+- implementation/correction lineage: `9c43201` (`feat: stream Silver and persisted
+  quality artifacts`), `8c8c6c` (`fix: close Task 5 checkpoint 5 review gaps`), and
+  `6c29bcbc` (`fix: preserve exact Silver result provenance`);
+- final narrow independent verification at `6c29bcbc`: Critical 0 / Important 0;
+- the ignored repository report records 29 mandatory RED/GREEN selectors and seven
+  derived first-GREEN acceptances; the final exact-carrier selector passed 2 tests;
+- final CP5 aggregate: 276 passed in 10.52 seconds; unchanged Task 1–4 regression:
+  553 passed in 1.33 seconds; final network-enabled repository suite: 2,077 passed
+  with 4 deliberate adversarial Pydantic serialization warnings in 374.56 seconds;
+- repository Ruff format/check and mypy passed over 124 source files; pre-commit
+  passed; source audit passed with 145,393 rows at snapshot `2026-07-11`; handoff
+  passed with 61 required files, 9 official inputs and 41,384,928 source bytes; schema
+  catalog passed with 207 columns;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the reviewed worktree was clean;
+- exact next task: Checkpoint 6. Checkpoints 6–8, Task 5 and the Phase 1 gate remain
+  incomplete, and the official expected baseline remains deferred to Checkpoint 8.
 
 ---
 

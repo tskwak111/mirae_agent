@@ -442,14 +442,15 @@ The dedicated plan must implement the approved specification under strict RED ->
   registries, spill, and cleanup behavior (CP5 first adds Silver, CP6
   first adds Complete/report, CP8 first atomically consumes expected-bound custody into
   the sole production publication transition owner)**
-- [ ] **Checkpoint 5: identity-held rating-registry parsing; exact Bronze-result-fed,
+- [x] **Checkpoint 5: identity-held rating-registry parsing; exact Bronze-result-fed,
   one-use Silver finalization; wide Silver products/attributes; bounded fund-item
   collapse; the closed typed external-order/relation-verifier interface shared with
   Checkpoint 6; exact D-021 quality persistence and quality-to-Bronze observations;
   quarantine; the first exact Silver source-audit typestate; factory-only six-member
   Silver build result with instrumentation; and deterministic quality-summary
-  reporting (36 mandatory serial RED/GREEN selectors, exact 17-file implementation
-  scope, then fresh 0/0 review before the separate three-doc closure)**
+  reporting (29 mandatory serial RED/GREEN selectors plus 7 derived first-GREEN
+  acceptances, exact 20-file implementation scope, then fresh 0/0 review before the
+  separate three-doc closure)**
 - [ ] **Checkpoint 6: exact raw-identifier links, full bidirectional locator evidence,
   pair hash, conflict rejection, the first exact Complete source-audit typestate, and
   the sole source-audit report producer**
@@ -464,10 +465,9 @@ The dedicated plan must implement the approved specification under strict RED ->
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
-Exact next checkpoint: Checkpoint 5, held rating input, exact Bronze-result-fed Silver
-finalization, wide Silver products/attributes, bounded public-fund item collapse,
-closed typed external relations, D-021 quality persistence and relation observations,
-the Silver source-audit typestate, and deterministic quality-summary reporting.
+Exact next checkpoint: Checkpoint 6, exact raw-identifier links, complete bidirectional
+locator evidence, canonical pair hashing and conflict rejection, the Complete
+source-audit typestate, and the sole source-audit report producer.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

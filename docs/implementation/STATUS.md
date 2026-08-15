@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–4 are implemented and
+**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–5 are implemented and
 independently approved at Critical 0 / Important 0. Task 5 and the Phase 1 gate remain
-incomplete; Checkpoint 5 is the exact next task.
+incomplete; Checkpoint 6 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,10 +60,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 5: implement wide Silver products/attributes, bounded
-public-fund item collapse, D-021 quality persistence and quarantine, the Silver
-source-audit typestate, and deterministic quality-summary reporting under focused
-RED-GREEN TDD.** The
+**Phase 1 Task 5 Checkpoint 6: implement exact raw-identifier links, full
+bidirectional locator evidence, canonical pair hashing and conflict rejection, then
+advance the exact Silver source-audit typestate to Complete and construct the sole
+source-audit report under focused RED-GREEN TDD.** The
 approved detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
 and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
@@ -78,7 +78,7 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1–4 complete while Checkpoints 5–8 remain
+body points to it and records Checkpoints 1–5 complete while Checkpoints 6–8 remain
 unchecked.
 
 Observed design-gate evidence on 2026-08-14:
@@ -169,10 +169,29 @@ Checkpoint 4 implementation and review evidence on 2026-08-15:
 - both expected-contract paths and runtime `artifacts/` remained absent, official
   source files were read-only, and the final worktree was clean.
 
-The exact next step is Checkpoint 5 in the dedicated plan: implement wide Silver
-products/attributes, bounded public-fund item collapse, D-021 quality persistence and
-quarantine, the Silver source-audit typestate, and deterministic quality-summary
-reporting. Do not create the official expected logical
+Checkpoint 5 implementation and review evidence on 2026-08-15:
+
+- reviewed implementation/correction lineage: `9c43201` (`feat: stream Silver and
+  persisted quality artifacts`), `8c8c6c` (`fix: close Task 5 checkpoint 5 review
+  gaps`), and `6c29bcbc` (`fix: preserve exact Silver result provenance`);
+- final narrow independent verification at `6c29bcbc`: Critical 0 / Important 0;
+- the ignored repository TDD report records all 29 mandatory RED/GREEN selectors and
+  seven explicitly derived first-GREEN acceptances; the final carrier correction
+  selector passed 2 tests and the final CP5 aggregate passed 276 tests in 10.52
+  seconds;
+- unchanged Task 1–4 regression: 553 passed in 1.33 seconds; final network-enabled
+  full repository suite: 2,077 passed with 4 deliberate adversarial Pydantic
+  serialization warnings in 374.56 seconds;
+- Ruff format/check and mypy passed over 124 source files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the final worktree was clean.
+
+The exact next step is Checkpoint 6 in the dedicated plan: implement exact raw
+identifier links and complete bidirectional locator evidence, canonical pair hashing,
+conflict rejection, the Complete source-audit typestate, and the sole source-audit
+report producer. Do not create the official expected logical
 baseline before Checkpoint 8's two independently verified candidate builds and review.
 
 ## Handoff validation record — not production implementation
