@@ -825,6 +825,18 @@ schema catalog are therefore parsed from retained generations only; an A-to-B-to
 basename swap changes the held parent mutation facts and fails before parsed state can
 enter the session even if the original leaf inode has been restored.
 
+CP5 extends the owning registry parser, not the input carrier:
+`RatingRegistry.from_held_stream(stream: BinaryIO) -> RatingRegistry` bounded-reads,
+strict-decodes, and applies the exact same duplicate-key/shape/semantic validation as
+`from_yaml` without accepting a path and without closing the stream. Before creating a
+Silver emitter, the builder calls only
+`input_identity.open_verified_input(kind=ArtifactInputKind.RATING_SCALE_REGISTRY)` on
+the retained `BuildInputIdentity`, calls this stream parser inside that context, and
+exits through the carrier's after-parse root/parent/name/digest revalidation. It never
+calls `RatingRegistry.from_yaml` in Task 5, reopens `config/rating_scale.yaml`, or
+retains a stream beyond its context. Held and compatibility-path parsing of identical
+bytes must produce equal registries and identical errors.
+
 `CandidateArtifactSet` later retains one exact instance-owned opaque
 `CandidateStageCustody` issued by `OwnedCandidateStage`; there is no candidate/stage
 module-global registry and the candidate contains no raw descriptor, path, basename,
@@ -1023,6 +1035,71 @@ batch/memory limits only for hermetic tests; production assembly cannot import o
 that factory. All stores are registered with the exact session, close before cleanup,
 and are absent before candidate-stage transfer.
 
+CP5 extends that CP4-owned capability rather than creating another database wrapper.
+The closed `ExternalOrderRelation` inventory becomes exactly
+`BRONZE_SOURCE_ROW`, `SILVER_BOND_INSTRUMENT`,
+`SILVER_DOMESTIC_LISTED_PRODUCT`, `SILVER_OVERSEAS_LISTED_PRODUCT`,
+`PUBLIC_FUND_SOURCE_ROW`, `SILVER_QUALITY_ISSUE`,
+`EXACT_LINK_LEFT_CANDIDATE`, `EXACT_LINK_RIGHT_CANDIDATE`, and
+`EXACT_LINK_EVIDENCE`. The last three reserve the same typed boundary for CP6; CP5
+does not populate them. Each name maps internally to one frozen key schema. Text keys
+are exact strings; numeric keys are exact nonboolean integers stored and ordered as
+numeric DuckDB columns, never decimal-padded/string-coerced keys. The mixed fund key is
+exactly `(item_key: str, source_row_number: int)` and the quality key is exactly
+`(source_table_order: int, source_file: str, source_sheet: str,
+source_row_number: int, source_column_number: int, rule_id: str, issue_id: str)`.
+
+```python
+@dataclass(frozen=True)
+class ExternalOrderRow:
+    key: tuple[str | int, ...]
+    payload_json: str
+
+
+class ExternalOrderJoinOperation(StrEnum):
+    QUALITY_TO_BRONZE = "quality_to_bronze"
+    EXACT_EVIDENCE_TO_BRONZE = "exact_evidence_to_bronze"
+    LINKED_DOMESTIC_RECORD_JSON = "linked_domestic_record_json"
+    LINKED_FUND_RECORD_JSON = "linked_fund_record_json"
+
+
+@dataclass(frozen=True)
+class ExternalOrderJoinRow:
+    key: tuple[str | int, ...]
+    values: tuple[str | int, ...]
+
+
+class ExternalOrderStore:
+    def insert_batch(
+        self,
+        *,
+        relation: ExternalOrderRelation,
+        rows: Iterable[ExternalOrderRow],
+    ) -> None: ...
+
+    def iter_ordered_batches(
+        self, *, relation: ExternalOrderRelation
+    ) -> Iterator[tuple[ExternalOrderRow, ...]]: ...
+
+    def iter_join_batches(
+        self,
+        *,
+        operation: ExternalOrderJoinOperation,
+        tables: StagedParquetSet,
+        exact_ids: tuple[str, ...] = (),
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]: ...
+```
+
+Every entry validates exact relation/operation runtime type, key arity and scalar type,
+strict canonical payload JSON, exact same-owner live `StagedParquetSet` when a join is
+requested, and batches of at most 65,536. Export uses the frozen explicit key columns
+followed by `payload_json` only as a deterministic final tie breaker; duplicates that
+violate a relation's declared unique key fail. `iter_join_batches` has only the four
+static allowlisted statements above and is called in production only by the closed
+bounded verifier. The DuckDB connection, SQL, table spelling, cursor, registration
+name, and file/spill identity remain private; there is no `connection`, `execute`,
+generic join, caller column, caller SQL, or raw-handle method.
+
 The import/ownership direction is frozen. `manifest.py` owns `ArtifactInput`,
 `BuildInputIdentityView`, held-root adoption, and the managed root; it never imports
 input identity, staging, or publication. `input_identity.py` imports the manifest view/
@@ -1094,7 +1171,197 @@ values; Python normalizers remain authoritative.
 Synthetic duplicate, normalized-collision, and disagreement groups must produce the
 same fail-closed behavior as Task 4.
 
-### 6.4 Finalize
+### 6.4 Silver finalization, quality relations, and result ownership
+
+`quality_persistence.py` imports the one authoritative
+`finproof.domain.quality.DataQualityIssue`; no second `QualityIssue`, alias model, DTO,
+persisted-row wrapper, or shape-compatible substitute exists. Its exact persistence
+adapter is
+`persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime)
+-> DataQualityIssue`: it reconstructs and returns the authoritative model with the one
+accepted build timestamp. `reports.py` owns the immutable observation contracts
+consumed by its report model, while `quality_persistence.py` owns the stage-backed
+implementation and imports staging only one way:
+
+```python
+@dataclass(frozen=True)
+class QualityJoinObservations:
+    total_issues: int
+    distinct_issue_ids: int
+    matched_bronze_rows: int
+    matched_bronze_cells: int
+    distinct_affected_source_rows: int
+    quarantined_issue_count: int
+    quarantined_source_row_count: int
+    persistence_timestamp: datetime
+    quality_table_logical_hash: str
+
+
+class ExactLinkedSide(StrEnum):
+    DOMESTIC = "domestic"
+    FUND = "fund"
+
+
+@dataclass(frozen=True)
+class LinkedRecordJson:
+    product_id: str
+    record_json: str
+
+
+class BoundedRelationVerifier(Protocol):
+    def verify_quality_to_bronze(
+        self, *, tables: StagedParquetSet
+    ) -> QualityJoinObservations: ...
+
+    def verify_exact_evidence_to_bronze(
+        self, *, tables: StagedParquetSet
+    ) -> None: ...
+
+    def iter_linked_record_json(
+        self,
+        *,
+        tables: StagedParquetSet,
+        side: ExactLinkedSide,
+        exact_ids: tuple[str, ...],
+    ) -> Iterator[tuple[LinkedRecordJson, ...]]: ...
+```
+
+All observation integers are exact nonboolean nonnegative values; issue IDs are unique,
+`distinct_issue_ids == total_issues == matched_bronze_rows == matched_bronze_cells`,
+affected/quarantined bounds hold, the timestamp is aware UTC and equals the owner-bound
+set/Bronze/typed-quality/quality-JSON timestamp, and the hash is lowercase SHA-256 for
+the reopened staged quality table's timestamp-neutral logical projection.
+`StagedBoundedRelationVerifier` receives one live owner-managed `ExternalOrderStore`
+and invokes only its closed join operations. Every method first revalidates the exact
+set object, owner, timestamp, required ordered names and handle identities. It exposes
+no connection, SQL, relation/table string, raw handle tuple, final inventory, path, or
+materialized result. The exact-evidence and linked-record methods are frozen now for
+CP6 compatibility but cannot succeed until CP6 extends the same set with its two Gold
+tables.
+
+The quality report producer is exact and is not a generic aggregation entry:
+
+```python
+class QualitySummaryReport:
+    @classmethod
+    def from_verified_quality(
+        cls,
+        *,
+        issues: Iterable[DataQualityIssue],
+        join_observations: QualityJoinObservations,
+        excluded_silver_records: tuple[ExcludedSilverCount, ...],
+    ) -> "QualitySummaryReport": ...
+```
+
+It single-pass strict-validates each exact persisted `DataQualityIssue`, derives all
+closed lexical groups, independently recomputes the timestamp-neutral logical hash,
+and requires complete equality with the immutable join observations. It accepts no
+mapping/DTO, pre-aggregated caller counts, timestamp override, path, or caller hash.
+
+`SilverArtifactEmitter` is direct-construction-disabled and issued for one exact live
+`ArtifactBuildSession`, config, version bundle, held-stream-parsed `RatingRegistry`, and
+session timestamp. Its exact interface is:
+
+```python
+class SilverArtifactEmitter:
+    @classmethod
+    def for_session(
+        cls,
+        *,
+        session: ArtifactBuildSession,
+        config: ArtifactBuildConfig,
+        versions: VersionBundle,
+        rating_registry: RatingRegistry,
+    ) -> "SilverArtifactEmitter": ...
+
+    def consume(self, row: SourceRow) -> None: ...
+
+    def finalize(
+        self, *, bronze_result: BronzeBuildResult
+    ) -> "SilverBuildResult": ...
+```
+
+The call sequence is frozen: (1) builder opens the rating input through the exact
+`BuildInputIdentity` and parses it with `RatingRegistry.from_held_stream`; (2) builder
+creates the emitter; (3) `session.ingest_bronze(consumer=emitter)` returns one exact
+`BronzeBuildResult`; (4) builder calls `emitter.finalize(bronze_result=that_result)`
+once; (5) finalization exact-type/object-validates the Bronze result, same input
+carrier, same owner, three-table set, Bronze observations, and timestamp before closing
+source admission; (6) it drains fund groups, externally orders/exports non-fund and
+quality relations, writes/reopens/verifies the six new Silver tables, and atomically
+extends the same set in frozen order from three to nine tables; (7) it requires the
+nine-table set, runs the bounded quality relation, constructs Silver observations and
+the quality report, and only then issues the result. Any failure emits no result and
+leaves cleanup with the managed session; finalize is one-use.
+
+```python
+@dataclass(frozen=True)
+class NamedObservedCount:
+    name: str
+    observed: int
+
+
+@dataclass(frozen=True)
+class SilverBuildInstrumentation:
+    source_rows_consumed: int
+    source_consume_counts: tuple[NamedObservedCount, ...]
+    normalizer_call_counts: tuple[NamedObservedCount, ...]
+    staged_relation_rows: tuple[NamedObservedCount, ...]
+    max_live_fund_group_rows: int
+    max_writer_batch_rows: int
+    max_relation_batch_rows: int
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class SilverBuildResult:
+    input_identity: BuildInputIdentity
+    staged_tables: StagedParquetSet
+    observations: SilverSourceAuditObservations
+    quality_join_observations: QualityJoinObservations
+    quality_report: QualitySummaryReport
+    instrumentation: SilverBuildInstrumentation
+
+    @classmethod
+    def _issue_from_finalizer(
+        cls,
+        *,
+        bronze_result: BronzeBuildResult,
+        staged_tables: StagedParquetSet,
+        observations: SilverSourceAuditObservations,
+        quality_join_observations: QualityJoinObservations,
+        quality_report: QualitySummaryReport,
+        instrumentation: SilverBuildInstrumentation,
+    ) -> "SilverBuildResult": ...
+```
+
+These contracts are deeply immutable and strict. `SilverBuildResult` can be issued only
+by the successful finalizer through the module-private issuer; its issuer derives and
+retains the exact `bronze_result.input_identity`, exact
+extended set, exact predecessor-derived Silver observations, verified join facts,
+factory-produced report, and bounded counters. Direct construction, copy/subclass,
+`object.__new__`, equal-field substitution, foreign owner/set/input, incomplete/order-
+changed set, timestamp mismatch, independently reconstructed observations/report, or
+counter mismatch fails before issuance. CP6 consumes this exact result and extends its
+set/observations; it never receives parallel fields.
+
+Every `NamedObservedCount` has an exact nonempty closed name and exact nonboolean
+nonnegative count. `source_consume_counts` and `normalizer_call_counts` contain exactly
+the four source-table IDs in frozen source order. The former sum to
+`source_rows_consumed` and both prove exactly one admission/normalizer decision per
+source row. `staged_relation_rows` contains exactly
+`SILVER_BOND_INSTRUMENT`, `SILVER_DOMESTIC_LISTED_PRODUCT`,
+`SILVER_OVERSEAS_LISTED_PRODUCT`, `PUBLIC_FUND_SOURCE_ROW`, and
+`SILVER_QUALITY_ISSUE` in that order. All three maximum counters are exact nonboolean
+nonnegative values and do not exceed the configured closed production bounds.
+
+The import graph is one-way: `rating.py` imports no artifact module; `staging.py`
+imports no Silver/quality/report implementation; `reports.py` imports only domain and
+closed model contracts; `quality_persistence.py` imports staging/parquet/report/domain
+contracts but not `silver.py` or builder; `silver.py` imports Bronze, staging, quality,
+report, rating, serialization, and authoritative normalizers; builder imports Silver
+and orchestrates. No reverse import or runtime local import may hide a cycle.
+
+### 6.5 Candidate finalization
 
 Each Parquet writer is closed, then its exact CP4-owned stage leaf is reopened and
 checked by CP3's common bounded checker against frozen schema, count, sort order,
@@ -2752,10 +3019,13 @@ reviewable checkpoints are required:
    workspace, and seal; exact abort/ambiguous retention/lock transfer into an instance-
    owned candidate custody without global registries; and failed-stage
    isolation. It cannot construct a final report or publish.
-5. **Silver and quality:** domestic/overseas wide records, bounded item-group fund
-   collapse, attribute relation, two quarantines, D-021 injection/schema/joins,
-   operational timestamp relation, CP5's first Silver audit successor,
-   quality-summary semantic production, and no new metric/family/eligibility behavior.
+5. **Silver and quality:** rating parsing only from the retained build-input stream;
+   exact Bronze-result-fed one-use finalization; domestic/overseas wide records;
+   bounded item-group fund collapse and attribute relation; typed closed external
+   order/export/join operations shared forward with CP6; two quarantines; exact
+   `DataQualityIssue` D-021 injection/schema/joins and immutable join observations;
+   exact nine-table/result/instrumentation custody; the first Silver audit successor;
+   quality-summary semantic production; and no new metric/family/eligibility behavior.
 6. **Exact links:** raw identifier rule v1.0.0, one-to-one conflict rejection, 47-pair
    TSV hash, 371 locators, no trimming/name/fuzzy/family links, CP6's first Complete
    successor, and the sole source-audit report producer.

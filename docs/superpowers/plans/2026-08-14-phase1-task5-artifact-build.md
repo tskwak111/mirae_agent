@@ -3698,29 +3698,76 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
 
 **Files:**
 
+- Modify: `src/finproof/registry/rating.py`
 - Modify: `src/finproof/data/normalization/public_funds.py`
 - Create: `src/finproof/data/artifacts/silver.py`
 - Create: `src/finproof/data/artifacts/quality_persistence.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
 - Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
+- Modify: `tests/unit/registry/test_rating_registry.py`
 - Create: `tests/unit/data/normalization/test_public_fund_group_adapter.py`
+- Modify: `tests/unit/data/artifacts/test_staging.py`
 - Create: `tests/unit/data/artifacts/test_silver.py`
 - Create: `tests/unit/data/artifacts/test_quality_persistence.py`
 - Create: `tests/unit/data/artifacts/test_quality_report.py`
 - Create: `tests/integration/artifacts/test_silver_fixture_build.py`
+- Modify: `tests/performance/test_artifact_external_staging.py`
 - Create: `tests/performance/test_artifact_fund_streaming.py`
 - Modify: `tests/helpers/artifacts.py`
 
 **Interfaces:**
 
-- Owns internal `BoundedRelationVerifier(Protocol)` in `quality_persistence.py`. Every closed operation accepts and revalidates one CP3 `StagedParquetSet`, then resolves required names through `require_tables`/`require_owned`; it exposes only quality-to-Bronze joins, exact-evidence-to-Bronze joins, and exact-ID-filtered linked domestic/fund `record_json` scans, with no bare handle tuple, generic execute method, caller SQL/table name/path, CP2 inventory, or final handle.
-- Produces CP5's stage-backed `StagedBoundedRelationVerifier` implementation using the marker-owned `ExternalOrderStore` connection with observed `threads=1`, `memory_limit="1GiB"`, static allowlisted SQL, and bounded result batches. CP5 quality verification and CP6 link/evidence verification reuse this concrete implementation while the candidate stage is being built.
+- Extends `RatingRegistry` with
+  `from_held_stream(stream: BinaryIO) -> RatingRegistry`. It bounded-reads and applies
+  the exact `from_yaml` duplicate-key, shape, and semantic rules without closing the
+  stream. The builder opens `RATING_SCALE_REGISTRY` only through its retained exact
+  `BuildInputIdentity`, parses inside that held context, and completes the carrier's
+  after-parse revalidation; Task 5 never reopens a rating path.
+- Extends CP4's closed `ExternalOrderStore` with the exact relation names, typed
+  `ExternalOrderRow`, typed batch insert/export, closed `ExternalOrderJoinOperation`,
+  and typed bounded join export frozen in the design. Numeric key components are real
+  nonboolean integer columns and string components remain exact strings, so numeric
+  `2` orders before `10`; relation names, key schemas, SQL, connection, cursor, paths,
+  and registration names remain private/closed. The three CP6 relation names and
+  verifier methods are interface-compatible now but cannot produce successful CP6
+  evidence before CP6 populates the required tables.
+- Owns `BoundedRelationVerifier(Protocol)`, `QualityJoinObservations`,
+  `ExactLinkedSide`, and `LinkedRecordJson` in `reports.py`, plus the stage-backed
+  `StagedBoundedRelationVerifier` in `quality_persistence.py`. Every operation accepts
+  and revalidates one live CP3 `StagedParquetSet`; it exposes no handle tuple, generic
+  execute, caller SQL/table/path, CP2 inventory, or final handle. The implementation
+  uses only the owner-managed `ExternalOrderStore`, fixed one-thread/1-GiB settings,
+  static allowlisted joins, and batches of at most 65,536.
 - Produces strict frozen `FundRowKeyClassification(item_key: str | None, issue: DataQualityIssue | None)`.
 - Produces public `classify_public_fund_row(row: SourceRow) -> FundRowKeyClassification`; it invokes only the authoritative key validator and never `normalize_fund_attribute`.
 - Produces public `normalize_public_fund_item_group(rows: Sequence[SourceRow]) -> FundCollapseResult`; it accepts one unique, source-row-ordered item group, invokes `normalize_fund_attribute` exactly once per valid row, and delegates the existing authoritative collapse behavior.
-- Produces: `persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime) -> PersistedQualityIssueRow` and private `verify_quality_bronze_relation(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> QualityJoinObservations`; it never constructs a Python Bronze lookup collection. Before any relation, CP5 requires the set's timestamp to equal every reopened Bronze `loaded_at` and persisted quality typed/JSON timestamp; there is no manifest yet and CP5 neither fabricates nor validates one.
-- Produces internal `SilverArtifactEmitter.consume(row: SourceRow) -> None`, `finish_fund_groups() -> None`, and `finalize() -> SilverBuildResult`, all bounded and stage-backed. `SilverArtifactEmitter` structurally implements CP4's frozen one-method `SourceRowConsumer`; it receives rows only from `ArtifactBuildSession.ingest_bronze(consumer=emitter)`.
+- Imports and persists only exact `finproof.domain.quality.DataQualityIssue`; no local
+  alias, DTO, persisted-row wrapper, mapping, or shape-compatible substitute is
+  accepted. Produces
+  `persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime)
+  -> DataQualityIssue` and validates the exact returned model and canonical D-021 JSON.
+- Produces direct-construction-disabled `SilverArtifactEmitter` through only
+  `for_session(*, session: ArtifactBuildSession, config: ArtifactBuildConfig,
+  versions: VersionBundle, rating_registry: RatingRegistry) -> SilverArtifactEmitter`,
+  with source method `consume(row: SourceRow) -> None` and
+  `finalize(*, bronze_result: BronzeBuildResult) -> SilverBuildResult`. Builder must:
+  open/parse held rating, create the emitter, call
+  `bronze_result = session.ingest_bronze(consumer=emitter)`, then call
+  `emitter.finalize(bronze_result=bronze_result)` exactly once. Finalization validates
+  that exact result/input/owner/three-table set/observations/timestamp, closes source
+  admission, drains/orders/writes/reopens six Silver tables, atomically extends the
+  same set from three to nine in frozen order, verifies quality relations, constructs
+  observations/report/instrumentation, and only then returns. There is no public
+  `finish_fund_groups` or parameterless `finalize`.
+- Produces direct-construction-disabled `SilverBuildResult` with exactly, in order,
+  `input_identity`, `staged_tables`, `observations`,
+  `quality_join_observations`, `quality_report`, and `instrumentation`. It retains the
+  exact Bronze input carrier, the exact nine-table set, the predecessor-issued Silver
+  observations, verified join observations, factory-issued report, and strict bounded
+  `SilverBuildInstrumentation`; copy/subclass/object-new/equal-field/foreign-owner or
+  reconstructed-member forgery is rejected. CP6 consumes this one object, never a
+  parallel argument bundle.
 - Extends exact `BronzeSourceAuditObservations` only through
   `observations.with_silver(silver_counts, quarantine_counts) ->
   SilverSourceAuditObservations`; the returned distinct type contains only verified
@@ -3731,8 +3778,69 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
   `semantic_projection`; it does not implement CP2's artifact-file
   `ArtifactReportVerifier` port or wire the full kernel. CP7 reparses the written report
   through the retained inventory capability and supplies that concrete port.
+- Freezes an acyclic import direction: rating imports no artifact module; staging
+  imports no Silver/quality/report implementation; reports imports domain/closed model
+  contracts only; quality persistence imports staging/parquet/report/domain but not
+  Silver/builder; Silver imports its predecessors and authoritative normalizers;
+  builder alone orchestrates forward. Runtime local imports may not hide a cycle.
 
-- [ ] **Step 1: Write the public fund classifier/group-adapter equivalence REDs first**
+**Mandatory serial selector ledger (36 total):**
+
+Each numbered selector below is authored alone, run to its stated missing-behavior
+RED, given the smallest GREEN, and followed by its directly related regression before
+the next number is authored. An import/symbol failure authorizes only a skeleton and
+the same selector must then reach a narrower behavioral RED. The multi-node commands
+later in this checkpoint are aggregate gates, never RED evidence.
+
+```text
+01 tests/unit/registry/test_rating_registry.py::test_rating_registry_from_held_stream_parses_valid_yaml
+02 tests/unit/registry/test_rating_registry.py::test_rating_registry_from_held_stream_matches_path_parser_and_never_closes_stream
+03 tests/unit/registry/test_rating_registry.py::test_rating_registry_held_stream_preserves_duplicate_shape_and_semantic_errors
+04 tests/unit/data/normalization/test_public_fund_group_adapter.py::test_public_fund_row_classifier_matches_authoritative_valid_and_malformed_keys
+05 tests/unit/data/normalization/test_public_fund_group_adapter.py::test_public_fund_group_adapter_matches_global_collapse_for_order_variants
+06 tests/unit/data/normalization/test_public_fund_group_adapter.py::test_public_fund_group_adapter_calls_attribute_normalizer_exactly_once_per_valid_row
+07 tests/unit/data/normalization/test_public_fund_group_adapter.py::test_public_fund_group_adapter_rejects_invalid_group_shapes_before_normalization
+08 tests/unit/data/normalization/test_public_fund_group_adapter.py::test_global_public_fund_normalizer_reuses_classifier_and_group_adapter_without_drift
+09 tests/unit/data/artifacts/test_staging.py::test_external_order_store_cp5_relation_inventory_is_exact_and_closed
+10 tests/unit/data/artifacts/test_staging.py::test_external_order_store_typed_batch_insert_and_export_are_bounded
+11 tests/unit/data/artifacts/test_staging.py::test_external_order_store_preserves_numeric_and_string_key_order
+12 tests/unit/data/artifacts/test_staging.py::test_external_order_store_rejects_wrong_arity_bool_coercion_noncanonical_payload_and_duplicate_key
+13 tests/unit/data/artifacts/test_staging.py::test_external_order_store_exposes_no_public_connection_sql_table_cursor_or_path_surface
+14 tests/unit/data/artifacts/test_staging.py::test_bounded_relation_verifier_has_exact_cp5_cp6_closed_signatures
+15 tests/unit/data/artifacts/test_staging.py::test_external_order_store_closed_quality_join_revalidates_exact_live_staged_set
+16 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_persistence_accepts_only_exact_untimestamped_data_quality_issue_and_utc_build_time
+17 tests/unit/data/artifacts/test_quality_persistence.py::test_persisted_quality_row_and_record_json_match_exact_d021_schema
+18 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_external_sort_is_unique_and_globally_ordered
+19 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_join_observations_are_immutable_strict_and_internally_consistent
+20 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_rejects_foreign_copied_incomplete_reordered_closed_or_timestamp_mismatched_set
+21 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_relation_rejects_missing_row_cell_raw_hash_timestamp_and_record_json_mismatches
+22 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_factory_accepts_only_exact_persisted_issue_stream_and_verified_join_observations
+23 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_derives_closed_lexical_groups_counts_and_excluded_grains
+24 tests/unit/data/artifacts/test_quality_report.py::test_quality_report_semantic_projection_is_timestamp_path_and_rendering_independent
+25 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_factory_accepts_exact_live_session_and_held_rating_registry
+26 tests/integration/artifacts/test_silver_fixture_build.py::test_silver_builder_opens_rating_only_through_exact_build_input_identity_and_calls_in_order
+27 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_uses_exact_nonfund_normalizers
+28 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_consumes_each_row_once_only_after_bronze_enqueue
+29 tests/unit/data/artifacts/test_silver.py::test_silver_emitter_stages_fund_keys_and_keeps_only_one_group_live
+30 tests/unit/data/artifacts/test_silver.py::test_silver_finalize_requires_exact_bronze_result_owner_input_set_observations_and_timestamp
+31 tests/unit/data/artifacts/test_silver.py::test_silver_finalize_drains_relations_and_extends_exact_set_from_three_to_nine
+32 tests/unit/data/artifacts/test_silver.py::test_silver_finalize_faults_issue_no_result_and_leave_cleanup_with_session
+33 tests/unit/data/artifacts/test_silver.py::test_silver_build_result_is_factory_only_with_exact_six_field_order_and_object_identity
+34 tests/unit/data/artifacts/test_silver.py::test_silver_instrumentation_has_exact_names_counts_and_bounds
+35 tests/unit/data/artifacts/test_quality_report.py::test_silver_observations_preserve_exact_bronze_prefix_and_reject_forged_or_complete_phase_admission
+36 tests/performance/test_artifact_fund_streaming.py::test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds
+```
+
+- [ ] **Step 1: Implement held rating parsing with selectors 1-3**
+
+Selector 1 initially fails because the classmethod is absent; add only a signature that
+raises `NotImplementedError`, rerun the same final-success selector to the narrower
+behavioral RED, then implement bounded valid parsing. Selector 2 owns equal registry
+output and no-close behavior. Selector 3 reuses every path-parser duplicate-key,
+invalid-shape, invalid-code/range and semantic fixture and requires identical typed
+failure.
+
+- [ ] **Step 2: Implement the public-fund adapter with selectors 4-8**
 
 For `classify_public_fund_row`, use every existing valid and malformed raw-key fixture from `test_public_fund_collapse.py`; assert the exact authoritative item key or classifier-only key issue and prove `normalize_fund_attribute` is never called. A malformed row is consumed only by this classifier path and is never passed to the group adapter.
 
@@ -3748,121 +3856,281 @@ full_result = normalize_public_funds(sorted_group)
 assert group_result == full_result
 ```
 
-Instrument `normalize_fund_attribute` and assert the accepted group adapter calls it exactly once per valid row. In separate rejection selectors, require empty groups, multiple item keys, unsorted/duplicate source locations, and any group containing a malformed key to fail without comparing to global `normalize_public_funds`; malformed classifier issues remain the classifier's exact output. The adapter must expose no private normalizer helper to the artifact module.
+Instrument `normalize_fund_attribute` and assert exactly one call per accepted row.
+Empty/multi-key/unsorted/duplicate-location/malformed-key groups fail before attribute
+normalization. Promote only the authoritative classifier and one-group adapter; make
+global `normalize_public_funds` reuse them and keep every Task 4 edge fixture unchanged.
 
-Run:
+- [ ] **Step 3: Extend typed external ordering and the bounded relation port with selectors 9-15**
 
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/unit/data/normalization/test_public_fund_group_adapter.py -q
-```
+Add only the exact relation enum inventory and typed row/join models before relation
+behavior. Each boundary checks exact enum/runtime scalar/key arity, canonical payload,
+unique key, owner/liveness and fixed batch size. Verify mixed keys against an oracle
+where numeric `2 < 10` and string spelling remains byte-exact; bool and numeric strings
+are rejected, not coerced. `StagedBoundedRelationVerifier` alone invokes the four
+closed joins. Its quality join succeeds with the exact live staged set; foreign,
+copied, closed, incomplete or substituted sets fail before any batch. CP6 signatures
+are statically present but fail closed until the CP6 table set exists. Prove that no
+connection, SQL, table spelling, cursor, registration name, filesystem path or generic
+execute/join surface is caller-accessible. Underscored state may be touched only by the
+owning module and narrow fault-injection tests, never a production consumer.
 
-Expected RED: the public classification/group interfaces are missing; existing global `normalize_public_funds` is not a bounded item-group API.
+- [ ] **Step 4: Persist and verify D-021 quality/report semantics with selectors 16-24**
 
-- [ ] **Step 2: Implement the smallest authoritative public adapter and keep global behavior green**
+Pure normalizer issues retain `first_detected_at is None`. The persistence boundary
+accepts only exact `DataQualityIssue`, rejects alias/mapping/subclass/pre-timestamped/
+naive/non-UTC inputs, reconstructs a new strict model with the one build timestamp,
+serializes terminal `Z`, and validates exact canonical JSON with the packaged/root
+schema and explicit `FormatChecker`. It preserves source, raw hash, rule/version,
+severity, reason, state and quarantine without caller aggregates.
 
-Promote one key-classification function around the existing exact key policy and one one-group adapter around existing row normalization/collapse. Do not move business rules into the artifact package or SQL. Make `normalize_public_funds` reuse these public functions so equivalence cannot drift. Rerun the new file plus all existing public-fund tests; expected GREEN with unchanged Task 4 outputs.
+Stage every issue by the frozen quality key and reject duplicate issue IDs or global
+disorder. Define strict immutable `QualityJoinObservations` before the relation returns
+one. The relation verifier then accepts only the exact nine-table set and streams
+bounded mismatches/counts for Bronze row/cell/raw-SHA, typed/JSON timestamp, distinct
+timestamps and logical hash. Sentinels reject `len`, second iteration, table-sized
+list/tuple/DataFrame, or retention of a prior batch. The fixture observes two distinct
+quarantined source rows; the issue total remains observed and is never frozen to 6,032.
 
-- [ ] **Step 3: Write Silver projection/staging REDs for all product types**
+The sole report factory single-pass consumes exact persisted issues plus that
+observation and closed excluded-native-grain counts, derives every lexical group and
+independently recomputes the timestamp-neutral quality logical hash. Moving or
+pretty-rendering the report cannot change its semantic projection; timestamp/path
+cannot enter it.
 
-Pass `SilverArtifactEmitter` as the consumer of the CP4 Bronze fixture session, using unsorted synthetic rows for bonds/domestic/overseas and interleaved public funds. Compare every emitted `record_json`/wide row with direct current normalizer results and strict model parseback. Assert malformed domestic/fund rows emit no normal Silver record, remain present in Bronze, and contribute canonical quarantined issues. Reuse the CP4 second-open/second-iteration sentinel and assert every row reaches `SilverArtifactEmitter.consume` exactly once only after its Bronze row/cells were enqueued.
+- [ ] **Step 5: Build the one-pass Silver emitter/result with selectors 25-35**
 
-Install sentinels that fail on full `list`/tuple/DataFrame materialization or second source iteration. Assert bond/domestic/overseas and the global quality relation use `ExternalOrderStore`, while grouped fund items/attributes write already ordered batches. Assert only canonical SourceRow JSON plus validated item key is staged for funds, SQL performs no normalization, maximum live fund source rows equals the current group, and objects/JSON from the prior group are released.
+Selector 25 first fails on the absent factory. Add only the direct-init-disabled class,
+then rerun the same final-success selector to the narrower factory-behavior RED before
+issuing it for one exact live session and held-parsed rating registry. Selector 26
+gives the builder a valid exact `BuildInputIdentity`, replaces every path opener with a
+sentinel, swaps the rating basename before/after parse including A-to-B-to-A, and proves
+the exact sequence `open_verified_input(kind=RATING_SCALE_REGISTRY)` -> held parser ->
+emitter factory -> `ingest_bronze(consumer=emitter)` ->
+`finalize(bronze_result=that_exact_result)`. The stream cannot outlive its context.
 
-Run:
+Then use unsorted bond/domestic/overseas rows and interleaved funds. Compare every wide
+row/`record_json` with strict direct normalizer output; malformed domestic/fund rows
+remain in Bronze, emit no normal Silver row and yield canonical exact issues.
 
-```bash
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/unit/data/artifacts/test_silver.py \
-  tests/integration/artifacts/test_silver_fixture_build.py -q
-```
-
-Expected RED: Silver emitter/stage relations/fund ordering do not exist.
-
-- [ ] **Step 4: Implement one-pass non-fund normalization and bounded fund staging/collapse**
-
-During the one and only Bronze source pass, `ArtifactBuildSession.ingest_bronze(consumer=silver_emitter)` calls `SilverArtifactEmitter.consume(row)` exactly once after Bronze enqueue. That consumer performs:
+During the only source pass,
+`ArtifactBuildSession.ingest_bronze(consumer=emitter)` enqueues Bronze row/cells before
+calling `consume` exactly once. The consumer performs:
 
 - PRBD01N001 calls `normalize_bond(row, versions.dataset_version, rating_registry)` once and stages a wide row by product ID;
 - PREF01N001 calls `normalize_domestic_listed(row, versions.dataset_version)` once and stages a wide row by product ID;
 - PREF02N001 calls `normalize_overseas_listed(row)` once and stages a wide row by product ID;
 - PRFD01N001 calls `classify_public_fund_row(row)`; malformed issues go directly to quality staging, valid canonical SourceRow JSON plus item key/source row enter the fund staging relation.
 
-After source ingestion, externally order fund staging by item key/source row, reconstruct exact `SourceRow` objects, call `normalize_public_fund_item_group` once per group, immediately serialize its one item/attributes/issues, flush bounded batches, and release the group. No CP5 component reopens a workbook or iterates the source stream. Expose instrumentation `max_live_fund_group_rows`, `max_writer_batch_rows`, source-consume counts, and staged relation row counts in the internal build result.
+After ingestion, `finalize(bronze_result=exact_result)` validates every same-object
+boundary before source admission closes. It externally drains one fund group at a
+time, writes and reopens/verifies the six Silver tables, then atomically calls the
+frozen set extension once in exact nine-table order. No caller may call a public drain
+method. Failure at each drain/write/reopen/set/relation/report/result boundary issues
+no result and keeps cleanup ownership in the live session. The successful factory
+retains exactly the six frozen members and exact object identities. Instrumentation
+has the exact four source IDs and five relation names in frozen order, nonboolean
+nonnegative counts, exactly-once sums, and configured maxima.
 
-- [ ] **Step 5: Write D-021 persistence/joins/report REDs**
+`with_silver` preserves the exact Bronze prefix and adds only the five frozen Silver
+counts plus the quarantine fact. It rejects direct/copy/subclass/object-new/equal predecessor,
+wrong expected/observed values, repeated transition, link/evidence suffixes and report
+admission. CP5 does not create Complete observations or `SourceAuditReport`.
 
-Before quality persistence/report behavior, introduce the Silver audit successor with
-these strict serial selectors. Run one exact node to RED and smallest GREEN before
-authoring the next:
+- [ ] **Step 6: Prove closed memory/batch bounds with selector 36, then run aggregate gates**
 
-```text
-tests/unit/data/artifacts/test_quality_report.py::test_silver_observations_skeleton_rejects_valid_bronze_fixture
-tests/unit/data/artifacts/test_quality_report.py::test_bronze_observations_with_silver_preserves_exact_prefix_and_adds_closed_counts
-tests/unit/data/artifacts/test_quality_report.py::test_silver_observations_reject_forged_bronze_link_fields_and_report_admission
-```
-
-The skeleton adds only CP5's direct-init-disabled Silver name and still rejects the
-valid Bronze fixture. The transition selector owns the first valid `with_silver`,
-requires the exact CP4 Bronze object/type and closed five-table/quarantine facts, and
-preserves every prefix object/value/order. The admission selector rejects direct
-construction, copy/subclass/`object.__new__`/structurally equal predecessor forgeries,
-repeated extension, link/evidence suffixes, and any report-factory admission. It must
-reach the Silver boundary, not an earlier fixture error. CP5 does not predefine
-Complete or a source-audit producer.
-
-Assert pure normalizer issues still have `first_detected_at is None`. `persist_quality_issue` must reject pre-timestamped, naive, and non-UTC inputs; inject the one build timestamp; serialize terminal `Z`; pass the packaged/root quality schema with explicit `FormatChecker`; and preserve issue ID/rule/severity/reason/quarantine/raw hash/source exactly.
-
-Build mutation cases for missing Bronze row, wrong cell, wrong raw-payload SHA, typed timestamp versus JSON mismatch, two distinct timestamps, duplicate issue ID, and global sort disorder. Each must block stage verification. Assert exactly two distinct quarantined source rows in the fixture, while total issue count is observed/reportable rather than frozen to 6,032. Install sentinels that raise on `len`, second iteration, `list`/DataFrame construction, or retention of a prior verifier batch; the quality-to-Bronze check must run as an allowlisted typed SQL relation and bounded stream rather than materializing Bronze rows/cells or all quality joins.
-
-In separate focused selectors, pass a bare tuple, a copied set, one handle from another
-live owner, a closed/substituted owner, missing/reordered required names, and a set whose
-timestamp differs from Bronze or persisted quality. Each selector must reach the
-intended owner/completeness/timestamp rejection before the relation verifier reads a
-batch. CP5 explicitly does not require or synthesize a manifest.
-
-For `QualitySummaryReport`, assert lexical arrays/mapping keys, counts by table/rule-version/severity/status/quarantine, distinct affected rows, excluded native grains, and quality logical SHA; moving/pretty-printing the report keeps semantic hash, changing content changes it, and no timestamp/path enters. Assert `with_silver` rejects an observation object not validated at the Bronze phase, expected/observed Silver or quarantine mismatch, repeated extension, and any premature link/evidence or final-report field.
-
-Expected RED: persistence adapter, the closed bounded-relation protocol/stage implementation, streaming Bronze joins, and quality report aggregation are absent.
-
-- [ ] **Step 6: Implement D-021 persistence, global external sort, joins, and reports**
-
-Reconstruct `DataQualityIssue` with `model_validate(issue.model_dump() | {"first_detected_at": timestamp})`; never mutate frozen issues. Validate canonical JSON with the runtime resource schema. Stage all issues under the exact global key and externally order them. During reopened verification, pass only the extended same-owner `StagedParquetSet` to `StagedBoundedRelationVerifier`; it revalidates liveness, owner, required handle objects, and set timestamp before joining quality to Bronze row/cell relations. Stream bounded mismatch/count results, compare raw payload hashes, and enforce one timestamp across the set/Bronze/quality typed/quality JSON (manifest comparison is deferred to CP7). Never load 145,393 Bronze rows, 6,401,851 Bronze cells, or the full join into Python. Build `QualitySummaryReport` only from the verified staged quality stream and extend the CP4 observations with verified Silver/quarantine counts. Do not construct `SourceAuditReport`, CP2 final inventory/handles, or a table verification result yet, and never add dataset-level constant-metric issues.
-
-- [ ] **Step 7: Prove fund and writer bounds under scale**
-
-In `test_artifact_fund_streaming.py`, set `pytestmark = pytest.mark.performance`, generate thousands of interleaved rows with maximum group 16, reverse and interleave them, force external spill, and assert byte-identical logical item/attribute output, `max_live_fund_group_rows <= 16`, writer batch `<= 65_536`, no retained prior-group weakrefs, and no call to global full-dataset `normalize_public_funds`. Run:
+Mark the performance file explicitly. Generate thousands of interleaved fund rows with
+maximum group 16, reverse/interleave them and force external spill. Require byte-equal
+logical item/attribute output, `max_live_fund_group_rows <= 16`, writer/relation batch
+`<= 65_536`, released prior-group weakrefs, no second source iteration, and no call to
+global full-dataset `normalize_public_funds`. Then run the exact CP5 aggregate:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/registry/test_rating_registry.py \
   tests/unit/data/normalization/test_public_fund_group_adapter.py \
+  tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py -q
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
-  src/finproof/data/normalization/public_funds.py src/finproof/data/artifacts \
-  tests/unit/data tests/integration/artifacts tests/performance/test_artifact_fund_streaming.py
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
-  src/finproof/data/normalization/public_funds.py src/finproof/data/artifacts \
-  tests/unit/data tests/integration/artifacts tests/performance/test_artifact_fund_streaming.py
 ```
 
-Expected GREEN: direct/current normalizers and serialized Silver agree from one Bronze-fed source pass; fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact; the quality report contains no operational identity; Silver/quarantine observations are valid but the final source-audit report remains impossible before CP6.
-
-- [ ] **Step 8: Commit and obtain a fresh review**
-
-Run regressions/source audit/diff checks, then commit:
+Record all 36 RED reasons and smallest-GREEN results separately. Then run the unchanged
+Task 1-4 regression command from the checkpoint execution rule and record its exact
+start/end time, exit code, pass/fail/skip counts and duration. Run static checks over
+the exact 17-file implementation inventory, then the full required gates:
 
 ```bash
-git add src/finproof/data/normalization/public_funds.py \
-  src/finproof/data/artifacts tests/helpers/artifacts.py tests/unit/data \
-  tests/integration/artifacts tests/performance/test_artifact_fund_streaming.py
-git commit -m "feat: stream Silver and persisted quality artifacts"
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/registry/rating.py \
+  src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/normalization/test_public_fund_group_adapter.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/unit/data/artifacts/test_quality_report.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
+  tests/performance/test_artifact_fund_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/registry/rating.py \
+  src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/normalization/test_public_fund_group_adapter.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/unit/data/artifacts/test_quality_report.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
+  tests/performance/test_artifact_fund_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/registry/rating.py \
+  src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/normalization/test_public_fund_group_adapter.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/unit/data/artifacts/test_quality_report.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
+  tests/performance/test_artifact_fund_streaming.py \
+  tests/helpers/artifacts.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --stat
+git diff --name-only
+git status --short
 ```
 
-Fresh review must compare the public group adapter with every Task 4 edge case, prove no full official collapse/double normalization, inspect all wide fields and quarantine joins, force issue timestamp/schema/hash mismatches, verify external sorting, and confirm the 6,032 observation is not a frozen acceptance constant. Require 0 Critical / 0 Important.
+Expected GREEN: all 36 mandatory selectors and aggregate/static/full gates pass;
+direct/current normalizers and serialized Silver agree from one Bronze-fed source pass;
+fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact; the
+quality report contains no operational identity; Silver observations are valid while
+Complete/source-audit production remains impossible before CP6.
+
+- [ ] **Step 7: Stage exactly 17 files, commit, review, then close with exactly three docs**
+
+Before staging, `git diff --name-only` must be exactly the following inventory and no
+other file. In particular no docs, STATUS, schema, config, source material, expected
+contract or generated artifact belongs in the implementation commit:
+
+```text
+src/finproof/registry/rating.py
+src/finproof/data/normalization/public_funds.py
+src/finproof/data/artifacts/silver.py
+src/finproof/data/artifacts/quality_persistence.py
+src/finproof/data/artifacts/builder.py
+src/finproof/data/artifacts/staging.py
+src/finproof/data/artifacts/reports.py
+tests/unit/registry/test_rating_registry.py
+tests/unit/data/normalization/test_public_fund_group_adapter.py
+tests/unit/data/artifacts/test_staging.py
+tests/unit/data/artifacts/test_silver.py
+tests/unit/data/artifacts/test_quality_persistence.py
+tests/unit/data/artifacts/test_quality_report.py
+tests/integration/artifacts/test_silver_fixture_build.py
+tests/performance/test_artifact_external_staging.py
+tests/performance/test_artifact_fund_streaming.py
+tests/helpers/artifacts.py
+```
+
+```bash
+git add src/finproof/registry/rating.py \
+  src/finproof/data/normalization/public_funds.py \
+  src/finproof/data/artifacts/silver.py \
+  src/finproof/data/artifacts/quality_persistence.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/unit/registry/test_rating_registry.py \
+  tests/unit/data/normalization/test_public_fund_group_adapter.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_silver.py \
+  tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/unit/data/artifacts/test_quality_report.py \
+  tests/integration/artifacts/test_silver_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
+  tests/performance/test_artifact_fund_streaming.py \
+  tests/helpers/artifacts.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "feat: stream Silver and persisted quality artifacts"
+git status --porcelain
+```
+
+Fresh review compares the clean approved CP5 plan base, implementation commit, and
+36-selector report. It verifies held rating identity/revalidation, every typed external
+relation/key/join boundary, exact call order and one-use finalization, same-object
+result issuance, all wide fields, Task 4 public-fund equivalence, bounded one-pass
+collapse, exact D-021 type/schema/timestamp/order, quality-to-Bronze relation/hash,
+Silver typestate, report semantics, fault cleanup, full gates, and the separate
+unchanged Task 1-4 regression evidence. It confirms 6,032 is observation-only. Require
+0 Critical / 0 Important; any finding gets a new focused failing selector, smallest
+fix, separate correction commit and another fresh review.
+
+Only after a fresh 0/0 verdict, make a separate docs-only closure. Update exactly this
+dedicated plan, the legacy phase plan, and `docs/implementation/STATUS.md` with all 36
+RED/GREEN observations, exact gate results, implementation/correction hashes, review
+verdict/report, clean tree, and Checkpoint 6 as the exact next task. Mark only CP5
+complete. Re-run audit/handoff/catalog/absence/source-permission/diff checks, stage
+exactly the three docs, commit, and require empty porcelain:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --name-only
+git status --short
+git add docs/implementation/STATUS.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: close Task 5 checkpoint 5 review"
+git status --porcelain
+```
 
 ---
 
