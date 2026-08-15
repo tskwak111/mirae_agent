@@ -3784,7 +3784,7 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
   Silver/builder; Silver imports its predecessors and authoritative normalizers;
   builder alone orchestrates forward. Runtime local imports may not hide a cycle.
 
-**Serial selector ledger (35 mandatory RED/GREEN + 1 derived first-GREEN):**
+**Serial selector ledger (34 mandatory RED/GREEN + 2 derived first-GREEN):**
 
 Each numbered selector below is authored alone, run to its stated missing-behavior
 RED, given the smallest GREEN, and followed by its directly related regression before
@@ -3805,7 +3805,7 @@ later in this checkpoint are aggregate gates, never RED evidence.
 10 tests/unit/data/artifacts/test_staging.py::test_external_order_store_typed_batch_insert_and_export_are_bounded
 11 tests/unit/data/artifacts/test_staging.py::test_external_order_store_preserves_numeric_and_string_key_order
 12 tests/unit/data/artifacts/test_staging.py::test_external_order_store_rejects_wrong_arity_bool_coercion_noncanonical_payload_and_duplicate_key
-13 tests/unit/data/artifacts/test_staging.py::test_external_order_store_exposes_no_public_connection_sql_table_cursor_or_path_surface
+13 tests/unit/data/artifacts/test_staging.py::test_external_order_store_exposes_no_public_connection_sql_table_cursor_or_path_surface [derived first-GREEN acceptance: CP4 already froze this no-public-surface contract; do not manufacture a failure]
 14 tests/unit/data/artifacts/test_staging.py::test_bounded_relation_verifier_has_exact_cp5_cp6_closed_signatures
 15 tests/unit/data/artifacts/test_staging.py::test_external_order_store_closed_quality_join_revalidates_exact_live_staged_set
 16 tests/unit/data/artifacts/test_quality_persistence.py::test_quality_persistence_accepts_only_exact_untimestamped_data_quality_issue_and_utc_build_time
@@ -3958,8 +3958,8 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/performance/test_artifact_fund_streaming.py -q
 ```
 
-Record all 35 mandatory RED reasons and smallest-GREEN results plus selector 6's
-derived first-GREEN acceptance separately. Then run the unchanged
+Record all 34 mandatory RED reasons and smallest-GREEN results plus selectors 6 and
+13's derived first-GREEN acceptances separately. Then run the unchanged
 Task 1-4 regression command from the checkpoint execution rule and record its exact
 start/end time, exit code, pass/fail/skip counts and duration. Run static checks over
 the exact 17-file implementation inventory, then the full required gates:
@@ -4039,8 +4039,8 @@ git diff --name-only
 git status --short
 ```
 
-Expected GREEN: all 35 mandatory RED/GREEN selectors, the one derived first-GREEN
-selector, and aggregate/static/full gates pass;
+Expected GREEN: all 34 mandatory RED/GREEN selectors, the two derived first-GREEN
+selectors, and aggregate/static/full gates pass;
 direct/current normalizers and serialized Silver agree from one Bronze-fed source pass;
 fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact; the
 quality report contains no operational identity; Silver observations are valid while
@@ -4097,8 +4097,8 @@ git status --porcelain
 ```
 
 Fresh review compares the clean approved CP5 plan base, implementation commit, and
-36-selector report, explicitly distinguishing 35 mandatory RED/GREEN selectors from
-the one derived first-GREEN acceptance. It verifies held rating identity/revalidation, every typed external
+36-selector report, explicitly distinguishing 34 mandatory RED/GREEN selectors from
+the two derived first-GREEN acceptances. It verifies held rating identity/revalidation, every typed external
 relation/key/join boundary, exact call order and one-use finalization, same-object
 result issuance, all wide fields, Task 4 public-fund equivalence, bounded one-pass
 collapse, exact D-021 type/schema/timestamp/order, quality-to-Bronze relation/hash,
@@ -4108,8 +4108,8 @@ unchanged Task 1-4 regression evidence. It confirms 6,032 is observation-only. R
 fix, separate correction commit and another fresh review.
 
 Only after a fresh 0/0 verdict, make a separate docs-only closure. Update exactly this
-dedicated plan, the legacy phase plan, and `docs/implementation/STATUS.md` with all 35
-mandatory RED/GREEN observations and the one derived first-GREEN acceptance, exact gate results, implementation/correction hashes, review
+dedicated plan, the legacy phase plan, and `docs/implementation/STATUS.md` with all 34
+mandatory RED/GREEN observations and the two derived first-GREEN acceptances, exact gate results, implementation/correction hashes, review
 verdict/report, clean tree, and Checkpoint 6 as the exact next task. Mark only CP5
 complete. Re-run audit/handoff/catalog/absence/source-permission/diff checks, stage
 exactly the three docs, commit, and require empty porcelain:
