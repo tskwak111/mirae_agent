@@ -3713,6 +3713,7 @@ Checkpoint 4 closure evidence recorded on 2026-08-15:
 - Create: `tests/unit/data/artifacts/test_silver.py`
 - Create: `tests/unit/data/artifacts/test_quality_persistence.py`
 - Create: `tests/unit/data/artifacts/test_quality_report.py`
+- Modify: `tests/unit/data/artifacts/test_reports.py`
 - Create: `tests/integration/artifacts/test_silver_fixture_build.py`
 - Modify: `tests/performance/test_artifact_external_staging.py`
 - Create: `tests/performance/test_artifact_fund_streaming.py`
@@ -3955,6 +3956,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py -q
@@ -3964,7 +3966,7 @@ Record all 29 mandatory RED reasons and smallest-GREEN results plus selectors 6,
 17, 23, 24, 28, and 32's derived first-GREEN acceptances separately. Then run the unchanged
 Task 1-4 regression command from the checkpoint execution rule and record its exact
 start/end time, exit code, pass/fail/skip counts and duration. Run static checks over
-the exact 19-file implementation inventory, then the full required gates:
+the exact 20-file implementation inventory, then the full required gates:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
@@ -3983,6 +3985,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py \
@@ -4003,6 +4006,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py \
@@ -4023,6 +4027,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py \
@@ -4076,6 +4081,7 @@ tests/unit/data/artifacts/test_staging.py
 tests/unit/data/artifacts/test_silver.py
 tests/unit/data/artifacts/test_quality_persistence.py
 tests/unit/data/artifacts/test_quality_report.py
+tests/unit/data/artifacts/test_reports.py
 tests/integration/artifacts/test_silver_fixture_build.py
 tests/performance/test_artifact_external_staging.py
 tests/performance/test_artifact_fund_streaming.py
@@ -4098,6 +4104,7 @@ git add src/finproof/registry/rating.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/unit/data/artifacts/test_quality_report.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/performance/test_artifact_external_staging.py \
   tests/performance/test_artifact_fund_streaming.py \
