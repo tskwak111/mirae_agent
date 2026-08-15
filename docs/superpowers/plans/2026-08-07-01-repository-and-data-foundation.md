@@ -426,7 +426,7 @@ The dedicated plan must implement the approved specification under strict RED ->
   canonical schema/table/report/overall hash primitives, exact report contracts,
   exhaustive expected-contract comparison, and an internal synthetic-port kernel; no
   public trusted verifier/result**
-- [ ] **Checkpoint 3: frozen table specs, wide projection/strict `record_json`
+- [x] **Checkpoint 3: frozen table specs, wide projection/strict `record_json`
   serializers, exact Decimal/time behavior, capability-bound Parquet writers, one
   bounded stream/unique checker, D-025 single-owner staged-set verification contracts
   for CP4-7, and the distinct final CP2-inventory adapter implementation first invoked

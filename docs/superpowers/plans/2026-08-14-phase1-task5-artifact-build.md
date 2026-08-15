@@ -1096,7 +1096,7 @@ failure to turn one of the twelve total derived acceptances into RED evidence.
   with a complete synthetic 14-file tree but does not wire the kernel; CP7 is the first
   production invocation.
 
-- [ ] **Step 1: Close exact table-spec behaviors through strict serial selectors**
+- [x] **Step 1: Close exact table-spec behaviors through strict serial selectors**
 
 Author only one selector after its predecessor is GREEN. Run each as
 `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest
@@ -1172,7 +1172,7 @@ hash acceptance. Record exactly 13 mandatory RED/GREEN selectors plus the two de
 first-GREEN acceptances (exact-signature/Fund derivation and hash metamorphisms) for
 Step 1. This grouped command is never module/behavior RED evidence.
 
-- [ ] **Step 2: Implement the closed type/spec registry and model-drift guard**
+- [x] **Step 2: Implement the closed type/spec registry and model-drift guard**
 
 Map only the frozen physical types: UTF-8/VARCHAR, int64/BIGINT, decimal128(38,18)/DECIMAL(38,18), date32/DATE, timestamp[us]/TIMESTAMP, timestamp[us, UTC]/TIMESTAMPTZ, and bool/BOOLEAN. Reject caller names and any unregistered logical type.
 
@@ -1189,7 +1189,7 @@ The wide derivation algorithm is exact and has no caller skip set:
 
 Hard-code the reviewed resulting columns in `TABLE_SPECS`; use derivation only as a drift assertion. Validate exactly 17 normalized plus four derived bond fields, 30 normalized plus one derived domestic fields, 49 overseas fields, and 44 fund representative fields.
 
-- [ ] **Step 3: Close serializer behaviors through strict serial selectors**
+- [x] **Step 3: Close serializer behaviors through strict serial selectors**
 
 Use the same one-selector RED/skeleton/narrower-RED/GREEN rule for every unlabeled
 mandatory selector and this exact order in
@@ -1277,7 +1277,7 @@ failure masks a later model, timestamp, numeric, or forged-spec branch. Record e
 non-Bronze timestamp signature and fingerprint integration) for Step 3; do not count
 either acceptance as RED evidence.
 
-- [ ] **Step 4: Implement canonical strict-model JSON and typed row serializers**
+- [x] **Step 4: Implement canonical strict-model JSON and typed row serializers**
 
 Use `model.model_dump(mode="json")` followed only by sorted keys, compact separators, UTF-8, and JSON escaping. Do not pass payload leaves through `canonical_scalar`. Parse the resulting JSON back through the exact model in tests. Convert wide wrapper values according to `ColumnSpec`; reject any conversion that changes Decimal value/scale beyond `DECIMAL(38,18)` or adds a timezone to a source-local timestamp.
 
@@ -1299,7 +1299,7 @@ logical projection replaces only `loaded_at` with null. Revalidate exact registr
 object and exact model type immediately before projection; derivation-time validation
 alone is insufficient.
 
-- [ ] **Step 5: Close writer, staged verification, uniqueness, and final-adapter selectors serially**
+- [x] **Step 5: Close writer, staged verification, uniqueness, and final-adapter selectors serially**
 
 Use exact node selectors, one at a time, in this order:
 
@@ -1517,7 +1517,7 @@ acceptances for Step 5. Across Steps 1, 3, and 5, the authoring matrix is 69 man
 RED/GREEN selectors and eight explicitly derived first-GREEN acceptances; report the two
 categories separately and never inflate the RED count with an acceptance.
 
-- [ ] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
+- [x] **Step 6: Implement the incremental PyArrow writer and table-aware verifier**
 
 Construct `pyarrow.parquet.ParquetWriter` only on the binary sink yielded by
 `leaf.create_exclusive()`, with exact explicit Arrow schema and supported constructor
@@ -1550,7 +1550,7 @@ Never convert one result into the other. Implement the CP2 table-verifier port, 
 under D-024 do not assemble/invoke it in production or expose a complete artifact
 verifier before CP7.
 
-- [ ] **Step 7: Run GREEN, focused gates, and model coverage probes**
+- [x] **Step 7: Run GREEN, focused gates, and model coverage probes**
 
 Run:
 
@@ -1574,7 +1574,7 @@ writer close is not verification; staged handles remain stage-owned; the final a
 independently returns only CP2-inventory-owned handles; streaming, spillable uniqueness,
 and all cleanup/ownership failures remain bounded.
 
-- [ ] **Step 8: Run exact repository gates, commit for review, then close status separately**
+- [x] **Step 8: Run exact repository gates, commit for review, then close status separately**
 
 Update `docs/implementation/STATUS.md` with every observed selector RED/GREEN, focused
 counts, mandatory command results, the CP3 capability split, unresolved risk if any,
@@ -2686,6 +2686,23 @@ the pre-add diff list exactly these three files in lexical order:
 decision/design/code/test/schema/config file belongs in the closure. CP4 may start only
 after that clean closure commit; implementation, correction, and review-closure
 evidence never share a commit.
+
+Checkpoint 3 closure evidence recorded on 2026-08-15:
+
+- approved redo base `d983f1a`; implementation and correction lineage: `065e9fc`,
+  `07aeca2`, `aa3f410`, `94ee69e`, and `a80ef32`, with their separately approved
+  plan/evidence commits `ec2ad7e`, `bd055cb`, `4d5bc9b`, `ac7d8eb`, `d61cca7`,
+  `97473d2`, and `45c330f`;
+- final independent review of `a80ef32`: Critical 0 / Important 0 / Minor 0;
+- final exact correction aggregate: 617 passed and 1 skipped; CP2+CP3 focused: 802
+  passed, 1 skipped, and 4 warnings; Task 1–4 regression: 533 passed; full repository:
+  1,837 passed with 4 warnings in 322.38 seconds;
+- Ruff format/check and mypy passed over 107 files; audit stayed 145,393 rows at
+  `2026-07-11`; handoff stayed 61/9/41,384,928; catalog stayed 207; pre-commit,
+  expected/artifact absence, source-read-only, diff, and clean-tree gates passed;
+- no unresolved Checkpoint 3 blocker remains. The official expected baseline is still
+  absent and deferred to Checkpoint 8. Exact next task: Checkpoint 4, complete generic
+  Bronze streaming and bounded external staging, ordering, spill, and cleanup behavior.
 
 ---
 

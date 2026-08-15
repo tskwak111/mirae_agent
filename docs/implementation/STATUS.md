@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1 and 2 are implemented and
+**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–3 are implemented and
 independently approved at Critical 0 / Important 0 / Minor 0. Task 5 and the Phase 1
-gate remain incomplete; Checkpoint 3 is the exact next task.
+gate remain incomplete; Checkpoint 4 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,9 +60,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 3: implement frozen table specs, strict projections, and
-bounded Parquet I/O under focused RED-GREEN TDD.** The approved detailed
-plan is `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
+**Phase 1 Task 5 Checkpoint 4: complete generic Bronze streaming and bounded external
+staging, ordering, spill, and cleanup behavior under focused RED-GREEN TDD.** The
+approved detailed plan is
+`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
 and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
 reproduction, official artifact acceptance, and independent whole-branch review
 exist.
@@ -75,7 +76,7 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1 and 2 complete while Checkpoints 3–8 remain
+body points to it and records Checkpoints 1–3 complete while Checkpoints 4–8 remain
 unchecked.
 
 Observed design-gate evidence on 2026-08-14:
@@ -127,8 +128,28 @@ Checkpoint 2 implementation and review evidence on 2026-08-15:
   `artifacts/` were absent, official source files were read-only, and the final
   worktree was clean.
 
-The exact next step is Checkpoint 3 in the dedicated plan: frozen table specs, strict
-projections, and bounded Parquet I/O. Do not create the official expected logical
+Checkpoint 3 implementation and review evidence on 2026-08-15:
+
+- complete commit lineage from approved redo base `d983f1a`: `ec2ad7e`, `bd055cb`,
+  and `4d5bc9b` (approved plan/evidence corrections); `065e9fc` (`feat: freeze
+  artifact table and Parquet contracts`); `ac7d8eb` and `07aeca2` (first review plan/fix);
+  `d61cca7` and `aa3f410` (third correction plan/fix); `97473d2` and `94ee69e`
+  (fourth correction plan/fix); and `45c330f` and `a80ef32` (fifth correction
+  plan/fix);
+- final independent review at `a80ef32`: Critical 0 / Important 0 / Minor 0;
+- final correction aggregate: 617 passed and 1 explicit AF_UNIX-unavailable skip;
+  CP2+CP3 focused gate: 802 passed, 1 skipped, and 4 warnings; unchanged Task 1–4
+  regression: 533 passed;
+- full repository suite: 1,837 passed with 4 warnings in 322.38 seconds;
+- Ruff format/check and mypy passed over 107 source files;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- pre-commit passed; both expected-contract paths and runtime `artifacts/` remained
+  absent, official source files were read-only, and the reviewed worktree was clean.
+
+The exact next step is Checkpoint 4 in the dedicated plan: complete generic Bronze
+streaming and bounded external staging, ordering, spill, and cleanup behavior. Do not
+create the official expected logical
 baseline before Checkpoint 8's two independently verified candidate builds and review.
 
 ## Handoff validation record — not production implementation
@@ -773,12 +794,13 @@ Decision boundaries and remaining procedures:
 - A-003 remains open; Task 4 derives no overseas/public-fund eligibility.
 - A-011 remains open only for later evidence, golden-case, and metric contracts.
 - Independent whole-branch review, the final reviewed-tree gate, and the authorized
-  local fast-forward are complete. Task 5 Checkpoints 1 and 2 are now implemented and
-  independently approved; Checkpoints 3–8 remain.
+  local fast-forward are complete. Task 5 Checkpoints 1–3 are now implemented and
+  independently approved; Checkpoints 4–8 remain.
 - Phase 1 Task 5 and the Phase 1 gate remain unchecked.
 
 Exact next development task:
 
-**Phase 1 Task 5 Checkpoint 3: implement frozen table specs, strict projections, and
-bounded Parquet I/O from the approved dedicated plan.** Do not mark Task 5
-or the Phase 1 gate complete before official reproduction and review evidence exists.
+**Phase 1 Task 5 Checkpoint 4: complete generic Bronze streaming and bounded external
+staging, ordering, spill, and cleanup behavior from the approved dedicated plan.** Do
+not mark Task 5 or the Phase 1 gate complete before official reproduction and review
+evidence exists.
