@@ -88,19 +88,38 @@ class OwnedStageArtifactOwner(Protocol):
 
     def require_owned_parquet_leaf(self, leaf: OwnedStageParquetLeaf) -> None: ...
 
-    def _register_staged_verification(self, value: object, handle: object) -> object: ...
+    def _register_staged_verification(
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+    ) -> object: ...
 
     def _require_registered_staged_verification(
-        self, value: object, handle: object, token: object
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+        token: object,
     ) -> None: ...
 
-    def _require_registered_staged_handle(self, handle: object, token: object) -> None: ...
+    def _require_registered_staged_handle(
+        self,
+        handle: "StagedParquetHandle",
+        token: object,
+    ) -> None: ...
 
-    def _register_staged_set(self, value: object) -> object: ...
+    def _register_staged_set(self, value: "StagedParquetSet") -> object: ...
 
-    def _replace_registered_staged_set(self, previous: object, value: object) -> object: ...
+    def _replace_registered_staged_set(
+        self,
+        previous: "StagedParquetSet",
+        value: "StagedParquetSet",
+    ) -> object: ...
 
-    def _require_registered_staged_set(self, value: object, token: object) -> None: ...
+    def _require_registered_staged_set(
+        self,
+        value: "StagedParquetSet",
+        token: object,
+    ) -> None: ...
 
 
 class ParquetVerificationLimits:
@@ -900,6 +919,31 @@ def _open_relative_directory(parent_descriptor: int, name: str) -> int:
     )
 
 
+def _capture_spill_entries(
+    spill_descriptor: int,
+) -> tuple[tuple[str, _DescriptorIdentity], ...]:
+    captured: list[tuple[str, _DescriptorIdentity]] = []
+    for name in sorted(os.listdir(spill_descriptor)):
+        relative_identity = _relative_identity(
+            spill_descriptor,
+            name,
+            directory=False,
+            expected_mode=0o600,
+        )
+        descriptor = os.open(
+            name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=spill_descriptor,
+        )
+        try:
+            if _descriptor_identity(descriptor, directory=False) != relative_identity:
+                raise _workspace_error("workspace_spill_entry_changed")
+        finally:
+            os.close(descriptor)
+        captured.append((name, relative_identity))
+    return tuple(captured)
+
+
 @dataclass(frozen=True, init=False)
 class _TrustedWorkspaceParent:
     """Single-use held parent directory capability for private workspaces."""
@@ -958,6 +1002,12 @@ class _FinalVerificationWorkspace:
         self._cleanup_safe = True
         self._marker_sha256 = hashlib.sha256(self._MARKER_BYTES).hexdigest()
         self._spill_entries: tuple[tuple[str, _DescriptorIdentity], ...] | None = None
+        self._cleanup_authorized = False
+        self._root_state = "owned"
+        self._spill_state = "owned"
+        self._marker_state = "owned"
+        self._spill_entry_count = 0
+        self._unexpected_entry_count = 0
 
     @property
     def _root(self) -> Path:
@@ -1005,13 +1055,15 @@ class _FinalVerificationWorkspace:
             except BaseException as exc:
                 self._cleanup_safe = False
                 raise _workspace_error("connection_close_failed") from exc
-            self._spill_entries = tuple(
-                (
-                    name,
-                    _relative_identity(self._spill_fd, name, directory=False, expected_mode=0o600),
-                )
-                for name in sorted(os.listdir(self._spill_fd))
-            )
+            try:
+                self._spill_entries = _capture_spill_entries(self._spill_fd)
+                self._spill_entry_count = len(self._spill_entries)
+            except OSError as exc:
+                self._cleanup_safe = False
+                raise _workspace_error("workspace_spill_enumeration_failed") from exc
+            except ArtifactContractError:
+                self._cleanup_safe = False
+                raise
 
     def assert_unchanged(self) -> None:
         if _descriptor_identity(self._parent_fd, directory=True) != self._parent_identity:
@@ -1065,7 +1117,17 @@ class _FinalVerificationWorkspace:
     def cleanup(self) -> None:
         if not self._cleanup_safe:
             raise _workspace_error("workspace_close_ambiguous")
-        self.assert_unchanged()
+        try:
+            self.assert_unchanged()
+        except ArtifactContractError as exc:
+            self._cleanup_safe = False
+            if isinstance(exc.__cause__, OSError):
+                raise _workspace_error("workspace_revalidation_failed") from exc
+            raise
+        except OSError as exc:
+            self._cleanup_safe = False
+            raise _workspace_error("workspace_revalidation_failed") from exc
+        self._cleanup_authorized = True
         for index, (name, identity) in enumerate(self._spill_entries or ()):
             tombstone = f".finproof-spill-entry-{index}.cleanup"
             _rename_owned_for_cleanup(
@@ -1077,6 +1139,7 @@ class _FinalVerificationWorkspace:
                 expected_mode=0o600,
             )
             os.unlink(tombstone, dir_fd=self._spill_fd)
+            self._spill_entry_count -= 1
         _rename_owned_for_cleanup(
             self._root_fd,
             self._SPILL_NAME,
@@ -1085,9 +1148,11 @@ class _FinalVerificationWorkspace:
             directory=True,
             expected_mode=0o700,
         )
+        self._spill_state = "tombstone"
         os.close(self._spill_fd)
         self._spill_fd = -1
         os.rmdir(self._SPILL_TOMBSTONE, dir_fd=self._root_fd)
+        self._spill_state = "removed"
         _rename_owned_for_cleanup(
             self._root_fd,
             self._MARKER_NAME,
@@ -1096,6 +1161,7 @@ class _FinalVerificationWorkspace:
             directory=False,
             expected_mode=0o600,
         )
+        self._marker_state = "tombstone"
         marker_bytes = _read_owned_marker_at(
             self._root_fd, self._MARKER_TOMBSTONE, self._marker_identity
         )
@@ -1105,9 +1171,12 @@ class _FinalVerificationWorkspace:
         ):
             raise _workspace_error("workspace_marker_content_changed")
         os.unlink(self._MARKER_TOMBSTONE, dir_fd=self._root_fd)
-        if _descriptor_identity(self._root_fd, directory=True) != self._root_identity or os.listdir(
-            self._root_fd
-        ):
+        self._marker_state = "removed"
+        root_identity = _descriptor_identity(self._root_fd, directory=True)
+        root_entries = os.listdir(self._root_fd)
+        if root_entries:
+            self._unexpected_entry_count = len(root_entries)
+        if root_identity != self._root_identity or root_entries:
             raise _workspace_error("workspace_entries_ambiguous")
         root_tombstone = f"{self._root_name}.cleanup"
         _rename_owned_for_cleanup(
@@ -1118,11 +1187,28 @@ class _FinalVerificationWorkspace:
             directory=True,
             expected_mode=0o700,
         )
+        self._root_state = "tombstone"
         os.close(self._root_fd)
         self._root_fd = -1
         os.rmdir(root_tombstone, dir_fd=self._parent_fd)
+        self._root_state = "removed"
+        if _descriptor_identity(self._parent_fd, directory=True) != self._parent_identity:
+            raise _workspace_error("workspace_parent_changed")
         os.close(self._parent_fd)
         self._parent_fd = -1
+
+    def _retained_state(self) -> str:
+        return (
+            f"root={self._root_state};spill={self._spill_state};"
+            f"marker={self._marker_state};spill_entries={self._spill_entry_count};"
+            f"unexpected={self._unexpected_entry_count}"
+        )
+
+    def _cleanup_error(self) -> ArtifactContractError:
+        return _workspace_error(
+            "workspace_cleanup_failed",
+            retained_state=self._retained_state(),
+        )
 
     def _release_descriptors(self) -> None:
         for attribute in ("_spill_fd", "_root_fd", "_parent_fd"):
@@ -1202,7 +1288,11 @@ def _read_owned_marker_at(
         os.close(descriptor)
 
 
-def _workspace_error(reason: str) -> ArtifactContractError:
+def _workspace_error(
+    reason: str,
+    *,
+    retained_state: str | None = None,
+) -> ArtifactContractError:
     database_operations = {
         "workspace_configure_failed": "parquet-workspace-configure",
         "unique_index_create_failed": "parquet-unique-index-create",
@@ -1225,10 +1315,13 @@ def _workspace_error(reason: str) -> ArtifactContractError:
     else:
         code = ArtifactErrorCode.EXACT_TREE_MISMATCH
         operation_id = "parquet-workspace-revalidate"
+    context = {"reason": reason}
+    if retained_state is not None:
+        context["retained_state"] = retained_state
     return ArtifactContractError(
         code,
         operation_id=operation_id,
-        internal_context={"reason": reason},
+        internal_context=context,
     )
 
 
@@ -1318,8 +1411,16 @@ def _final_verification_workspace(
             except BaseException as exc:
                 workspace._cleanup_safe = False
                 workspace._release_descriptors()
+                if workspace._cleanup_authorized:
+                    if (
+                        isinstance(exc, ArtifactContractError)
+                        and exc.code is ArtifactErrorCode.STAGING_CLEANUP_FAILED
+                        and "retained_state" in exc.internal_context
+                    ):
+                        raise
+                    raise workspace._cleanup_error() from exc
                 if not isinstance(exc, ArtifactContractError):
-                    raise _workspace_error("workspace_cleanup_failed") from exc
+                    raise _workspace_error("workspace_revalidation_failed") from exc
                 raise
         else:
             workspace._release_descriptors()

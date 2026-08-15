@@ -6,9 +6,48 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import PurePosixPath
-from typing import Never
+from typing import Never, get_type_hints
 
 import pytest
+
+
+@pytest.mark.parametrize(
+    ("method_name", "parameter_name", "expected_type_name"),
+    [
+        ("_register_staged_verification", "value", "verification"),
+        ("_register_staged_verification", "handle", "handle"),
+        ("_require_registered_staged_verification", "value", "verification"),
+        ("_require_registered_staged_verification", "handle", "handle"),
+        ("_require_registered_staged_handle", "handle", "handle"),
+        ("_register_staged_set", "value", "set"),
+        ("_replace_registered_staged_set", "previous", "set"),
+        ("_replace_registered_staged_set", "value", "set"),
+        ("_require_registered_staged_set", "value", "set"),
+    ],
+)
+def test_owned_stage_owner_protocol_resolves_exact_staged_types_without_object_parameters(
+    method_name: str,
+    parameter_name: str,
+    expected_type_name: str,
+) -> None:
+    from finproof.data.artifacts.parquet_io import (
+        OwnedStageArtifactOwner,
+        StagedParquetHandle,
+        StagedParquetSet,
+        StagedParquetVerification,
+    )
+    from tests.helpers.artifacts import TestStageArtifactOwner
+
+    expected_types = {
+        "verification": StagedParquetVerification,
+        "handle": StagedParquetHandle,
+        "set": StagedParquetSet,
+    }
+    expected = expected_types[expected_type_name]
+    for owner_type in (OwnedStageArtifactOwner, TestStageArtifactOwner):
+        hints = get_type_hints(getattr(owner_type, method_name))
+        assert hints[parameter_name] is expected
+        assert hints[parameter_name] is not object
 
 
 class _Leaf:

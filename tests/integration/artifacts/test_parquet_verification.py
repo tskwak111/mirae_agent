@@ -721,10 +721,18 @@ def test_staged_verification_rejects_unissued_facts_and_forged_registration_toke
 def test_staged_verification_atomically_registers_exact_verification_and_handle_objects(
     tmp_path: Path,
 ) -> None:
-    from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
+    from finproof.data.artifacts.parquet_io import (
+        StagedParquetHandle,
+        StagedParquetVerification,
+        verify_staged_parquet_table,
+    )
 
     class NonRegisteringOwner(TestStageArtifactOwner):
-        def _register_staged_verification(self, value: object, handle: object) -> object:
+        def _register_staged_verification(
+            self,
+            value: StagedParquetVerification,
+            handle: StagedParquetHandle,
+        ) -> object:
             return object()
 
     owner = NonRegisteringOwner(tmp_path, datetime(2026, 8, 15, tzinfo=UTC))
@@ -1741,7 +1749,12 @@ def test_workspace_faults_have_exact_nonreserved_typed_operations_and_redacted_c
     assert error.operation_id == expected_operation
     assert error.target_basename is None
     assert error.published is False
-    assert dict(error.internal_context) == {"reason": expected_reason}
+    expected_context = {"reason": expected_reason}
+    if fault == "cleanup":
+        expected_context["retained_state"] = (
+            "root=owned;spill=tombstone;marker=owned;spill_entries=0;unexpected=0"
+        )
+    assert dict(error.internal_context) == expected_context
     assert "trusted" not in str(error)
     assert "CREATE TABLE" not in str(error)
 
@@ -1807,6 +1820,507 @@ def test_actual_install_and_load_fail_under_locked_workspace_configuration(
         "LOAD httpfs",
     )
     assert all(isinstance(error, parquet_io.duckdb.PermissionException) for _, error in attempted)
+
+
+@pytest.mark.parametrize("fault", ["listdir", "stat", "open", "fstat"])
+def test_post_close_spill_enumeration_os_fault_is_typed_exact_tree_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    trusted_parent = _trusted_workspace_parent(parent)
+    workspace: Any = None
+    armed = False
+    spill_entry_fd: int | None = None
+    deletion_events: list[str] = []
+    real_connect = parquet_io.duckdb.connect
+    original_listdir = os.listdir
+    original_stat = os.stat
+    original_open = os.open
+    original_fstat = os.fstat
+    original_rename = os.rename
+    original_unlink = os.unlink
+    original_rmdir = os.rmdir
+
+    class ConnectionProxy:
+        def __init__(self) -> None:
+            self._inner = real_connect(":memory:")
+
+        def execute(self, statement, parameters=None):
+            if parameters is None:
+                self._inner.execute(statement)
+            else:
+                self._inner.execute(statement, parameters)
+            return self
+
+        def executemany(self, statement, parameters):
+            self._inner.executemany(statement, parameters)
+            return self
+
+        def fetchone(self):
+            return self._inner.fetchone()
+
+        def close(self) -> None:
+            nonlocal armed
+            self._inner.close()
+            armed = True
+
+    def faulting_listdir(path):
+        if armed and workspace is not None and path == workspace._spill_fd and fault == "listdir":
+            raise OSError("injected post-close spill listdir failure")
+        return original_listdir(path)
+
+    def faulting_stat(path, *args, dir_fd=None, **kwargs):
+        if (
+            armed
+            and workspace is not None
+            and dir_fd == workspace._spill_fd
+            and path == "spill-entry.bin"
+            and fault == "stat"
+        ):
+            raise OSError("injected post-close spill stat failure")
+        return original_stat(path, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_open(path, flags, *args, dir_fd=None, **kwargs):
+        nonlocal spill_entry_fd
+        if (
+            armed
+            and workspace is not None
+            and dir_fd == workspace._spill_fd
+            and path == "spill-entry.bin"
+        ):
+            if fault == "open":
+                raise OSError("injected post-close spill open failure")
+            descriptor = original_open(path, flags, *args, dir_fd=dir_fd, **kwargs)
+            spill_entry_fd = descriptor
+            return descriptor
+        return original_open(path, flags, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_fstat(descriptor):
+        if armed and descriptor == spill_entry_fd and fault == "fstat":
+            raise OSError("injected post-close spill fstat failure")
+        return original_fstat(descriptor)
+
+    def tracked_rename(*args, **kwargs):
+        deletion_events.append("rename")
+        return original_rename(*args, **kwargs)
+
+    def tracked_unlink(*args, **kwargs):
+        deletion_events.append("unlink")
+        return original_unlink(*args, **kwargs)
+
+    def tracked_rmdir(*args, **kwargs):
+        deletion_events.append("rmdir")
+        return original_rmdir(*args, **kwargs)
+
+    monkeypatch.setattr(parquet_io.duckdb, "connect", lambda *args, **kwargs: ConnectionProxy())
+    monkeypatch.setattr(os, "listdir", faulting_listdir)
+    monkeypatch.setattr(os, "stat", faulting_stat)
+    monkeypatch.setattr(os, "open", faulting_open)
+    monkeypatch.setattr(os, "fstat", faulting_fstat)
+    monkeypatch.setattr(os, "rename", tracked_rename)
+    monkeypatch.setattr(os, "unlink", tracked_unlink)
+    monkeypatch.setattr(os, "rmdir", tracked_rmdir)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            descriptor = original_open(
+                "spill-entry.bin",
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=workspace._spill_fd,
+            )
+            try:
+                os.write(descriptor, b"spill")
+            finally:
+                os.close(descriptor)
+            with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
+                pass
+
+    assert caught.value.code is ArtifactErrorCode.EXACT_TREE_MISMATCH
+    assert caught.value.operation_id == "parquet-workspace-revalidate"
+    assert caught.value.published is False
+    assert caught.value.target_basename is None
+    assert dict(caught.value.internal_context) == {"reason": "workspace_spill_enumeration_failed"}
+    assert deletion_events == []
+    assert workspace is not None
+    assert (parent / workspace._root_name).is_dir()
+    assert "trusted" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "parent-fstat",
+        "root-fstat",
+        "spill-fstat",
+        "root-relative-stat",
+        "spill-relative-stat",
+        "marker-relative-stat",
+        "root-listdir",
+        "spill-listdir",
+        "marker-open",
+        "marker-read",
+        "marker-close",
+    ],
+)
+def test_workspace_parent_and_precleanup_revalidation_os_faults_are_typed_exact_tree_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    trusted_parent = _trusted_workspace_parent(parent)
+    workspace: Any = None
+    armed = False
+    marker_fd: int | None = None
+    fault_seen = False
+    deletion_events: list[str] = []
+    original_fstat = os.fstat
+    original_stat = os.stat
+    original_listdir = os.listdir
+    original_open = os.open
+    original_read = os.read
+    original_close = os.close
+    original_rename = os.rename
+    original_unlink = os.unlink
+    original_rmdir = os.rmdir
+
+    def fail(message: str) -> None:
+        nonlocal fault_seen
+        fault_seen = True
+        raise OSError(message)
+
+    def faulting_fstat(descriptor):
+        if armed and workspace is not None:
+            targets = {
+                "parent-fstat": workspace._parent_fd,
+                "root-fstat": workspace._root_fd,
+                "spill-fstat": workspace._spill_fd,
+            }
+            if targets.get(fault) == descriptor:
+                fail("injected pre-cleanup fstat failure")
+        return original_fstat(descriptor)
+
+    def faulting_stat(path, *args, dir_fd=None, **kwargs):
+        if armed and workspace is not None:
+            targets = {
+                "root-relative-stat": (workspace._parent_fd, workspace._root_name),
+                "spill-relative-stat": (workspace._root_fd, workspace._SPILL_NAME),
+                "marker-relative-stat": (workspace._root_fd, workspace._MARKER_NAME),
+            }
+            if targets.get(fault) == (dir_fd, path):
+                fail("injected pre-cleanup relative stat failure")
+        return original_stat(path, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_listdir(path):
+        if armed and workspace is not None:
+            targets = {
+                "root-listdir": workspace._root_fd,
+                "spill-listdir": workspace._spill_fd,
+            }
+            if targets.get(fault) == path:
+                fail("injected pre-cleanup listdir failure")
+        return original_listdir(path)
+
+    def faulting_open(path, flags, *args, dir_fd=None, **kwargs):
+        nonlocal marker_fd
+        if (
+            armed
+            and workspace is not None
+            and dir_fd == workspace._root_fd
+            and path == workspace._MARKER_NAME
+        ):
+            if fault == "marker-open":
+                fail("injected pre-cleanup marker open failure")
+            descriptor = original_open(path, flags, *args, dir_fd=dir_fd, **kwargs)
+            marker_fd = descriptor
+            return descriptor
+        return original_open(path, flags, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_read(descriptor, size):
+        if armed and descriptor == marker_fd and fault == "marker-read":
+            fail("injected pre-cleanup marker read failure")
+        return original_read(descriptor, size)
+
+    def faulting_close(descriptor):
+        if armed and descriptor == marker_fd and fault == "marker-close" and not fault_seen:
+            original_close(descriptor)
+            fail("injected pre-cleanup marker close failure")
+        return original_close(descriptor)
+
+    def tracked_rename(*args, **kwargs):
+        deletion_events.append("rename")
+        return original_rename(*args, **kwargs)
+
+    def tracked_unlink(*args, **kwargs):
+        deletion_events.append("unlink")
+        return original_unlink(*args, **kwargs)
+
+    def tracked_rmdir(*args, **kwargs):
+        deletion_events.append("rmdir")
+        return original_rmdir(*args, **kwargs)
+
+    monkeypatch.setattr(os, "fstat", faulting_fstat)
+    monkeypatch.setattr(os, "stat", faulting_stat)
+    monkeypatch.setattr(os, "listdir", faulting_listdir)
+    monkeypatch.setattr(os, "open", faulting_open)
+    monkeypatch.setattr(os, "read", faulting_read)
+    monkeypatch.setattr(os, "close", faulting_close)
+    monkeypatch.setattr(os, "rename", tracked_rename)
+    monkeypatch.setattr(os, "unlink", tracked_unlink)
+    monkeypatch.setattr(os, "rmdir", tracked_rmdir)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
+                pass
+            armed = True
+
+    assert fault_seen
+    assert caught.value.code is ArtifactErrorCode.EXACT_TREE_MISMATCH
+    assert caught.value.operation_id == "parquet-workspace-revalidate"
+    assert caught.value.published is False
+    assert caught.value.target_basename is None
+    assert dict(caught.value.internal_context) == {"reason": "workspace_revalidation_failed"}
+    assert deletion_events == []
+    assert workspace is not None
+    assert (parent / workspace._root_name).is_dir()
+    assert "trusted" not in str(caught.value)
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        "spill-entry-rename",
+        "spill-entry-unlink",
+        "spill-close",
+        "spill-rmdir",
+        "marker-rename",
+        "marker-read",
+        "marker-close",
+        "marker-unlink",
+        "empty-root-fstat",
+        "empty-root-listdir",
+        "root-rename",
+        "root-close",
+        "root-rmdir",
+        "parent-fstat",
+        "parent-close",
+        "retained-remainder",
+    ],
+)
+def test_workspace_cleanup_os_faults_are_typed_staging_cleanup_failed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fault: str,
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    victim = tmp_path / "external-victim.bin"
+    victim.write_bytes(b"external-victim")
+    victim.chmod(0o640)
+    trusted_parent = _trusted_workspace_parent(parent)
+    workspace: Any = None
+    marker_tombstone_fd: int | None = None
+    marker_removed = False
+    root_removed = False
+    fault_seen = False
+    original_rename = os.rename
+    original_unlink = os.unlink
+    original_close = os.close
+    original_rmdir = os.rmdir
+    original_open = os.open
+    original_read = os.read
+    original_fstat = os.fstat
+    original_listdir = os.listdir
+
+    def fail(message: str) -> None:
+        nonlocal fault_seen
+        fault_seen = True
+        raise OSError(message)
+
+    def faulting_rename(source, destination, *args, src_dir_fd=None, dst_dir_fd=None, **kwargs):
+        if workspace is not None:
+            matches = {
+                "spill-entry-rename": (
+                    source == "spill-entry.bin" and src_dir_fd == workspace._spill_fd
+                ),
+                "marker-rename": (
+                    source == workspace._MARKER_NAME and src_dir_fd == workspace._root_fd
+                ),
+                "root-rename": (
+                    source == workspace._root_name and src_dir_fd == workspace._parent_fd
+                ),
+            }
+            if matches.get(fault, False):
+                fail("injected cleanup rename failure")
+        return original_rename(
+            source,
+            destination,
+            *args,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+            **kwargs,
+        )
+
+    def faulting_unlink(path, *args, dir_fd=None, **kwargs):
+        nonlocal marker_removed, fault_seen
+        if workspace is not None:
+            if (
+                fault == "spill-entry-unlink"
+                and dir_fd == workspace._spill_fd
+                and path == ".finproof-spill-entry-0.cleanup"
+            ):
+                fail("injected cleanup spill unlink failure")
+            if dir_fd == workspace._root_fd and path == workspace._MARKER_TOMBSTONE:
+                if fault == "marker-unlink":
+                    fail("injected cleanup marker unlink failure")
+                result = original_unlink(path, *args, dir_fd=dir_fd, **kwargs)
+                marker_removed = True
+                if fault == "retained-remainder":
+                    descriptor = original_open(
+                        "unexpected",
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                        0o600,
+                        dir_fd=workspace._root_fd,
+                    )
+                    original_close(descriptor)
+                    fault_seen = True
+                return result
+        return original_unlink(path, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_close(descriptor):
+        if workspace is not None and not fault_seen:
+            targets = {
+                "spill-close": workspace._spill_fd,
+                "marker-close": marker_tombstone_fd,
+                "root-close": workspace._root_fd,
+                "parent-close": workspace._parent_fd,
+            }
+            if targets.get(fault) == descriptor:
+                original_close(descriptor)
+                fail("injected cleanup descriptor close failure")
+        return original_close(descriptor)
+
+    def faulting_rmdir(path, *args, dir_fd=None, **kwargs):
+        nonlocal root_removed
+        if workspace is not None:
+            if (
+                fault == "spill-rmdir"
+                and dir_fd == workspace._root_fd
+                and path == workspace._SPILL_TOMBSTONE
+            ):
+                fail("injected cleanup spill rmdir failure")
+            if dir_fd == workspace._parent_fd and path == f"{workspace._root_name}.cleanup":
+                if fault == "root-rmdir":
+                    fail("injected cleanup root rmdir failure")
+                result = original_rmdir(path, *args, dir_fd=dir_fd, **kwargs)
+                root_removed = True
+                return result
+        return original_rmdir(path, *args, dir_fd=dir_fd, **kwargs)
+
+    def faulting_open(path, flags, *args, dir_fd=None, **kwargs):
+        nonlocal marker_tombstone_fd
+        descriptor = original_open(path, flags, *args, dir_fd=dir_fd, **kwargs)
+        if (
+            workspace is not None
+            and dir_fd == workspace._root_fd
+            and path == workspace._MARKER_TOMBSTONE
+        ):
+            marker_tombstone_fd = descriptor
+        return descriptor
+
+    def faulting_read(descriptor, size):
+        if descriptor == marker_tombstone_fd and fault == "marker-read":
+            fail("injected cleanup marker read failure")
+        return original_read(descriptor, size)
+
+    def faulting_fstat(descriptor):
+        if workspace is not None:
+            if fault == "empty-root-fstat" and marker_removed and descriptor == workspace._root_fd:
+                fail("injected cleanup empty-root fstat failure")
+            if fault == "parent-fstat" and root_removed and descriptor == workspace._parent_fd:
+                fail("injected cleanup parent fstat failure")
+        return original_fstat(descriptor)
+
+    def faulting_listdir(path):
+        if (
+            workspace is not None
+            and fault == "empty-root-listdir"
+            and marker_removed
+            and path == workspace._root_fd
+        ):
+            fail("injected cleanup empty-root listdir failure")
+        return original_listdir(path)
+
+    monkeypatch.setattr(os, "rename", faulting_rename)
+    monkeypatch.setattr(os, "unlink", faulting_unlink)
+    monkeypatch.setattr(os, "close", faulting_close)
+    monkeypatch.setattr(os, "rmdir", faulting_rmdir)
+    monkeypatch.setattr(os, "open", faulting_open)
+    monkeypatch.setattr(os, "read", faulting_read)
+    monkeypatch.setattr(os, "fstat", faulting_fstat)
+    monkeypatch.setattr(os, "listdir", faulting_listdir)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        with parquet_io._final_verification_workspace(trusted_parent=trusted_parent) as workspace:
+            descriptor = original_open(
+                "spill-entry.bin",
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=workspace._spill_fd,
+            )
+            try:
+                os.write(descriptor, b"spill")
+            finally:
+                original_close(descriptor)
+            with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
+                pass
+
+    expected_state = {
+        "spill-entry-rename": "root=owned;spill=owned;marker=owned;spill_entries=1;unexpected=0",
+        "spill-entry-unlink": "root=owned;spill=owned;marker=owned;spill_entries=1;unexpected=0",
+        "spill-close": "root=owned;spill=tombstone;marker=owned;spill_entries=0;unexpected=0",
+        "spill-rmdir": "root=owned;spill=tombstone;marker=owned;spill_entries=0;unexpected=0",
+        "marker-rename": "root=owned;spill=removed;marker=owned;spill_entries=0;unexpected=0",
+        "marker-read": "root=owned;spill=removed;marker=tombstone;spill_entries=0;unexpected=0",
+        "marker-close": "root=owned;spill=removed;marker=tombstone;spill_entries=0;unexpected=0",
+        "marker-unlink": "root=owned;spill=removed;marker=tombstone;spill_entries=0;unexpected=0",
+        "empty-root-fstat": "root=owned;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "empty-root-listdir": "root=owned;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "root-rename": "root=owned;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "root-close": "root=tombstone;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "root-rmdir": "root=tombstone;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "parent-fstat": "root=removed;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "parent-close": "root=removed;spill=removed;marker=removed;spill_entries=0;unexpected=0",
+        "retained-remainder": "root=owned;spill=removed;marker=removed;spill_entries=0;unexpected=1",
+    }[fault]
+    assert fault_seen
+    assert caught.value.code is ArtifactErrorCode.STAGING_CLEANUP_FAILED
+    assert caught.value.operation_id == "parquet-workspace-cleanup"
+    assert caught.value.published is False
+    assert caught.value.target_basename is None
+    assert dict(caught.value.internal_context) == {
+        "reason": "workspace_cleanup_failed",
+        "retained_state": expected_state,
+    }
+    assert victim.read_bytes() == b"external-victim"
+    assert stat.S_IMODE(victim.stat().st_mode) == 0o640
+    assert "trusted" not in str(caught.value)
+    assert "external-victim" not in str(caught.value)
 
 
 @pytest.mark.parametrize("case", ["reordered", "duplicate"])

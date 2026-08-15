@@ -5,6 +5,12 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, Final
 
+from finproof.data.artifacts.parquet_io import (
+    StagedParquetHandle,
+    StagedParquetSet,
+    StagedParquetVerification,
+)
+
 TABLES: Final[tuple[tuple[str, str, int], ...]] = (
     ("bronze_source_column", "source_column", 207),
     ("bronze_source_row", "source_row", 145_393),
@@ -428,7 +434,11 @@ class TestStageArtifactOwner:
             raise ValueError("foreign stage leaf")
         leaf.assert_unchanged()
 
-    def _register_staged_verification(self, value: object, handle: object) -> object:
+    def _register_staged_verification(
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+    ) -> object:
         token = object()
         self._pairs[id(value)] = (
             value,
@@ -462,7 +472,10 @@ class TestStageArtifactOwner:
             raise ValueError("unregistered staged verification") from exc
 
     def _require_registered_staged_verification(
-        self, value: object, handle: object, token: object
+        self,
+        value: "StagedParquetVerification",
+        handle: "StagedParquetHandle",
+        token: object,
     ) -> None:
         pair = self._pairs.get(id(value))
         if (
@@ -474,7 +487,11 @@ class TestStageArtifactOwner:
         ):
             raise ValueError("unregistered staged verification")
 
-    def _require_registered_staged_handle(self, handle: object, token: object) -> None:
+    def _require_registered_staged_handle(
+        self,
+        handle: "StagedParquetHandle",
+        token: object,
+    ) -> None:
         if not any(
             pair[1] is handle
             and pair[2] is token
@@ -483,12 +500,16 @@ class TestStageArtifactOwner:
         ):
             raise ValueError("unregistered staged handle")
 
-    def _register_staged_set(self, value: object) -> object:
+    def _register_staged_set(self, value: "StagedParquetSet") -> object:
         token = object()
         self._sets[id(value)] = (value, token)
         return token
 
-    def _replace_registered_staged_set(self, previous: object, value: object) -> object:
+    def _replace_registered_staged_set(
+        self,
+        previous: "StagedParquetSet",
+        value: "StagedParquetSet",
+    ) -> object:
         pair = self._sets.get(id(previous))
         if pair is None or pair[0] is not previous:
             raise ValueError("superseded staged set")
@@ -496,7 +517,11 @@ class TestStageArtifactOwner:
         del self._sets[id(previous)]
         return token
 
-    def _require_registered_staged_set(self, value: object, token: object) -> None:
+    def _require_registered_staged_set(
+        self,
+        value: "StagedParquetSet",
+        token: object,
+    ) -> None:
         pair = self._sets.get(id(value))
         if pair is None or pair[0] is not value or pair[1] is not token:
             raise ValueError("unregistered staged set")

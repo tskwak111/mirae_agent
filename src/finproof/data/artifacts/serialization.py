@@ -19,6 +19,7 @@ from finproof.data.artifacts.table_specs import (
 )
 from finproof.domain.bonds import BondInstrument
 from finproof.domain.domestic_listed import ListedProduct
+from finproof.domain.locators import SourceCellLocator
 from finproof.domain.overseas_listed import OverseasListedProduct
 from finproof.domain.public_funds import FundItem, FundItemAttribute, FundItemValue
 from finproof.domain.quality import DataQualityIssue
@@ -242,7 +243,70 @@ def _serialize_explicit(spec: TableSpec, value: BaseModel) -> Mapping[str, objec
     return row
 
 
+def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
+    if type(value) is not FundItem or type(value.contributing_rows) is not tuple:
+        raise ValueError("physical model values do not match the frozen contract")
+    if any(type(row) is not SourceRow for row in value.contributing_rows):
+        raise ValueError("physical model values do not match the frozen contract")
+    payload: dict[str, object] = {
+        "grain": value.grain,
+        "contributing_rows": value.contributing_rows,
+    }
+    for name, field in FundItem.model_fields.items():
+        if name in {"grain", "contributing_rows"}:
+            continue
+        wrapper_type = field.annotation
+        wrapped = getattr(value, name)
+        if not isinstance(wrapper_type, type) or type(wrapped) is not wrapper_type:
+            raise ValueError("physical model values do not match the frozen contract")
+        if not isinstance(wrapped, FundItemValue):
+            raise ValueError("physical model values do not match the frozen contract")
+        representative_type = wrapper_type.model_fields["representative"].annotation
+        representative = wrapped.representative
+        if not isinstance(representative, NormalizedValue):
+            raise ValueError("physical model values do not match the frozen contract")
+        if (
+            not isinstance(representative_type, type)
+            or type(representative) is not representative_type
+            or type(representative.raw_value) is not str
+            or type(representative.rule_id) is not str
+            or type(representative.rule_version) is not str
+            or type(representative.source) is not SourceCellLocator
+            or type(wrapped.equivalent_sources) is not tuple
+            or any(type(source) is not SourceCellLocator for source in wrapped.equivalent_sources)
+        ):
+            raise ValueError("physical model values do not match the frozen contract")
+        annotation = representative_type.model_fields["normalized_value"].annotation
+        expected_types = tuple(
+            arg for arg in getattr(annotation, "__args__", ()) if arg is not type(None)
+        )
+        normalized = representative.normalized_value
+        if normalized is not None and (
+            len(expected_types) != 1 or type(normalized) is not expected_types[0]
+        ):
+            raise ValueError("physical model values do not match the frozen contract")
+        rebuilt_representative = representative_type.model_validate(
+            {
+                field_name: getattr(representative, field_name)
+                for field_name in representative_type.model_fields
+            },
+            strict=True,
+        )
+        payload[name] = wrapper_type.model_validate(
+            {
+                "representative": rebuilt_representative,
+                "equivalent_sources": wrapped.equivalent_sources,
+            },
+            strict=True,
+        )
+    return payload
+
+
 def _revalidate_wide(model_type: type[BaseModel], value: BaseModel) -> BaseModel:
+    if model_type is FundItem:
+        validation_input: object = _exact_fund_item_python_payload(value)
+    else:
+        validation_input = value.model_dump(mode="python")
     dumped = value.model_dump(mode="python")
     pending: list[object] = [dumped]
     while pending:
@@ -260,9 +324,7 @@ def _revalidate_wide(model_type: type[BaseModel], value: BaseModel) -> BaseModel
         elif isinstance(item, (list, tuple)):
             pending.extend(item)
     try:
-        if model_type is FundItem:
-            return FundItem.model_validate_json(canonical_record_json(value))
-        return model_type.model_validate(dumped, strict=True)
+        return model_type.model_validate(validation_input, strict=True)
     except ValidationError as exc:
         raise ValueError("physical model values do not match the frozen contract") from exc
 

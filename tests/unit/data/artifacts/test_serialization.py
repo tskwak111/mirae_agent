@@ -5,6 +5,7 @@ from datetime import date
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from finproof.data.normalization.bonds import normalize_bond
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
@@ -719,6 +720,89 @@ def test_serialization_revalidates_exact_registered_spec_and_model_pair(case: st
 
     with pytest.raises(ValueError, match="registered"):
         serialize_table_row(spec, value)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "decimal-string",
+        "string-subclass",
+        "fund-value-subclass",
+        "normalized-value-subclass",
+    ],
+)
+def test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and_nested_model_leaves(  # noqa: E501
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from decimal import Decimal
+
+    from finproof.data.artifacts import serialization
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.domain.public_funds import FundItemValue
+    from finproof.domain.values import NormalizedValue
+
+    value = _fund_record().model_copy(deep=True)
+    if case == "decimal-string":
+        object.__setattr__(value.return_1m.representative, "normalized_value", "1.25")
+    elif case == "string-subclass":
+
+        class ForgedText(str):
+            pass
+
+        object.__setattr__(
+            value.name.representative,
+            "normalized_value",
+            ForgedText(value.name.representative.normalized_value or "fund"),
+        )
+    elif case == "fund-value-subclass":
+
+        class ForgedFundItemValue(FundItemValue[Decimal]):
+            pass
+
+        wrapped = value.return_1m
+        object.__setattr__(
+            value,
+            "return_1m",
+            ForgedFundItemValue.model_construct(
+                representative=wrapped.representative,
+                equivalent_sources=wrapped.equivalent_sources,
+            ),
+        )
+    else:
+
+        class ForgedNormalizedValue(NormalizedValue[Decimal]):
+            pass
+
+        representative = value.return_1m.representative
+        object.__setattr__(
+            value.return_1m,
+            "representative",
+            ForgedNormalizedValue.model_construct(
+                raw_value=representative.raw_value,
+                normalized_value=representative.normalized_value,
+                quality_status=representative.quality_status,
+                rule_id=representative.rule_id,
+                rule_version=representative.rule_version,
+                source=representative.source,
+            ),
+        )
+
+    canonical_calls = 0
+    original_canonical = serialization.canonical_record_json
+
+    def tracked_canonical(model: BaseModel):
+        nonlocal canonical_calls
+        canonical_calls += 1
+        return original_canonical(model)
+
+    monkeypatch.setattr(serialization, "canonical_record_json", tracked_canonical)
+    with pytest.raises(ValueError, match="physical model values"):
+        serialization.serialize_table_row(
+            TABLE_SPEC_BY_NAME["silver_fund_item"],
+            value,
+        )
+    assert canonical_calls == 0
 
 
 @pytest.mark.parametrize("case", ["table-grain", "nested-column-arrow-type"])

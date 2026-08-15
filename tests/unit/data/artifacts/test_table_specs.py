@@ -1,6 +1,7 @@
 """Frozen table-spec contracts for artifact persistence."""
 
 from inspect import signature
+from typing import cast
 
 import pytest
 
@@ -78,6 +79,74 @@ def test_table_spec_module_skeleton_rejects_closed_registry_fixture() -> None:
 
     with pytest.raises(ValueError, match="column names"):
         ClosedTableSpecRegistry((malformed,))
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "list",
+        "generator",
+        "rebuilt-tuple",
+        "one-copied-member",
+        "foreign-member",
+        "short",
+        "long",
+        "duplicate",
+        "adjacent-swap",
+        "reversed",
+    ],
+)
+def test_closed_table_spec_registry_accepts_only_exact_frozen_table_specs_tuple(
+    case: str,
+) -> None:
+    from finproof.data.artifacts.table_specs import (
+        TABLE_SPECS,
+        ClosedTableSpecRegistry,
+        TableSpec,
+    )
+
+    candidate: object
+    if case == "list":
+        candidate = list(TABLE_SPECS)
+    elif case == "generator":
+        candidate = (spec for spec in TABLE_SPECS)
+    elif case == "rebuilt-tuple":
+        candidate = (*TABLE_SPECS,)
+    elif case == "one-copied-member":
+        candidate = (TABLE_SPECS[0].model_copy(), *TABLE_SPECS[1:])
+    elif case == "foreign-member":
+        foreign = TABLE_SPECS[0].model_copy(update={"table_name": "foreign"})
+        candidate = (foreign, *TABLE_SPECS[1:])
+    elif case == "short":
+        candidate = TABLE_SPECS[:-1]
+    elif case == "long":
+        candidate = (*TABLE_SPECS, TABLE_SPECS[-1])
+    elif case == "duplicate":
+        candidate = (*TABLE_SPECS[:-1], TABLE_SPECS[0])
+    elif case == "adjacent-swap":
+        candidate = (TABLE_SPECS[1], TABLE_SPECS[0], *TABLE_SPECS[2:])
+    else:
+        candidate = tuple(reversed(TABLE_SPECS))
+
+    with pytest.raises(ValueError, match="exact frozen table specs"):
+        ClosedTableSpecRegistry(cast(tuple[TableSpec, ...], candidate))
+
+    ClosedTableSpecRegistry(TABLE_SPECS)
+
+
+def test_closed_table_spec_registry_ordered_specs_satisfies_cp2_kernel_port() -> None:
+    from finproof.data.artifacts.manifest import ClosedTableSpecRegistry as ManifestRegistry
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_REGISTRY, TABLE_SPECS
+
+    registry: ManifestRegistry = TABLE_SPEC_REGISTRY
+
+    def kernel_spy(port: ManifestRegistry) -> tuple[object, ...]:
+        return port.ordered_specs()
+
+    observed = kernel_spy(registry)
+    assert observed is TABLE_SPECS
+    assert len(observed) == 11
+    assert all(observed[index] is TABLE_SPECS[index] for index in range(11))
 
 
 def test_table_registry_has_exact_eleven_names_and_paths() -> None:

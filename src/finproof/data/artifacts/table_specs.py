@@ -1,6 +1,5 @@
 """Frozen physical and logical table declarations for artifacts."""
 
-from collections.abc import Iterable
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
@@ -46,14 +45,27 @@ class TableSpec(BaseModel):
 
 
 class ClosedTableSpecRegistry:
-    """Private closed-registry skeleton; validation is added behavior-by-behavior."""
+    """The sole closed registry for the exact reviewed table-spec tuple."""
 
-    def __init__(self, specs: Iterable[TableSpec]) -> None:
-        self._specs = tuple(specs)
-        for spec in self._specs:
+    def __init__(self, specs: tuple[TableSpec, ...]) -> None:
+        for spec in specs:
             names = tuple(column.name for column in spec.columns)
             if len(names) != len(set(names)):
                 raise ValueError("column names must be unique")
+        if (
+            type(specs) is not tuple
+            or specs is not TABLE_SPECS
+            or len(specs) != len(TABLE_SPECS)
+            or any(spec is not TABLE_SPECS[index] for index, spec in enumerate(specs))
+        ):
+            raise ValueError("registry requires the exact frozen table specs tuple")
+        self._specs = specs
+
+    def ordered_specs(self) -> tuple[TableSpec, ...]:
+        """Return the exact reviewed tuple after revalidating every member."""
+        for spec in self._specs:
+            require_registered_table_spec(spec)
+        return TABLE_SPECS
 
 
 _TABLE_NAMES = (
@@ -605,6 +617,7 @@ TABLE_SPECS = (
     _GOLD_LINK_SPEC,
     _GOLD_EVIDENCE_SPEC,
 )
+TABLE_SPEC_REGISTRY = ClosedTableSpecRegistry(TABLE_SPECS)
 TABLE_SPEC_BY_NAME = MappingProxyType({spec.table_name: spec for spec in TABLE_SPECS})
 _WIDE_MODEL_TYPES = (BondInstrument, ListedProduct, OverseasListedProduct, FundItem)
 _EXACT_MODEL_BY_TABLE = MappingProxyType(
