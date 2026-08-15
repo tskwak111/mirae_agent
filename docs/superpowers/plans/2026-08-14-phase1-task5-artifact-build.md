@@ -2768,6 +2768,7 @@ frozen decision.
 - Create: `tests/unit/data/artifacts/test_bronze.py`
 - Modify: `tests/unit/data/artifacts/test_foundations.py`
 - Modify: `tests/unit/data/artifacts/test_manifest.py`
+- Modify static typing only: `tests/unit/data/artifacts/test_parquet_io.py`
 - Modify: `tests/unit/data/artifacts/test_reports.py`
 - Create: `tests/integration/artifacts/test_bronze_fixture_build.py`
 - Create: `tests/performance/test_artifact_external_staging.py`
@@ -2775,6 +2776,17 @@ frozen decision.
 - Modify: `tests/source_contract/test_xlsx_stream.py`
 - Modify: `tests/helpers/artifacts.py`
 - Modify: `tests/helpers/xlsx.py`
+
+`tests/unit/data/artifacts/test_parquet_io.py` is the exact static-only twenty-second
+file. Mypy 1.20.2 emits two `[import-untyped]` diagnostics for the one pre-existing
+function-local `import pyarrow.parquet as pq` statement at current line 138—one for the
+package and one for the submodule; the file's existing top-level mypy directive does
+not suppress them. CP4 may add the narrow inline
+`# type: ignore[import-untyped]` annotation to only that diagnosed import statement.
+No test assertion, fixture, selector, import timing, runtime branch, production code,
+or broader mypy configuration may change. This mechanical correction creates no RED/
+GREEN behavior and does not change the 53-selector count. Its related complete test
+file plus focused Ruff/format/mypy commands must pass before the full static gate.
 
 **Interfaces:**
 
@@ -3358,6 +3370,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/artifacts/test_reports.py \
@@ -3415,7 +3428,22 @@ as the next mandatory RED and append it to the report. Set
 with the same live owner/config. Assert output order, uniqueness, maximum emitted batch
 65,536, one thread, private unexposed spill identity, no retained input rows, and exact
 close-before-cleanup. First observe the intended missing scale/spill behavior, implement
-the smallest GREEN, then run:
+the smallest GREEN. Apply only the authorized inline import typing annotations, then
+prove the static-only file's existing behavior and diagnostics directly:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_parquet_io.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  tests/unit/data/artifacts/test_parquet_io.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  tests/unit/data/artifacts/test_parquet_io.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  tests/unit/data/artifacts/test_parquet_io.py
+```
+
+Every command must pass with the test file's assertions and runtime import placement
+unchanged. Then run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
@@ -3424,6 +3452,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/artifacts/test_reports.py \
@@ -3445,6 +3474,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/artifacts/test_reports.py \
@@ -3466,6 +3496,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/artifacts/test_reports.py \
@@ -3487,6 +3518,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
   tests/unit/data/artifacts/test_reports.py \
@@ -3535,7 +3567,9 @@ command, start/end time, exit code, observed pass/fail/skip counts and duration,
 implementation commit hash. It may not cite the full-suite result as a substitute. Any
 Task 1–4 failure is a hard stop before commit/review.
 
-The exact implementation name-only inventory is these twenty-one files and no others:
+The exact implementation/static-correction name-only inventory is these twenty-two
+files and no others; the first twenty-one remain the behavioral implementation map and
+`test_parquet_io.py` is static-only:
 
 ```text
 src/finproof/data/artifacts/bronze.py
@@ -3557,13 +3591,19 @@ tests/unit/data/artifacts/test_bronze.py
 tests/unit/data/artifacts/test_foundations.py
 tests/unit/data/artifacts/test_input_identity.py
 tests/unit/data/artifacts/test_manifest.py
+tests/unit/data/artifacts/test_parquet_io.py
 tests/unit/data/artifacts/test_reports.py
 tests/unit/data/artifacts/test_staging.py
 ```
 
 STATUS, the legacy plan, this dedicated plan, design/decision docs, schemas, config,
 source files, CP5+ modules, and the ignored report are absent. Stage exact names rather
-than directories, recheck the cache, commit, and require clean status:
+than directories. Before staging, `git diff --
+tests/unit/data/artifacts/test_parquet_io.py` must show exactly one comment-only inline
+`import-untyped` annotation on that diagnosed local import and no assertion, fixture,
+import location, or executable-line change. Any broader hunk is a hard stop. Recheck
+the cache, commit the 21 behavioral files plus this one static-only file together, and
+require clean status:
 
 ```bash
 git add src/finproof/data/artifacts/bronze.py \
@@ -3585,6 +3625,7 @@ git add src/finproof/data/artifacts/bronze.py \
   tests/unit/data/artifacts/test_foundations.py \
   tests/unit/data/artifacts/test_input_identity.py \
   tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
   tests/unit/data/artifacts/test_reports.py \
   tests/unit/data/artifacts/test_staging.py
 git diff --cached --check
