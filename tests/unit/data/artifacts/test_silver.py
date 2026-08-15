@@ -579,6 +579,7 @@ def test_silver_build_result_is_frozen_finalizer_issued_and_revalidates_predeces
     from finproof.data.artifacts.config import ArtifactBuildOptions
     from finproof.data.artifacts.errors import ArtifactContractError
     from finproof.data.artifacts.parquet_io import StagedParquetSet
+    from finproof.data.artifacts.reports import QualitySummaryReport
     from finproof.data.artifacts.silver import SilverArtifactEmitter, SilverBuildResult
     from finproof.data.artifacts.staging import ArtifactBuildSession
     from finproof.registry.rating import RatingRegistry
@@ -608,7 +609,7 @@ def test_silver_build_result_is_frozen_finalizer_issued_and_revalidates_predeces
         assert is_dataclass(SilverBuildResult)
         assert SilverBuildResult.__dataclass_params__.frozen is True
         assert SilverBuildResult.__dataclass_params__.init is False
-        assert tuple(field.name for field in fields(SilverBuildResult) if field.repr) == (
+        assert tuple(field.name for field in fields(SilverBuildResult)) == (
             "input_identity",
             "staged_tables",
             "observations",
@@ -660,6 +661,21 @@ def test_silver_build_result_is_frozen_finalizer_issued_and_revalidates_predeces
                         result.instrumentation.staged_relation_rows[4],
                     ),
                 ),
+            )
+        reconstructed_report = QualitySummaryReport.model_validate(
+            result.quality_report.model_dump(mode="python"),
+            strict=True,
+        )
+        assert reconstructed_report == result.quality_report
+        assert reconstructed_report is not result.quality_report
+        with pytest.raises((TypeError, ValueError)):
+            SilverBuildResult._issue_from_finalizer(
+                bronze_result=fresh_bronze,
+                staged_tables=result.staged_tables,
+                observations=result.observations,
+                quality_join_observations=result.quality_join_observations,
+                quality_report=reconstructed_report,
+                instrumentation=result.instrumentation,
             )
 
 

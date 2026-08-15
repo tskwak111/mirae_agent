@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal, cast
 
 from finproof.core.versions import VersionBundle
@@ -82,8 +82,14 @@ class NamedObservedCount:
             raise ValueError("observed count is outside the closed contract")
 
 
+class _SilverInstrumentationProvenance:
+    __slots__ = ("_result_authorization",)
+
+    _result_authorization: _SilverFinalizerAuthorization
+
+
 @dataclass(frozen=True, slots=True)
-class SilverBuildInstrumentation:
+class SilverBuildInstrumentation(_SilverInstrumentationProvenance):
     """Strict bounded counters for one complete Silver source pass."""
 
     source_rows_consumed: int
@@ -126,6 +132,30 @@ class SilverBuildInstrumentation:
             raise ValueError("Silver instrumentation inventory or bounds changed")
 
 
+class _SilverFinalizerAuthorization:
+    __slots__ = ("members", "result")
+
+    def __init__(
+        self,
+        *,
+        bronze_result: BronzeBuildResult,
+        staged_tables: StagedParquetSet,
+        observations: SilverSourceAuditObservations,
+        quality_join_observations: QualityJoinObservations,
+        quality_report: QualitySummaryReport,
+        instrumentation: SilverBuildInstrumentation,
+    ) -> None:
+        self.members = (
+            bronze_result,
+            staged_tables,
+            observations,
+            quality_join_observations,
+            quality_report,
+            instrumentation,
+        )
+        self.result: SilverBuildResult | None = None
+
+
 class _SilverBatchSink:
     __slots__ = ("_closed", "_limit", "_max_batch_rows", "_rows", "_writer")
 
@@ -157,8 +187,14 @@ class _SilverBatchSink:
             self._rows.clear()
 
 
+class _SilverBuildResultProvenance:
+    __slots__ = ("_issuance",)
+
+    _issuance: _SilverBuildResultIssuance
+
+
 @dataclass(frozen=True, init=False, slots=True)
-class SilverBuildResult:
+class SilverBuildResult(_SilverBuildResultProvenance):
     """Builder-issued carrier for one verified nine-table Silver stage."""
 
     input_identity: BuildInputIdentity
@@ -167,7 +203,6 @@ class SilverBuildResult:
     quality_join_observations: QualityJoinObservations
     quality_report: QualitySummaryReport
     instrumentation: SilverBuildInstrumentation
-    _issuance: _SilverBuildResultIssuance = field(init=False, repr=False, compare=False)
 
     def __new__(cls, *args: object, **kwargs: object) -> SilverBuildResult:
         del args, kwargs
@@ -254,6 +289,34 @@ class SilverBuildResult:
             or staged_counts["SILVER_QUALITY_ISSUE"] != observed_rows["silver_quality_issue"]
         ):
             raise ValueError("Silver result instrumentation relationship changed")
+        try:
+            authorization = object.__getattribute__(
+                instrumentation,
+                "_result_authorization",
+            )
+        except AttributeError as exc:
+            raise ValueError("Silver result lacks finalizer authorization") from exc
+        supplied_members = (
+            exact_bronze,
+            staged_tables,
+            observations,
+            quality_join_observations,
+            quality_report,
+            instrumentation,
+        )
+        if (
+            type(authorization) is not _SilverFinalizerAuthorization
+            or authorization.result is not None
+            or any(
+                authorized is not supplied
+                for authorized, supplied in zip(
+                    authorization.members,
+                    supplied_members,
+                    strict=True,
+                )
+            )
+        ):
+            raise ValueError("Silver result finalizer authorization changed")
         value = object.__new__(cls)
         object.__setattr__(value, "input_identity", exact_bronze.input_identity)
         object.__setattr__(value, "staged_tables", staged_tables)
@@ -261,15 +324,26 @@ class SilverBuildResult:
         object.__setattr__(value, "quality_join_observations", quality_join_observations)
         object.__setattr__(value, "quality_report", quality_report)
         object.__setattr__(value, "instrumentation", instrumentation)
-        object.__setattr__(value, "_issuance", _SilverBuildResultIssuance(value))
+        object.__setattr__(
+            value,
+            "_issuance",
+            _SilverBuildResultIssuance(value, authorization=authorization),
+        )
+        authorization.result = value
         return value
 
 
 class _SilverBuildResultIssuance:
-    __slots__ = ("facts", "members", "value")
+    __slots__ = ("authorization", "facts", "members", "value")
 
-    def __init__(self, value: SilverBuildResult) -> None:
+    def __init__(
+        self,
+        value: SilverBuildResult,
+        *,
+        authorization: _SilverFinalizerAuthorization,
+    ) -> None:
         self.value = value
+        self.authorization = authorization
         self.members = (
             value.input_identity,
             value.staged_tables,
@@ -302,6 +376,7 @@ def require_silver_build_result(value: object) -> SilverBuildResult:
         if (
             type(issuance) is not _SilverBuildResultIssuance
             or issuance.value is not value
+            or issuance.authorization.result is not value
             or any(left is not right for left, right in zip(issuance.members, members, strict=True))
             or issuance.facts
             != (
@@ -633,6 +708,19 @@ class SilverArtifactEmitter:
             max_relation_batch_rows=self._max_relation_batch_rows,
         )
         self._order_store.close_and_remove_working_state()
+        authorization = _SilverFinalizerAuthorization(
+            bronze_result=exact,
+            staged_tables=self._staged_tables,
+            observations=self._observations,
+            quality_join_observations=self._quality_join_observations,
+            quality_report=self._quality_report,
+            instrumentation=self._instrumentation,
+        )
+        object.__setattr__(
+            self._instrumentation,
+            "_result_authorization",
+            authorization,
+        )
         return SilverBuildResult._issue_from_finalizer(
             bronze_result=exact,
             staged_tables=self._staged_tables,
