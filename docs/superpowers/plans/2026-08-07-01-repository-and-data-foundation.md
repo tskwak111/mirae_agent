@@ -431,7 +431,7 @@ The dedicated plan must implement the approved specification under strict RED ->
   bounded stream/unique checker, D-025 single-owner staged-set verification contracts
   for CP4-7, and the distinct final CP2-inventory adapter implementation first invoked
   by CP7**
-- [ ] **Checkpoint 4: complete held-descriptor one-pass Bronze streaming; the exact
+- [x] **Checkpoint 4: complete held-descriptor one-pass Bronze streaming; the exact
   Bronze source-audit typestate plus forged-later-phase rejection; exact-nine immutable
   descriptor-held build-input identity issued only after a trusted-Settings-recomputed,
   instance-owned resolved-nine bundle and held verifier seal; owning-module held-stream
@@ -458,6 +458,10 @@ The dedicated plan must implement the approved specification under strict RED ->
   public expected-accepted verifier/result, typed same-generation one-use instance
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
+
+Exact next checkpoint: Checkpoint 5, wide Silver products/attributes, bounded
+public-fund item collapse, D-021 quality persistence and quarantine, the Silver
+source-audit typestate, and deterministic quality-summary reporting.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

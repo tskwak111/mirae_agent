@@ -3051,7 +3051,7 @@ objects/values/order and add only its declared suffix. Extra/missing/reordered f
 boolean counts, unequal values, wrong hashes, direct wrong-phase construction, and a
 Bronze/Silver report input fail at the checkpoint that first owns that boundary.
 
-- [ ] **Step 1: Write REDs for fixed staging settings, ownership, spill, and cleanup**
+- [x] **Step 1: Write REDs for fixed staging settings, ownership, spill, and cleanup**
 
 Use one permanent report at
 `/private/tmp/finproof-task5-checkpoint4-red-green.md`. Before production changes,
@@ -3186,7 +3186,7 @@ Expected: each named database-stage selector records its own RED/GREEN in order;
 the sixteen preceding staging selectors also each have an individually observed RED
 and smallest GREEN. The report has 25 ordered staging/database entries before Step 2.
 
-- [ ] **Step 2: Implement bounded staging and marker-owned cleanup only**
+- [x] **Step 2: Implement bounded staging and marker-owned cleanup only**
 
 Step 2 records/refactors the already serially closed database-stage GREEN behavior; it
 does not bulk-implement an unobserved database branch after one Step 1 failure.
@@ -3286,7 +3286,7 @@ uses its typed relation/batch methods inside the context. Preserve the nine data
 interfaces/selectors above exactly; CP4 does not return a CP7
 `StagedDatabaseVerification` or accept a CP7 callback.
 
-- [ ] **Step 3: Write REDs for full canonical Bronze fixture streaming**
+- [x] **Step 3: Write REDs for full canonical Bronze fixture streaming**
 
 Continue the same report and close the held-workbook boundary first, one selector at a
 time in this exact order:
@@ -3377,7 +3377,7 @@ Expected GREEN only after every exact selector above has its individual RED and
 smallest GREEN recorded. This aggregate run is regression evidence, never a substitute
 for a missing selector entry.
 
-- [ ] **Step 4: Implement one-pass Bronze ingestion and streaming hashes**
+- [x] **Step 4: Implement one-pass Bronze ingestion and streaming hashes**
 
 Construct `ResolvedBuildInputBundle.from_settings(settings)`, pass that exact
 instance plus the same trusted Settings into `verify_build_inputs`, and require the
@@ -3414,7 +3414,7 @@ hash, or stage a `SourceAuditReport`, CP2 inventory, final `VerifiedParquetTable
 `TableVerificationResult`: the remaining Parquets/reports/database/manifest do not yet
 exist.
 
-- [ ] **Step 5: Add external-sort scale RED/GREEN and run checkpoint gates**
+- [x] **Step 5: Add external-sort scale RED/GREEN and run checkpoint gates**
 
 Author
 `tests/performance/test_artifact_external_staging.py::test_external_order_store_spills_and_orders_131073_rows_with_bounded_state`
@@ -3528,7 +3528,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
 
 Expected GREEN: fixture Bronze is complete/reconstructable, the optional consumer receives each already-enqueued row exactly once with no rescan, staging is externally sorted/bounded, all failures isolate the published target, and a Bronze/input observation mismatch cannot be advanced or rendered as a successful source-audit report.
 
-- [ ] **Step 6: Run full gates, commit the exact implementation, review, then close docs**
+- [x] **Step 6: Run full gates, commit the exact implementation, review, then close docs**
 
 The report must contain eight held-input/identity/parser selectors, two CP2 held-root-adoption
 selectors, all 25 staging/database selectors, five held-reader selectors, twelve
@@ -3671,6 +3671,26 @@ git diff --cached --name-only
 git commit -m "docs: close Task 5 checkpoint 4 review"
 git status --porcelain
 ```
+
+Checkpoint 4 closure evidence recorded on 2026-08-15:
+
+- implementation/correction lineage: `e91ed04` -> `278d20ce` -> `4bdebfbf`;
+- final independent narrow verification of `4bdebfbf`: Critical 0 / Important 0,
+  with no backlog item;
+- final lifecycle selector matrix: 4 passed; related Parquet/staging/Bronze regression:
+  140 passed; CP4 focused aggregate: 761 passed and 1 explicit AF_UNIX-unavailable
+  capability skip; unchanged Task 1–4 regression at the implementation checkpoint:
+  533 passed;
+- final network-enabled full repository suite: 2,015 passed with 4 deliberate
+  adversarial Pydantic serialization warnings in 324.75 seconds;
+- Ruff format/check and fresh no-incremental plus clean-cache standard mypy passed over
+  116 source files; audit stayed 145,393 rows at `2026-07-11`; handoff stayed
+  61/9/41,384,928; catalog stayed 207; pre-commit, expected/artifact absence,
+  source-read-only, diff, and clean-tree gates passed;
+- the official expected baseline remains absent and deferred to Checkpoint 8. Exact
+  next task: Checkpoint 5, implement wide Silver products/attributes, bounded
+  public-fund item collapse, D-021 quality persistence and quarantine, the Silver
+  source-audit typestate, and deterministic quality-summary reporting.
 
 ---
 

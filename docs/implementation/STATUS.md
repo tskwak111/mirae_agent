@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–3 are implemented and
-independently approved at Critical 0 / Important 0 / Minor 0. Task 5 and the Phase 1
-gate remain incomplete; Checkpoint 4 is the exact next task.
+**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–4 are implemented and
+independently approved at Critical 0 / Important 0. Task 5 and the Phase 1 gate remain
+incomplete; Checkpoint 5 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,8 +60,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 4: complete generic Bronze streaming and bounded external
-staging, ordering, spill, and cleanup behavior under focused RED-GREEN TDD.** The
+**Phase 1 Task 5 Checkpoint 5: implement wide Silver products/attributes, bounded
+public-fund item collapse, D-021 quality persistence and quarantine, the Silver
+source-audit typestate, and deterministic quality-summary reporting under focused
+RED-GREEN TDD.** The
 approved detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
 and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
@@ -76,7 +78,7 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1–3 complete while Checkpoints 4–8 remain
+body points to it and records Checkpoints 1–4 complete while Checkpoints 5–8 remain
 unchecked.
 
 Observed design-gate evidence on 2026-08-14:
@@ -147,9 +149,30 @@ Checkpoint 3 implementation and review evidence on 2026-08-15:
 - pre-commit passed; both expected-contract paths and runtime `artifacts/` remained
   absent, official source files were read-only, and the reviewed worktree was clean.
 
-The exact next step is Checkpoint 4 in the dedicated plan: complete generic Bronze
-streaming and bounded external staging, ordering, spill, and cleanup behavior. Do not
-create the official expected logical
+Checkpoint 4 implementation and review evidence on 2026-08-15:
+
+- reviewed implementation/correction lineage: `e91ed04` (`feat: stream complete
+  Bronze artifacts`), `278d20ce` (`fix: close Task 5 checkpoint 4 review gaps`), and
+  `4bdebfbf` (`fix: close final Task 5 checkpoint 4 review gap`);
+- final narrow independent verification at `4bdebfbf`: Critical 0 / Important 0,
+  with no backlog item;
+- final new lifecycle selector matrix: 4 passed; related Parquet/staging/Bronze
+  regression: 140 passed; final CP4 focused aggregate: 761 passed and 1 explicit
+  AF_UNIX-unavailable capability skip; unchanged Task 1–4 regression at the
+  implementation checkpoint: 533 passed;
+- final network-enabled full repository suite: 2,015 passed with 4 deliberate
+  adversarial Pydantic serialization warnings in 324.75 seconds;
+- Ruff format/check and both fresh no-incremental and clean-cache standard mypy passed
+  over 116 source files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the final worktree was clean.
+
+The exact next step is Checkpoint 5 in the dedicated plan: implement wide Silver
+products/attributes, bounded public-fund item collapse, D-021 quality persistence and
+quarantine, the Silver source-audit typestate, and deterministic quality-summary
+reporting. Do not create the official expected logical
 baseline before Checkpoint 8's two independently verified candidate builds and review.
 
 ## Handoff validation record — not production implementation
