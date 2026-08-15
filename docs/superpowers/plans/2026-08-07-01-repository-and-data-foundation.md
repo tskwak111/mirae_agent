@@ -431,12 +431,23 @@ The dedicated plan must implement the approved specification under strict RED ->
   bounded stream/unique checker, D-025 single-owner staged-set verification contracts
   for CP4-7, and the distinct final CP2-inventory adapter implementation first invoked
   by CP7**
-- [ ] **Checkpoint 4: complete generic Bronze streaming and bounded external staging,
-  ordering, spill, and cleanup behavior**
+- [ ] **Checkpoint 4: complete held-descriptor one-pass Bronze streaming; the exact
+  Bronze source-audit typestate plus forged-later-phase rejection; exact-nine immutable
+  descriptor-held build-input identity issued only after a trusted-Settings-recomputed,
+  instance-owned resolved-nine bundle and held verifier seal; owning-module held-stream
+  config/registry/manifest/catalog parsing with ABA rejection; CP2-owned opaque held-root adoption; and one managed live/closing/closed stage owner with pathless
+  fixed-bound external ordering, CP4-owned Parquet/database capabilities, capability-
+  bound verification-root custody without publication transitions, exact abort/
+  retention/lock transfer into an instance-owned candidate custody without global
+  registries, spill, and cleanup behavior (CP5 first adds Silver, CP6
+  first adds Complete/report, CP8 first atomically consumes expected-bound custody into
+  the sole production publication transition owner)**
 - [ ] **Checkpoint 5: wide Silver products/attributes, bounded fund-item collapse,
-  D-021 quality persistence, quarantine, and deterministic reports**
+  D-021 quality persistence, quarantine, the first exact Silver source-audit typestate,
+  and deterministic quality-summary reporting**
 - [ ] **Checkpoint 6: exact raw-identifier links, full bidirectional locator evidence,
-  pair hash, and conflict rejection**
+  pair hash, conflict rejection, the first exact Complete source-audit typestate, and
+  the sole source-audit report producer**
 - [ ] **Checkpoint 7: concrete report/database ports and packaged-comparator
   implementation, complete private core verification, self-contained DuckDB exact-
   content verification, authorization-independent publication/rollback/recovery state
@@ -444,7 +455,8 @@ The dedicated plan must implement the approved specification under strict RED ->
   CLI behavior**
 - [ ] **Checkpoint 8: two-build official logical reproduction, independently reviewed
   official expected-contract creation plus wheel-byte test, activation of the sole
-  public expected-accepted verifier/result and publication recognition, acceptance,
+  public expected-accepted verifier/result, typed same-generation one-use instance
+  custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
 The dedicated plan is the sole Task 5 execution authority after independent plan

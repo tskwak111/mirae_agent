@@ -32,20 +32,32 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 
 - `errors.py`: closed `ArtifactErrorCode` and bounded `ArtifactContractError`.
 - `safe_files.py`: one descriptor-relative, no-follow regular-file reader used by the config, expected-contract, and filesystem-backed resource trust boundaries. It records `(st_dev, st_ino, file type)` for every opened ancestor and leaf, holds the entire descriptor chain through the read, re-stats every child name relative to its held parent after the read, compares every recorded identity/type, and closes descriptors in reverse order on every path. If descriptor-relative open, directory/no-follow flags, or identity revalidation are unavailable, it fails closed rather than using a lexical/precheck fallback.
-- `config.py`: strict immutable `ArtifactBuildConfig` and exact production baseline loader.
+- `config.py`: strict immutable `ArtifactBuildConfig`, exact production baseline loader,
+  and Task5 held-stream config/registry parsers; source-manifest held-stream parsing
+  remains owned by `source_manifest.py`.
 - `resources.py`: checkout-independent closed runtime-resource loader: installed-wheel `importlib.resources` primary plus the one standard-editable `importlib.metadata.distribution("finproof").locate_file(...)` fallback required by the frozen destinations.
 - `expected_contract.py`: private strict baseline-neutral structural payload, stricter
   timestamp-free official expected-contract model, held-file loader, and exhaustive
   comparator with canonical RFC 6901 difference paths.
 - `hashing.py`: canonical scalar/JSON/row/schema/table/report/manifest hash primitives.
-- `manifest.py`: strict manifest models/schema load, held-root recursive physical
-  inventory and entry reopen capability, internal staged verification kernel, and—only
-  after CP8 installs the reviewed expected resource—public `VerifiedArtifactSet`.
+- `manifest.py`: strict manifest models/schema load, the narrow input-identity view,
+  CP2-owned opaque held-root adoption, recursive physical inventory and entry reopen
+  capability, internal staged verification kernel, and—only after CP8 installs the
+  reviewed expected resource—public `VerifiedArtifactSet`; it never imports concrete
+  input identity, staging, or publication.
 - `table_specs.py`: the sole frozen eleven-table schema/name/type/key/path registry.
 - `serialization.py`: exact strict-model `record_json`, wide projections, Bronze/quality/Gold row projections.
 - `parquet_io.py`: capability-bound fixed-schema writer, common bounded stream/unique
   checker, pre-manifest staged verification, and distinct final-inventory adapter.
-- `staging.py`: one-thread/1-GiB bounded DuckDB staging, spill ownership, ordering, and cleanup.
+- `input_identity.py`: no-follow held-nine input verification, its one-use issuance
+  seal, trusted-Settings recomputation through one instance-owned resolved bundle, the
+  direct-init-disabled descriptor-owning logical-input carrier, and its
+  source-manifest/schema-catalog hash bindings; it imports only manifest's narrow view/
+  input model plus CP1 resolver types.
+- `staging.py`: build advisory lock, build-stage/working markers, held descriptor
+  custody, Parquet/database leaves, one-thread/1-GiB bounded stores, abort/discard,
+  cleanup, the non-transitioning instance-owned candidate-stage custody capability,
+  and its typed atomic expected-accepted transfer boundary without global registries.
 - `bronze.py`: source-catalog/row/cell emission and source-audit observations.
 - `silver.py`: non-fund normalization staging and one-item-at-a-time public-fund collapse.
 - `quality_persistence.py`: D-021 timestamp injection, schema validation, and Bronze joins.
@@ -53,7 +65,9 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
   semantic projections/hashes, and later phased producers/verifier port.
 - `links.py`: exact link/evidence models, raw join, conflicts, pair hash, and bidirectional evidence checks.
 - `database.py`: self-contained DuckDB construction, read-only open, and bounded typed `EXCEPT ALL` verification.
-- `publication.py`: lock/marker ownership, guarded rename/rollback, tombstone cleanup, and remnant recovery.
+- `publication.py`: target/backup/tombstone marker ownership, expected-authorization
+  transition ports, guarded rename/rollback/commit, target recognition, and remnant
+  recovery; it consumes staging custody but staging never imports it.
 - `builder.py`: build-session orchestration and the public `build_artifacts` boundary; no domain rule is reimplemented here.
 
 Create `src/finproof/resources/__init__.py` only as the stable resource anchor. Hatch force-includes root schema bytes beneath `finproof/resources/schemas/`; Checkpoint 8 additionally force-includes the reviewed expected contract beneath `finproof/resources/contracts/`. The loader accepts no caller path: it selects one exact frozen destination, tries the installed-wheel `importlib.resources` route first, and only when a regular `src/finproof` package shadows standard-editable distribution data uses `importlib.metadata.distribution("finproof").locate_file(exact_destination)`. No dev-mode-exact install workaround is allowed.
@@ -452,9 +466,14 @@ Observed completion evidence on 2026-08-15:
   `VerifiedTableHandle`, `TableVerificationResult`, `ArtifactReportVerifier`, `ArtifactDatabaseVerifier`,
   `ArtifactExpectedComparator`, `ReportVerificationResult`,
   `ArtifactCoreVerificationResult`, `ArtifactExpectedVerificationResult`, and
-  `ArtifactVerificationKernel` with the exact design-section-10.2 signatures.
-  `verify_candidate_core` orders inventory -> tables -> reports -> overall -> database
-  -> final rescan; `verify_expected` inserts expected between database and final rescan.
+  `ArtifactVerificationKernel` with the CP2-approved path-root signatures. Design
+  section 10.2 additionally freezes the CP7/8 managed-root extension; CP2 does not
+  preimplement that future stage-custody entry.
+  The CP2-approved `verify_candidate_core` orders inventory -> tables -> reports ->
+  overall -> database -> final rescan; `verify_expected` inserts expected between
+  database and final rescan. CP7/8 later add the design-section-10.2 managed-root
+  entries over the same private execution path so a held stage is never reconstructed
+  as a raw path, descriptor, basename, or from a stage object's private fields.
   Missing required ports fail before filesystem work. CP2 production leaves all five
   ports unavailable and therefore cannot return an internal result; no caller-supplied port
   enters a public API.
@@ -2708,26 +2727,140 @@ Checkpoint 3 closure evidence recorded on 2026-08-15:
 
 ### Checkpoint 4: Complete Bronze streaming, external staging, and source-audit observations
 
+**Approved-plan boundary:** begin implementation only from clean `544cde44` plus this
+independently approved documentation correction. Before code or tests, require reviewer
+verdict 0 Critical / 0 Important, then stage exactly:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: harden Task 5 checkpoint 4 contracts"
+git status --porcelain
+```
+
+Name-only must contain those three docs and final porcelain must be empty. Record that
+commit as the clean CP4 implementation base in the ignored RED/GREEN report. Do not
+edit `docs/implementation/STATUS.md`, code, tests, schemas, config, or decisions in this
+plan-approval commit. D-025 already assigns these stage capabilities to CP4 and D-022/
+D-024 already reserve expected authorization/publication activation for CP8, so this
+correction clarifies their implementation boundary without editing or superseding a
+frozen decision.
+
 **Files:**
 
 - Create: `src/finproof/data/artifacts/staging.py`
+- Create: `src/finproof/data/artifacts/input_identity.py`
 - Create: `src/finproof/data/artifacts/bronze.py`
 - Create: `src/finproof/data/artifacts/builder.py`
+- Modify: `src/finproof/data/artifacts/config.py`
+- Modify: `src/finproof/data/artifacts/manifest.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
+- Modify: `src/finproof/data/source_manifest.py`
+- Modify: `src/finproof/data/xlsx_stream.py`
 - Create: `tests/unit/data/artifacts/test_staging.py`
+- Create: `tests/unit/data/artifacts/test_input_identity.py`
 - Create: `tests/unit/data/artifacts/test_bronze.py`
+- Modify: `tests/unit/data/artifacts/test_foundations.py`
+- Modify: `tests/unit/data/artifacts/test_manifest.py`
+- Modify: `tests/unit/data/artifacts/test_reports.py`
 - Create: `tests/integration/artifacts/test_bronze_fixture_build.py`
 - Create: `tests/performance/test_artifact_external_staging.py`
+- Modify: `tests/source_contract/test_source_manifest.py`
+- Modify: `tests/source_contract/test_xlsx_stream.py`
 - Modify: `tests/helpers/artifacts.py`
 - Modify: `tests/helpers/xlsx.py`
 
 **Interfaces:**
 
-- Produces: `ExternalOrderStore(stage_root: Path, *, operation_id: str, memory_limit: str = "1GiB", threads: int = 1)` with fixed relations, `insert_batch`, `iter_ordered_batches`, failure `cleanup`, and success-only `close_and_remove_working_state()`. The latter preserves emitted Parquet/output stage content but closes the connection and removes only the store-owned staging database, WAL, spill/temp directory, and store markers after exact `lstat`/inode/marker checks; it never removes the build-stage ownership marker or uses a broad delete.
+- Produces direct-construction-disabled `ExternalOrderStore` only through
+  `ArtifactBuildSession.open_external_order_store(config: ArtifactBuildConfig) ->
+  AbstractContextManager[ExternalOrderStore]`. The production entry accepts only the
+  live owner and strict config, fixes one thread, `1GiB`,
+  `preserve_insertion_order=false`, private owner-created database/spill identities,
+  and bounded batches, and accepts no caller path or limit. Module-private
+  `_open_external_order_store_for_test(*, owner: ArtifactBuildSession, config:
+  ArtifactBuildConfig, limits: ExternalOrderStoreTestLimits)` is the only low-limit
+  test seam and is absent from production assembly. The store exposes only closed
+  relations, `insert_batch`, `iter_ordered_batches`, failure cleanup, and success-only
+  `close_and_remove_working_state()`. The latter preserves emitted Parquet/output
+  stage content but closes the connection and removes only exact store-owned
+  database/WAL/spill/temp/marker identities; it never removes the build-stage marker.
 - Produces: `iter_bronze_columns(catalog: SourceSchemaCatalog) -> Iterator[Mapping[str, object]]`.
 - Produces internal `SourceRowConsumer` protocol with exactly `consume(row: SourceRow) -> None`; it owns no workbook iterator and may not request/rescan source rows.
 - Produces internal `BronzeFanoutSink(..., consumer: SourceRowConsumer | None)` with `consume_source_row(row: SourceRow) -> None`; the method enqueues that row's complete Bronze row and cells first, then invokes the registered consumer exactly once. `None` is valid for the CP4 Bronze-only fixture.
-- Produces internal `ArtifactBuildSession.initialize(settings, versions, options) -> ArtifactBuildSession` and `ingest_bronze(*, consumer: SourceRowConsumer | None = None) -> BronzeBuildResult`; it writes only to a recognized sibling stage and never publishes.
+- Produces direct-init-disabled, noncopyable `ResolvedBuildInputBundle.from_settings(
+  settings: Settings)`, which internally calls the CP1 resolver and binds its exact
+  nine member objects to one per-instance owner capability without a module-global
+  registry. Produces the held-nine verifier result only through
+  `verify_build_inputs(settings: Settings, resolved: ResolvedBuildInputBundle) ->
+  AbstractContextManager[HeldVerifiedBuildInputs]`. It accepts the exact live bundle,
+  independently recomputes both roots and all nine namespace/path/kind/absolute-path
+  declarations from trusted Settings, opens/
+  retains every parent/name/file generation no-follow, computes
+  observed size/SHA from those streams, and exposes only one-use
+  `issue_identity_seal() -> object` plus `close()`. Issuance revalidates all nine
+  identities and held-stream digests, transfers them to one opaque instance-owned seal,
+  and invalidates the result.
+- Produces direct-init-disabled `BuildInputIdentity.from_verified(*, seal: object)`,
+  which consumes only that exact one-use held-nine seal, derives the exact ordered
+  `ArtifactInput` tuple and entry-zero/one hashes, and becomes the sole descriptor
+  owner. It accepts no tuple/path/hash/descriptor/caller-token argument and exposes only
+  exact facts, `open_verified_input(kind=...)`, `assert_unchanged()`, and `close()`.
+  Replacement, same-inode/same-size mutation, stale supplied SHA, copied/equal/forged
+  seal/carrier, subclass, `object.__new__`, or reuse fails. The exact object is retained by the
+  session and every build result; CP7's sole `ArtifactManifest.from_build(...,
+  input_identity=...)` must consume that same object, retain it in the private frozen
+  nonserialized `_build_input_identity` slot, and emit its tuple unchanged. Only
+  `require_build_input_identity(value) -> None` observes this build authorization;
+  JSON load/validation cannot mint it.
+- Adds only held-stream parsing entries in their owning modules:
+  `ArtifactBuildConfig.from_held_stream(stream: BinaryIO, *, versions: VersionBundle)
+  -> ArtifactBuildConfig`, `validate_build_registry_versions_from_held_streams(*,
+  datasets: BinaryIO, quality: BinaryIO, rating: BinaryIO, state: BinaryIO, versions:
+  VersionBundle) -> None`, and `SourceFileManifest.from_held_streams(*,
+  manifest_stream: BinaryIO, schema_catalog_stream: BinaryIO) -> SourceFileManifest`.
+  They bounded-read/strict-parse but never close the exact
+  seekable binary streams yielded by the identity; they accept no path/root/raw fd/
+  caller bytes. Surrounding identity contexts revalidate digest, roots, parent mutation
+  facts, basename, and leaf generation after parsing, so A-to-B-to-A replacement fails
+  before parsed state enters the session. Earlier path loaders remain compatibility
+  only and are absent from Task 5 assembly.
+- CP2 `manifest.py` owns only `BuildInputIdentityView(Protocol)` with exact read-only
+  `logical_inputs`, `source_manifest_sha256`, `schema_catalog_sha256`, and
+  `assert_unchanged() -> None` plus `take_manifest_identity_seal() -> object`. Concrete
+  identity issuance asks manifest's module-private issuer to register its exact object/
+  frozen facts; `ArtifactManifest.from_build` accepts the view, validates/consumes that
+  one-use seal, calls revalidation, and retains the exact object reference. It never imports or constructs
+  concrete `BuildInputIdentity`, and `require_build_input_identity(value)` requires
+  `value is` that stored view before another revalidation.
+- Produces internal `ArtifactBuildSession.initialize(settings, versions, options, *,
+  input_identity: BuildInputIdentity) ->
+  AbstractContextManager[ArtifactBuildSession]` and `ingest_bronze(*, consumer:
+  SourceRowConsumer | None = None) -> BronzeBuildResult`; it writes only to a
+  recognized sibling stage and never publishes. Its exact state is `LIVE`, `CLOSING`,
+  or `CLOSED`. Only `LIVE` can create/consume a capability. Abort removes only a fully
+  recognized exact stage; ambiguity retains it, closes held child descriptors, and
+  releases the advisory lock only after the last safe managed-exit action. CP7's
+  one-use `transfer_candidate_stage()` moves the held parent/stage/parquet descriptors,
+  marker identity, registrations, held-nine-input carrier close responsibility, and
+  lock into a direct-init-disabled
+  `OwnedCandidateStage`, closes the session, and leaves no path/basename/reconstructed
+  second owner. Its one-use `issue_candidate_custody()` transfers those slots into one
+  direct-init-disabled, noncopyable `CandidateStageCustody` and invalidates the bare
+  stage object. CP7 `CandidateArtifactSet` retains that exact instance; no module-global
+  candidate/stage/custody registry exists. `CandidateStageCustody` exposes only
+  `open_verification_root()`, typed one-use `transfer_expected_accepted(...)`,
+  `discard_if_exact()`, and `close()`; it
+  exposes no path, descriptor, basename, rename, rollback, target, backup, or tombstone
+  method. It also owns the held input descriptors until exact candidate discard or CP8
+  publication completion. The managed root adapter is the only artifact-tree
+  verification custody seam.
 - `ArtifactBuildSession` is CP4's sole production `OwnedStageArtifactOwner` and
   `OwnedStageDatabaseOwner`, with one
   opaque owner token, injected UTC persistence timestamp, retained descriptors, and
@@ -2743,11 +2876,278 @@ Checkpoint 3 closure evidence recorded on 2026-08-15:
   never a CP7 type.
   `BronzeBuildResult` carries the one owner-bound three-table `StagedParquetSet` plus
   observations; it has no bare handle tuple, CP2 inventory, or final handle.
-- Produces strict frozen, phase-tagged `SourceAuditObservations.from_bronze(config, inputs, bronze_counts) -> SourceAuditObservations`. At CP4 it contains and validates only resolved input identity plus expected/observed catalog/Bronze row/cell/column observations; Silver, quarantine, link, and evidence fields are forbidden rather than fabricated.
+- Copies the complete Section 9.2 CP4 database contracts into `staging.py` unchanged:
+  `OwnedStageDatabaseLeaf`, `OwnedStageDatabaseOwner`, `ManagedStageDatabaseBuild`, and
+  direct-init-disabled `SealedStageDatabase`; the exact signatures are frozen below.
+  CP7 receives an explicit `owner` argument and cannot infer it from a leaf or set.
+- Extends `VerifiedSourceFile` with exact manifest `size_bytes`. `iter_xlsx_rows`
+  retains a no-follow parent directory descriptor and exact workbook descriptor,
+  computes size/SHA from the same rewound stream passed to `ZipFile`, and revalidates
+  parent/name/descriptor identity before metadata, before every yield, after the final
+  row, on generator close, and after a same-stream size/SHA rescan. It never reopens the
+  workbook path.
+- Produces only strict frozen `BronzeSourceAuditObservations.from_bronze(...)` with the
+  exact design prefix fields. CP4 defines no Silver/Complete type, transition, or
+  report-producer factory. `BronzeBuildResult` carries the exact Bronze runtime type
+  plus the same `BuildInputIdentity` object; CP4 rejects a fake/subclass/copy/forged
+  later phase and cannot cast, serialize/reparse, phase-mutate, or render Bronze as a
+  report. CP5 owns the Silver type/transition; CP6 owns Complete and the producer.
+
+The exact CP4-owned database interfaces are copied here so implementation does not have
+to infer them from a later checkpoint:
+
+```python
+class OwnedStageDatabaseLeaf(Protocol):
+    @property
+    def relative_path(self) -> PurePosixPath: ...
+    def create_exclusive(self) -> AbstractContextManager[BinaryIO]: ...
+    def open_verified(self) -> AbstractContextManager[BinaryIO]: ...
+    def assert_unchanged(self) -> None: ...
+    def unlink_if_exact_writer_owned(self) -> None: ...
+
+
+class OwnedStageDatabaseOwner(OwnedStageArtifactOwner, Protocol):
+    def claim_database_leaf(self) -> OwnedStageDatabaseLeaf: ...
+    def create_database_build_workspace(
+        self,
+    ) -> AbstractContextManager["ManagedStageDatabaseBuild"]: ...
+    def require_owned_database_leaf(self, leaf: OwnedStageDatabaseLeaf) -> None: ...
+    def _register_sealed_database(
+        self, value: "SealedStageDatabase", leaf: OwnedStageDatabaseLeaf
+    ) -> tuple[object, object]: ...
+    def _require_registered_sealed_database(
+        self,
+        value: "SealedStageDatabase",
+        leaf: OwnedStageDatabaseLeaf,
+        owner_token: object,
+        leaf_token: object,
+    ) -> None: ...
+
+
+@dataclass(frozen=True, init=False)
+class SealedStageDatabase:
+    _owner: OwnedStageDatabaseOwner
+    _leaf: OwnedStageDatabaseLeaf
+    _owner_registration: object
+    _leaf_issuance_token: object
+    persistence_timestamp: datetime
+    physical_size_bytes: int
+    physical_sha256: str
+
+    def validate_against(self, owner: OwnedStageDatabaseOwner) -> None: ...
+
+
+class ManagedStageDatabaseBuild(Protocol):
+    def open_writer(self) -> AbstractContextManager[duckdb.DuckDBPyConnection]: ...
+    def checkpoint_close_and_seal(
+        self, *, leaf: OwnedStageDatabaseLeaf
+    ) -> SealedStageDatabase: ...
+```
+
+The verification-root seam is exact and path-free:
+
+```python
+class ManagedArtifactVerificationRoot(Protocol):
+    def open_inventory(
+        self, *, manifest: ArtifactManifest
+    ) -> AbstractContextManager[VerifiedPhysicalInventory]: ...
+    def take_expected_acceptance_seal(self) -> object: ...
+
+
+@dataclass(frozen=True, init=False)
+class HeldArtifactRootAdoption:
+    pass
+
+
+def adopt_held_artifact_root(
+    adoption: HeldArtifactRootAdoption,
+) -> AbstractContextManager[ManagedArtifactVerificationRoot]: ...
+
+
+class OwnedCandidateStage:
+    def assert_live(self) -> None: ...
+    def issue_candidate_custody(self) -> "CandidateStageCustody": ...
+    def close(self) -> None: ...
+
+
+@dataclass(frozen=True, init=False)
+class CandidateStageCustody:
+    def open_verification_root(
+        self,
+    ) -> AbstractContextManager[ManagedArtifactVerificationRoot]: ...
+    def transfer_expected_accepted(
+        self,
+        *,
+        expected_acceptance_seal: object,
+        receiver: "ExpectedAcceptedCustodyReceiver",
+    ) -> None: ...
+    def discard_if_exact(self) -> None: ...
+    def close(self) -> None: ...
+
+
+class ExpectedAcceptedCustodyReceiver(Protocol):
+    def accept_transferred_custody(
+        self, custody: "TransferredCandidateCustody"
+    ) -> None: ...
+```
+
+CP2 `manifest.py` owns the direct-init-disabled registered one-use adoption value,
+factory, and concrete managed root. CP4's stage duplicates only its exact held parent/
+root descriptors through the CP2-private issuer and immediately passes the opaque value
+to the public-in-package factory. Issuance/adoption revalidate the same parent/name/root
+generation, transfer duplicate ownership once, and close every transferred descriptor
+once on any exit; no caller receives the adoption, descriptor, basename, path, or
+private field. `take_expected_acceptance_seal` fails unless the CP8 expected entry has
+completed its final rescan on that exact still-live root and is one-use.
+
+CP4 implements the held stage adapter but not a kernel call. CP7 adds
+`ArtifactVerificationKernel.verify_candidate_core_from_root(...)` and CP8 adds/activates
+`verify_expected_from_root(...)`; both consume only `ManagedArtifactVerificationRoot`
+and neither accepts `Path`, descriptor integers, basenames, or private stage fields.
+
+The source-audit typestate field inventory/order is exact:
+
+```text
+BronzeSourceAuditObservations
+  source_snapshot_date
+  source_manifest_sha256
+  schema_catalog_sha256
+  source_tables  # SourceTableAudit in PRBD01N001/PREF01N001/PREF02N001/PRFD01N001 order
+
+SilverSourceAuditObservations
+  source_snapshot_date
+  source_manifest_sha256
+  schema_catalog_sha256
+  source_tables
+  silver_tables  # five NamedExpectedObservedCount entries in report order
+  quarantine_source_rows
+
+CompleteSourceAuditObservations
+  source_snapshot_date
+  source_manifest_sha256
+  schema_catalog_sha256
+  source_tables
+  silver_tables
+  quarantine_source_rows
+  exact_links
+  exact_link_evidence
+  exact_link_pair_sha256
+```
+
+All hashes are lowercase SHA-256; all expected/observed pairs are exact strict objects
+with equal values; tuple order is closed. CP4 implements/tests only the Bronze prefix
+and exact-type rejection. CP5 later drives the Silver successor; CP6 later drives the
+Complete successor and report factory. Each successor must preserve exact predecessor
+objects/values/order and add only its declared suffix. Extra/missing/reordered fields,
+boolean counts, unequal values, wrong hashes, direct wrong-phase construction, and a
+Bronze/Silver report input fail at the checkpoint that first owns that boundary.
 
 - [ ] **Step 1: Write REDs for fixed staging settings, ownership, spill, and cleanup**
 
-Create a private stage fixture and assert the staging connection reports exactly one thread, `1GiB`, `preserve_insertion_order=false`, and `temp_directory=<private-stage>/duckdb-temp`. Insert unsorted keys in batches, externally order into batches of at most the configured limit, and prove no table-sized `list`, DataFrame, or tuple is created by using an iterator that raises on `len`, second iteration, or retained weak references.
+Use one permanent report at
+`/private/tmp/finproof-task5-checkpoint4-red-green.md`. Before production changes,
+record exact base/selector/command, the observed missing-behavior failure, and the
+smallest GREEN diff for each selector. Author and close these staging selectors in this
+exact order; do not batch-author them or use one earlier failure as evidence for a
+later family:
+
+```text
+tests/unit/data/artifacts/test_input_identity.py::test_held_build_inputs_skeleton_rejects_exact_resolved_bundle_fixture
+tests/unit/data/artifacts/test_input_identity.py::test_resolved_build_input_bundle_recomputes_every_path_from_trusted_settings_and_rejects_foreign_members
+tests/unit/data/artifacts/test_input_identity.py::test_held_build_inputs_open_exact_nine_nofollow_generations_and_freeze_observed_facts
+tests/unit/data/artifacts/test_input_identity.py::test_held_build_inputs_reject_replacement_and_same_inode_mutation_before_seal
+tests/unit/data/artifacts/test_input_identity.py::test_build_input_identity_consumes_only_one_use_held_seal_owns_revalidation_and_rejects_stale_tuple
+tests/unit/data/artifacts/test_foundations.py::test_artifact_config_and_registry_parsers_consume_only_held_streams
+tests/source_contract/test_source_manifest.py::test_source_manifest_and_catalog_parser_consume_only_held_streams
+tests/source_contract/test_source_manifest.py::test_held_source_manifest_parse_rejects_basename_aba_before_context_exit
+```
+
+The skeleton adds only direct-init-disabled raising names. The bundle selector's RED is
+the missing instance-owned resolver boundary; its smallest GREEN creates the bundle
+from trusted Settings, independently recomputes both roots and all nine declarations,
+and rejects copied/deepcopied/equal/subclass/`object.__new__`/foreign bundle or member
+admission without a module-global registry. The held-open selector owns
+the exact bundle/member identity/order/length admission, nine parent/name/file no-follow
+opens, regular/single-link checks, and observed size/SHA facts; every mutation ID reaches
+that boundary. The race selector separately replaces a basename and mutates bytes in
+place with unchanged size/inode after initial hashing; issuance must revalidate/re-hash
+the held generations and reject each case. The final
+selector drives one-use result-to-seal-to-carrier ownership, exact entry-zero/one hash
+derivation, open/assert/close, and copy/equal/subclass/`object.__new__`/token/reuse
+rejection, including manifest-owned one-use identity-seal issuance that a structural
+view fake cannot mint. It also constructs a well-formed stale `tuple[ArtifactInput, ...]` containing
+the pre-replacement SHA and proves that tuple cannot enter any issuance signature.
+The two parser selectors add only the owning-module held-stream APIs and prove config,
+four registry headers, source manifest, and catalog parse from the exact retained
+streams with no `Path`/root/fd/caller-bytes overload or compatibility-loader call. The
+ABA selector changes a held basename A-to-B-to-A during parsing and requires the
+identity context's parent-mutation/name/leaf/digest revalidation to reject before the
+parsed object is returned to session assembly. Each parser leaves stream close and
+after-parse revalidation to the surrounding identity context.
+
+Before staging, close CP2's held artifact-root adoption extension serially:
+
+```text
+tests/unit/data/artifacts/test_manifest.py::test_held_artifact_root_adoption_skeleton_rejects_valid_issued_generation
+tests/unit/data/artifacts/test_manifest.py::test_held_artifact_root_adoption_consumes_same_descriptor_generation_once_revalidates_and_closes
+```
+
+The first selector adds only CP2-owned raising adoption/managed-root names without
+changing the approved path-root verifier. The second uses real held parent/root
+descriptors and parameter IDs for copied/forged/reused issuance, foreign descriptor,
+parent/name/root substitution, adoption failure, inventory failure, normal exit, and
+close-then-reuse. It requires the same `_HeldArtifactTree` inventory behavior and
+exactly-once close without exposing a raw fd, basename, path, or private attribute.
+At CP4 `take_expected_acceptance_seal()` is present but always fails typed because no
+expected route has run; the selector must not pre-authorize a transfer.
+
+Only after all ten input/parser/adoption selectors are GREEN continue with staging:
+
+```text
+tests/unit/data/artifacts/test_staging.py::test_staging_module_skeleton_rejects_valid_session_fixture
+tests/unit/data/artifacts/test_staging.py::test_artifact_module_ownership_excludes_identity_cycle_and_publication_transition_from_staging
+tests/unit/data/artifacts/test_staging.py::test_build_session_initializes_exact_lock_marker_and_descriptor_owned_stage
+tests/unit/data/artifacts/test_staging.py::test_build_session_rejects_concurrent_lock_and_ambiguous_orphan_without_mutation
+tests/unit/data/artifacts/test_staging.py::test_build_session_enforces_live_closing_closed_state
+tests/unit/data/artifacts/test_staging.py::test_build_session_abort_removes_only_exact_recognized_stage
+tests/unit/data/artifacts/test_staging.py::test_build_session_ambiguous_abort_retains_stage_until_safe_lock_release
+tests/unit/data/artifacts/test_staging.py::test_build_session_candidate_transfer_moves_descriptors_marker_registrations_input_custody_and_lock_once
+tests/unit/data/artifacts/test_staging.py::test_candidate_stage_custody_is_instance_owned_and_opens_only_capability_bound_managed_verification_root
+tests/unit/data/artifacts/test_staging.py::test_build_session_claims_exact_registry_parquet_leaf_exclusively
+tests/unit/data/artifacts/test_staging.py::test_owned_parquet_leaf_rejects_foreign_copy_closed_owner_and_inode_substitution
+tests/unit/data/artifacts/test_staging.py::test_external_order_store_production_entry_is_pathless_owner_config_only
+tests/unit/data/artifacts/test_staging.py::test_external_order_store_fixes_production_settings_and_isolates_private_test_limits
+tests/unit/data/artifacts/test_staging.py::test_external_order_store_orders_bounded_single_pass_batches_without_materialization
+tests/unit/data/artifacts/test_staging.py::test_external_order_store_closes_before_exact_marker_last_cleanup
+tests/unit/data/artifacts/test_staging.py::test_external_order_store_faults_retain_ambiguous_owned_state_and_preserve_target
+```
+
+The skeleton adds only raising names. The immediately following module-boundary
+selector first rejects the incomplete/incorrect ownership map, then its smallest GREEN
+places only raising protocol/type skeletons in their exact modules with the one-way
+imports; it requires that manifest never import input identity while input identity
+imports only manifest's narrow view/model, staging never imports publication, builder
+owns no filesystem primitive, only the candidate holding the exact instance custody
+may call its staging-owned typed transfer method, and only CP8 publication may call
+that candidate bridge. It forbids candidate/stage/receiver/custody module-global
+registries. It
+implements no later runtime behavior. The session initialization,
+concurrent/orphan refusal, lifecycle, exact abort, ambiguous retention, candidate
+transfer, held managed verification-root custody, leaf claim,
+leaf forgery/substitution, production API surface, fixed configuration/test seam,
+bounded ordering, successful cleanup, and fault cleanup are independent behavior
+families. Every parameter ID reaches its named boundary. A production signature that
+contains `Path`, `stage_root`, `temp_directory`, `memory_limit`, `threads`, a DuckDB
+connection, or caller SQL fails the pathless-interface selector even if runtime
+defaults happen to be safe.
+
+Create a private stage fixture and spy on the internal DuckDB configuration boundary;
+assert exactly one thread, `1GiB`, `preserve_insertion_order=false`, and a temp
+directory derived from the owner-created private descriptor child without exposing that
+spelling through the store API/result. Insert unsorted keys in batches, externally
+order into batches of at most the configured limit, and prove no table-sized `list`,
+DataFrame, or tuple is created by using an iterator that raises on `len`, second
+iteration, or retained weak references.
 
 Fault-inject disk-full/write, close, spill-directory removal, marker removal, and connection-close failures. Each must raise its typed pre-publication error, leave a pre-existing published target byte-identical, close before cleanup, and never delete an unmarked or mismatched directory. Concurrent lock ownership and ambiguous orphan-stage markers must fail without mutation. On the success path, first deliberately omit `close_and_remove_working_state()` and prove exact-tree readiness fails because store-owned database/WAL/spill/temp/marker state remains; then call it and assert emitted Parquet/stage ownership bytes remain while only verified store-owned working state disappears. Parameterize partial cleanup, inode substitution, symlink, wrong marker, and ambiguous path; each must fail closed without broadening deletion.
 
@@ -2756,15 +3156,15 @@ Close CP4's separately owned database-stage behaviors serially in
 previous one has reached its intended RED and smallest GREEN:
 
 ```text
-test_database_stage_skeleton_rejects_valid_owner_fixture
-test_database_stage_claims_one_same_owner_final_leaf
-test_database_stage_build_uses_pathless_owned_scratch_and_fixed_settings
-test_database_stage_checkpoints_closes_and_rejects_wal_before_seal
-test_database_stage_exclusively_nofollow_copies_fsyncs_and_closes_final_leaf
-test_database_stage_reopens_hashes_and_rescans_final_leaf
-test_database_stage_closes_before_cleanup_and_rejects_abort_or_substitution_ambiguity
-test_sealed_stage_database_requires_same_owner_registration_and_exact_leaf
-test_sealed_stage_database_rejects_copy_equal_object_new_and_token_forge
+tests/unit/data/artifacts/test_staging.py::test_database_stage_skeleton_rejects_valid_owner_fixture
+tests/unit/data/artifacts/test_staging.py::test_database_stage_claims_one_same_owner_final_leaf
+tests/unit/data/artifacts/test_staging.py::test_database_stage_build_uses_pathless_owned_scratch_and_fixed_settings
+tests/unit/data/artifacts/test_staging.py::test_database_stage_checkpoints_closes_and_rejects_wal_before_seal
+tests/unit/data/artifacts/test_staging.py::test_database_stage_exclusively_nofollow_copies_fsyncs_and_closes_final_leaf
+tests/unit/data/artifacts/test_staging.py::test_database_stage_reopens_hashes_and_rescans_final_leaf
+tests/unit/data/artifacts/test_staging.py::test_database_stage_closes_before_cleanup_and_rejects_abort_or_substitution_ambiguity
+tests/unit/data/artifacts/test_staging.py::test_sealed_stage_database_requires_same_owner_registration_and_exact_leaf
+tests/unit/data/artifacts/test_staging.py::test_sealed_stage_database_rejects_copy_equal_object_new_and_token_forge
 ```
 
 The skeleton may add only raising names. Leaf claim, scratch creation/settings,
@@ -2774,8 +3174,8 @@ families. Every parameter ID must reach the named boundary; no generic
 `ExternalOrderStore` failure or earlier database failure is evidence for a later RED.
 
 Expected: each named database-stage selector records its own RED/GREEN in order;
-separately, the initial generic staging selector REDs because `ExternalOrderStore` and
-recognized stage ownership do not exist.
+the sixteen preceding staging selectors also each have an individually observed RED
+and smallest GREEN. The report has 25 ordered staging/database entries before Step 2.
 
 - [ ] **Step 2: Implement bounded staging and marker-owned cleanup only**
 
@@ -2783,6 +3183,67 @@ Step 2 records/refactors the already serially closed database-stage GREEN behavi
 does not bulk-implement an unobserved database branch after one Step 1 failure.
 
 Create the sibling lock/stage names exactly from the managed target basename and opaque operation ID. Create sidecar marker mode 0600 with operation ID, artifact-set ID, contract version, and target basename. Use static allowlisted DDL and parameters; no caller SQL/table name/path. On failure remove only a nonsymlink, exact-basename, exact-marker-owned private stage after the connection closes. If cleanup fails, preserve the recognized stage and raise `STAGING_CLEANUP_FAILED`.
+
+Implement `ArtifactBuildSession` as the sole owner/context, not as a collection of
+paths. Initialization acquires and retains the sibling-parent descriptor and advisory
+lock, creates/opens the stage and `parquet/` directories descriptor-relatively, and
+registers every exact leaf/store/seal/set object. `__exit__`, `abort`, and
+`transfer_candidate_stage` each perform `LIVE -> CLOSING -> CLOSED` once. A normal
+abort closes registered stores/writers, unlinks only exact registered children and the
+marker in frozen order, closes descriptors, and releases the lock. On ambiguity it
+does not delete; it records bounded recovery identity, closes child descriptors, and
+releases the lock only as the final managed-exit step. Candidate transfer is available
+only after all working state is closed/removed and atomically moves the exact held
+parent/stage/parquet descriptors, marker identity, registration authority, and lock to
+one `OwnedCandidateStage`, together with sole responsibility to close the exact retained
+input carrier. It clears the session ownership slots before transfer and
+leaves the closed session unusable. The stage then one-use issues an instance-owned
+`CandidateStageCustody`, invalidates its bare interface, and returns only that opaque
+noncopyable capability for candidate retention. No registry, stage path, or independently reconstructable
+basename escapes. The custody can only open a managed verification-root
+adapter through CP2's opaque one-use adoption of duplicated exact parent/root
+descriptors, discard the exact still-staged generation, or close. It cannot rename/
+rollback or name a target. The adapter's
+`open_inventory(manifest=...)` creates one CP2 inventory bound to that descriptor and
+closes it on every exit; neither side reads private fields or constructs `/dev/fd`.
+The CP2 adoption factory owns same-generation revalidation, transferred-descriptor
+close, and copied/forged/reused adoption refusal; staging never constructs
+`_HeldArtifactTree` or passes a raw descriptor/path to a kernel/caller.
+
+Create the resolved bundle, held-nine verifier, and `BuildInputIdentity` in
+`input_identity.py` before session work. The bundle is constructed from trusted
+Settings and retains the exact resolver members under one instance owner; the verifier
+receives the same Settings, recomputes every root/path independently, and the identity
+consumes only its one-use descriptor seal. Session initialization calls
+`assert_unchanged`, requires the exact object, assumes its close responsibility, and
+every result/manifest property returns that same object identity without becoming a
+second descriptor owner. Parse build config and registry headers only through
+`config.py`'s held-stream APIs, and source manifest/catalog only through
+`source_manifest.py`'s held-stream API, while their exact carrier contexts remain open
+for after-parse revalidation. Bronze manifest/catalog bytes and hashes are read only
+from its held entries zero/one. No staging/bronze function accepts a parallel input tuple,
+path, descriptor, or hash argument. Candidate discard and CP8 publication completion
+close the carrier exactly once.
+
+Keep imports acyclic: `manifest.py` owns `ArtifactInput`,
+`BuildInputIdentityView`, held-root adoption, and managed-root types without importing
+input identity/staging/publication; `input_identity.py` imports only that narrow view/
+model plus CP1 resolver types; `staging.py` imports CP2/CP3 capabilities plus input
+identity and owns build lock/marker/descriptor custody; `config.py` and
+`source_manifest.py` own path-free held-stream parsers but never import input identity;
+`bronze.py` consumes staging; `builder.py` later owns the `CandidateArtifactSet`
+no-private-field bridge retaining one exact custody instance and orchestrates without
+filesystem primitives. Publication defines only its narrow
+candidate-method protocol and never imports builder; builder may import publication in
+CP8. CP4 does
+not create/import `publication.py`. CP7 publication later imports only staging's narrow
+custody/typed-receiver contracts and never `OwnedCandidateStage` or a custody private field; staging never
+imports publication. Target/
+backup/tombstone markers and every authorization/rename/rollback/commit/recovery
+transition belong only to publication, not staging. The module-boundary selector
+inspects both the import graph and exported surfaces: a rename/helper/target marker in
+staging, a filesystem primitive in `builder.py`, or a publication import from staging
+fails before runtime staging work.
 
 Open and retain the stage then `parquet/` directories descriptor-relatively with
 no-follow checks. `claim_parquet_leaf` accepts only the exact registry spec, reserves
@@ -2798,7 +3259,7 @@ manifest entry.
 scratch capability whose `open_writer()` alone exposes the configured DuckDB connection
 to CP7. The final database leaf itself exposes only binary `create_exclusive`,
 `open_verified`, assert, and exact abort operations; it is not precreated/opened as an
-empty DuckDB database. The managed CP7 seal creates the final leaf mode 0600 with
+empty DuckDB database. The CP4 managed seal, later invoked by CP7, creates the final leaf mode 0600 with
 `O_CREAT | O_EXCL | O_NOFOLLOW`, bounded-copies a closed/WAL-free verified scratch DB,
 fsyncs/closes, and reopens/hash/rescans it. Scratch/final substitution, close/checkpoint/
 WAL/copy/fsync/hash/reopen failure, or cleanup/abort ambiguity blocks; cleanup removes
@@ -2806,7 +3267,74 @@ only exact owned scratch/final inodes and never an unowned name.
 
 For successful completion, close the DuckDB connection first, enumerate the closed finite set of store-owned working paths, revalidate each nonsymlink inode and exact operation marker, remove children in the fixed safe order, and unlink the store marker last. `close_and_remove_working_state()` is idempotent only after a recorded successful cleanup; missing/partial/ambiguous state raises instead of guessing. It preserves all Parquet files, reports/models in memory, and the separate build-stage marker needed by publication.
 
+Implement the production order store only behind
+`session.open_external_order_store(config)`. Validate that config carries exactly one
+thread and `1GiB`; derive all scratch leaves and DuckDB `temp_directory` internally
+from descriptor-owned session children. The private test factory requires the same
+live concrete session/config and accepts only a strict positive low-limit object. The
+store never exposes its connection or filesystem spelling, and every CP5/6 consumer
+uses its typed relation/batch methods inside the context. Preserve the nine database
+interfaces/selectors above exactly; CP4 does not return a CP7
+`StagedDatabaseVerification` or accept a CP7 callback.
+
 - [ ] **Step 3: Write REDs for full canonical Bronze fixture streaming**
+
+Continue the same report and close the held-workbook boundary first, one selector at a
+time in this exact order:
+
+```text
+tests/source_contract/test_source_manifest.py::test_verified_source_file_preserves_exact_manifest_size_bytes
+tests/source_contract/test_xlsx_stream.py::test_xlsx_stream_parses_zip_from_one_held_nofollow_descriptor
+tests/source_contract/test_xlsx_stream.py::test_xlsx_stream_rejects_workbook_swap_before_descriptor_open
+tests/source_contract/test_xlsx_stream.py::test_xlsx_stream_rejects_workbook_swap_during_row_iteration
+tests/source_contract/test_xlsx_stream.py::test_xlsx_stream_rejects_workbook_swap_after_last_yield_before_success
+```
+
+The second selector spies on `os.open` and `ZipFile` and proves only one no-follow
+workbook open, regular/single-link descriptor admission, a file-object `ZipFile`, and
+exactly-once close; its smallest GREEN need not yet add manifest digest or repeated
+entry checks. The before-open replacement selector then drives exact manifest size/SHA
+from that same held stream before parsing. The during-iteration selector independently
+drives held-parent/name/descriptor identity revalidation before every yield. The
+after-last-yield selector independently drives terminal identity plus rewound
+same-stream size/SHA revalidation on normal exhaustion and generator close. The three
+swap selectors use real atomic replacement of the verified basename before the
+generator first advances, after its first yielded row, and after its last yielded row
+but before the terminal `next()`/close. They require a typed source-contract error, no
+success count, and exactly-once descriptor release. A same-size/same-inode byte mutation
+is a reached parameter ID only of the terminal selector. No earlier selector may
+pre-implement a later recheck, and no test-only production hook, second path open, or
+path-derived `ZipFile` is permitted.
+
+Only after all five held-reader selectors are GREEN, author these Bronze/audit selectors
+serially and append every RED/GREEN observation to the report:
+
+```text
+tests/unit/data/artifacts/test_bronze.py::test_bronze_module_skeleton_rejects_complete_fixture
+tests/unit/data/artifacts/test_bronze.py::test_bronze_columns_follow_exact_manifest_catalog_order
+tests/unit/data/artifacts/test_bronze.py::test_bronze_source_row_preserves_payload_hash_locator_and_timestamp
+tests/unit/data/artifacts/test_bronze.py::test_bronze_source_cells_reconstruct_each_exact_source_row
+tests/unit/data/artifacts/test_bronze.py::test_bronze_sinks_flush_bounded_batches_in_manifest_order
+tests/unit/data/artifacts/test_bronze.py::test_bronze_fanout_enqueues_complete_row_before_one_consumer_call
+tests/integration/artifacts/test_bronze_fixture_build.py::test_bronze_ingestion_opens_and_iterates_each_workbook_once
+tests/integration/artifacts/test_bronze_fixture_build.py::test_bronze_ingestion_accepts_none_consumer_without_rescan
+tests/integration/artifacts/test_bronze_fixture_build.py::test_bronze_result_retains_exact_session_build_input_identity
+tests/integration/artifacts/test_bronze_fixture_build.py::test_bronze_failure_aborts_once_without_retry_or_published_mutation
+tests/unit/data/artifacts/test_reports.py::test_bronze_observations_require_exact_hashes_and_four_ordered_source_tables
+tests/unit/data/artifacts/test_reports.py::test_cp4_bronze_observations_reject_forged_later_typestate_and_report_admission
+```
+
+The input-result selector requires `result.input_identity is session.input_identity`
+and exact equality to the object created before session initialization; copies and
+parallel tuple/hash parameters are forbidden. The two CP4 report selectors parameterize
+every Bronze field/type/order/hash/equality rejection, but each ID reaches the Bronze
+boundary rather than an earlier fixture error. Bronze has exactly snapshot, the two
+carrier-bound hashes, and four ordered `SourceTableAudit` values. It has no
+`with_silver`, Silver/Complete class, or report-producer factory in CP4. Structurally
+equal fakes, subclasses, copies, `object.__new__` forgeries, injected suffix fields,
+and dict/model-dump later-phase admission fail exact-type checks. Do not implement a
+valid Silver or Complete transition to make this selector GREEN; CP5 and CP6 own those
+separate REDs.
 
 Extend the XLSX fixture to write all four complete canonical header sets. Include at least one valid row per table, one domestic malformed ID, one fund malformed ID, two interleaved valid rows for one fund item, one domestic ETF/fund exact pair, one ETN non-link, and unsorted product IDs.
 
@@ -2814,62 +3342,303 @@ Assert catalog rows follow manifest table order and contiguous column order. Ass
 
 Register a spy `SourceRowConsumer` and assert, for every row, that the complete Bronze row/cell set has already been enqueued when `consume(row)` is called, the identical `SourceRow` object is passed, and the call occurs exactly once. Add a source iterable/workbook-open sentinel that raises on a second iteration or second open; require the combined Bronze-plus-spy flow to succeed with one pass. Run the same fixture with `consumer=None` and require the Bronze-only result to remain valid. Freeze the one-method protocol: the fan-out may not hand consumers the workbook iterator, a callback for fetching the next row, or a partially emitted row.
 
-Add expected/observed `SourceAuditObservations` mismatch cases for every input/catalog/Bronze row/cell/column count; construction/validation must fail and no `SourceAuditReport` may exist or be written at CP4. Add serialization/checksum/count/consumer failure after one batch and prove the published target is unchanged and partial stage is guarded/cleaned; the consumer failure must not cause retry or a second `consume` call.
+Add expected/observed `BronzeSourceAuditObservations` mismatch cases for every
+manifest/catalog hash and Bronze row/cell/column count; construction/validation must
+fail and no `SourceAuditReport` may exist or be written at CP4. Add serialization/
+checksum/count/consumer failure after one batch and prove the published target is
+unchanged and the managed session performs one exact abort; the consumer failure must
+not cause retry or a second `consume` call.
 
 Run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_bronze_fixture_build.py -q
 ```
 
-Expected RED: Bronze iterators/build session/source-audit observations are absent.
+Expected GREEN only after every exact selector above has its individual RED and
+smallest GREEN recorded. This aggregate run is regression evidence, never a substitute
+for a missing selector entry.
 
 - [ ] **Step 4: Implement one-pass Bronze ingestion and streaming hashes**
 
-Resolve, reopen, size-check, and SHA-256 the exact nine direct logical inputs first; validate dataset/rule versions and snapshot; then call `SourceFileManifest.load(...).verify(source_root)`. Recheck direct-input identities immediately before the first workbook open so a changed config/schema/source manifest cannot race into a declared build identity. Stream each verified data workbook exactly once in manifest order. Write catalog once. For each `SourceRow`, `BronzeFanoutSink.consume_source_row` enqueues one complete Bronze row and all of its cells into bounded sinks, updates Bronze observations, and only then invokes the registered `SourceRowConsumer.consume(row)` once. Because the sort key begins with frozen source table order, write final Bronze Parquet in bounded batches without a Python sort. The consumer never owns or iterates the workbook; a consumer exception fails the build without retry. This seam is the only CP5 normalization feed, so no official workbook is rescanned.
+Construct `ResolvedBuildInputBundle.from_settings(settings)`, pass that exact
+instance plus the same trusted Settings into `verify_build_inputs`, and require the
+verifier to recompute every namespace root/path/kind before opening. Issue the held
+result's one-use seal after its second identity/
+digest revalidation, then call `BuildInputIdentity.from_verified(seal=...)` and pass
+that exact descriptor-owning object into the managed session. Validate dataset/rule
+versions and snapshot only by opening the retained config/registry entries and invoking
+their owning `config.py` held-stream parsers, never from a free tuple or stale path.
+Open entries zero/one together and call only
+`SourceFileManifest.from_held_streams(...).verify(source_root)` while both retained
+contexts remain live through parser return and after-parse ABA/digest revalidation.
+Do not call any path loader from Task5 assembly. Add exact manifest `size_bytes` to
+each `VerifiedSourceFile`. For every data workbook, `iter_xlsx_rows` opens/retains the
+parent and basename descriptors, validates size/SHA on the held stream, rewinds that
+stream into `ZipFile`, performs the frozen before-each-yield identity checks, and
+rechecks the same stream/entry on exhaustion or close. The builder neither opens a
+workbook itself nor rechecks by raw path. Stream each verified workbook exactly once in
+manifest order and write catalog once. For each `SourceRow`,
+`BronzeFanoutSink.consume_source_row` enqueues one complete Bronze row and all of its
+cells into bounded sinks, updates Bronze observations, and only then invokes the
+registered `SourceRowConsumer.consume(row)` once. Because the sort key begins with
+frozen source table order, write final Bronze Parquet in bounded batches without a
+Python sort. The consumer never owns or iterates the workbook; a consumer exception
+fails the managed session without retry. This seam is the only CP5 normalization feed,
+so no official workbook is rescanned.
 
 After each Bronze writer closes, reopen only via its owned leaf and create the CP3
 three-table `StagedParquetSet` through the live session owner. Track input/
-catalog/Bronze observed counts in immutable accumulators and construct only the CP4
-`SourceAuditObservations` stage after exact config equality. Do not construct, serialize,
+catalog/Bronze observed counts in immutable accumulators and construct only
+`BronzeSourceAuditObservations` after exact config equality, using only the retained
+input carrier's two hashes. `BronzeBuildResult` returns the same carrier object. Do not construct, serialize,
 hash, or stage a `SourceAuditReport`, CP2 inventory, final `VerifiedParquetTable`, or
 `TableVerificationResult`: the remaining Parquets/reports/database/manifest do not yet
 exist.
 
 - [ ] **Step 5: Add external-sort scale RED/GREEN and run checkpoint gates**
 
-In `test_artifact_external_staging.py`, set `pytestmark = pytest.mark.performance`, generate at least 131,073 unsorted synthetic keys (more than two final row groups), force spill with a test memory limit, and assert output order, uniqueness, maximum emitted batch 65,536, one thread, private spill location, no retained input rows, and complete cleanup. Run:
+Author
+`tests/performance/test_artifact_external_staging.py::test_external_order_store_spills_and_orders_131073_rows_with_bounded_state`
+as the next mandatory RED and append it to the report. Set
+`pytestmark = pytest.mark.performance`, generate exactly 131,073 unsorted unique keys
+(more than two final row groups), and force spill only through the private test factory
+with the same live owner/config. Assert output order, uniqueness, maximum emitted batch
+65,536, one thread, private unexposed spill identity, no retained input rows, and exact
+close-before-cleanup. First observe the intended missing scale/spill behavior, implement
+the smallest GREEN, then run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_reports.py \
   tests/integration/artifacts/test_bronze_fixture_build.py \
   tests/performance/test_artifact_external_staging.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/input_identity.py \
+  src/finproof/data/artifacts/config.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/bronze.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/source_manifest.py \
+  src/finproof/data/xlsx_stream.py \
+  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/integration/artifacts/test_bronze_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
-  src/finproof/data/artifacts tests/unit/data/artifacts \
-  tests/integration/artifacts tests/performance/test_artifact_external_staging.py
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/input_identity.py \
+  src/finproof/data/artifacts/config.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/bronze.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/source_manifest.py \
+  src/finproof/data/xlsx_stream.py \
+  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/integration/artifacts/test_bronze_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
-  src/finproof/data/artifacts tests/unit/data/artifacts \
-  tests/integration/artifacts tests/performance/test_artifact_external_staging.py
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/input_identity.py \
+  src/finproof/data/artifacts/config.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/bronze.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/source_manifest.py \
+  src/finproof/data/xlsx_stream.py \
+  tests/helpers/artifacts.py tests/helpers/xlsx.py \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/integration/artifacts/test_bronze_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py
 ```
 
 Expected GREEN: fixture Bronze is complete/reconstructable, the optional consumer receives each already-enqueued row exactly once with no rescan, staging is externally sorted/bounded, all failures isolate the published target, and a Bronze/input observation mismatch cannot be advanced or rendered as a successful source-audit report.
 
-- [ ] **Step 6: Commit and obtain a fresh review**
+- [ ] **Step 6: Run full gates, commit the exact implementation, review, then close docs**
 
-Run regressions/source audit/diff checks, then commit:
+The report must contain eight held-input/identity/parser selectors, two CP2 held-root-adoption
+selectors, all 25 staging/database selectors, five held-reader selectors, twelve
+Bronze/typestate selectors, and the one performance selector—53 total—in their exact
+authoring order, each with its own
+observed RED and smallest GREEN. Record derived
+first-GREEN behavior honestly and stop for plan correction; never manufacture a
+failure. Then run every repository gate on the exact candidate:
 
 ```bash
-git add src/finproof/data/artifacts tests/helpers tests/unit/data/artifacts \
-  tests/integration/artifacts tests/performance/test_artifact_external_staging.py
-git commit -m "feat: stream complete Bronze artifacts"
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/core tests/unit/domain tests/unit/registry \
+  tests/unit/data/normalization tests/contract/test_quality_issue_schema.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --stat
+git diff --name-only
+git status --short
 ```
 
-Fresh review must trace one raw source value through catalog/row/cell/hash, verify workbook single-pass behavior, force external spill and every close/cleanup fault, inspect marker/lock/path TOCTOU handling, and prove no pre-publication failure mutates a target. Require 0 Critical / 0 Important.
+The report has a separate unchanged Task 1–4 regression section containing that exact
+command, start/end time, exit code, observed pass/fail/skip counts and duration, and the
+implementation commit hash. It may not cite the full-suite result as a substitute. Any
+Task 1–4 failure is a hard stop before commit/review.
+
+The exact implementation name-only inventory is these twenty-one files and no others:
+
+```text
+src/finproof/data/artifacts/bronze.py
+src/finproof/data/artifacts/builder.py
+src/finproof/data/artifacts/config.py
+src/finproof/data/artifacts/input_identity.py
+src/finproof/data/artifacts/manifest.py
+src/finproof/data/artifacts/reports.py
+src/finproof/data/artifacts/staging.py
+src/finproof/data/source_manifest.py
+src/finproof/data/xlsx_stream.py
+tests/helpers/artifacts.py
+tests/helpers/xlsx.py
+tests/integration/artifacts/test_bronze_fixture_build.py
+tests/performance/test_artifact_external_staging.py
+tests/source_contract/test_source_manifest.py
+tests/source_contract/test_xlsx_stream.py
+tests/unit/data/artifacts/test_bronze.py
+tests/unit/data/artifacts/test_foundations.py
+tests/unit/data/artifacts/test_input_identity.py
+tests/unit/data/artifacts/test_manifest.py
+tests/unit/data/artifacts/test_reports.py
+tests/unit/data/artifacts/test_staging.py
+```
+
+STATUS, the legacy plan, this dedicated plan, design/decision docs, schemas, config,
+source files, CP5+ modules, and the ignored report are absent. Stage exact names rather
+than directories, recheck the cache, commit, and require clean status:
+
+```bash
+git add src/finproof/data/artifacts/bronze.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/config.py \
+  src/finproof/data/artifacts/input_identity.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/reports.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/source_manifest.py \
+  src/finproof/data/xlsx_stream.py \
+  tests/helpers/artifacts.py \
+  tests/helpers/xlsx.py \
+  tests/integration/artifacts/test_bronze_fixture_build.py \
+  tests/performance/test_artifact_external_staging.py \
+  tests/source_contract/test_source_manifest.py \
+  tests/source_contract/test_xlsx_stream.py \
+  tests/unit/data/artifacts/test_bronze.py \
+  tests/unit/data/artifacts/test_foundations.py \
+  tests/unit/data/artifacts/test_input_identity.py \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_reports.py \
+  tests/unit/data/artifacts/test_staging.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "feat: stream complete Bronze artifacts"
+git status --porcelain
+```
+
+Fresh review compares the approved CP4 plan base, implementation commit, and report.
+It traces one raw value through held-workbook size/SHA/catalog/row/cell/hash, forces the
+before/during/after swap cases, checks every session lifecycle/lock-transfer and
+abort-retain boundary, attacks held-nine input issuance/replacement/mutation/stale-SHA
+and same-object result/manifest retention, rejects forged/copy-resolved members through
+trusted-Settings bundle recomputation, forces config/registry/manifest/catalog held-
+stream parsing plus A-to-B-to-A basename replacement, proves stage custody has no transition
+authority and opens only CP2's same-generation opaque-adopted managed kernel-root
+adapter with exactly-once descriptor closure, verifies pathless fixed-bound stores and all exact Section 9.2
+database APIs, attacks the Bronze typestate plus absence/rejection of CP5/6 producers,
+checks the staging-to-publication one-way import boundary, direct candidate custody
+retention, typed atomic receiver acceptance, and absence of global custody registries,
+forces external spill and
+every close/cleanup fault, verifies the separately recorded Task 1–4 regression, and
+proves no pre-publication failure mutates a target.
+Require 0 Critical / 0 Important; any finding receives a separately approved plan/fix
+cycle and another fresh review.
+
+Only after the fresh 0/0 verdict, create a separate docs-only closure. Update
+`docs/implementation/STATUS.md` with exact commit/reviewer/report/gate evidence and
+Checkpoint 5 as next; mark only CP4 steps/evidence complete here; mark only legacy
+Task 5 Checkpoint 4 complete. Run the full absence/source-permission/diff gates again,
+stage exactly those three docs, commit `docs: close Task 5 checkpoint 4 review`, and
+require empty porcelain. No design, decision, code, test, schema, config, expected
+contract, or artifact file belongs in that closure.
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+find source_material -type f -perm -222 -print
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git diff --name-only
+git status --short
+git add docs/implementation/STATUS.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: close Task 5 checkpoint 4 review"
+git status --porcelain
+```
 
 ---
 
@@ -2900,7 +3669,11 @@ Fresh review must trace one raw source value through catalog/row/cell/hash, veri
 - Produces public `normalize_public_fund_item_group(rows: Sequence[SourceRow]) -> FundCollapseResult`; it accepts one unique, source-row-ordered item group, invokes `normalize_fund_attribute` exactly once per valid row, and delegates the existing authoritative collapse behavior.
 - Produces: `persist_quality_issue(issue: DataQualityIssue, *, persistence_timestamp: datetime) -> PersistedQualityIssueRow` and private `verify_quality_bronze_relation(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> QualityJoinObservations`; it never constructs a Python Bronze lookup collection. Before any relation, CP5 requires the set's timestamp to equal every reopened Bronze `loaded_at` and persisted quality typed/JSON timestamp; there is no manifest yet and CP5 neither fabricates nor validates one.
 - Produces internal `SilverArtifactEmitter.consume(row: SourceRow) -> None`, `finish_fund_groups() -> None`, and `finalize() -> SilverBuildResult`, all bounded and stage-backed. `SilverArtifactEmitter` structurally implements CP4's frozen one-method `SourceRowConsumer`; it receives rows only from `ArtifactBuildSession.ingest_bronze(consumer=emitter)`.
-- Extends a Bronze-valid `SourceAuditObservations` through `observations.with_silver(silver_counts, quarantine_counts) -> SourceAuditObservations`; the returned phase permits only verified Silver/quarantine observations and still cannot construct the final source-audit report before CP6 links/evidence.
+- Extends exact `BronzeSourceAuditObservations` only through
+  `observations.with_silver(silver_counts, quarantine_counts) ->
+  SilverSourceAuditObservations`; the returned distinct type contains only verified
+  Silver/quarantine observations and cannot enter the complete-only report factory.
+  CP5 is the first owner of this method and runtime type; CP4 contains neither.
 - Produces: `QualitySummaryReport.from_verified_quality(...) -> QualitySummaryReport` with closed lexical group ordering and timestamp-free semantic content.
 - Populates the exact CP2 `QualitySummaryReport` model and its frozen
   `semantic_projection`; it does not implement CP2's artifact-file
@@ -2966,6 +3739,25 @@ During the one and only Bronze source pass, `ArtifactBuildSession.ingest_bronze(
 After source ingestion, externally order fund staging by item key/source row, reconstruct exact `SourceRow` objects, call `normalize_public_fund_item_group` once per group, immediately serialize its one item/attributes/issues, flush bounded batches, and release the group. No CP5 component reopens a workbook or iterates the source stream. Expose instrumentation `max_live_fund_group_rows`, `max_writer_batch_rows`, source-consume counts, and staged relation row counts in the internal build result.
 
 - [ ] **Step 5: Write D-021 persistence/joins/report REDs**
+
+Before quality persistence/report behavior, introduce the Silver audit successor with
+these strict serial selectors. Run one exact node to RED and smallest GREEN before
+authoring the next:
+
+```text
+tests/unit/data/artifacts/test_quality_report.py::test_silver_observations_skeleton_rejects_valid_bronze_fixture
+tests/unit/data/artifacts/test_quality_report.py::test_bronze_observations_with_silver_preserves_exact_prefix_and_adds_closed_counts
+tests/unit/data/artifacts/test_quality_report.py::test_silver_observations_reject_forged_bronze_link_fields_and_report_admission
+```
+
+The skeleton adds only CP5's direct-init-disabled Silver name and still rejects the
+valid Bronze fixture. The transition selector owns the first valid `with_silver`,
+requires the exact CP4 Bronze object/type and closed five-table/quarantine facts, and
+preserves every prefix object/value/order. The admission selector rejects direct
+construction, copy/subclass/`object.__new__`/structurally equal predecessor forgeries,
+repeated extension, link/evidence suffixes, and any report-factory admission. It must
+reach the Silver boundary, not an earlier fixture error. CP5 does not predefine
+Complete or a source-audit producer.
 
 Assert pure normalizer issues still have `first_detected_at is None`. `persist_quality_issue` must reject pre-timestamped, naive, and non-UTC inputs; inject the one build timestamp; serialize terminal `Z`; pass the packaged/root quality schema with explicit `FormatChecker`; and preserve issue ID/rule/severity/reason/quarantine/raw hash/source exactly.
 
@@ -3043,7 +3835,14 @@ Fresh review must compare the public group adapter with every Task 4 edge case, 
 - Produces: `build_exact_links(stage: ExternalOrderStore) -> ExactLinkBuildResult` over closed internally populated left/right candidate relations.
 - Produces: `verify_exact_link_evidence(*, tables: StagedParquetSet, relation_verifier: BoundedRelationVerifier) -> ExactEvidenceVerificationObservations` with complete bidirectional validation. The set must contain/revalidate the required link, evidence, Bronze-cell, domestic, and fund handles under one live owner/timestamp; CP6 passes CP5's `StagedBoundedRelationVerifier` and does not introduce a bare tuple, final-inventory, or CP7-forward concrete type.
 - Produces: `canonical_link_pair_tsv(rows: Iterable[ExactCrossSourceLink]) -> bytes` and `exact_link_pair_sha256(...) -> str`.
-- Completes the phased observations through `observations.with_links(link_count, evidence_count, pair_sha256) -> SourceAuditObservations`, then produces `SourceAuditReport.from_complete_observations(config, observations) -> SourceAuditReport`. Both operations refuse missing/prior-phase, unequal expected/observed, or reordered/recomputed pair data; this is the first checkpoint where the final strict source-audit report can exist.
+- Completes exact `SilverSourceAuditObservations` only through
+  `observations.with_links(link_count, evidence_count, pair_sha256) ->
+  CompleteSourceAuditObservations`, then produces
+  `SourceAuditReport.from_complete_observations(config=..., observations:
+  CompleteSourceAuditObservations) -> SourceAuditReport`. Both operations refuse the
+  wrong typestate, unequal expected/observed, or reordered/recomputed pair data; this
+  is the first checkpoint where the Complete runtime type, its transition, and the
+  final strict source-audit report producer can exist.
 - Populates the exact CP2 source-audit model/semantic projection only; report-file
   write/reparse/hash comparison remains the CP7 concrete `ArtifactReportVerifier` port.
 
@@ -3069,6 +3868,23 @@ While domestic records are live in Checkpoint 5, stage only ETF candidate produc
 Use static staging SQL only to order/join exact raw strings and detect cardinality conflicts. Build `link_id` from the NUL-separated rule ID/version/left table/ID/right table/ID/matched raw identifier. Keep trimming in a separate acceptance measurement and never feed a trimmed value into the link result.
 
 - [ ] **Step 3: Write full evidence relation REDs**
+
+First close CP6's Complete/report authorization boundary in this exact serial order,
+one focused RED and smallest GREEN at a time:
+
+```text
+tests/unit/data/artifacts/test_source_audit_report.py::test_complete_observations_skeleton_rejects_valid_silver_fixture
+tests/unit/data/artifacts/test_source_audit_report.py::test_silver_observations_with_links_preserves_exact_prefix_and_adds_closed_link_facts
+tests/unit/data/artifacts/test_source_audit_report.py::test_source_audit_report_factory_accepts_only_exact_complete_observations
+```
+
+The skeleton adds only the direct-init-disabled Complete name and rejects a valid
+Silver fixture. The transition selector requires CP5's exact Silver object/type,
+preserves every prefix object/value/order, and adds only the closed equal link/evidence
+counts and canonical pair hash. The factory selector is the first build-producer
+authorization: it rejects Bronze/Silver, direct/copy/subclass/`object.__new__`/equal-
+looking Complete forgeries, repeated extension, and model-dump/reparse/cast bypasses.
+CP2 parsing remains verification-only and cannot satisfy this producer gate.
 
 For one link with multiple fund source rows, assert one left evidence at role order 0/ordinal 0 and every right `ksd_itm_no` locator at role order 1/contiguous ordinal in exact `equivalent_sources` order. Parameterize missing, duplicate, reordered, swapped-role, noncontiguous ordinal, wrong field, wrong raw value, wrong parent link, wrong Bronze locator, omitted authoritative locator, and extra proximity-derived locator. Each must fail verification.
 
@@ -3151,6 +3967,7 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 - Create: `src/finproof/data/artifacts/database.py`
 - Modify: `src/finproof/data/artifacts/manifest.py`
+- Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
 - Create: `tests/integration/artifacts/test_artifact_duckdb.py`
@@ -3162,10 +3979,12 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 **Interfaces:**
 
-- Produces private `build_self_contained_database(*, tables: StagedParquetSet,
-  database_leaf: OwnedStageDatabaseLeaf) -> StagedDatabaseVerification`. It requires
+- Produces private `build_self_contained_database(*, owner:
+  OwnedStageDatabaseOwner, tables: StagedParquetSet, database_leaf:
+  OwnedStageDatabaseLeaf) -> StagedDatabaseVerification`. It requires
   the complete frozen-order set, revalidates the one live owner/timestamp and every
-  handle, and requires that same owner to accept the exact database leaf. No caller/raw
+  handle, requires `tables` and `database_leaf` against the explicit exact `owner`, and
+  passes that same owner to `StagedDatabaseVerification.from_sealed`. No caller/raw
   input or output path is accepted; CP4's owner-managed scratch returns only its
   registered neutral `SealedStageDatabase`, which CP7 validates and wraps. Before manifest construction,
   `StagedDatabaseVerification.validate_against(owner)` repeats owner/token/liveness/
@@ -3211,16 +4030,36 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
   manifest.persistence_timestamp` in addition to CP5's Bronze/quality equality. A
   copied/mixed/closed/timestamp-mismatched set or foreign database leaf fails before
   final inventory creation.
-- The already guarded repository-only candidate path calls `verify_candidate_core`,
-  projects its `ArtifactCoreVerificationResult` to candidate JSON, never publishes, and
+- The already guarded repository-only candidate path enters the exact CP4 custody's
+  `open_verification_root()` and calls `verify_candidate_core_from_root`, projects its
+  `ArtifactCoreVerificationResult` to candidate JSON, never publishes, and
   exposes no package/runtime skip; it does not install a no-op comparator or duplicate
-  the kernel. CP8 alone activates `verify_expected`, exposes
+  the kernel. CP8 alone activates `verify_expected_from_root`, exposes
   `ArtifactManifest.verify`, and wraps `ArtifactExpectedVerificationResult` as
   `VerifiedArtifactSet` after the reviewed resource exists.
-- Produces private live direct-construction-disabled `CandidateArtifactSet`, binding one
-  exact marker-owned sibling stage `(parent identity, basename, st_dev, st_ino)`, its
-  manifest, and `ArtifactCoreVerificationResult`; it is nonserializable and not trusted
-  for publication. Produces internal `build_verified_candidate_stage(settings,
+- Produces private live direct-construction-disabled `CandidateArtifactSet`, consuming
+  the exact one-use CP4 `ArtifactBuildSession.transfer_candidate_stage()` result and
+  immediately consuming its one-use `issue_candidate_custody()` result. The candidate
+  directly retains that exact instance-owned opaque `CandidateStageCustody`, which is
+  the sole owner of parent/stage/parquet descriptors, marker/leaf identities, input-
+  close responsibility, and advisory lock; there is no module-global candidate/stage/
+  receiver/custody registry. The candidate also retains only its manifest and
+  `ArtifactCoreVerificationResult` and the exact same `BuildInputIdentity` object
+  retained by the build session/results; it accepts no raw path/basename or
+  reconstructed stage/input fact, is nonserializable, and is not trusted for
+  publication. The sole manifest builder accepts that carrier, emits
+  its exact ordered nine-tuple as `source_inputs`, retains the same carrier in the
+  private frozen nonserialized `_build_input_identity` slot, and binds the report
+  manifest/catalog hashes to entries zero/one. Candidate admission calls
+  `manifest.require_build_input_identity(input_identity)`; no tuple or parallel hash
+  arguments are accepted. It exposes only `open_verification_root() ->
+  AbstractContextManager[ManagedArtifactVerificationRoot]` and the package-private
+  `transfer_expected_accepted_custody(*, expected_acceptance_seal: object, receiver:
+  ExpectedAcceptedCustodyReceiver) -> None` bridge; both delegate to the retained exact
+  custody instance and neither reveals its private state. The bridge is the only caller
+  of `CandidateStageCustody.transfer_expected_accepted(...)`, and only CP8 publication
+  may call the bridge.
+  Produces internal `build_verified_candidate_stage(settings,
   versions, options) -> CandidateArtifactSet`, which fully core-verifies but does not
   compare expected, publish, or expose its stage path publicly.
 
@@ -3237,11 +4076,27 @@ test_database_builder_orchestrates_cp4_seal_then_cp7_verified_wrapper
 test_staged_database_verification_wraps_only_exact_owner_registered_seal
 test_staged_database_verification_revalidates_owner_timestamp_identity_and_hash
 test_staged_database_verification_rejects_foreign_equal_copy_object_new_and_token_forge
+test_candidate_core_verifier_consumes_managed_stage_root_without_path_or_private_field_access
+test_candidate_manifest_retains_exact_build_input_identity_and_bound_source_hashes
 ```
 
 The skeleton exposes only raising names. CP7's new behaviors are complete-set/owner
 admission, exact eleven-table materialization into the already-frozen CP4 managed
 writer, CP4-seal-to-CP7-wrapper orchestration, and CP7 result identity/revalidation.
+The managed-root selector requires one `CandidateArtifactSet.open_verification_root()`
+context delegating to the exact retained custody instance, one `open_inventory(manifest=...)`
+context, and closure on success and every
+port failure. The managed entry/caller signatures and spies reject any `Path`,
+descriptor integer, basename, `/dev/fd`, or access to stage private fields; CP2's
+already-approved private path-root entries are unchanged regressions. The input selector requires
+`candidate.input_identity is session.input_identity`, manifest build-identity object
+identity, exact serialized nine-entry order/type/value equality, and the manifest/
+catalog hashes from entries zero/one; copied carriers, JSON-loaded manifests without
+build authorization, reorder, separately supplied hash, or result-to-stage mixing
+fails before inventory. It also requires exact candidate-to-custody object retention;
+a copied/equal/forged candidate, copied custody, replaced private slot, or superseded/
+closed custody cannot open a root or invoke the transfer bridge.
+
 CP4 scratch/checkpoint/WAL/copy/fsync/final-close/reopen/hash/cleanup/abort internals are
 already GREEN and remain regression assertions here; CP7 neither claims new REDs for
 them nor reimplements them.
@@ -3406,25 +4261,51 @@ git commit -m "feat: verify self-contained artifact databases"
 **Interfaces:**
 
 - Produces `PublicationState` as the closed enum `STAGE_VERIFIED`, `BACKUP_VERIFIED`, `TARGET_RENAMED_UNCOMMITTED`, `PUBLISHED`, `BACKUP_WITH_MARKER`, `BACKUP_WITH_PREPARED_TOMBSTONE_MARKER`, `TOMBSTONE_WITH_BOTH_MARKERS`, `BOTH_MARKERS_ONLY`, `BACKUP_MARKER_ONLY`, and `NO_REMNANT`.
+- Produces private exact `PublicationTransitionPort` with only `assert_live() -> None`,
+  `rename_stage_to_target() -> None`, `rollback_target_to_stage() -> None`,
+  `commit_after_stage_marker_removal() -> None`, and `close() -> None`. It has no path,
+  basename, descriptor, manifest/result, or separate stage argument/result. CP7 creates
+  no production implementation; its only implementation is the sealed synthetic one
+  in `tests/helpers/artifact_filesystem.py`. CP8's
+  `ExpectedAcceptedPublicationStage` is the sole production implementation.
 - Produces only package-private `_PublicationStateMachine` transition/rollback/recovery
   mechanics. CP7 has no production constructor, `publish_verified_stage`, target-
   recognition wrapper, or builder call site. Tests drive the machine through a
-  test-helper-only sealed synthetic authorization and synthetic recognized-target
-  fact; neither type exists under `src/` and neither accepts a core verification result.
+  test-helper-only sealed synthetic authorization, synthetic recognized-target fact,
+  and test-only `PublicationTransitionPort` implementation from
+  `tests/helpers/artifact_filesystem.py`; none of those wrappers/capabilities exists in
+  production under `src/`, accepts a core result, or reconstructs a stage path.
   CP8 adds sole `authorize_candidate_for_publication(candidate: CandidateArtifactSet)
   -> ExpectedAcceptedPublicationStage`, which reruns expected verification while
-  retaining and binding the exact stage identity, and
+  retaining and binding the exact CP4 custody. It takes CP2's expected-acceptance seal,
+  closes the adopted-root context and all duplicate descriptors, then invokes only
+  the candidate bridge to its retained staging-owned
+  `CandidateStageCustody.transfer_expected_accepted(*, expected_acceptance_seal,
+  receiver: ExpectedAcceptedCustodyReceiver) -> None`. The typed receiver's non-
+  fallible `accept_transferred_custody(TransferredCandidateCustody) -> None` atomically
+  installs one opaque instance and invalidates the source custody; no raw descriptor,
+  private field, path, token, bundle, or global registry crosses modules. Only that CP8 capability implements
+  the production `PublicationTransitionPort`, owning one-use descriptor-relative
+  stage-to-target, target-to-stage rollback, commit, and close operations; and
   `publish_verified_stage(authorized: ExpectedAcceptedPublicationStage, *, settings:
   Settings, clean: bool, filesystem: ArtifactFilesystem) -> ArtifactManifest`. It never
   accepts a separate result/stage pair. CP8 also adds
   `recover_owned_remnants(settings: Settings, *, filesystem: ArtifactFilesystem) ->
   None`, with recognition obtained only from public expected verification.
-- `ArtifactFilesystem` exposes only exact-path `lstat`, exclusive marker create/read, same-filesystem rename, exact unlink, and marker-owned tombstone deletion; no glob/broad resolved delete method exists.
+- `_PublicationStateMachine` invokes stage-to-target/target-to-stage only through its
+  injected `PublicationTransitionPort`; CP7 has only the synthetic test port and CP8
+  supplies the production expected-authorized port. `OwnedCandidateStage` and
+  `CandidateStageCustody` themselves have no
+  rename/rollback/target method. `ArtifactFilesystem`
+  exposes only recognized target/backup/tombstone `lstat`, exclusive marker
+  create/read, same-filesystem rename, exact unlink, and marker-owned tombstone
+  deletion; no stage-path, glob, or broad resolved-delete method exists.
 
 - [ ] **Step 6: Write 7B REDs for no-clean/clean recognition and both rename rollback boundaries**
 
-Through only the test-helper sealed authorization, assert the absent-target transition
-renames the stage only after the synthetic expected-accepted fact. Existing target
+Through only the test-helper sealed authorization and synthetic transition port, assert
+the absent-target transition requests a stage rename only after the synthetic
+expected-accepted fact. Existing target
 without clean raises `EXISTING_TARGET` byte-identically. With clean, synthetic
 recognition refusal for symlink/non-directory/empty/unrecognized/extra-entry/special/
 hardlink/WAL/invalid-manifest targets occurs before rename/chmod/unlink; snapshot every
@@ -3442,12 +4323,14 @@ Expected RED: no publication state machine exists.
 
 - [ ] **Step 7: Implement pre-commit recognition, rename, verification, and rollback**
 
-Hold `.<target>.finproof-build.lock` exclusively for build/clean/recovery. CP7 tests the
+Consume the already-held synthetic lock authority for each test state. CP7 tests the
 authorization-independent rename/rollback/tombstone state machine directly with sealed
 synthetic filesystem states; it creates no production recognition/publish wrapper and
 no core result can authorize a rename. CP8 adds the sole wrapper and requires
 expected-accepted `ArtifactManifest.verify` both before the first rename and for
-reopened-target recognition. Use exact same-filesystem sibling stage/backup markers and
+reopened-target recognition; that wrapper consumes the CP4-transferred advisory lock
+through `ExpectedAcceptedPublicationStage`. Use exact same-filesystem sibling stage/
+backup markers and
 `lstat` immediately before every rename. The commit point is successful reopened target
 verification plus stage-marker removal. Never recursively delete before it.
 
@@ -3631,6 +4514,7 @@ Then run all Checkpoint 7 focused commands, including `tests/contract/test_hando
 - Modify after candidate review only: `pyproject.toml`
 - Modify after candidate review only: `src/finproof/data/artifacts/manifest.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/builder.py`
+- Modify after candidate review only: `src/finproof/data/artifacts/staging.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/publication.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/__init__.py`
 - Modify after candidate review only: `src/finproof/cli/main.py`
@@ -3650,16 +4534,34 @@ Then run all Checkpoint 7 focused commands, including `tests/contract/test_hando
 - Produces the sole reviewed official `ExpectedPhase1ArtifactContract` source and byte-identical packaged resource.
 - Activates the already-frozen expected route only after those bytes exist: public
   `ArtifactManifest.verify(root: Path) -> VerifiedArtifactSet` calls
-  `verify_expected`, normal target recognition/publication requires that trusted type,
-  and public `build_artifacts` returns only after expected acceptance. Defines the
+  CP2's private published-root capability opener and then
+  `verify_expected_from_root`; normal target recognition/publication requires that
+  trusted type, and public `build_artifacts` returns only after expected acceptance.
+  No public API accepts a managed-root capability or exposes its internals. Defines the
   distinct strict `ArtifactBuildOutcome(manifest: ArtifactManifest, logical_contract:
   ArtifactExpectedVerificationResult, telemetry: ArtifactBuildTelemetry)`; CP7's core
   outcome cannot be substituted.
 - Produces the internal context-managed `ExpectedAcceptedPublicationStage` only through
   `authorize_candidate_for_publication(candidate)`. It binds that candidate's exact
-  held parent/name/inode plus expected result; publisher accepts only this single
-  capability. Mixing verified stage A with candidate stage B, copying/forging a
+  CP4-owned held stage/parent descriptors, marker/registration identities, advisory
+  lock, exact `BuildInputIdentity`, and expected result. Authorization enters only
+  `candidate.open_verification_root()` and `verify_expected_from_root`; after the
+  final rescan it takes CP2's one-use expected-acceptance seal, exits the managed-root
+  context so all adopted duplicate descriptors close, then creates the direct-init-
+  disabled publication receiver implementing `ExpectedAcceptedCustodyReceiver`,
+  and calls `candidate.transfer_expected_accepted_custody(...)`, the sole no-private-
+  field bridge to the retained custody instance's typed one-use transfer method.
+  Its non-fallible `accept_transferred_custody(...)` installs one opaque
+  `TransferredCandidateCustody`, invalidates the old custody/candidate, and makes the
+  receiver the sole owner of the original descriptors, leaf identities, held-nine-input
+  carrier close responsibility, and advisory lock. The receiver implements the sole
+  production `PublicationTransitionPort`; publisher accepts only this
+  single capability and invokes only that port's descriptor-relative transition
+  operations. Mixing verified stage A with candidate stage B, copying/forging a
   capability, closing it, or swapping its bound entry blocks before rename.
+  No candidate/stage/receiver/custody/token module-global registry exists; copied,
+  foreign, prefilled, or throwing receivers fail during preflight before the source
+  ownership slot moves.
 - Produces a session-scoped official artifact fixture that launches one fresh child through the same closed `_build_evaluation_artifacts_with_outcome` called by public `build_artifacts`, first calls `ArtifactManifest.load(...).verify(root)`, then `compare_expected_artifact_contract`, and shares that verified generation plus child telemetry across all assertions in the process.
 - Consumes the frozen internal `ArtifactBuildOutcome`/`ArtifactBuildTelemetry` from the fresh child and adds only externally measured wall duration, platform-normalized peak RSS bytes, and `sys.platform`; it does not infer counters from logs or expose a public telemetry/skip flag.
 
@@ -3759,7 +4661,7 @@ each RED and its GREEN before authoring the next selector:
 ```text
 tests/integration/artifacts/test_artifact_tampering.py::test_public_manifest_verify_rejects_small_core_against_official_expected
 tests/unit/data/artifacts/test_publication.py::test_publisher_rejects_core_result_substitution_before_filesystem_work
-tests/unit/data/artifacts/test_publication.py::test_publication_authorization_binds_one_exact_live_candidate_stage
+tests/unit/data/artifacts/test_publication.py::test_expected_authorization_atomically_transfers_real_descriptor_lock_and_input_custody_once
 tests/integration/artifacts/test_publication_faults.py::test_expected_mismatch_blocks_before_first_rename
 tests/source_contract/test_official_artifact_build.py::test_evaluation_build_accepts_official_expected_and_publishes
 tests/integration/artifacts/test_publication_recovery.py::test_normal_target_recognition_requires_reopened_expected_acceptance
@@ -3770,8 +4672,23 @@ tests/unit/cli/test_build_data.py::test_build_data_postcommit_cleanup_error_stat
 The first selector's RED is the still-absent public method, not expected mismatch; add
 only the public expected-route wrapper and make the valid small core fail at the
 official comparator. The second freezes the nominal trusted-result gate before any
-rename. The next selector rejects result-A/stage-B mixing, structural copies/forgeries,
-closed capabilities, and parent/name/inode swaps before authorizing a rename. The
+rename. The next exact custody selector rejects result-A/stage-B mixing, structural
+copies/forgeries, closed capabilities, and parent/name/inode swaps, then uses actual
+parent/stage/parquet descriptors plus lock/input-close
+sentinels: candidate-core verification cannot take the acceptance seal; expected
+failure leaves all slots with the retained candidate custody; a copied, foreign,
+prefilled, or preflight-throwing typed receiver cannot move a slot; expected success
+performs the non-fallible `accept_transferred_custody` instance swap and moves the same numeric
+descriptor/lock generations once only after every CP2 adopted duplicate has closed,
+makes every old custody/candidate method fail, lets
+only the publication capability perform a real same-filesystem sibling stage-to-target
+rename plus an injected pre-commit target-to-stage rollback, and produces exactly one
+close attempt per
+descriptor/lock/input carrier on success, receiver fault, or early close. Forged/
+copied/reused acceptance, receiver, stage, or mixed generation fails before any slot
+move. Static/module-surface assertions prove the candidate retains the opaque custody
+instance directly and no candidate/stage/receiver/custody/token global registry exists;
+tests never read a private field or receive a raw descriptor from an API. The
 official success selector is the first behavior allowed to construct a
 `VerifiedArtifactSet`/`ArtifactBuildOutcome` and must use the reviewed official resource
 and exact source inputs; no small fixture is called official. The remaining selectors
