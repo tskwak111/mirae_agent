@@ -4059,7 +4059,7 @@ fund behavior is item-bounded/order-invariant; D-021 timestamps/joins are exact;
 quality report contains no operational identity; Silver observations are valid while
 Complete/source-audit production remains impossible before CP6.
 
-- [ ] **Step 7: Stage exactly 19 files, commit, review, then close with exactly three docs**
+- [ ] **Step 7: Stage exactly 20 files, commit, review, then close with exactly three docs**
 
 Before staging, `git diff --name-only` must be exactly the following inventory and no
 other file. In particular no docs, STATUS, schema, config, source material, expected
