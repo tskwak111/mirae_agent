@@ -971,8 +971,9 @@ lineage. The post-review correction adds 22 mandatory RED/GREEN selectors and fo
 separate derived first-GREEN behavioral regressions; neither category rewrites the
 initial 69/8 evidence. The third fresh-review correction adds seven more mandatory
 RED/GREEN selectors and no derived acceptance; it is reported separately from both
-earlier matrices. Never alter production code or manufacture a failure to turn one of
-the twelve total derived acceptances into RED evidence.
+earlier matrices. The fourth fresh-review correction adds five mandatory RED/GREEN
+selectors and no derived acceptance. Never alter production code or manufacture a
+failure to turn one of the twelve total derived acceptances into RED evidence.
 
 **Files:**
 
@@ -993,7 +994,7 @@ the twelve total derived acceptances into RED evidence.
 
 **Interfaces:**
 
-- Produces strict frozen `ColumnSpec(name, logical_type, arrow_type, duckdb_type, nullable)`, `TableSpec(table_name, layer, grain, columns, unique_key, sort_key, logical_projection, parquet_path)`, and deeply immutable `TABLE_SPECS` in exact artifact order. Produces the sole `TABLE_SPEC_REGISTRY = ClosedTableSpecRegistry(TABLE_SPECS)`: its constructor accepts only that exact tuple and exact member identities, and `ordered_specs()` returns that exact tuple for CP2's kernel port after revalidating every frozen spec fingerprint.
+- Produces strict frozen `ColumnSpec(name, logical_type, arrow_type, duckdb_type, nullable)`, `TableSpec(table_name, layer, grain, columns, unique_key, sort_key, logical_projection, parquet_path)`, and deeply immutable `TABLE_SPECS` in exact artifact order. Produces the sole `TABLE_SPEC_REGISTRY = ClosedTableSpecRegistry(TABLE_SPECS)`: before touching an input element or requesting an iterator it requires an exact tuple, exact `TABLE_SPECS` object, exact length, and exact indexed member identities; `ordered_specs()` returns that exact tuple for CP2's kernel port after revalidating every frozen spec fingerprint.
 - Produces `derive_wide_columns(model_type: type[BaseModel]) -> tuple[ColumnSpec, ...]`;
   there is no `skip_fields` parameter. Only exact `FundItem.contributing_rows` is
   skipped, and only when `model_type is FundItem`.
@@ -1007,7 +1008,9 @@ the twelve total derived acceptances into RED evidence.
   used to produce canonical `record_json`; reopened logical projection reconstructs
   that model and compares the complete physical projection, not a selected subset.
   FundItem wide revalidation uses exact strict Python scalar/wrapper/model identities;
-  it never JSON-round-trips an untrusted model as a validation/coercion mechanism.
+  it recursively validates every `SourceCellLocator` and every contributing
+  `SourceRow`/`SourceCell` child as well; it never JSON-round-trips an untrusted model
+  as a validation/coercion mechanism.
 - Produces internal `OwnedStageArtifactOwner(Protocol)` and
   `OwnedStageParquetLeaf(Protocol)` with exact design-section-9.1 methods. CP3 has only
   test implementations; CP4 supplies the production marker/descriptor-owned
@@ -1059,7 +1062,9 @@ the twelve total derived acceptances into RED evidence.
   directory/leaf identity deletion. The workspace root itself is opened beneath a
   held trusted-parent descriptor, all setup/rescan/cleanup is descriptor-relative, and
   successful cleanup removes registered children in fixed order and the ownership
-  marker last. No database/spill path or generic connection escapes. It catches
+  marker last. Default trusted-parent open/dup/fstat/identity acquisition is inside the same typed setup
+  boundary with exact descriptor release. Every cleanup rename records its retained
+  state in one fixed-size bounded summary before any fallible post-rename check. No database/spill path or generic connection escapes. It catches
   nonadjacent duplicates across more than two batches and uses no
   Python key set or previous-key-only uniqueness.
   `OwnedStageParquetLeaf.create_verification_workspace()` supplies CP4's exact staged
@@ -2244,6 +2249,237 @@ OS fault mapping, and resolved staged-owner annotations plus mypy. Any Critical 
 Important finding restarts a new serial correction with its own approved plan and fix
 commit. Only a fresh 0 Critical / 0 Important verdict unlocks the existing docs-only
 closure below.
+
+#### Checkpoint 3 fourth correction: close fresh verdict 0C / 4I serially
+
+Fresh review of `aa3f4107` found 0 Critical and 4 Important issues. Keep that commit as
+an unaccepted candidate. This fourth correction is additive evidence only: it does not
+rewrite the initial 69/8, first-correction 22/4, or third-correction 7/0 matrices.
+Obtain independent approval of this plan-only addition, then create a separate
+documentation commit and a clean implementation base before writing any RED:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: plan Task 5 checkpoint 3 fourth review correction"
+git status --porcelain
+```
+
+The name-only outputs contain only this plan and final status is empty. Record the docs
+hash as the fourth-correction base in the ignored report. This subsection overrides
+Step 8's pre-review STATUS/file-map instruction only for this correction; every Step 8
+verification, absence, source-permission, diff, clean-status, fix-commit, and independent
+review gate remains mandatory. STATUS, legacy plan, and completion checkboxes stay
+unchanged until the new fix receives 0 Critical / 0 Important.
+
+The exact fourth-correction implementation file map is:
+
+- Modify: `src/finproof/data/artifacts/table_specs.py`
+- Modify: `src/finproof/data/artifacts/serialization.py`
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
+- Modify: `tests/unit/data/artifacts/test_table_specs.py`
+- Modify: `tests/unit/data/artifacts/test_serialization.py`
+- Modify: `tests/integration/artifacts/test_parquet_verification.py`
+
+No manifest/helper/config/schema/hashing/source/later-checkpoint module, unit Parquet
+test, STATUS, legacy plan, or this plan belongs in the implementation commit. Stop for
+plan/reviewer approval if another file is truly required.
+
+Author one selector only after the previous selector and its immediate regressions are
+GREEN. These are five mandatory RED/GREEN selectors and no derived acceptances. Every
+symbol already exists at `aa3f4107`; do not add a missing-symbol skeleton or cite an
+aggregate failure. Parameter families prove every ID reaches the uncovered boundary.
+Do not count the already-GREEN foreign tuple, Fund wrapper/representative, pre-cleanup
+workspace typing, or generic cleanup-code selectors again. Use this exact order:
+
+```text
+tests/unit/data/artifacts/test_table_specs.py::test_closed_registry_rejects_foreign_generator_typed_without_pulling_it
+tests/unit/data/artifacts/test_serialization.py::test_fund_python_graph_recursively_rejects_exact_model_children_with_forged_scalar_subclasses
+tests/integration/artifacts/test_parquet_verification.py::test_default_trusted_parent_open_dup_and_fstat_faults_are_typed_and_release_every_descriptor
+tests/integration/artifacts/test_parquet_verification.py::test_trusted_parent_identity_fault_is_typed_and_releases_before_workspace_creation
+tests/integration/artifacts/test_parquet_verification.py::test_cleanup_post_rename_fault_context_matches_spill_entry_spill_marker_and_root_filesystem_state
+```
+
+`ClosedTableSpecRegistry.__init__` performs its closed gate before duplicate-column or
+any other element validation. The exact sequence is: reject `type(specs) is not tuple`
+with `TypeError`; require `specs is TABLE_SPECS`; require exact length eleven; require
+each indexed member `specs[index] is TABLE_SPECS[index]`; only after all four gates may
+production inspect a spec or iterate the accepted tuple for deep validation. The first
+selector supplies a foreign generator whose `__iter__`/`__next__` increments a counter
+and raises a sentinel if touched. Current code pulls it in the duplicate-column loop;
+the RED must observe that pull. GREEN requires immediate typed rejection with the
+counter still zero. Include non-tuple iterable, list, and iterator controls in the same
+reached family, but rerun prior equal-copy/order/length/member cases only as GREEN
+regressions. Do not call `tuple(specs)`, `len` on a foreign non-tuple, `iter`, `next`, or
+access an element before rejecting its runtime container type.
+
+Preserve the original duplicate-column contract after moving the closed gate. Rewrite
+the already-GREEN
+`test_table_spec_module_skeleton_rejects_closed_registry_fixture` fixture so it does
+not pass a foreign tuple: under `try/finally`, use test-only `object.__setattr__` to
+temporarily replace the `columns` of one exact `TABLE_SPECS` member with an otherwise
+valid tuple containing one duplicate name,
+call `ClosedTableSpecRegistry(TABLE_SPECS)`, require the same duplicate-column
+`ValueError`, then restore the exact original columns object and rerun the registered
+deep-fingerprint guard. This is regression evidence, not a sixth RED. The production
+constructor must perform container/object/length/indexed-member gates first and then
+retain its duplicate-column validation for the accepted exact tuple. Do not delete,
+weaken, bypass, or change that selector to merely expect the earlier closed-gate error.
+
+The Fund selector starts from an otherwise exact registered `FundItem`, then forges
+inside exact outer model instances so earlier top-level/wrapper identity guards remain
+GREEN. Recursively validate the original Python graph before strict model reconstruction:
+
+- every wrapper and representative is its exact declared Pydantic class;
+- every representative/equivalent `SourceCellLocator` is exact and every locator field
+  has exact runtime type (`str`, `PurePosixPath`, `int` but never `bool`/an `int`
+  subclass, exact `date` but never `datetime`/a subclass, or `None` where declared);
+- `contributing_rows` is an exact tuple of exact `SourceRow`; every SourceRow scalar,
+  `raw_payload` tuple/string child, `cells` tuple, exact `SourceCell`, and SourceCell
+  scalar/date child has its declared exact runtime type;
+- every normalized leaf uses exactly its declared scalar type or `None`, every raw/rule
+  field is exact `str`, every quality field is exact `QualityStatus`, and all
+  tuple/model boundaries remain exact.
+
+Use `model_construct`/`object.__setattr__` only in the test to inject independently an
+`int` subclass into locator/row/cell positions, a `str` subclass into locator,
+raw-payload/cell/raw/rule positions, a forged child model with otherwise equal fields,
+and a date/datetime subclass at applicable/snapshot positions. All IDs are accepted by
+the current shallow exact-model checks and must reach the new recursive guard. Monkeypatch
+`canonical_record_json` with a fail-on-call sentinel for every invalid case: rejection
+must occur first, and neither canonical JSON nor `model_validate_json` may be called.
+Keep valid Fund serialization/round-trip, Decimal, representative/equivalent lineage,
+and contributing-row consistency tests GREEN. Do not duplicate the already-driven
+JSON-coercible Decimal-string or outer nested-model REDs.
+
+Default trusted-parent acquisition is one typed setup transaction. Put
+`tempfile.gettempdir`, parent `os.open`, `_TrustedWorkspaceParent` descriptor `os.dup`,
+duplicate `os.fstat`, original-descriptor release, and capability `_take`
+inside the `_final_verification_workspace` setup `try` before any root name/mkdir. Map
+every OS failure only to `ArtifactContractError(EXACT_TREE_MISMATCH)` with operation
+`parquet-workspace-open`, `published=False`, redacted output, and an exact allowlisted
+reason literal `workspace_open_failed`. Track acquired descriptors explicitly: on every failure close each successfully
+acquired original/duplicate/taken descriptor exactly once, never close an unacquired or
+already-transferred descriptor, and create no root/marker/spill entry.
+
+The first trusted-parent selector injects independent failures at default parent open,
+dup, and fstat of the duplicate; a descriptor ledger proves no leak or double close and
+no raw `OSError`. Only concrete `os.open`, `os.dup`, and `os.fstat` hooks are faulted;
+there is no invented transfer hook. Only after it is GREEN, the second selector makes
+the concrete fstat identity differ at the capability identity check for both default
+and supplied trusted-parent capabilities. On that failed identity check the capability
+or setup owner releases its one descriptor
+exactly once, no descriptor is lost between owners, and root creation is never reached.
+Do not reuse the prior root/spill/marker creation or pre-cleanup revalidation IDs as new
+RED evidence.
+
+Cleanup retained state is a transactional observation, not a prediction. Split rename
+from its fallible post-rename identity/content check. Immediately after each successful
+`os.rename`, the very next non-fallible statement updates the in-memory state from
+`owned` to its exact tombstone name/state before any `stat`, `open`, `read`, hash,
+descriptor close, unlink, or rmdir can fail. After successful deletion, update that
+state to `removed`. Do not list per-file names or one field per spill entry in error
+context. Freeze one fixed-field, fixed-width, path-free summary string:
+
+```text
+v1;r=O;s=O;m=O;n=0000000000000000;o=0000000000000000;t=0000000000000000;d=0000000000000000;a=0000000000000000;p=N;u=0000000000000000
+```
+
+`r`/`s`/`m` are one-character root/spill/marker phases `O` (owned), `T`
+(tombstone), or `R` (removed). `n`, `o`, `t`, `d`, and `u` are exact 16-lowercase-hex
+unsigned counts for total, owned, tombstoned, removed, and unexpected spill/root
+entries; require `o + t + d == n`. `a` is the exact 16-hex active spill-entry index and
+`p` is its one-character phase `N/O/T/R`; when `p=N`, `a` is all zeroes and ignored.
+Reject a count outside unsigned-64 range before cleanup authorization. This constant
+number of bounded fields makes `internal_context["retained_state"]` a fixed-size
+representation independent of spill-file count while still describing every aggregate
+phase needed to reconcile the filesystem. It contains no temp/root path or entry name.
+
+Immediately after a spill-entry rename, decrement `o`, increment `t`, set `a` to that
+entry's frozen-order index, and set `p=T`; after its unlink, decrement `t`, increment
+`d`, and set `p=R`. Directory/marker/root renames update their one-character state
+immediately. These assignments are non-raising state transitions and precede every
+post-rename check.
+
+The final selector is one coherent four-ID family. For a spill entry, spill directory,
+marker, and root, allow the exact rename to succeed and then fault the first
+post-rename identity/content check. Catch only
+`ArtifactContractError(STAGING_CLEANUP_FAILED)`/
+`parquet-workspace-cleanup`. Inspect the held test parent filesystem independently and
+assert its original versus tombstone names and removed entries exactly equal the parsed
+fixed summary counts, active index/phase, and root/spill/marker phases for every ID.
+Current code records spill-entry removal only after
+unlink and records spill/marker/root tombstone only after the helper's post-rename
+check, so all four IDs must expose the mismatch in the RED run. GREEN may add a
+non-raising transition callback or split helper, but must not weaken the post-rename
+identity check, retry/delete an ambiguous entry, expose a path, or touch an external
+victim. Rerun all earlier cleanup phase/error/marker-last/no-victim selectors as
+regressions.
+
+After all five serial selectors have recorded expected RED and smallest GREEN, run:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/integration/artifacts/test_parquet_verification.py
+```
+
+Then rerun every Step 8 command unchanged, including full pytest, source audit,
+handoff, schema catalog, pre-commit, expected-resource/artifact absence, writable-source
+check, diff/stat/name-only/cached checks, and status. Append a distinct fourth-correction
+section to the ignored report with five per-selector RED/GREEN observations, focused and
+full outputs, exact diff, and unresolved risks; call it only a candidate for fresh
+review. Before commit, name-only contains exactly the six implementation/test files
+above and no docs/STATUS. Stage and commit only:
+
+```bash
+git add src/finproof/data/artifacts/table_specs.py \
+  src/finproof/data/artifacts/serialization.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/unit/data/artifacts/test_table_specs.py \
+  tests/unit/data/artifacts/test_serialization.py \
+  tests/integration/artifacts/test_parquet_verification.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "fix: close Task 5 checkpoint 3 recursive trust gaps"
+git status --porcelain
+```
+
+Require empty status and dispatch a fresh independent review against `aa3f4107`, the
+approved fourth-correction plan commit, and the fix commit. The reviewer independently
+proves zero-pull registry rejection and valid CP2-port behavior, recursive exact Fund
+lineage/scalar validation before canonical JSON, typed/leak-free trusted-parent setup,
+and retained-state/filesystem equality after each cleanup rename. Any Critical or
+Important finding starts another approved serial correction. Only a fresh 0 Critical /
+0 Important verdict unlocks the docs-only closure below.
 
 Only after the final 0/0 verdict, make a separate docs-only closure: update
 `docs/implementation/STATUS.md` with reviewed commit hash(es), reviewer counts/evidence,
