@@ -972,7 +972,8 @@ separate derived first-GREEN behavioral regressions; neither category rewrites t
 initial 69/8 evidence. The third fresh-review correction adds seven more mandatory
 RED/GREEN selectors and no derived acceptance; it is reported separately from both
 earlier matrices. The fourth fresh-review correction adds five mandatory RED/GREEN
-selectors and no derived acceptance. Never alter production code or manufacture a
+selectors and no derived acceptance. The fifth fresh-review correction adds two
+mandatory RED/GREEN selectors and no derived acceptance. Never alter production code or manufacture a
 failure to turn one of the twelve total derived acceptances into RED evidence.
 
 **Files:**
@@ -1063,7 +1064,10 @@ failure to turn one of the twelve total derived acceptances into RED evidence.
   held trusted-parent descriptor, all setup/rescan/cleanup is descriptor-relative, and
   successful cleanup removes registered children in fixed order and the ownership
   marker last. Default trusted-parent open/dup/fstat/identity acquisition is inside the same typed setup
-  boundary with exact descriptor release. Every cleanup rename records its retained
+  boundary with exact descriptor release. Before any held descriptor is passed to
+  `os.close`, its current owner atomically clears or transfers the ownership slot; a
+  close attempt is never retried by numeric descriptor even when the call closes the
+  kernel object and then raises. Every cleanup rename records its retained
   state in one fixed-size bounded summary before any fallible post-rename check. No database/spill path or generic connection escapes. It catches
   nonadjacent duplicates across more than two batches and uses no
   Python key set or previous-key-only uniqueness.
@@ -2478,8 +2482,181 @@ approved fourth-correction plan commit, and the fix commit. The reviewer indepen
 proves zero-pull registry rejection and valid CP2-port behavior, recursive exact Fund
 lineage/scalar validation before canonical JSON, typed/leak-free trusted-parent setup,
 and retained-state/filesystem equality after each cleanup rename. Any Critical or
-Important finding starts another approved serial correction. Only a fresh 0 Critical /
-0 Important verdict unlocks the docs-only closure below.
+Important finding starts another approved serial correction. The review of `94ee69e`
+found the two descriptor-ownership gaps owned by the fifth correction below, so that
+candidate does not unlock docs closure.
+
+#### Checkpoint 3 fifth correction: close fresh verdict 0C / 2I serially
+
+Fresh review of `94ee69e` found 0 Critical and 2 Important issues. Keep that commit as
+an unaccepted candidate. This fifth correction owns only descriptor ownership across
+`os.close` calls that close the kernel descriptor and then raise. It does not reopen or
+rewrite the initial 69/8, first-correction 22/4, third-correction 7/0, or
+fourth-correction 5/0 evidence. Obtain independent approval of this plan-only addition,
+then create a separate documentation commit and a clean implementation base before
+authoring either RED:
+
+```bash
+git diff --check
+git diff --name-only
+git status --short
+git add docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: plan Task 5 checkpoint 3 fifth review correction"
+git status --porcelain
+```
+
+The unstaged and cached name-only outputs contain exactly this dedicated plan, and the
+final status is empty. Record the approved plan commit as the fifth-correction base in
+the ignored report. This subsection overrides Step 8's pre-review STATUS/file-map
+instruction only for this correction. STATUS, the legacy plan, all checkpoint boxes,
+and the final docs closure remain unchanged until the fifth-correction fix receives a
+fresh 0 Critical / 0 Important verdict.
+
+The exact fifth-correction implementation file map is:
+
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
+- Modify: `tests/integration/artifacts/test_parquet_verification.py`
+
+No manifest, table-spec, serialization, hashing, helper, config, schema, source,
+unit-test, STATUS, legacy-plan, or documentation file belongs in the implementation
+commit. Stop for plan/reviewer approval if another file is truly required.
+
+Author one selector only after the preceding selector and its immediate regressions are
+GREEN. Both selectors are mandatory newly observed RED/GREEN evidence and there are no
+derived acceptances in this correction. The existing generic open/dup/fstat release,
+cleanup error-code, retained-state, marker-last, and descriptor-relative selectors are
+prior-GREEN regressions, not additional REDs. Use this exact order:
+
+```text
+tests/integration/artifacts/test_parquet_verification.py::test_default_trusted_parent_close_then_raise_invalidates_original_and_releases_duplicate_once
+tests/integration/artifacts/test_parquet_verification.py::test_workspace_cleanup_close_then_raise_releases_each_owned_descriptor_once_without_fd_reuse
+```
+
+The first selector reaches the default trusted-parent path only after parent `os.open`,
+duplicate acquisition, and duplicate `fstat` have succeeded. Its close wrapper targets
+only the original parent descriptor: it delegates to the saved real `os.close`, places
+a live sentinel onto that now-free exact numeric descriptor with the saved real
+`os.open`/`os.dup2`, and then raises `OSError`. Record every attempted close and every
+acquired descriptor. The expected typed result is
+`ArtifactContractError(EXACT_TREE_MISMATCH)`, operation `parquet-workspace-open`,
+`published=False`, exact internal reason `workspace_open_failed`, no raw `OSError`, and
+no root/marker/spill creation. The sentinel must remain live through an independent
+saved-real `os.fstat`, proving the original number was never retried or used to close an
+unrelated object. The capability's successfully acquired duplicate must be invalidated
+and closed exactly once because setup aborted; assert its saved-real `os.fstat` fails.
+Clean the sentinel through saved real functions after the assertions.
+
+The smallest GREEN treats descriptor ownership as a state transition before a system
+call, not as the return value of that call. Once
+`_TrustedWorkspaceParent._from_open_descriptor(...)` succeeds, keep the duplicate
+capability under explicit setup ownership. Immediately before closing the original,
+copy its integer to a local, set the owning `parent_descriptor` slot to `-1`, and only
+then call `os.close(local_descriptor)`. If that call raises, never retry the original
+integer. Before disposing the duplicate on this aborted acquisition, similarly copy
+the capability descriptor, set the capability's `_descriptor` to `-1`, and then close
+the copied integer exactly once. The exception is still translated at the existing
+typed setup boundary. Do not call `_take`, create a workspace entry, suppress the
+original close error into success, or add a second numeric-FD cleanup owner.
+
+Only after that selector and the earlier default/supplied trusted-parent regressions are
+GREEN, author the second selector as one coherent three-ID family: `spill`, `root`, and
+`parent`. Start with a valid workspace that is cleanup-authorized and capture the exact
+three held descriptor identities. For each ID independently, let all earlier cleanup
+operations succeed, then wrap only its normal cleanup `os.close`: call the saved real
+close first, put a live sentinel on the same numeric descriptor using saved real
+`os.open`/`os.dup2`, record the attempt, and raise `OSError`. Assert the public result is
+only `ArtifactContractError(STAGING_CLEANUP_FAILED)` with operation
+`parquet-workspace-cleanup`, `published=False`, and the already-frozen bounded retained
+state matching the filesystem phase. Assert exactly one close attempt for the faulted
+descriptor, one release for each other descriptor that was still owned at the failure
+boundary, no attempt against a descriptor already transferred, and no duplicate close
+number in the release ledger. Each sentinel remains live by saved-real `os.fstat`, and
+an unrelated control descriptor remains live, proving cleanup never closes an FD that
+the process reused. Clean test sentinels/control descriptors only through saved real
+functions after all assertions.
+
+The smallest GREEN freezes the same transfer-before-close rule at every cleanup close:
+
+```python
+descriptor = self._spill_fd
+self._spill_fd = -1
+os.close(descriptor)
+```
+
+Apply the identical ordering to `_root_fd` and `_parent_fd`; the actual attribute is
+cleared before `os.close`, never after it. `_release_descriptors()` likewise copies one
+nonnegative field to a local, clears that field first, and makes at most one suppressed
+close attempt against the local. It may release other descriptors still owned after a
+failure, but it must never retry a transferred numeric descriptor. A close-then-raise
+fault stops the destructive cleanup sequence, preserves the already-recorded
+retained-state/filesystem facts, and enters the existing typed cleanup wrapper; it does
+not continue deleting, roll ownership back to the old integer, infer success from
+`fstat`, close an unrelated replacement, or broaden cleanup. Rerun the prior cleanup
+fault matrix—including its existing spill/root/parent close IDs—as GREEN regression
+evidence, but do not count those prior selectors as newly authored behavior.
+
+Run each new selector alone for its expected RED and smallest GREEN, in the frozen
+order:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q \
+  tests/integration/artifacts/test_parquet_verification.py::test_default_trusted_parent_close_then_raise_invalidates_original_and_releases_duplicate_once
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q \
+  tests/integration/artifacts/test_parquet_verification.py::test_workspace_cleanup_close_then_raise_releases_each_owned_descriptor_once_without_fd_reuse
+```
+
+Then run the exact focused correction regressions and static gates:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_manifest.py \
+  tests/unit/data/artifacts/test_parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
+  src/finproof/data/artifacts/parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+```
+
+Rerun every Step 8 command unchanged after those focused checks, including full pytest,
+source audit, handoff verification, schema catalog, pre-commit, expected-resource and
+artifact absence, writable-source scan, diff/stat/name-only/cached checks, and status.
+Append a distinct fifth-correction section to the ignored report with the two serial
+RED/GREEN observations, all three reached cleanup IDs, descriptor call/identity
+ledgers, live-sentinel evidence, focused/full outputs, exact diff, and unresolved risk.
+Call the result only a candidate for fresh review.
+
+Before the fix commit, name-only contains exactly the two implementation/test files
+above and no docs/STATUS. Stage and commit only:
+
+```bash
+git diff --check
+git diff --name-only
+git diff --stat
+git status --short
+git add src/finproof/data/artifacts/parquet_io.py \
+  tests/integration/artifacts/test_parquet_verification.py
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "fix: close Task 5 checkpoint 3 descriptor ownership gaps"
+git status --porcelain
+```
+
+Require empty status and dispatch a fresh independent review against `94ee69e`, the
+approved fifth-correction plan commit, and the fix commit. The reviewer independently
+faults the default original close after the real kernel close, proves the duplicate is
+disposed exactly once, forces exact numeric-FD reuse at each spill/root/parent cleanup
+close, and proves no release path retries or closes the unrelated replacement. Any
+Critical or Important finding starts another approved serial correction with its own
+plan and fix commits. Only a fresh 0 Critical / 0 Important verdict unlocks the
+docs-only closure below.
 
 Only after the final 0/0 verdict, make a separate docs-only closure: update
 `docs/implementation/STATUS.md` with reviewed commit hash(es), reviewer counts/evidence,
