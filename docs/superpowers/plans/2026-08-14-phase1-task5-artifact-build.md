@@ -48,7 +48,9 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 - `table_specs.py`: the sole frozen eleven-table schema/name/type/key/path registry.
 - `serialization.py`: exact strict-model `record_json`, wide projections, Bronze/quality/Gold row projections.
 - `parquet_io.py`: capability-bound fixed-schema writer, common bounded stream/unique
-  checker, pre-manifest staged verification, and distinct final-inventory adapter.
+  checker, pre-manifest staged verification, distinct final-inventory adapter, and the
+  cycle-safe held-descriptor path bridge reused by staging only where DuckDB requires a
+  Darwin-creatable lexical child path.
 - `input_identity.py`: no-follow held-nine input verification, its one-use issuance
   seal, trusted-Settings recomputation through one instance-owned resolved bundle, the
   direct-init-disabled descriptor-owning logical-input carrier, and its
@@ -4214,6 +4216,7 @@ publication authority.
 **Files:**
 
 - Create: `src/finproof/data/artifacts/links.py`
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
 - Modify: `src/finproof/data/artifacts/silver.py`
 - Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
@@ -4224,6 +4227,7 @@ publication authority.
 - Modify: `tests/unit/data/artifacts/test_staging.py`
 - Modify: `tests/unit/data/artifacts/test_silver.py`
 - Modify: `tests/unit/data/artifacts/test_quality_persistence.py`
+- Modify: `tests/integration/artifacts/test_parquet_verification.py`
 - Create: `tests/integration/artifacts/test_link_evidence_fixture.py`
 - Modify: `tests/integration/artifacts/test_silver_fixture_build.py`
 - Create: `tests/source_contract/test_official_exact_link_profile.py`
@@ -4232,6 +4236,20 @@ publication authority.
 
 **Interfaces:**
 
+- Corrects the CP3 Darwin spill-path compatibility defect without changing a public
+  contract: move the existing `fcntl(F_GETPATH)` descriptor-path helper from
+  `staging.py` to cycle-safe `parquet_io.py`, import that same helper back into
+  `staging.py`, and use it only inside the final managed unique-key workspace. The
+  final workspace first repeats its exact descriptor-relative liveness check, resolves
+  no caller input, proves the resolved nonsymlink directory has the same frozen
+  device/inode/type/mode identity as its held spill descriptor, and only then passes
+  that internal path to DuckDB. `F_GETPATH` unavailability or lookup failure remains
+  `DATABASE_VALIDATION_FAILED` / `parquet-workspace-configure` /
+  `workspace_configure_failed`; empty, foreign, symlink or identity-changed resolution
+  remains `EXACT_TREE_MISMATCH` / `parquet-workspace-revalidate` /
+  `workspace_spill_changed`. Both fail before `duckdb.connect`; held descriptors and
+  the existing post-close spill/root preflight remain authoritative. No new module,
+  dependency, public path property or fallback to `/dev/fd/<fd>` is added.
 - Reuses only CP3's exact `ExactCrossSourceLinkRecord` and
   `ExactCrossSourceLinkEvidenceRecord`; no parallel Gold domain/DTO/alias is created.
 - Additively implements D-026 in `staging.py`: strict
@@ -4319,7 +4337,7 @@ publication authority.
   Every failure closes once or leaves typed ambiguous cleanup to the managed session;
   no partial result returns.
 
-**Mandatory serial selector ledger (36 total, plus two derived acceptances):**
+**Mandatory serial selector ledger (37 total, plus two derived acceptances):**
 
 Each numbered selector is authored alone, observed RED for its own missing behavior,
 given the smallest GREEN, and followed by its direct regression before the next
@@ -4327,6 +4345,7 @@ selector. A missing symbol permits only a skeleton and the same final selector m
 then reach a narrower behavioral RED. Grouped commands are GREEN gates only.
 
 ```text
+00 tests/integration/artifacts/test_parquet_verification.py::test_final_unique_workspace_uses_exact_held_spill_path_for_darwin_child_creation_and_rejects_invalid_resolution
 01 tests/unit/data/artifacts/test_staging.py::test_exact_link_candidate_custody_is_factory_only_live_generation_bound_noncopyable_and_nonserializable
 02 tests/unit/data/artifacts/test_staging.py::test_exact_link_candidate_schemas_require_exact_role_locator_and_ordered_fund_sources
 03 tests/unit/data/artifacts/test_staging.py::test_candidate_custody_streams_only_bounded_typed_exact_join_rows_without_generic_surface
@@ -4366,6 +4385,29 @@ DERIVED-NO-DTO tests/unit/data/artifacts/test_exact_links.py::test_link_module_d
 36 tests/performance/test_artifact_link_streaming.py::test_exact_link_candidate_and_evidence_pipeline_stays_within_closed_one_pass_bounds
 DERIVED-OFFICIAL tests/source_contract/test_official_exact_link_profile.py::test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes
 ```
+
+- [ ] **Step 0: Correct the in-flight Darwin final-workspace blocker once, then resume the next CP6 selector**
+
+Do not discard the current CP6 implementation, restart from a clean redo, or replay any
+already recorded selector. Author selector 00 as one coherent parameter family covering
+real lexical child creation through the resolved held spill directory plus unavailable,
+empty, foreign, symlink and changed descriptor resolution. Its first run may fail on the
+absent `parquet_io._descriptor_path`; move the existing helper from `staging.py` without
+changing it, import it back into staging, and rerun the same selector to the narrower
+Darwin `/dev/fd/<fd>/<child>` creation or foreign-resolution failure before changing the
+workspace behavior. Then make the smallest GREEN: resolve internally, compare exact
+path identity with the already-frozen held spill identity before `duckdb.connect`, and
+pass the validated path to `SET temp_directory`. The test spy creates and removes one
+child through the received lexical path, proves it is below the exact held spill inode,
+proves invalid resolution opens no DuckDB connection and touches no foreign bytes, and
+observes the exact existing taxonomy above with no path in public/internal output.
+
+After GREEN, rerun only selector 00 and the immediately affected existing staging
+regressions
+`test_external_order_store_fixes_production_settings_and_isolates_private_test_limits`
+and `test_database_stage_build_uses_pathless_owned_scratch_and_fixed_settings`, then
+resume the exact next unfinished CP6 selector. This compatibility correction neither
+adds a link behavior nor invalidates prior CP6 RED/GREEN evidence.
 
 - [ ] **Step 1: Establish candidate schemas, custody, and Silver handoff with selectors 1-10**
 
@@ -4523,7 +4565,7 @@ nonadjacent conflicts and sentinels against full-table list/DataFrame/second ite
 prior-batch retention. It requires candidate/link/evidence buffers bounded by config,
 all streamed batches `<= 65_536`, exact-ID-filtered wide parse and deterministic output.
 
-Only after all 36 mandatory selectors and the no-parallel-DTO derived acceptance are
+Only after all 37 mandatory selectors and the no-parallel-DTO derived acceptance are
 GREEN, run the official marked selector. Its 47 links,
 zero ETN links, separately measured raw/trimmed pair-set equality, 371 evidence rows
 (47 left plus 324 right), 1,222 TSV bytes and frozen SHA are logically entailed by generic
@@ -4535,6 +4577,7 @@ generic algorithm constants.
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/integration/artifacts/test_parquet_verification.py::test_final_unique_workspace_uses_exact_held_spill_path_for_darwin_child_creation_and_rejects_invalid_resolution \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
@@ -4547,14 +4590,15 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/source_contract/test_official_exact_link_profile.py -q -m source_contract
 ```
 
-Record each of 36 expected REDs/smallest GREENs and the two derived acceptances
+Record each of 37 expected REDs/smallest GREENs and the two derived acceptances
 separately. Run the unchanged Task 1-4 regression command from the global checkpoint
 rule with start/end time, exit code, counts and duration. Then run static checks over
-the exact 16-file implementation inventory and every full gate:
+the exact 18-file implementation inventory and every full gate:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/parquet_io.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/builder.py \
@@ -4565,6 +4609,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
@@ -4572,6 +4617,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   tests/helpers/artifacts.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/parquet_io.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/builder.py \
@@ -4582,6 +4628,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
@@ -4589,6 +4636,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   tests/helpers/artifacts.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/parquet_io.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/builder.py \
@@ -4599,6 +4647,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
@@ -4624,19 +4673,20 @@ git diff --name-only
 git status --short
 ```
 
-Expected GREEN: 36 mandatory selectors and both derived acceptances pass; only
+Expected GREEN: 37 mandatory selectors and both derived acceptances pass; only
 exact raw ETF/item links exist; conflicts block; every evidence locator is ordered,
 bidirectional and Bronze-backed; 9 -> 11 identity/supersession and custody cleanup are
 exact; Complete/report/result provenance is valid; official profile is 47/371 with the
 frozen bytes/hash; CP7 remains unimplemented.
 
-- [ ] **Step 7: Stage exactly 16 files, commit, review, then close exactly three docs**
+- [ ] **Step 7: Stage exactly 18 files, commit, review, then close exactly three docs**
 
 Before staging, the implementation name-only inventory is exactly these files and no
 docs/STATUS/decision/design/schema/config/source/expected-contract/artifact file:
 
 ```text
 src/finproof/data/artifacts/links.py
+src/finproof/data/artifacts/parquet_io.py
 src/finproof/data/artifacts/silver.py
 src/finproof/data/artifacts/staging.py
 src/finproof/data/artifacts/builder.py
@@ -4647,6 +4697,7 @@ tests/unit/data/artifacts/test_source_audit_report.py
 tests/unit/data/artifacts/test_staging.py
 tests/unit/data/artifacts/test_silver.py
 tests/unit/data/artifacts/test_quality_persistence.py
+tests/integration/artifacts/test_parquet_verification.py
 tests/integration/artifacts/test_link_evidence_fixture.py
 tests/integration/artifacts/test_silver_fixture_build.py
 tests/source_contract/test_official_exact_link_profile.py
@@ -4656,6 +4707,7 @@ tests/helpers/artifacts.py
 
 ```bash
 git add src/finproof/data/artifacts/links.py \
+  src/finproof/data/artifacts/parquet_io.py \
   src/finproof/data/artifacts/silver.py \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/builder.py \
@@ -4666,6 +4718,7 @@ git add src/finproof/data/artifacts/links.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_silver.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
+  tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
   tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
@@ -4678,7 +4731,8 @@ git status --porcelain
 ```
 
 Fresh review compares the clean approved CP6 plan base, implementation commit, and
-38-entry selector report. It independently recomputes 47/371/1,222/hash; attacks
+39-entry selector report. It independently recomputes 47/371/1,222/hash; attacks
+the held-spill Darwin path bridge and invalid-resolution no-touch boundary; attacks
 custody take/close/abort and every candidate schema/join boundary; confirms the Silver
 six-field result is unchanged; injects every conflict/evidence/TSV/9-to-11/successor/
 report/result mutation; verifies no trim/name/family/ETN route, generic query surface,
@@ -4687,7 +4741,7 @@ evidence. Require 0 Critical / 0 Important. Findings receive new focused RED, sm
 fix, correction commit and another fresh review.
 
 Only after fresh 0/0, update exactly this dedicated plan, the legacy plan and
-`docs/implementation/STATUS.md` with 36 RED/GREEN entries, two derived acceptances,
+`docs/implementation/STATUS.md` with 37 RED/GREEN entries, two derived acceptances,
 exact gates, hashes, review report, clean tree and CP7 as exact next. Mark only CP6
 complete. Re-run audit/handoff/catalog/absence/source-permission/diff gates, stage
 exactly those three docs, commit, and require empty porcelain:

@@ -2292,6 +2292,18 @@ creation, spill, query, close, substitution, marker, or cleanup failure is a typ
 pre-publication/verification failure and never broadens deletion. Stage checks use the
 stage session's separately marker-owned scratch child; final checks use trusted OS temp.
 
+Darwin DuckDB cannot create a child below `/dev/fd/<directory-fd>`. Where DuckDB alone
+requires a lexical database or spill directory, production derives that path internally
+from the already-held directory descriptor with the existing `fcntl(F_GETPATH)` helper;
+the helper moves to cycle-safe `parquet_io.py` and `staging.py` reuses it. No caller path,
+basename, descriptor, or path-bearing capability is added or exposed. Before DuckDB
+connect/configuration, the resolved spill path must name the exact held descriptor
+identity already proven by the descriptor-relative parent/root/spill checks; unavailable,
+empty, foreign, symlink, or changed resolution fails with the existing typed workspace
+configuration/revalidation taxonomy before DuckDB can touch it. The descriptor remains
+held throughout use, and the existing post-close descriptor-relative enumeration and
+identity checks remain authoritative.
+
 `ParquetBatchWriter` accepts an `OwnedStageParquetLeaf`, never a caller/raw `Path`.
 `close()` flushes and closes exactly once and returns no verification fact or trusted
 handle. Only a later `verify_staged_parquet_table` reopen may create staged verification.
