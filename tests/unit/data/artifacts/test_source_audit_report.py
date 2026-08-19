@@ -179,3 +179,9 @@ def test_source_audit_report_factory_accepts_only_exact_complete_observations() 
             config=config,
             observations=silver,
         )
+    object.__setattr__(complete.exact_links, "observed", 2)
+    with pytest.raises((TypeError, ValueError)):
+        SourceAuditReport.from_complete_observations(
+            config=config,
+            observations=complete,
+        )

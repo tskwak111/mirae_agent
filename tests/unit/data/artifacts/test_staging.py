@@ -1611,7 +1611,7 @@ def test_bounded_relation_verifier_has_exact_cp5_cp6_closed_signatures() -> None
     ) == ("self", "tables")
     assert tuple(
         inspect.signature(BoundedRelationVerifier.verify_exact_evidence_to_bronze).parameters
-    ) == ("self", "tables")
+    ) == ("self", "tables", "gold_evidence")
     assert tuple(inspect.signature(BoundedRelationVerifier.iter_linked_record_json).parameters) == (
         "self",
         "tables",
@@ -2154,6 +2154,7 @@ def test_candidate_custody_streams_only_bounded_typed_exact_join_rows_without_ge
             "admit_exact_evidence",
             "close",
             "iter_candidate_join_batches",
+            "order_exact_link_evidence",
         }
         batches = custody.iter_candidate_join_batches()
         first = next(batches)

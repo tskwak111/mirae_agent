@@ -18,6 +18,7 @@ from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStat
 
 if TYPE_CHECKING:
     from finproof.data.artifacts.parquet_io import StagedParquetSet
+    from finproof.data.artifacts.serialization import ExactCrossSourceLinkEvidenceRecord
 
 NonNegativeInt = Annotated[int, Field(ge=0)]
 PositiveInt = Annotated[int, Field(ge=1)]
@@ -68,6 +69,7 @@ class BoundedRelationVerifier(Protocol):
         self,
         *,
         tables: StagedParquetSet,
+        gold_evidence: tuple[ExactCrossSourceLinkEvidenceRecord, ...],
     ) -> ExactEvidenceBronzeJoinObservations: ...
 
     def iter_linked_record_json(
@@ -559,6 +561,32 @@ def require_complete_source_audit_observations(value: object) -> None:
         or value.schema_catalog_sha256 != issuance.predecessor.schema_catalog_sha256
     ):
         raise ValueError("Complete observation members changed")
+    _require_exact_evidence_verification_observations(issuance.verified)
+
+
+def _require_exact_evidence_verification_observations(
+    value: ExactEvidenceVerificationObservations,
+) -> None:
+    if type(value) is not ExactEvidenceVerificationObservations:
+        raise TypeError("exact evidence observations must have the exact runtime type")
+    issuance = object.__getattribute__(value, "_issuance")
+    if (
+        type(issuance) is not _ExactEvidenceVerificationIssuance
+        or issuance.value is not value
+        or issuance.facts != tuple(getattr(value, name) for name in value.__dataclass_fields__)
+        or value.matched_bronze_cells != value.exact_link_evidence.observed
+        or value.matched_left_records != value.exact_links.observed
+        or value.matched_right_records != value.exact_links.observed
+        or not 0 <= value.max_relation_batch_rows <= 65_536
+    ):
+        raise ValueError("exact evidence verification facts changed")
+    for fact, model_type in (
+        (value.exact_links, ExpectedObservedCount),
+        (value.exact_link_evidence, ExpectedObservedCount),
+        (value.exact_link_pair_sha256, ExpectedObservedSha256),
+    ):
+        if model_type.model_validate(fact.model_dump(mode="python"), strict=True) != fact:
+            raise ValueError("exact evidence verification count or hash changed")
 
 
 def require_silver_source_audit_observations(value: object) -> None:

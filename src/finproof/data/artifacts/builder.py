@@ -11,6 +11,7 @@ from finproof.data.artifacts.input_identity import BuildInputIdentity
 from finproof.data.artifacts.links import (
     ExactLinkBuildResult,
     _build_and_extend_exact_links,
+    _require_exact_link_build_result_facts,
     verify_exact_link_evidence,
 )
 from finproof.data.artifacts.parquet_io import StagedParquetSet
@@ -103,7 +104,22 @@ def require_complete_artifact_build_result(value: object) -> CompleteArtifactBui
         or verification_issuance.owner is not value.exact_link_build_result
     ):
         raise ValueError("complete artifact link provenance changed")
+    _require_exact_link_build_result_facts(value.exact_link_build_result)
     require_complete_source_audit_observations(value.observations)
+    if (
+        value.observations.exact_links.observed != len(value.exact_link_build_result.links)
+        or value.observations.exact_link_evidence.observed
+        != len(value.exact_link_build_result.evidence)
+        or value.observations.exact_link_pair_sha256.observed
+        != value.exact_link_build_result.pair_sha256
+        or value.exact_evidence_verification_observations.exact_links
+        is not value.observations.exact_links
+        or value.exact_evidence_verification_observations.exact_link_evidence
+        is not value.observations.exact_link_evidence
+        or value.exact_evidence_verification_observations.exact_link_pair_sha256
+        is not value.observations.exact_link_pair_sha256
+    ):
+        raise ValueError("complete artifact exact-link facts disagree")
     report = SourceAuditReport.model_validate(
         value.source_audit_report.model_dump(mode="python"),
         strict=True,
@@ -141,26 +157,28 @@ def build_complete_for_session(
         versions=versions,
     )
     custody = take_exact_link_candidate_store(silver_result=silver_result)
-    link_result, successor = _build_and_extend_exact_links(
-        silver_result=silver_result,
-        custody=custody,
-        config=config,
-        owner=session,
-    )
     try:
-        relation_verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
-        verified = verify_exact_link_evidence(
-            tables=successor,
-            relation_verifier=relation_verifier,
-            build_result=link_result,
-            config=config,
-        )
-        observations = silver_result.observations.with_links(verified=verified)
-        report = SourceAuditReport.from_complete_observations(
-            config=config,
-            observations=observations,
-        )
-        custody.close()
+        try:
+            link_result, successor = _build_and_extend_exact_links(
+                silver_result=silver_result,
+                custody=custody,
+                config=config,
+                owner=session,
+            )
+            relation_verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
+            verified = verify_exact_link_evidence(
+                tables=successor,
+                relation_verifier=relation_verifier,
+                build_result=link_result,
+                config=config,
+            )
+            observations = silver_result.observations.with_links(verified=verified)
+            report = SourceAuditReport.from_complete_observations(
+                config=config,
+                observations=observations,
+            )
+        finally:
+            custody.close()
     except ArtifactContractError:
         raise
     except (AttributeError, OSError, TypeError, ValueError) as exc:

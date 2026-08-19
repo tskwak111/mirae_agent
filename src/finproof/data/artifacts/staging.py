@@ -1433,6 +1433,7 @@ class ExternalOrderStore:
         "_connection",
         "_database_identity",
         "_expected_exact_link_evidence",
+        "_expected_exact_links",
         "_forced_spill_names",
         "_limits",
         "_marker_identity",
@@ -1790,42 +1791,82 @@ class ExternalOrderStore:
     ) -> Iterator[tuple["ExactLinkCandidateJoinRow", ...]]:
         self._require_live()
         try:
-            cursor = self._connection.execute(
-                """
-                SELECT l.key_0, l.key_1, r.key_1, l.payload_json, r.payload_json
-                FROM order_exact_link_left_candidate AS l
-                JOIN order_exact_link_right_candidate AS r ON l.key_0 = r.key_0
-                ORDER BY l.key_0, l.key_1, r.key_1
-                """
+            left_rows = (
+                row
+                for batch in self.iter_ordered_batches(
+                    relation=ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE
+                )
+                for row in batch
             )
-            while rows := cursor.fetchmany(self._limits.batch_rows):
-                batch: list[ExactLinkCandidateJoinRow] = []
-                for raw_identifier, left_id, right_id, left_json, right_json in rows:
-                    if not all(
-                        type(value) is str
-                        for value in (raw_identifier, left_id, right_id, left_json, right_json)
-                    ):
-                        raise ValueError("candidate join storage changed type")
-                    left = _domestic_candidate_from_json(left_json)
-                    right = _fund_candidate_from_json(right_json)
-                    if (
-                        _canonical_candidate_json(left) != left_json
-                        or _canonical_candidate_json(right) != right_json
-                        or left.identifier.raw_identifier != raw_identifier
-                        or left.left_product_id != left_id
-                        or right.identifiers[0].raw_identifier != raw_identifier
-                        or right.right_product_id != right_id
+            right_rows = (
+                row
+                for batch in self.iter_ordered_batches(
+                    relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE
+                )
+                for row in batch
+            )
+            left = next(left_rows, None)
+            right = next(right_rows, None)
+            output: list[ExactLinkCandidateJoinRow] = []
+            emitted = 0
+            while left is not None and right is not None:
+                left_raw = left.key[0]
+                right_raw = right.key[0]
+                if type(left_raw) is not str or type(right_raw) is not str:
+                    raise ValueError("candidate join storage changed type")
+                if left_raw < right_raw:
+                    left = next(left_rows, None)
+                    continue
+                if right_raw < left_raw:
+                    right = next(right_rows, None)
+                    continue
+                raw_identifier = left_raw
+                left_group: list[DomesticExactLinkCandidate] = []
+                while left is not None and left.key[0] == raw_identifier:
+                    domestic_candidate = _domestic_candidate_from_json(left.payload_json)
+                    if _canonical_candidate_json(
+                        domestic_candidate
+                    ) != left.payload_json or left.key != (
+                        raw_identifier,
+                        domestic_candidate.left_product_id,
                     ):
                         raise ValueError("candidate join key and payload disagree")
-                    batch.append(
-                        ExactLinkCandidateJoinRow(
-                            matched_raw_identifier=raw_identifier,
-                            left=left,
-                            right=right,
+                    left_group.append(domestic_candidate)
+                    if len(left_group) > self._expected_exact_links:
+                        raise ValueError("exact candidate group exceeded expectation")
+                    left = next(left_rows, None)
+                right_group: list[FundExactLinkCandidate] = []
+                while right is not None and right.key[0] == raw_identifier:
+                    fund_candidate = _fund_candidate_from_json(right.payload_json)
+                    if _canonical_candidate_json(
+                        fund_candidate
+                    ) != right.payload_json or right.key != (
+                        raw_identifier,
+                        fund_candidate.right_product_id,
+                    ):
+                        raise ValueError("candidate join key and payload disagree")
+                    right_group.append(fund_candidate)
+                    if len(right_group) > self._expected_exact_links:
+                        raise ValueError("exact candidate group exceeded expectation")
+                    right = next(right_rows, None)
+                for left_candidate in left_group:
+                    for right_candidate in right_group:
+                        emitted += 1
+                        if emitted > self._expected_exact_links:
+                            raise ValueError("exact candidate count exceeded expectation")
+                        output.append(
+                            ExactLinkCandidateJoinRow(
+                                matched_raw_identifier=raw_identifier,
+                                left=left_candidate,
+                                right=right_candidate,
+                            )
                         )
-                    )
-                yield tuple(batch)
-        except (AttributeError, duckdb.Error, TypeError, ValueError) as exc:
+                        if len(output) == self._limits.batch_rows:
+                            yield tuple(output)
+                            output.clear()
+            if output:
+                yield tuple(output)
+        except (AttributeError, ArtifactContractError, duckdb.Error, TypeError, ValueError) as exc:
             raise _stage_contract_error("exact_link_candidate_join_failed") from exc
 
     def _load_staged_join_projection(
@@ -2127,14 +2168,14 @@ class ExactLinkCandidateStoreCustody:
     _evidence_state: str
     _owner: ArtifactBuildSession
     _store: ExternalOrderStore
-    _verifier_issued: bool
+    _verifier: object | None
 
     __slots__ = (
         "_candidate_state",
         "_evidence_state",
         "_owner",
         "_store",
-        "_verifier_issued",
+        "_verifier",
     )
 
     def __new__(cls) -> "ExactLinkCandidateStoreCustody":
@@ -2164,7 +2205,7 @@ class ExactLinkCandidateStoreCustody:
             value._evidence_state = "READY"
             value._owner = owner
             value._store = store
-            value._verifier_issued = False
+            value._verifier = None
             store._candidate_custody_issued = True
             return value
         except (ArtifactContractError, AttributeError, TypeError, ValueError) as exc:
@@ -2251,6 +2292,60 @@ class ExactLinkCandidateStoreCustody:
         except (ArtifactContractError, TypeError, ValueError) as exc:
             self._evidence_state = "FAILED"
             raise _stage_contract_error("exact_link_evidence_admission_failed") from exc
+
+    def _register_verifier(self, verifier: object) -> None:
+        self._require_live()
+        if (
+            self._candidate_state != "EXHAUSTED"
+            or self._evidence_state != "SEALED"
+            or self._verifier is not None
+        ):
+            raise _stage_contract_error("exact_link_verifier_issuance_unavailable")
+        self._verifier = verifier
+
+    def _require_verifier(self, verifier: object) -> None:
+        self._require_live()
+        if self._verifier is not verifier:
+            raise _stage_contract_error("exact_link_verifier_generation_changed")
+
+    def order_exact_link_evidence(
+        self,
+        *,
+        verifier: object,
+    ) -> Iterator[tuple[ExactCrossSourceLinkEvidenceRecord, ...]]:
+        """Yield the exact admitted evidence through the registered verifier only."""
+        self._require_verifier(verifier)
+        for batch in self._store.iter_ordered_batches(
+            relation=ExternalOrderRelation.EXACT_LINK_EVIDENCE
+        ):
+            converted: list[ExactCrossSourceLinkEvidenceRecord] = []
+            for stored in batch:
+                row = ExactCrossSourceLinkEvidenceRecord.model_validate_json(
+                    stored.payload_json,
+                    strict=True,
+                )
+                if (
+                    stored.key != (row.link_id, row.evidence_role_order, row.evidence_ordinal)
+                    or canonical_record_json(row) != stored.payload_json
+                ):
+                    raise _stage_contract_error("exact_link_evidence_order_changed")
+                converted.append(row)
+            yield tuple(converted)
+
+    def _iter_verifier_join_batches(
+        self,
+        *,
+        verifier: object,
+        operation: ExternalOrderJoinOperation,
+        tables: StagedParquetSet,
+        exact_ids: tuple[str, ...] = (),
+    ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        self._require_verifier(verifier)
+        yield from self._store.iter_join_batches(
+            operation=operation,
+            tables=tables,
+            exact_ids=exact_ids,
+        )
 
     def close(self) -> None:
         if self._candidate_state == "AMBIGUOUS":
@@ -2395,6 +2490,7 @@ def _open_external_order_store(
         value._database_identity = _leaf_identity(
             os.stat("store.duckdb", dir_fd=workspace_fd, follow_symlinks=False)
         )
+        value._expected_exact_links = config.exact_links.links
         value._expected_exact_link_evidence = config.exact_links.evidence
         value._forced_spill_names = {}
         value._limits = limits

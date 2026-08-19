@@ -208,6 +208,15 @@ def _exact_link_result_facts(value: ExactLinkBuildResult) -> tuple[object, ...]:
 
 
 def _require_exact_link_build_result(value: object) -> ExactLinkBuildResult:
+    value = _require_exact_link_build_result_facts(value)
+    issuance = object.__getattribute__(value, "_issuance")
+    require_silver_build_result(issuance.silver_result)
+    issuance.custody._require_live()
+    return value
+
+
+def _require_exact_link_build_result_facts(value: object) -> ExactLinkBuildResult:
+    """Deeply revalidate exact-link facts without assuming custody is still live."""
     if type(value) is not ExactLinkBuildResult:
         raise TypeError("exact-link result must have the exact runtime type")
     issuance = object.__getattribute__(value, "_issuance")
@@ -228,8 +237,25 @@ def _require_exact_link_build_result(value: object) -> ExactLinkBuildResult:
         or exact_link_pair_sha256(value.canonical_pair_tsv) != value.pair_sha256
     ):
         raise ValueError("exact-link result issuance changed")
-    require_silver_build_result(issuance.silver_result)
-    issuance.custody._require_live()
+    for link_row in value.links:
+        _require_frozen_link_record(link_row)
+    for evidence_row in value.evidence:
+        if (
+            ExactCrossSourceLinkEvidenceRecord.model_validate(
+                evidence_row.model_dump(mode="python"),
+                strict=True,
+            )
+            != evidence_row
+        ):
+            raise ValueError("exact-link evidence fact changed")
+    _verify_evidence_relationships(
+        links=value.links,
+        evidence=value.evidence,
+        bronze=ExactEvidenceBronzeJoinObservations(
+            matched_bronze_cells=len(value.evidence),
+            max_batch_rows=0,
+        ),
+    )
     return value
 
 
@@ -503,7 +529,10 @@ def verify_exact_link_evidence(
     )
     if validated_config != config:
         raise ValueError("exact evidence config changed")
-    bronze = relation_verifier.verify_exact_evidence_to_bronze(tables=tables)
+    bronze = relation_verifier.verify_exact_evidence_to_bronze(
+        tables=tables,
+        gold_evidence=build_result.evidence,
+    )
     _verify_evidence_relationships(
         links=build_result.links,
         evidence=build_result.evidence,

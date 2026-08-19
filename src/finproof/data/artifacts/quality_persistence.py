@@ -20,7 +20,10 @@ from finproof.data.artifacts.reports import (
     QualityJoinObservations,
 )
 from finproof.data.artifacts.resources import quality_issue_schema_bytes
-from finproof.data.artifacts.serialization import serialize_table_row
+from finproof.data.artifacts.serialization import (
+    ExactCrossSourceLinkEvidenceRecord,
+    serialize_table_row,
+)
 from finproof.data.artifacts.staging import (
     ExactLinkCandidateStoreCustody,
     ExternalOrderJoinOperation,
@@ -71,7 +74,8 @@ def persist_quality_issue(
 class StagedBoundedRelationVerifier:
     """Stage-backed verifier over only owner-validated bounded table streams."""
 
-    __slots__ = ("_store",)
+    __slots__ = ("_candidate_custody", "_store")
+    _candidate_custody: ExactLinkCandidateStoreCustody
     _store: ExternalOrderStore
 
     def __new__(cls) -> StagedBoundedRelationVerifier:
@@ -94,15 +98,9 @@ class StagedBoundedRelationVerifier:
         if type(custody) is not ExactLinkCandidateStoreCustody:
             raise TypeError("relation verifier requires exact candidate custody")
         custody._require_live()
-        if (
-            custody._candidate_state != "EXHAUSTED"
-            or custody._evidence_state != "SEALED"
-            or custody._verifier_issued
-        ):
-            raise ValueError("candidate custody is not sealed for verifier issuance")
         value = object.__new__(StagedBoundedRelationVerifier)
-        value._store = custody._store
-        custody._verifier_issued = True
+        value._candidate_custody = custody
+        custody._register_verifier(value)
         return value
 
     def verify_quality_to_bronze(
@@ -192,12 +190,21 @@ class StagedBoundedRelationVerifier:
         self,
         *,
         tables: StagedParquetSet,
+        gold_evidence: tuple[ExactCrossSourceLinkEvidenceRecord, ...],
     ) -> ExactEvidenceBronzeJoinObservations:
         try:
+            admitted = tuple(
+                row
+                for batch in self._candidate_custody.order_exact_link_evidence(verifier=self)
+                for row in batch
+            )
+            if admitted != gold_evidence:
+                raise ValueError("admitted evidence and reopened Gold evidence differ")
             previous_key: tuple[str | int, ...] | None = None
             matched_bronze_cells = 0
             max_batch_rows = 0
-            for batch in self._store.iter_join_batches(
+            for batch in self._candidate_custody._iter_verifier_join_batches(
+                verifier=self,
                 operation=ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE,
                 tables=tables,
             ):
@@ -251,7 +258,8 @@ class StagedBoundedRelationVerifier:
                 else ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON
             )
             observed_ids: list[str] = []
-            for batch in self._store.iter_join_batches(
+            for batch in self._candidate_custody._iter_verifier_join_batches(
+                verifier=self,
                 operation=operation,
                 tables=tables,
                 exact_ids=exact_ids,

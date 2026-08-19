@@ -4,14 +4,15 @@
 
 import json
 from copy import copy
-from datetime import UTC, datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, date, datetime, timedelta, timezone
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
 
+from finproof.data.artifacts.errors import ArtifactContractError
 from finproof.data.artifacts.quality_persistence import persist_quality_issue
 from finproof.data.artifacts.serialization import canonical_record_json, serialize_table_row
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
@@ -31,6 +32,31 @@ def _issue() -> DataQualityIssue:
         quality_status=QualityStatus.INVALID_FORMAT,
         reason="Fixture issue.",
         quarantined=True,
+    )
+
+
+def _exact_evidence_rows() -> tuple[Any, ...]:
+    from finproof.data.artifacts.serialization import ExactCrossSourceLinkEvidenceRecord
+
+    return tuple(
+        ExactCrossSourceLinkEvidenceRecord(
+            link_id="a" * 64,
+            evidence_role="left_identifier" if role_order == 0 else "right_identifier",
+            evidence_role_order=role_order,
+            evidence_ordinal=0,
+            raw_identifier="KR7000000001",
+            source_table="PREF01N001" if role_order == 0 else "PRFD01N001",
+            source_file=PurePosixPath("data/source.xlsx"),
+            source_sheet="Sheet1",
+            source_row_number=role_order + 2,
+            source_column_name="pd_itm_no" if role_order == 0 else "ksd_itm_no",
+            source_column_number=1,
+            source_column_letter="A",
+            source_checksum="a" * 64,
+            source_snapshot_date=date(2026, 7, 11),
+            source_applicable_date=None,
+        )
+        for role_order in (0, 1)
     )
 
 
@@ -529,20 +555,33 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
 
     monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
     settings = artifact_staging_settings(tmp_path / "repository")
-    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
-    with (
-        ArtifactBuildSession.initialize(
-            settings,
-            VersionBundle(),
-            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
-            input_identity=artifact_build_input_identity(settings),
-        ) as session,
-        session.open_external_order_store(config=config) as store,
-    ):
-        tables = _empty_staged_set(session, count=11)
-        verifier = StagedBoundedRelationVerifier.for_store(store)
+    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
+        mode="python"
+    )
+    payload["exact_links"]["links"] = 1
+    payload["exact_links"]["evidence"] = 1
+    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        store_context = session.open_external_order_store(config=config)
+        store = store_context.__enter__()
+        from finproof.data.artifacts.staging import ExactLinkCandidateStoreCustody
 
-        verifier.verify_exact_evidence_to_bronze(tables=tables)
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+        assert tuple(custody.iter_candidate_join_batches()) == ()
+        gold_evidence = _exact_evidence_rows()[:1]
+        custody.admit_exact_evidence(gold_evidence)
+        tables = _empty_staged_set(session, count=11)
+        verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
+
+        verifier.verify_exact_evidence_to_bronze(
+            tables=tables,
+            gold_evidence=gold_evidence,
+        )
         for side in (ExactLinkedSide.DOMESTIC, ExactLinkedSide.FUND):
             assert tuple(
                 row
@@ -553,6 +592,7 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
                 )
                 for row in batch
             ) == (LinkedRecordJson(product_id="product-1", record_json="{}"),)
+        custody.close()
 
 
 def test_candidate_custody_issues_one_exact_closed_relation_verifier_without_store_access(
@@ -593,15 +633,20 @@ def test_candidate_custody_issues_one_exact_closed_relation_verifier_without_sto
         verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
 
         assert type(verifier) is StagedBoundedRelationVerifier
+        with pytest.raises(AttributeError):
+            object.__getattribute__(verifier, "_store")
+        assert object.__getattribute__(verifier, "_candidate_custody") is custody
         assert not any(name in dir(verifier) for name in ("store", "execute", "connection"))
-        with pytest.raises((TypeError, ValueError)):
+        with pytest.raises((ArtifactContractError, TypeError, ValueError)):
             StagedBoundedRelationVerifier.for_candidate_custody(custody)
         custody.close()
 
 
+@pytest.mark.parametrize("gold_case", ["equal", "missing", "changed"])
 def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_returns_measured_bounds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    gold_case: str,
 ) -> None:
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.config import (
@@ -628,25 +673,58 @@ def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_r
         del self, tables
         assert operation is ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE
         assert exact_ids == ()
-        yield (ExternalOrderJoinRow(key=("a" * 64, 0, 0), values=("ID", 1)),)
+        yield tuple(
+            ExternalOrderJoinRow(
+                key=("a" * 64, role_order, 0),
+                values=("KR7000000001", 1),
+            )
+            for role_order in (0, 1)
+        )
 
     monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
     settings = artifact_staging_settings(tmp_path / "repository")
-    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
-    with (
-        ArtifactBuildSession.initialize(
-            settings,
-            VersionBundle(),
-            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
-            input_identity=artifact_build_input_identity(settings),
-        ) as session,
-        session.open_external_order_store(config=config) as store,
-    ):
-        observed = StagedBoundedRelationVerifier.for_store(store).verify_exact_evidence_to_bronze(
-            tables=_empty_staged_set(session, count=11)
-        )
+    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
+        mode="python"
+    )
+    payload["exact_links"]["links"] = 1
+    payload["exact_links"]["evidence"] = 2
+    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    evidence = _exact_evidence_rows()
+    gold = evidence
+    if gold_case == "missing":
+        gold = evidence[:-1]
+    elif gold_case == "changed":
+        gold = (evidence[0], evidence[1].model_copy(update={"raw_identifier": "changed"}))
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        store_context = session.open_external_order_store(config=config)
+        store = store_context.__enter__()
+        from finproof.data.artifacts.staging import ExactLinkCandidateStoreCustody
 
-        assert observed == ExactEvidenceBronzeJoinObservations(
-            matched_bronze_cells=1,
-            max_batch_rows=1,
-        )
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+        assert tuple(custody.iter_candidate_join_batches()) == ()
+        custody.admit_exact_evidence(evidence)
+        verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
+        if gold_case == "equal":
+            observed = verifier.verify_exact_evidence_to_bronze(
+                tables=_empty_staged_set(session, count=11),
+                gold_evidence=gold,
+            )
+            assert observed == ExactEvidenceBronzeJoinObservations(
+                matched_bronze_cells=2,
+                max_batch_rows=2,
+            )
+        else:
+            with pytest.raises(ArtifactContractError) as raised:
+                verifier.verify_exact_evidence_to_bronze(
+                    tables=_empty_staged_set(session, count=11),
+                    gold_evidence=gold,
+                )
+            assert "admitted evidence and reopened Gold evidence differ" in str(
+                raised.value.__cause__
+            )
+        custody.close()

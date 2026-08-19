@@ -443,8 +443,8 @@ def test_complete_builder_follows_exact_order_closes_custody_then_issues_exact_s
         assert custody._candidate_state == "CLOSED"
 
 
-@pytest.mark.parametrize("fault", ["relation", "report", "custody-close"])
-def test_postextension_relation_report_and_close_faults_leave_only_successor_for_managed_abort(
+@pytest.mark.parametrize("fault", ["link-build", "relation", "report", "custody-close"])
+def test_complete_builder_closes_exact_custody_once_across_link_and_postextension_faults(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     fault: str,
@@ -466,12 +466,23 @@ def test_postextension_relation_report_and_close_faults_leave_only_successor_for
             "take_exact_link_candidate_store",
             lambda **_kwargs: custody,
         )
-        if fault == "relation":
+        original_close = ExactLinkCandidateStoreCustody.close
+        close_calls = 0
+
+        def close_once(self: ExactLinkCandidateStoreCustody) -> None:
+            nonlocal close_calls
+            close_calls += 1
+            if fault == "custody-close":
+                fail()
+            original_close(self)
+
+        monkeypatch.setattr(ExactLinkCandidateStoreCustody, "close", close_once)
+        if fault == "link-build":
+            monkeypatch.setattr(builder, "_build_and_extend_exact_links", fail)
+        elif fault == "relation":
             monkeypatch.setattr(builder, "verify_exact_link_evidence", fail)
         elif fault == "report":
             monkeypatch.setattr(SourceAuditReport, "from_complete_observations", fail)
-        else:
-            monkeypatch.setattr(ExactLinkCandidateStoreCustody, "close", fail)
 
         with pytest.raises(ArtifactContractError):
             build_complete_for_session(
@@ -479,9 +490,12 @@ def test_postextension_relation_report_and_close_faults_leave_only_successor_for
                 config=config,
                 versions=session._versions,
             )
+        assert close_calls == 1
+        if fault != "custody-close":
+            assert custody._candidate_state == "CLOSED"
         registered = tuple(item[0] for item in session._staged_sets.values())
         assert len(registered) == 1
-        assert len(registered[0].verifications) == 11
+        assert len(registered[0].verifications) == (9 if fault == "link-build" else 11)
 
 
 def test_complete_result_validator_rejects_copy_forge_mutation_open_custody_and_nonlive_successor(
@@ -513,6 +527,21 @@ def test_complete_result_validator_rejects_copy_forge_mutation_open_custody_and_
         )
 
         assert require_complete_artifact_build_result(result) is result
+        exact_links = result.observations.exact_links
+        object.__setattr__(exact_links, "expected", 1)
+        object.__setattr__(exact_links, "observed", 1)
+        with pytest.raises((TypeError, ValueError)):
+            require_complete_artifact_build_result(result)
+        object.__setattr__(exact_links, "expected", 0)
+        object.__setattr__(exact_links, "observed", 0)
+        pair_hash = result.observations.exact_link_pair_sha256
+        original_hash = pair_hash.expected
+        object.__setattr__(pair_hash, "expected", "a" * 64)
+        object.__setattr__(pair_hash, "observed", "a" * 64)
+        with pytest.raises((TypeError, ValueError)):
+            require_complete_artifact_build_result(result)
+        object.__setattr__(pair_hash, "expected", original_hash)
+        object.__setattr__(pair_hash, "observed", original_hash)
         with pytest.raises((TypeError, ValueError)):
             require_complete_artifact_build_result(copy(result))
         forged = object.__new__(CompleteArtifactBuildResult)
