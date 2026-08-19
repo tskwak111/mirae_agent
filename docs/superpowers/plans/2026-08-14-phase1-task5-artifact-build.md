@@ -68,8 +68,8 @@ Create these focused production modules under `src/finproof/data/artifacts/`:
 - `quality_persistence.py`: D-021 timestamp injection, schema validation, Bronze joins,
   and the custody-bound closed relation-verifier factory.
 - `reports.py`: the sole exact source-audit and quality-summary models, nested contracts,
-  semantic projections/hashes, phased observation/report producers, and later verifier
-  port.
+  semantic projections/hashes, phased observation/report producers, the frozen CP5/6
+  stage port, and CP7's separate private final-inventory relation verifier.
 - `links.py`: exact CP3-record link/evidence construction, canonical bounded pair bytes,
   Gold write/reopen, evidence verification and the exact link build result; it defines
   no parallel link DTO.
@@ -4796,6 +4796,7 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
 
 - Create: `src/finproof/data/artifacts/database.py`
 - Modify: `src/finproof/data/artifacts/manifest.py`
+- Modify: `src/finproof/data/artifacts/parquet_io.py`
 - Modify: `src/finproof/data/artifacts/staging.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
 - Modify: `src/finproof/data/artifacts/reports.py`
@@ -4851,6 +4852,29 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
   `TableVerificationResult`; they register/reopen only its eleven handles through the
   still-live inventory and never rediscover a table by path or build a second unbound
   handle set.
+- `reports.py` adds only package-private `_FinalInventoryRelationVerifier`, with
+  direct construction disabled and sole factory
+  `_from_verified(*, inventory: VerifiedPhysicalInventory, tables:
+  TableVerificationResult) -> _FinalInventoryRelationVerifier`. It is not an
+  implementation/subtype/overload of CP5/6 `BoundedRelationVerifier`; D-026 and every
+  `StagedBoundedRelationVerifier`/`links.py` signature remain byte-for-byte unchanged.
+  Its no-argument quality/evidence relation methods and exact-ID linked-record iterator
+  derive every row from the exact required final handles reopened through the bound
+  live inventory. In particular Gold evidence comes only from the reopened final
+  `gold_exact_cross_source_link_evidence` handle, never CP6's admitted/in-memory
+  evidence.
+  `parquet_io.py` supplies only the minimum package-private bounded final-handle reopen
+  helper, requiring the exact registered spec, concrete final handle, owning inventory,
+  and `TableVerificationResult`, with pre/post inventory validation on normal,
+  consumer-error, and context-exit paths. Neither helper nor verifier accepts or exposes
+  a stage set/handle, custody/store, union, `Any`, caller path, SQL, generic table name,
+  raw stream, or materialized full relation. `StrictArtifactReportVerifier` creates the
+  final verifier internally; no caller-injected relation port exists.
+- The CP7A import direction remains acyclic: `parquet_io.py` imports only its existing
+  manifest/spec/serialization dependencies and no report type; `reports.py` may import
+  final manifest/parquet types for its private verifier; `database.py` consumes report
+  contracts but `reports.py` never imports `database.py`; and
+  `quality_persistence.py`, `links.py`, and their D-026 stage imports are unchanged.
 - Privately assembles the CP2 `ArtifactVerificationKernel` with CP3's closed table
   registry and final `ParquetArtifactTableVerifier` plus these CP7 ports. This is the
   first production invocation of that adapter: it receives the complete CP2 inventory,
@@ -4964,7 +4988,15 @@ The CP7 writer orchestrator uses `threads=1`, `preserve_insertion_order=true`, `
 
 `open_read_only_database` first `lstat`s an existing nonsymlink regular file, then opens `read_only=True` and permanently sets `enable_external_access=false`, `allow_unsigned_extensions=false`, `autoinstall_known_extensions=false`, `autoload_known_extensions=false`, and `lock_configuration=true`. Do not use this hardened connection to call `read_parquet`.
 
-The private verifier creates one unique mode-0700 marker-owned directory below trusted OS temp or a containment-validated `FINPROOF_RUNTIME_TMP_ROOT`. It creates mode-0600 `database-copy.duckdb` with `O_CREAT | O_EXCL | O_NOFOLLOW`, bounded-stream-copies only from `inventory.open_verified(database_entry)`, closes it, and requires held-fd/lstat identity, regular type, `st_nlink == 1`, exact bytes, and SHA equality with the owned entry/manifest before DuckDB receives the private-copy path. The source context must first finish leaf/ancestor/tree revalidation. It places private spill in the same owned directory, uses `threads=1`/`memory_limit=1GiB`, and runs internally generated typed `EXCEPT ALL` in both directions using only `TABLE_SPECS`. After DuckDB closes, it repeats private-copy identity/size/SHA verification before marker-owned cleanup. Source swap during copy, private-copy substitution, mismatch, ambiguous ownership, close, or cleanup failure blocks; there is no fallback reopen of the published path. Its `RuntimeBoundedRelationVerifier` is the second concrete implementation of CP5's closed `BoundedRelationVerifier`, separate from the stage-backed implementation: quality/Bronze and evidence/Bronze checks are allowlisted SQL relations over internally registered verified handles whose mismatch/count output is bounded; link/evidence validation buffers only the closed 47/371 keys and strict-parses only exact-ID-filtered 47 domestic plus 47 fund records. It never accepts caller SQL/table/path, materializes full Bronze/wide relations in Python, or writes in artifact root or its parent.
+The private verifier creates one unique mode-0700 marker-owned directory below trusted OS temp or a containment-validated `FINPROOF_RUNTIME_TMP_ROOT`. It creates mode-0600 `database-copy.duckdb` with `O_CREAT | O_EXCL | O_NOFOLLOW`, bounded-stream-copies only from `inventory.open_verified(database_entry)`, closes it, and requires held-fd/lstat identity, regular type, `st_nlink == 1`, exact bytes, and SHA equality with the owned entry/manifest before DuckDB receives the private-copy path. The source context must first finish leaf/ancestor/tree revalidation. It places private spill in the same owned directory, uses `threads=1`/`memory_limit=1GiB`, and runs internally generated typed `EXCEPT ALL` in both directions using only `TABLE_SPECS`. After DuckDB closes, it repeats private-copy identity/size/SHA verification before marker-owned cleanup. Source swap during copy, private-copy substitution, mismatch, ambiguous ownership, close, or cleanup failure blocks; there is no fallback reopen of the published path.
+
+Final quality/Bronze, evidence/Bronze, and linked-record checks are not methods on this
+database verifier and are not a second implementation of CP5/6
+`BoundedRelationVerifier`. They run through the separately typed private
+`_FinalInventoryRelationVerifier` described above. It streams only final-inventory
+handles, buffers only the closed 47/371 keys, strict-parses only exact-ID-filtered 47
+domestic plus 47 fund records, and never accepts caller SQL/table/path, materializes
+full Bronze/wide relations in Python, or writes in artifact root or its parent.
 
 - [ ] **Step 3: Write 7A REDs for read-only security and runtime-temp failures**
 
@@ -4982,7 +5014,37 @@ Expected RED: public hardening or private temp ownership/settings/cleanup is inc
 
 - [ ] **Step 4: Assemble the complete concrete core verifier and mutation matrix**
 
-Before assembly, author and close these report-port behaviors in exact order, one
+Before report assembly, author and close these final-inventory relation behaviors in
+exact order, one selector RED/smallest-GREEN at a time:
+
+```text
+tests/integration/artifacts/test_artifact_equality.py::test_final_relation_verifier_accepts_only_exact_live_inventory_and_table_result
+tests/integration/artifacts/test_artifact_equality.py::test_final_relation_verifier_rebuilds_quality_join_from_reopened_final_handles
+tests/integration/artifacts/test_artifact_equality.py::test_final_relation_verifier_rebuilds_exact_evidence_join_from_reopened_final_handles
+tests/integration/artifacts/test_artifact_equality.py::test_final_relation_verifier_filters_exact_linked_records_from_reopened_final_handles
+tests/integration/artifacts/test_artifact_tampering.py::test_candidate_core_uses_final_relations_after_stage_owner_transfer
+```
+
+The first selector may stop at the absent private symbol. Add only a direct-construction-
+disabled raising skeleton, rerun the same selector to the narrower acceptance of a
+stage set/foreign final result before implementing exact final ownership. It freezes the
+factory's two keyword-only exact types and rejects bare/copy/subclass/object-new/
+foreign/closed `TableVerificationResult` or inventory plus every `StagedParquetSet`,
+`BoundedRelationVerifier`, custody/store, tuple, union and `Any` route before a reopen.
+It must not implement a relation operation. The second selector alone adds final
+quality/Bronze reconstruction. The third alone derives the exact Gold-evidence-to-
+Bronze relation from the reopened final evidence handle; it rejects caller/in-memory
+evidence substitution and missing/extra/duplicate/reordered/mutated final evidence.
+The fourth alone adds exact-ID-filtered linked-record iteration for both domestic and
+fund sides, strict-parses only the filtered records, and freezes the existing ID,
+batch, parse, and live-key bounds. The fifth closes the original preaudit gap: transfer
+first invalidates the stage owner, then candidate-core report verification succeeds
+only through the live final inventory/result and fails if a staged object or CP6
+evidence tuple is offered. Each selector reruns its immediately preceding selector
+before the next is authored, so the first missing-symbol RED cannot mask the later four
+behaviors.
+
+Then author and close these report-port behaviors in exact order, one
 selector RED/smallest-GREEN at a time:
 
 ```text
@@ -5017,7 +5079,8 @@ The private candidate-core verifier now executes the frozen kernel, all-or-nothi
 Only after all nine does the private logical result become the strict
 `ArtifactCoreVerificationResult`; it is never a `VerifiedArtifactSet`. In boundary 6/7,
 pass reopened verified Parquet handles to the private relation verifier;
-never expose raw table iterators to a materializing helper. Add adversarial fixtures
+never expose raw table iterators to a materializing helper, and never pass the already-
+invalidated stage set or CP6 evidence tuple. Add adversarial fixtures
 that mutate one boundary and recompute every attacker-controlled outer field; each
 deeper boundary must still reject. Recheck the tree through
 `VerifiedPhysicalInventory.assert_unchanged()` immediately before each reopen and
@@ -5046,9 +5109,12 @@ and seal DuckDB, call `tables.table_declarations()` plus
 `database_verification.validate_against(owner)` to revalidate every registered physical
 fact, build separate Parquet `ArtifactFile` declarations, record all 14 physical
 sizes/SHA values, and write canonical pretty
-`manifest.json` with one terminal newline. It discards no staged owner yet, but invokes
-the private concrete core verifier through a new CP2 final inventory; CP3's final
-adapter independently reopens/rechecks every Parquet and creates new final handles.
+`manifest.json` with one terminal newline. It then transfers the exact candidate stage/
+lock custody once, invalidating `ArtifactBuildSession`, its `StagedParquetSet`, and all
+stage relation operations before candidate core verification begins. Only the retained
+candidate custody opens the managed verification root and new CP2 final inventory;
+CP3's final adapter independently reopens/rechecks every Parquet and creates new final
+handles, and `_FinalInventoryRelationVerifier` uses only that exact inventory/result.
 No staged fact is promoted. A file that merely closed or only passed staged checks
 without complete cleanup/final-inventory verification can never become a candidate.
 
@@ -5062,13 +5128,31 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/unit/data/artifacts/test_runtime_temp.py \
   tests/performance/test_artifact_verifier_bounds.py -q
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
-  src/finproof/data/artifacts tests/integration/artifacts \
+  src/finproof/data/artifacts/database.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/integration/artifacts/test_artifact_duckdb.py \
+  tests/integration/artifacts/test_artifact_equality.py \
+  tests/integration/artifacts/test_artifact_tampering.py \
   tests/unit/data/artifacts/test_runtime_temp.py \
-  tests/performance/test_artifact_verifier_bounds.py
+  tests/performance/test_artifact_verifier_bounds.py \
+  tests/helpers/artifacts.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
-  src/finproof/data/artifacts tests/integration/artifacts \
+  src/finproof/data/artifacts/database.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/integration/artifacts/test_artifact_duckdb.py \
+  tests/integration/artifacts/test_artifact_equality.py \
+  tests/integration/artifacts/test_artifact_tampering.py \
   tests/unit/data/artifacts/test_runtime_temp.py \
-  tests/performance/test_artifact_verifier_bounds.py
+  tests/performance/test_artifact_verifier_bounds.py \
+  tests/helpers/artifacts.py
 ```
 
 Expected GREEN: the fixture database is self-contained/read-only; same-count substitution fails; complete verification returns only after every physical/logical/report/timestamp/link/database boundary; runtime temp is private/bounded/clean.
@@ -5076,9 +5160,20 @@ Expected GREEN: the fixture database is self-contained/read-only; same-count sub
 - [ ] **Step 5: Commit 7A**
 
 ```bash
-git add src/finproof/data/artifacts tests/helpers/artifacts.py \
-  tests/integration/artifacts tests/unit/data/artifacts/test_runtime_temp.py \
-  tests/performance/test_artifact_verifier_bounds.py
+git add src/finproof/data/artifacts/database.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/parquet_io.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/reports.py \
+  tests/integration/artifacts/test_artifact_duckdb.py \
+  tests/integration/artifacts/test_artifact_equality.py \
+  tests/integration/artifacts/test_artifact_tampering.py \
+  tests/unit/data/artifacts/test_runtime_temp.py \
+  tests/performance/test_artifact_verifier_bounds.py \
+  tests/helpers/artifacts.py
+git diff --cached --check
+git diff --cached --name-only
 git commit -m "feat: verify self-contained artifact databases"
 ```
 
@@ -5332,12 +5427,82 @@ Expected GREEN: candidate is full-transform/full-core-verify but unpublished/unp
 Commit:
 
 ```bash
-git add src/finproof/cli src/finproof/data/artifacts tools/build_candidate_artifacts.py \
-  tests/unit/cli tests/integration/artifacts tests/contract/test_artifact_resources.py
+git add src/finproof/data/artifacts/__init__.py \
+  src/finproof/data/artifacts/builder.py \
+  tools/build_candidate_artifacts.py \
+  src/finproof/cli/main.py \
+  tests/unit/cli/__init__.py \
+  tests/unit/cli/test_build_data.py \
+  tests/integration/artifacts/test_candidate_builder.py \
+  tests/integration/artifacts/test_build_fixture.py \
+  tests/contract/test_artifact_resources.py
+git diff --cached --check
+git diff --cached --name-only
 git commit -m "feat: add verified artifact build command"
 ```
 
-Then run all Checkpoint 7 focused commands, including `tests/contract/test_handoff_commands.py`, unchanged regressions, source audit, handoff, schema catalog, and diff checks. Fresh review spans 7A/7B/7C and must independently attack same-count database substitution, public reader writes/external access, runtime-temp containment, exact-tree TOCTOU, every rename/marker/tombstone state, candidate/publication bypass, installed handoff/audit CLI regression, and CLI leakage. Require 0 Critical / 0 Important before any official baseline candidate is run.
+Then run all Checkpoint 7 focused/aggregate commands, including the five serial final-
+inventory relation selectors, `tests/contract/test_handoff_commands.py`, and unchanged
+Task 1-6 regressions. Do not run a full repository suite at 7A or 7B. On the final 7C
+commit candidate, run this mandatory full gate exactly once:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+PRE_COMMIT_HOME=/private/tmp/finproof-pre-commit-cache \
+  UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pre-commit run --all-files
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git status --short
+```
+
+If any code changes after this gate, first run only the finding's focused RED/GREEN and
+its affected checkpoint aggregate, then run the same full gate exactly once more on the
+new final commit candidate. Documentation-only closure does not trigger another full
+suite.
+
+Fresh review spans only the approved 7A/7B/7C contracts and their diffs. It must
+independently attack final-inventory/staged-domain substitution after stage transfer,
+in-memory Gold evidence substitution, same-count database substitution, public reader
+writes/external access, runtime-temp containment, exact-tree TOCTOU, every rename/
+marker/tombstone state, candidate/publication bypass, installed handoff/audit CLI
+regression, and CLI leakage. Require 0 Critical / 0 Important before any official
+baseline candidate is run. A real Critical/Important receives one focused RED, smallest
+correction, affected aggregate, correction commit, and one re-review; Minor or adjacent
+hardening is backlog and does not block closure.
+
+After 0 Critical / 0 Important, update exactly this dedicated plan, the legacy plan,
+and `docs/implementation/STATUS.md` once with all serial RED/GREEN observations,
+7A/7B/7C and correction hashes, final-gate outputs, review counts, residual risks, and
+Checkpoint 8 as the exact next task. Re-run only audit/handoff/catalog, expected-file/
+artifact absence, source permissions, diff checks, stage exactly those three docs, and
+require empty porcelain:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+test ! -e config/expected_phase1_artifacts.json
+test ! -e src/finproof/resources/contracts/expected_phase1_artifacts.json
+test ! -e artifacts
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
+git add docs/implementation/STATUS.md \
+  docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
+  docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "docs: close Task 5 checkpoint 7 review"
+git status --porcelain
+```
 
 ---
 

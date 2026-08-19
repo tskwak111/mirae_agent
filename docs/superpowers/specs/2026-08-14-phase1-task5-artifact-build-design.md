@@ -1241,6 +1241,13 @@ materialized result. The exact-evidence and linked-record methods are frozen now
 CP6 compatibility but cannot succeed until CP6 extends the same set with its two Gold
 tables.
 
+This protocol is permanently the CP5/6 stage relation boundary. CP7 does not widen it,
+implement it over final handles, or add a union/`Any`/overload accepting both capability
+domains. After candidate transfer invalidates the stage owner, final core verification
+uses the separate private final-inventory relation verifier defined in section 7.3;
+neither `StagedParquetSet` nor candidate-custody/in-memory Gold evidence can cross that
+boundary.
+
 The quality report producer is exact and is not a generic aggregation entry:
 
 ```python
@@ -1625,11 +1632,13 @@ table successor/report observations into DuckDB/report/manifest construction; it
 not separately call CP5, reconstruct six parallel CP6 values, or accept the superseded
 nine-table set. Reports/database and then the manifest are
 written from those verified observations. Once the complete declared 14-file tree
-exists, CP7 opens CP2's distinct final `VerifiedPhysicalInventory` and independently
-reruns the same checker to create new manifest-owned `VerifiedParquetTable` handles;
-stage handles are never promoted. Only after every final file hash, logical check, and
-manifest invariant passes may the session transfer its exact held stage/lock capability
-to `CandidateArtifactSet`; publication never receives a stage path or a separate result.
+exists, the session transfers its exact held stage/lock capability into private
+candidate custody and invalidates the stage owner/set. The candidate then opens CP2's
+distinct final `VerifiedPhysicalInventory` and independently reruns the same checker to
+create new manifest-owned `VerifiedParquetTable` handles; stage handles are never
+promoted or consulted after transfer. Only after every final file hash, logical check,
+relation, and manifest invariant passes may the candidate retain the strict core result;
+publication never receives a stage path or a separate result.
 
 ## 7. Reports and quarantine
 
@@ -1855,6 +1864,49 @@ rebuilt quality group/aggregate inventories must equal the parsed quality report
 and this cross-report equality are checked before either report logical hash is accepted.
 Changing both report payloads and every attacker-controlled outer hash cannot bypass
 this relation.
+
+CP7 final relation reconstruction uses a distinct package-private capability, never
+the CP5/6 stage protocol:
+
+```python
+class _FinalInventoryRelationVerifier:
+    @classmethod
+    def _from_verified(
+        cls,
+        *,
+        inventory: VerifiedPhysicalInventory,
+        tables: TableVerificationResult,
+    ) -> "_FinalInventoryRelationVerifier": ...
+
+    def verify_quality_to_bronze(self) -> QualityJoinObservations: ...
+
+    def verify_exact_evidence_to_bronze(
+        self,
+    ) -> ExactEvidenceBronzeJoinObservations: ...
+
+    def iter_linked_record_json(
+        self,
+        *,
+        side: ExactLinkedSide,
+        exact_ids: tuple[str, ...],
+    ) -> Iterator[tuple[LinkedRecordJson, ...]]: ...
+```
+
+Its direct constructor is disabled. The private factory accepts only the exact live
+`VerifiedPhysicalInventory` and its exact inventory-owned `TableVerificationResult`,
+requires all eleven final `VerifiedParquetTable` handles in frozen registry order, and
+binds those same objects for every later call. Each operation revalidates the result and
+inventory, reopens only the required handle entries through
+`inventory.open_verified(...)`, and uses the existing bounded Parquet batch reader with
+post-read inventory checks. Exact Gold evidence is derived from the reopened
+`gold_exact_cross_source_link_evidence` final handle itself; no caller/in-memory evidence
+tuple, CP6 custody, staged set/handle, raw path, union, `Any`, SQL, or generic table name
+is accepted. Quality/Bronze, evidence/Bronze, and exact-ID-filtered linked-record
+reconstruction reuse the existing observation/row models and bounds. Closing or
+transferring the stage owner before this verifier is issued cannot affect success;
+closing, copying, mixing, or replacing the final inventory/result blocks before a row.
+`StrictArtifactReportVerifier` creates this private final capability internally and
+cannot accept a caller-supplied relation verifier.
 
 The manifest `ArtifactFile.logical_hash` is required and non-null for exactly the two
 `kind=report` entries, together with the matching `report_id`. Both fields are null for
@@ -2841,7 +2893,9 @@ set before final inventory, while CP7 is the first checkpoint that can invoke th
 adapter after manifest completion.
 CP5/6 produce the report semantics and timestamp/link relation evidence, and CP7 supplies concrete
 report/database ports plus the packaged-comparator implementation and performs the
-final relation rechecks. CP8 installs the reviewed expected bytes, activates the
+final relation rechecks only through `_FinalInventoryRelationVerifier` after stage
+transfer, using the same live final inventory/table result already flowing through the
+kernel. CP8 installs the reviewed expected bytes, activates the
 expected route, and alone wraps its result as the first public `VerifiedArtifactSet`.
 
 The new managed-root entries never accept a `Path`, descriptor integer, stage basename,
