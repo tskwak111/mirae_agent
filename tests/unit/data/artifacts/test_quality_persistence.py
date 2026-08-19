@@ -548,7 +548,12 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
         del self, tables
         if operation is ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE:
             assert exact_ids == ()
-            yield (ExternalOrderJoinRow(key=("a" * 64, 0, 0), values=("ID", 1)),)
+            yield (
+                ExternalOrderJoinRow(
+                    key=("a" * 64, 0, 0),
+                    values=("KR7000000001", 1),
+                ),
+            )
             return
         assert exact_ids == ("product-1",)
         yield (ExternalOrderJoinRow(key=("product-1",), values=("{}",)),)
@@ -642,7 +647,7 @@ def test_candidate_custody_issues_one_exact_closed_relation_verifier_without_sto
         custody.close()
 
 
-@pytest.mark.parametrize("gold_case", ["equal", "missing", "changed"])
+@pytest.mark.parametrize("gold_case", ["equal", "missing", "changed", "reopened-changed"])
 def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_returns_measured_bounds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -676,7 +681,12 @@ def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_r
         yield tuple(
             ExternalOrderJoinRow(
                 key=("a" * 64, role_order, 0),
-                values=("KR7000000001", 1),
+                values=(
+                    "DIVERGENT-REOPENED-GOLD"
+                    if gold_case == "reopened-changed" and role_order == 1
+                    else "KR7000000001",
+                    1,
+                ),
             )
             for role_order in (0, 1)
         )

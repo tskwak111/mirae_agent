@@ -225,8 +225,23 @@ class StagedBoundedRelationVerifier:
                         or (previous_key is not None and joined.key <= previous_key)
                     ):
                         raise ValueError("evidence join row is invalid")
+                    if matched_bronze_cells >= len(admitted):
+                        raise ValueError("admitted evidence and reopened Gold evidence differ")
+                    expected = admitted[matched_bronze_cells]
+                    if (
+                        joined.key
+                        != (
+                            expected.link_id,
+                            expected.evidence_role_order,
+                            expected.evidence_ordinal,
+                        )
+                        or joined.values[0] != expected.raw_identifier
+                    ):
+                        raise ValueError("admitted evidence and reopened Gold evidence differ")
                     previous_key = joined.key
                     matched_bronze_cells += 1
+            if matched_bronze_cells != len(admitted):
+                raise ValueError("admitted evidence and reopened Gold evidence differ")
             return ExactEvidenceBronzeJoinObservations(
                 matched_bronze_cells=matched_bronze_cells,
                 max_batch_rows=max_batch_rows,
