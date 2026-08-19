@@ -4593,7 +4593,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 Record each of 37 expected REDs/smallest GREENs and the two derived acceptances
 separately. Run the unchanged Task 1-4 regression command from the global checkpoint
 rule with start/end time, exit code, counts and duration. Then run static checks over
-the exact 18-file implementation inventory and every full gate:
+the exact 16-file implementation inventory and every full gate:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
@@ -4611,10 +4611,8 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
-  tests/performance/test_artifact_link_streaming.py \
-  tests/helpers/artifacts.py
+  tests/performance/test_artifact_link_streaming.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   src/finproof/data/artifacts/links.py \
   src/finproof/data/artifacts/parquet_io.py \
@@ -4630,10 +4628,8 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
-  tests/performance/test_artifact_link_streaming.py \
-  tests/helpers/artifacts.py
+  tests/performance/test_artifact_link_streaming.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   src/finproof/data/artifacts/links.py \
   src/finproof/data/artifacts/parquet_io.py \
@@ -4649,10 +4645,8 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
-  tests/performance/test_artifact_link_streaming.py \
-  tests/helpers/artifacts.py
+  tests/performance/test_artifact_link_streaming.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
@@ -4679,7 +4673,7 @@ bidirectional and Bronze-backed; 9 -> 11 identity/supersession and custody clean
 exact; Complete/report/result provenance is valid; official profile is 47/371 with the
 frozen bytes/hash; CP7 remains unimplemented.
 
-- [ ] **Step 7: Stage exactly 18 files, commit, review, then close exactly three docs**
+- [ ] **Step 7: Stage exactly 16 files, commit, review, then close exactly three docs**
 
 Before staging, the implementation name-only inventory is exactly these files and no
 docs/STATUS/decision/design/schema/config/source/expected-contract/artifact file:
@@ -4699,10 +4693,8 @@ tests/unit/data/artifacts/test_silver.py
 tests/unit/data/artifacts/test_quality_persistence.py
 tests/integration/artifacts/test_parquet_verification.py
 tests/integration/artifacts/test_link_evidence_fixture.py
-tests/integration/artifacts/test_silver_fixture_build.py
 tests/source_contract/test_official_exact_link_profile.py
 tests/performance/test_artifact_link_streaming.py
-tests/helpers/artifacts.py
 ```
 
 ```bash
@@ -4720,10 +4712,8 @@ git add src/finproof/data/artifacts/links.py \
   tests/unit/data/artifacts/test_quality_persistence.py \
   tests/integration/artifacts/test_parquet_verification.py \
   tests/integration/artifacts/test_link_evidence_fixture.py \
-  tests/integration/artifacts/test_silver_fixture_build.py \
   tests/source_contract/test_official_exact_link_profile.py \
-  tests/performance/test_artifact_link_streaming.py \
-  tests/helpers/artifacts.py
+  tests/performance/test_artifact_link_streaming.py
 git diff --cached --check
 git diff --cached --name-only
 git commit -m "feat: add exact cross-source link artifacts"
