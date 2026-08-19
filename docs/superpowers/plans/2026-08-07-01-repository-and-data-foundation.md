@@ -451,13 +451,13 @@ The dedicated plan must implement the approved specification under strict RED ->
   reporting (29 mandatory serial RED/GREEN selectors plus 7 derived first-GREEN
   acceptances, exact 20-file implementation scope, then fresh 0/0 review before the
   separate three-doc closure)**
-- [ ] **Checkpoint 6: D-026 instance-owned one-use typed candidate-store custody that
+- [x] **Checkpoint 6: D-026 instance-owned one-use typed candidate-store custody that
   preserves the six-field Silver result; exact raw-identifier links reusing only CP3
   Gold record models; canonical one-pass bounded pair bytes/hash and conflict
   rejection; same-owner/time atomic 9-to-11 staged-set successor; full bidirectional
   locator/Bronze/wide-record evidence observations; the first exact Complete
   source-audit typestate and sole source-audit report producer; and one provenance-
-  bound six-field CP7 handoff result (36 mandatory serial RED/GREEN selectors plus two
+  bound six-field CP7 handoff result (37 mandatory serial RED/GREEN selectors plus two
   derived acceptances, including official 47/371, exact 16-file implementation scope, then fresh
   0/0 review before the separate three-doc closure)**
 - [ ] **Checkpoint 7: concrete report/database ports and packaged-comparator
@@ -471,10 +471,9 @@ The dedicated plan must implement the approved specification under strict RED ->
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
-Exact next checkpoint: Checkpoint 6, one-use typed candidate-store custody, exact raw-
-identifier links, atomic 9-to-11 successor, complete bidirectional locator evidence,
-canonical bounded pair hashing/conflict rejection, the Complete source-audit typestate,
-the sole source-audit report producer, and the single CP7 handoff result.
+Exact next checkpoint: Checkpoint 7, self-contained DuckDB construction, complete
+private core verification, guarded publication/rollback/recovery mechanics, an
+unpublished candidate wrapper, and safe absent-baseline CLI behavior.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

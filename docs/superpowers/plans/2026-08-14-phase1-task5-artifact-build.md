@@ -4386,7 +4386,7 @@ DERIVED-NO-DTO tests/unit/data/artifacts/test_exact_links.py::test_link_module_d
 DERIVED-OFFICIAL tests/source_contract/test_official_exact_link_profile.py::test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes
 ```
 
-- [ ] **Step 0: Correct the in-flight Darwin final-workspace blocker once, then resume the next CP6 selector**
+- [x] **Step 0: Correct the in-flight Darwin final-workspace blocker once, then resume the next CP6 selector**
 
 Do not discard the current CP6 implementation, restart from a clean redo, or replay any
 already recorded selector. Author selector 00 as one coherent parameter family covering
@@ -4409,7 +4409,7 @@ and `test_database_stage_build_uses_pathless_owned_scratch_and_fixed_settings`, 
 resume the exact next unfinished CP6 selector. This compatibility correction neither
 adds a link behavior nor invalidates prior CP6 RED/GREEN evidence.
 
-- [ ] **Step 1: Establish candidate schemas, custody, and Silver handoff with selectors 1-10**
+- [x] **Step 1: Establish candidate schemas, custody, and Silver handoff with selectors 1-10**
 
 Selector 1 first fails on the absent custody factory; add only a direct-init-disabled
 skeleton, rerun the same final-success selector to a narrower behavioral RED, then
@@ -4448,7 +4448,7 @@ Custody close faults use `STAGING_CLEANUP_FAILED`, operation `build-session`, re
 one attempt per connection/workspace descriptor, cleared/transferred ownership before
 close, no retry, no unrelated descriptor close and no safe-output reason leakage.
 
-- [ ] **Step 2: Implement exact links, evidence, canonical bytes, and results with selectors 11-20**
+- [x] **Step 2: Implement exact links, evidence, canonical bytes, and results with selectors 11-20**
 
 Join only exact untrimmed raw strings. Require all frozen section 5.10 constants,
 confidence `Decimal("1.0")` in `DECIMAL(38,18)`, and link ID from the exact NUL-
@@ -4493,7 +4493,7 @@ byte UTF-8 ID, NUL/tab/CR/LF, a boolean/negative/65,537 expected count, count mi
 and buffer overflow. It does not sort in Python. Exact bytes use one tab and terminal
 newline per pair; hashing accepts only exact bytes and returns lowercase SHA-256.
 
-- [ ] **Step 3: Write, reopen, and atomically extend 9 -> 11 with selectors 21-24**
+- [x] **Step 3: Write, reopen, and atomically extend 9 -> 11 with selectors 21-24**
 
 Claim only the registered Gold link/evidence leaves, write bounded exact rows, close,
 reopen and run CP3's common checker. Call `extend_verified` once with the exact owner
@@ -4515,7 +4515,7 @@ successor/result, session owns cleanup. Selector 24 covers only behavior reachab
 through evidence admission and the Gold extension helper; later relation/report/
 custody-close faults are not introduced before their successful producers.
 
-- [ ] **Step 4: Verify evidence, Complete typestate/report, and CP7 result with selectors 25-35**
+- [x] **Step 4: Verify evidence, Complete typestate/report, and CP7 result with selectors 25-35**
 
 The custody issues one exact stage verifier only after candidate exhaustion and exact
 evidence admission; copied/foreign/reused/closed/unsealed custody fails before issuance
@@ -4558,7 +4558,7 @@ Selector 35 first implements the named
 issuance mutation, copied/forged result, open custody and nonlive/superseded successor.
 CP7 handoff calls that exact validator; parallel values are rejected.
 
-- [ ] **Step 5: Prove generic bounds, then record the official profile as derived acceptance**
+- [x] **Step 5: Prove generic bounds, then record the official profile as derived acceptance**
 
 Selector 36 uses low test limits, thousands of irrelevant candidates, forced spill,
 nonadjacent conflicts and sentinels against full-table list/DataFrame/second iteration/
@@ -4573,7 +4573,7 @@ behavior plus official inputs and therefore may be first-GREEN. Record it as one
 derived acceptance; never manufacture a production failure or use 47/371/1,222 as
 generic algorithm constants.
 
-- [ ] **Step 6: Run exact aggregate, static, regression, and repository gates**
+- [x] **Step 6: Run exact aggregate, static, regression, and repository gates**
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
@@ -4673,7 +4673,7 @@ bidirectional and Bronze-backed; 9 -> 11 identity/supersession and custody clean
 exact; Complete/report/result provenance is valid; official profile is 47/371 with the
 frozen bytes/hash; CP7 remains unimplemented.
 
-- [ ] **Step 7: Stage exactly 16 files, commit, review, then close exactly three docs**
+- [x] **Step 7: Stage exactly 16 files, commit, review, then close exactly three docs**
 
 Before staging, the implementation name-only inventory is exactly these files and no
 docs/STATUS/decision/design/schema/config/source/expected-contract/artifact file:
@@ -4756,6 +4756,31 @@ git diff --cached --name-only
 git commit -m "docs: close Task 5 checkpoint 6 review"
 git status --porcelain
 ```
+
+Observed Checkpoint 6 closure evidence on 2026-08-20:
+
+- approved plan/compatibility lineage: `8eafa99`, `3d22ca6`, and `14f5f9a`;
+  implementation/test lineage: `18673c1`, `56aa2c2`, `1895942`, and the final
+  reopened-Gold correction `28dd4e5`;
+- the ignored execution report records all 37 mandatory RED/GREEN entries, the two
+  derived acceptances, and the official-source scale corrections without reconstructing
+  missing historical output;
+- official acceptance verified exactly 47 links, zero ETN links, 371 evidence rows,
+  1,222 canonical TSV bytes, raw/trimmed/emitted pair-set equality, and the frozen SHA;
+- final focused reopened-Gold verification: 6 passed in 0.79 seconds; final CP6
+  aggregate: 212 passed in 7.00 seconds; unchanged Task 1-4 regression: 553 passed;
+- final network-enabled repository suite: 2,181 passed with four known adversarial
+  serialization warnings in 1,639.23 seconds; Ruff format/check and mypy passed over
+  130 files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 bytes; schema catalog: 207 columns;
+- the first independent CP6 review returned Critical 0 / Important 6; the scoped
+  correction re-review left one original Important, which the direct frozen-contract
+  correction `28dd4e5` closed; final single-finding verification returned Critical 0 /
+  Important 0;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the reviewed worktree was clean. Checkpoint 7 is the
+  exact next task; Checkpoints 7-8, Task 5, and the Phase 1 gate remain incomplete.
 
 ---
 

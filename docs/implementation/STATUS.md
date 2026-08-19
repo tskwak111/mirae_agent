@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-15 — Phase 1 Task 5 Checkpoints 1–5 are implemented and
+**Last updated:** 2026-08-20 — Phase 1 Task 5 Checkpoints 1–6 are implemented and
 independently approved at Critical 0 / Important 0. Task 5 and the Phase 1 gate remain
-incomplete; Checkpoint 6 is the exact next task.
+incomplete; Checkpoint 7 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,10 +60,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 6: implement exact raw-identifier links, full
-bidirectional locator evidence, canonical pair hashing and conflict rejection, then
-advance the exact Silver source-audit typestate to Complete and construct the sole
-source-audit report under focused RED-GREEN TDD.** The
+**Phase 1 Task 5 Checkpoint 7: build the self-contained DuckDB and complete private
+core verifier, exercise guarded publication/rollback/recovery mechanics, and add the
+unpublished candidate wrapper plus safe absent-baseline CLI under focused RED-GREEN
+TDD.** The
 approved detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
 and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
@@ -78,7 +78,7 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1–5 complete while Checkpoints 6–8 remain
+body points to it and records Checkpoints 1–6 complete while Checkpoints 7–8 remain
 unchecked.
 
 Observed design-gate evidence on 2026-08-14:
@@ -188,10 +188,33 @@ Checkpoint 5 implementation and review evidence on 2026-08-15:
 - both expected-contract paths and runtime `artifacts/` remained absent, official
   source files were read-only, and the final worktree was clean.
 
-The exact next step is Checkpoint 6 in the dedicated plan: implement exact raw
-identifier links and complete bidirectional locator evidence, canonical pair hashing,
-conflict rejection, the Complete source-audit typestate, and the sole source-audit
-report producer. Do not create the official expected logical
+Checkpoint 6 implementation and review evidence on 2026-08-20:
+
+- reviewed implementation/correction lineage: `56aa2c2` (`feat: add exact
+  cross-source link artifacts`), `1895942` (`fix: close CP6 exact-link review
+  findings`), and `28dd4e5` (`fix: verify reopened Gold evidence rows`), with
+  compatibility commit `18673c1` and approved plan corrections through `14f5f9a`;
+- the ignored execution report records 37 mandatory RED/GREEN entries and two derived
+  acceptances; official acceptance verified 47 links, zero ETN links, 371 evidence
+  rows, 1,222 canonical TSV bytes, raw/trimmed/emitted pair equality, and the frozen
+  SHA;
+- final reopened-Gold focused verification: 6 passed in 0.79 seconds; final CP6
+  aggregate: 212 passed in 7.00 seconds; unchanged Task 1–4 regression: 553 passed;
+- final network-enabled repository suite: 2,181 passed with four known adversarial
+  serialization warnings in 1,639.23 seconds; Ruff format/check and mypy passed over
+  130 files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- the first review returned Critical 0 / Important 6; its scoped re-review left one
+  original Important, and final single-finding verification at `28dd4e5` returned
+  Critical 0 / Important 0;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the final worktree was clean.
+
+The exact next step is Checkpoint 7 in the dedicated plan: implement the
+self-contained DuckDB, complete private core verifier, guarded publication state
+mechanics, unpublished candidate wrapper, and safe absent-baseline CLI. Do not create
+the official expected logical
 baseline before Checkpoint 8's two independently verified candidate builds and review.
 
 ## Handoff validation record — not production implementation
