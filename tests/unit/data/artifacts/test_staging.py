@@ -1,4 +1,4 @@
-# mypy: disable-error-code="assignment,attr-defined,misc,no-untyped-def"
+# mypy: disable-error-code="arg-type,assignment,attr-defined,misc,no-untyped-def"
 """Descriptor-owned artifact staging contracts."""
 
 from __future__ import annotations
@@ -1078,6 +1078,422 @@ def test_external_order_store_preserves_numeric_and_string_key_order(tmp_path: P
     assert tuple(row.key for row in ordered) == (("A", 10), ("a", 2), ("z", 2), ("z", 10))
 
 
+def test_external_order_store_ordered_stream_survives_nested_candidate_insert(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderRelation,
+        ExternalOrderRow,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    source_rows = tuple(
+        ExternalOrderRow(key=(f"fund-{index}", index), payload_json=f'{{"id":{index}}}')
+        for index in range(5)
+    )
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(
+                batch_rows=2,
+                memory_limit_bytes=1 << 30,
+            ),
+        ) as store,
+    ):
+        store.insert_batch(
+            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+            rows=source_rows,
+        )
+        batches = store.iter_ordered_batches(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW)
+        first = next(batches)
+        store.insert_batch(
+            relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
+            rows=(
+                ExternalOrderRow(
+                    key=("raw-id", "right-id"),
+                    payload_json='{"candidate":"right"}',
+                ),
+            ),
+        )
+        observed = (*first, *(row for batch in batches for row in batch))
+
+    assert observed == source_rows
+
+
+def test_staged_join_projection_bulk_ingests_bounded_arrow_batches_without_python_rows(
+    tmp_path: Path,
+) -> None:
+    import pyarrow as pa  # type: ignore[import-untyped]
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    batches = (
+        pa.record_batch({"source_table": ["A", "B"], "source_row_number": [1, 2]}),
+        pa.record_batch({"source_table": ["C"], "source_row_number": [3]}),
+    )
+
+    class Handle:
+        @contextlib.contextmanager
+        def iter_batches(self, *, batch_size: int):
+            assert batch_size == 2
+            yield iter(batches)
+
+    class Verification:
+        handle = Handle()
+
+    class Tables:
+        def verification_for(self, staged_name: str) -> Verification:
+            assert staged_name == "bronze_source_cell"
+            return Verification()
+
+    class ConnectionProxy:
+        def __init__(self, inner: Any) -> None:
+            self.inner = inner
+            self.registered_rows: list[int] = []
+
+        def execute(self, statement: str, parameters: Any = None) -> Any:
+            if parameters is None:
+                return self.inner.execute(statement)
+            return self.inner.execute(statement, parameters)
+
+        def executemany(self, statement: str, parameters: Any) -> None:
+            del statement, parameters
+            raise AssertionError("staged Arrow projection must not materialize Python rows")
+
+        def register(self, name: str, batch: Any) -> None:
+            assert name == "finproof_staged_join_batch"
+            self.registered_rows.append(batch.num_rows)
+            self.inner.register(name, batch)
+
+        def unregister(self, name: str) -> None:
+            self.inner.unregister(name)
+
+        def close(self) -> None:
+            self.inner.close()
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(
+                batch_rows=2,
+                memory_limit_bytes=1 << 30,
+            ),
+        ) as store,
+    ):
+        connection = ConnectionProxy(store._connection)
+        store._connection = connection
+        store._load_staged_join_projection(
+            connection=connection,
+            tables=Tables(),
+            table_name="join_bronze_cell",
+            staged_name="bronze_source_cell",
+            columns=(("source_table", "VARCHAR"), ("source_row_number", "BIGINT")),
+        )
+        observed = connection.execute(
+            "SELECT source_table, source_row_number FROM join_bronze_cell "
+            "ORDER BY source_row_number"
+        ).fetchall()
+
+        assert observed == [("A", 1), ("B", 2), ("C", 3)]
+        assert connection.registered_rows == [2, 1]
+
+
+def test_large_exact_evidence_join_releases_operation_scope_before_low_memory_fund_join(
+    tmp_path: Path,
+) -> None:
+    from datetime import date
+
+    import pyarrow as pa
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    source_date = date(2026, 7, 11)
+    bronze_batches = tuple(
+        pa.record_batch(
+            {
+                "source_table": ["PREF01N001"] * 32,
+                "source_file": ["data/domestic.xlsx"] * 32,
+                "source_sheet": ["Sheet1"] * 32,
+                "source_row_number": list(range(offset + 2, offset + 34)),
+                "source_column_name": ["pd_itm_no"] * 32,
+                "source_column_number": [1] * 32,
+                "source_column_letter": ["A"] * 32,
+                "source_checksum": ["a" * 64] * 32,
+                "source_snapshot_date": [source_date] * 32,
+                "source_applicable_date": [None] * 32,
+                "raw_value": [f"ID-{offset + index:04d}-" + "x" * 4096 for index in range(32)],
+            }
+        )
+        for offset in range(0, 512, 32)
+    )
+    matched = bronze_batches[0].column("raw_value")[0].as_py()
+    exact_evidence = pa.record_batch(
+        {
+            "link_id": ["b" * 64],
+            "evidence_role_order": [0],
+            "evidence_ordinal": [0],
+            "raw_identifier": [matched],
+            "source_table": ["PREF01N001"],
+            "source_file": ["data/domestic.xlsx"],
+            "source_sheet": ["Sheet1"],
+            "source_row_number": [2],
+            "source_column_name": ["pd_itm_no"],
+            "source_column_number": [1],
+            "source_column_letter": ["A"],
+            "source_checksum": ["a" * 64],
+            "source_snapshot_date": [source_date],
+            "source_applicable_date": [None],
+        }
+    )
+    fund = pa.record_batch(
+        {
+            "fund_item_id": ["fund-1"],
+            "record_json": ['{"fund_item_id":"fund-1"}'],
+        }
+    )
+    batches_by_name = {
+        "gold_exact_cross_source_link_evidence": (exact_evidence,),
+        "bronze_source_cell": bronze_batches,
+        "silver_fund_item": (fund,),
+    }
+
+    class Handle:
+        def __init__(self, batches: Any) -> None:
+            self._batches = batches
+
+        @contextlib.contextmanager
+        def iter_batches(self, *, batch_size: int):
+            assert batch_size == 32
+            yield iter(self._batches)
+
+    class Verification:
+        def __init__(self, batches: Any) -> None:
+            self.handle = Handle(batches)
+
+    class Tables:
+        def verification_for(self, staged_name: str) -> Verification:
+            return Verification(batches_by_name[staged_name])
+
+    class TrackedCursor:
+        def __init__(self, inner: Any, owner: Any) -> None:
+            self._inner = inner
+            self._owner = owner
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
+        def close(self) -> None:
+            self._inner.close()
+            self._owner.closed += 1
+
+    class TrackedConnection:
+        def __init__(self, inner: Any) -> None:
+            self._inner = inner
+            self.opened = 0
+            self.closed = 0
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
+        def cursor(self) -> TrackedCursor:
+            self.opened += 1
+            return TrackedCursor(self._inner.cursor(), self)
+
+        def close(self) -> None:
+            self._inner.close()
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(
+                batch_rows=32,
+                memory_limit_bytes=16 << 20,
+            ),
+        ) as store,
+    ):
+        connection = TrackedConnection(store._connection)
+        store._connection = connection
+        evidence_rows = tuple(store._iter_exact_evidence_to_bronze_batches(Tables()))
+        fund_rows = tuple(
+            store._iter_linked_record_json_batches(
+                tables=Tables(),
+                exact_ids=("fund-1",),
+                staged_name="silver_fund_item",
+                join_table="join_linked_fund",
+                id_column="fund_item_id",
+                sql="SELECT i.exact_id, r.record_json FROM join_exact_ids AS i "
+                "JOIN join_linked_fund AS r ON i.exact_id = r.fund_item_id ORDER BY 1",
+            )
+        )
+        remaining = connection.execute(
+            "SELECT table_name FROM duckdb_tables() WHERE table_name LIKE 'join_%'"
+        ).fetchall()
+
+        assert evidence_rows[0][0].values == (matched, 1)
+        assert fund_rows[0][0].key == ("fund-1",)
+        assert connection.opened == connection.closed == 2
+        assert remaining == []
+
+
+def test_linked_record_join_filters_exact_ids_before_wide_batch_admission(
+    tmp_path: Path,
+) -> None:
+    import pyarrow as pa
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    batches = tuple(
+        pa.record_batch(
+            {
+                "fund_item_id": [
+                    "fund-match" if offset == 0 and index == 0 else f"foreign-{offset + index}"
+                    for index in range(32)
+                ],
+                "record_json": [
+                    '{"fund_item_id":"fund-match"}'
+                    if offset == 0 and index == 0
+                    else '{"foreign":"' + "x" * 4096 + '"}'
+                    for index in range(32)
+                ],
+            }
+        )
+        for offset in range(0, 512, 32)
+    )
+
+    class Handle:
+        @contextlib.contextmanager
+        def iter_batches(self, *, batch_size: int):
+            assert batch_size == 32
+            yield iter(batches)
+
+    class Verification:
+        handle = Handle()
+
+    class Tables:
+        def verification_for(self, staged_name: str) -> Verification:
+            assert staged_name == "silver_fund_item"
+            return Verification()
+
+    class ConnectionProxy:
+        def __init__(self, inner: Any, registered_rows: list[int] | None = None) -> None:
+            self._inner = inner
+            self.registered_rows = [] if registered_rows is None else registered_rows
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._inner, name)
+
+        def cursor(self) -> ConnectionProxy:
+            return ConnectionProxy(self._inner.cursor(), self.registered_rows)
+
+        def register(self, name: str, batch: Any) -> None:
+            assert name == "finproof_staged_join_batch"
+            self.registered_rows.append(batch.num_rows)
+            self._inner.register(name, batch)
+
+        def close(self) -> None:
+            self._inner.close()
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ) as session,
+        _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(
+                batch_rows=32,
+                memory_limit_bytes=16 << 20,
+            ),
+        ) as store,
+    ):
+        connection = ConnectionProxy(store._connection)
+        store._connection = connection
+        observed = tuple(
+            store._iter_linked_record_json_batches(
+                tables=Tables(),
+                exact_ids=("fund-match", "fund-missing"),
+                staged_name="silver_fund_item",
+                join_table="join_linked_fund",
+                id_column="fund_item_id",
+                sql="SELECT i.exact_id, r.record_json FROM join_exact_ids AS i "
+                "JOIN join_linked_fund AS r ON i.exact_id = r.fund_item_id ORDER BY 1",
+            )
+        )
+
+        assert observed[0][0].key == ("fund-match",)
+        assert connection.registered_rows == [1]
+
+
 @pytest.mark.parametrize(
     "rows",
     [
@@ -1131,7 +1547,7 @@ def test_external_order_store_rejects_wrong_arity_bool_coercion_noncanonical_pay
     def insert_and_read(store: ExternalOrderStore) -> None:
         store.insert_batch(
             relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
-            rows=rows,  # type: ignore[arg-type]
+            rows=rows,
         )
         tuple(store.iter_ordered_batches(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW))
 
@@ -1422,6 +1838,525 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
                 values=(canonical_record_json(fund),),
             ),
         )
+
+
+def test_exact_link_candidate_custody_is_factory_only_live_generation_bound_noncopyable_and_nonserializable(  # noqa: E501
+    tmp_path: Path,
+) -> None:
+    import copy
+    import pickle
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ) as session:
+        store_context = session.open_external_order_store(config=config)
+        store = store_context.__enter__()
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+
+        assert type(custody) is ExactLinkCandidateStoreCustody
+        assert not hasattr(custody, "__dict__")
+        with pytest.raises(TypeError):
+            ExactLinkCandidateStoreCustody()
+        with pytest.raises(TypeError):
+            copy.copy(custody)
+        with pytest.raises(TypeError):
+            copy.deepcopy(custody)
+        with pytest.raises(TypeError):
+            pickle.dumps(custody)
+
+    with pytest.raises(ArtifactContractError):
+        custody.iter_candidate_join_batches()
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "domestic-empty-id",
+        "domestic-wrong-role",
+        "domestic-wrong-table",
+        "domestic-wrong-column",
+        "domestic-dict-source",
+        "fund-empty-id",
+        "fund-no-sources",
+        "fund-list-sources",
+        "fund-wrong-table",
+        "fund-wrong-column",
+        "fund-duplicate-sources",
+        "fund-reordered-sources",
+        "fund-disagreeing-raw",
+        "fund-dict-source",
+    ],
+)
+def test_exact_link_candidate_schemas_require_exact_role_locator_and_ordered_fund_sources(
+    case: str,
+) -> None:
+    from datetime import date
+    from pathlib import PurePosixPath
+
+    from pydantic import ValidationError
+
+    from finproof.data.artifacts.staging import (
+        DomesticExactLinkCandidate,
+        ExactLinkIdentifierSource,
+        FundExactLinkCandidate,
+    )
+    from finproof.domain.locators import SourceCellLocator
+
+    def locator(*, table: str, column: str, row: int) -> SourceCellLocator:
+        return SourceCellLocator(
+            source_table=table,
+            source_file=PurePosixPath(f"data/{table}.xlsx"),
+            source_sheet="Sheet1",
+            source_row_number=row,
+            source_column_name=column,
+            source_column_number=1,
+            source_column_letter="A",
+            source_checksum="a" * 64,
+            source_snapshot_date=date(2026, 7, 11),
+            source_applicable_date=None,
+        )
+
+    left_locator = locator(table="PREF01N001", column="pd_itm_no", row=2)
+    right_first = locator(table="PRFD01N001", column="ksd_itm_no", row=2)
+    right_second = locator(table="PRFD01N001", column="ksd_itm_no", row=3)
+    left_source = ExactLinkIdentifierSource(
+        raw_identifier="KR7000000001",
+        locator=left_locator,
+    )
+    right_source = ExactLinkIdentifierSource(
+        raw_identifier="KR7000000001",
+        locator=right_first,
+    )
+    right_source_second = ExactLinkIdentifierSource(
+        raw_identifier="KR7000000001",
+        locator=right_second,
+    )
+
+    assert (
+        DomesticExactLinkCandidate(
+            left_product_id="KR7000000001",
+            source_product_type="ETF",
+            identifier=left_source,
+        ).identifier
+        is left_source
+    )
+    assert FundExactLinkCandidate(
+        right_product_id="F0001",
+        identifiers=(right_source, right_source_second),
+    ).identifiers == (right_source, right_source_second)
+
+    with pytest.raises((TypeError, ValidationError, ValueError)):  # noqa: PT012
+        if case == "domestic-empty-id":
+            DomesticExactLinkCandidate(
+                left_product_id="", source_product_type="ETF", identifier=left_source
+            )
+        elif case == "domestic-wrong-role":
+            DomesticExactLinkCandidate(
+                left_product_id="KR7000000001",
+                source_product_type="ETN",
+                identifier=left_source,
+            )
+        elif case == "domestic-wrong-table":
+            DomesticExactLinkCandidate(
+                left_product_id="KR7000000001",
+                source_product_type="ETF",
+                identifier=ExactLinkIdentifierSource(
+                    raw_identifier="KR7000000001",
+                    locator=locator(table="PREF02N001", column="pd_itm_no", row=2),
+                ),
+            )
+        elif case == "domestic-wrong-column":
+            DomesticExactLinkCandidate(
+                left_product_id="KR7000000001",
+                source_product_type="ETF",
+                identifier=ExactLinkIdentifierSource(
+                    raw_identifier="KR7000000001",
+                    locator=locator(table="PREF01N001", column="std_pd_cd", row=2),
+                ),
+            )
+        elif case == "domestic-dict-source":
+            DomesticExactLinkCandidate(
+                left_product_id="KR7000000001",
+                source_product_type="ETF",
+                identifier=left_source.model_dump(),
+            )
+        elif case == "fund-empty-id":
+            FundExactLinkCandidate(right_product_id="", identifiers=(right_source,))
+        elif case == "fund-no-sources":
+            FundExactLinkCandidate(right_product_id="F0001", identifiers=())
+        elif case == "fund-list-sources":
+            FundExactLinkCandidate(right_product_id="F0001", identifiers=[right_source])
+        elif case == "fund-wrong-table":
+            FundExactLinkCandidate(
+                right_product_id="F0001",
+                identifiers=(
+                    ExactLinkIdentifierSource(
+                        raw_identifier="KR7000000001",
+                        locator=locator(table="PREF01N001", column="ksd_itm_no", row=2),
+                    ),
+                ),
+            )
+        elif case == "fund-wrong-column":
+            FundExactLinkCandidate(
+                right_product_id="F0001",
+                identifiers=(
+                    ExactLinkIdentifierSource(
+                        raw_identifier="KR7000000001",
+                        locator=locator(table="PRFD01N001", column="itm_no", row=2),
+                    ),
+                ),
+            )
+        elif case == "fund-duplicate-sources":
+            FundExactLinkCandidate(
+                right_product_id="F0001", identifiers=(right_source, right_source)
+            )
+        elif case == "fund-reordered-sources":
+            FundExactLinkCandidate(
+                right_product_id="F0001",
+                identifiers=(right_source_second, right_source),
+            )
+        elif case == "fund-disagreeing-raw":
+            FundExactLinkCandidate(
+                right_product_id="F0001",
+                identifiers=(
+                    right_source,
+                    ExactLinkIdentifierSource(raw_identifier="KR7000000002", locator=right_second),
+                ),
+            )
+        else:
+            FundExactLinkCandidate(
+                right_product_id="F0001",
+                identifiers=(right_source.model_dump(),),
+            )
+
+
+def test_candidate_custody_streams_only_bounded_typed_exact_join_rows_without_generic_surface(
+    tmp_path: Path,
+) -> None:
+    from datetime import date
+    from pathlib import PurePosixPath
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.serialization import canonical_record_json
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        DomesticExactLinkCandidate,
+        ExactLinkCandidateJoinRow,
+        ExactLinkCandidateStoreCustody,
+        ExactLinkIdentifierSource,
+        ExternalOrderRelation,
+        ExternalOrderRow,
+        ExternalOrderStoreTestLimits,
+        FundExactLinkCandidate,
+        _open_external_order_store_for_test,
+    )
+    from finproof.domain.locators import SourceCellLocator
+
+    def source(*, table: str, column: str, row: int, raw: str) -> ExactLinkIdentifierSource:
+        return ExactLinkIdentifierSource(
+            raw_identifier=raw,
+            locator=SourceCellLocator(
+                source_table=table,
+                source_file=PurePosixPath(f"data/{table}.xlsx"),
+                source_sheet="Sheet1",
+                source_row_number=row,
+                source_column_name=column,
+                source_column_number=1,
+                source_column_letter="A",
+                source_checksum="a" * 64,
+                source_snapshot_date=date(2026, 7, 11),
+                source_applicable_date=None,
+            ),
+        )
+
+    lefts = tuple(
+        DomesticExactLinkCandidate(
+            left_product_id=product_id,
+            source_product_type="ETF",
+            identifier=source(table="PREF01N001", column="pd_itm_no", row=row, raw=raw),
+        )
+        for product_id, raw, row in (
+            ("L2", "RAW-B", 3),
+            ("L1", "RAW-A", 2),
+        )
+    )
+    rights = tuple(
+        FundExactLinkCandidate(
+            right_product_id=product_id,
+            identifiers=(source(table="PRFD01N001", column="ksd_itm_no", row=row, raw=raw),),
+        )
+        for product_id, raw, row in (
+            ("R2", "RAW-B", 3),
+            ("R1", "RAW-A", 2),
+        )
+    )
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ) as session:
+        store_context = _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(batch_rows=1, memory_limit_bytes=1 << 30),
+        )
+        store = store_context.__enter__()
+        store.insert_batch(
+            relation=ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE,
+            rows=(
+                ExternalOrderRow(
+                    key=(item.identifier.raw_identifier, item.left_product_id),
+                    payload_json=canonical_record_json(item),
+                )
+                for item in lefts
+            ),
+        )
+        store.insert_batch(
+            relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
+            rows=(
+                ExternalOrderRow(
+                    key=(item.identifiers[0].raw_identifier, item.right_product_id),
+                    payload_json=canonical_record_json(item),
+                )
+                for item in rights
+            ),
+        )
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+
+        public_surface = {name for name in dir(custody) if not name.startswith("_")}
+        assert public_surface == {
+            "admit_exact_evidence",
+            "close",
+            "iter_candidate_join_batches",
+        }
+        batches = custody.iter_candidate_join_batches()
+        first = next(batches)
+        assert len(first) == 1
+        assert type(first[0]) is ExactLinkCandidateJoinRow
+        with pytest.raises(ArtifactContractError):
+            custody.iter_candidate_join_batches()
+        remaining = tuple(batches)
+        assert all(0 < len(batch) <= 1 for batch in remaining)
+        rows = first + tuple(row for batch in remaining for row in batch)
+        assert tuple(
+            (row.matched_raw_identifier, row.left.left_product_id, row.right.right_product_id)
+            for row in rows
+        ) == (("RAW-A", "L1", "R1"), ("RAW-B", "L2", "R2"))
+        with pytest.raises(ArtifactContractError):
+            custody.iter_candidate_join_batches()
+
+
+def test_candidate_custody_close_closes_and_deregisters_store_exactly_once(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ) as session:
+        store_context = session.open_external_order_store(config=config)
+        store = store_context.__enter__()
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+
+        custody.close()
+
+        assert session._live_external_order_stores == {}
+        assert store._closed is True
+        assert store._cleanup_state == "CLEANED"
+        with pytest.raises(ArtifactContractError):
+            custody.close()
+        assert store._cleanup_state == "CLEANED"
+
+
+@pytest.mark.parametrize("case", ["custody-close", "managed-abort"])
+def test_candidate_custody_close_abort_and_cleanup_faults_are_typed_and_never_retry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+        ExternalOrderStore,
+    )
+
+    settings = _staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    store_context = session.open_external_order_store(config=config)
+    store = store_context.__enter__()
+    custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+    original_close = ExternalOrderStore.close_and_remove_working_state
+    attempts = 0
+
+    def fail_close(value: ExternalOrderStore) -> None:
+        nonlocal attempts
+        assert value is store
+        attempts += 1
+        raise OSError("injected exact-link candidate cleanup fault")
+
+    monkeypatch.setattr(ExternalOrderStore, "close_and_remove_working_state", fail_close)
+    if case == "custody-close":
+        with pytest.raises(ArtifactContractError) as captured:
+            custody.close()
+        assert captured.value.code is ArtifactErrorCode.STAGING_CLEANUP_FAILED
+        assert captured.value.operation_id == "build-session"
+        assert captured.value.internal_context == {
+            "reason": "exact_link_candidate_store_close_failed"
+        }
+        with pytest.raises(ArtifactContractError):
+            custody.close()
+        assert attempts == 1
+        monkeypatch.setattr(
+            ExternalOrderStore,
+            "close_and_remove_working_state",
+            original_close,
+        )
+        store.close_and_remove_working_state()
+        session.abort()
+    else:
+        with pytest.raises(ArtifactContractError) as captured:
+            session.abort()
+        assert captured.value.code is ArtifactErrorCode.STAGING_CLEANUP_FAILED
+        assert captured.value.operation_id == "build-session"
+        assert captured.value.internal_context == {
+            "reason": "exact_link_candidate_store_abort_cleanup_failed"
+        }
+        assert attempts == 1
+
+
+def test_candidate_custody_admits_exact_evidence_once_with_numeric_key_payload_order_and_bounded_batches(  # noqa: E501
+    tmp_path: Path,
+) -> None:
+    from datetime import date
+    from pathlib import PurePosixPath
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.serialization import (
+        ExactCrossSourceLinkEvidenceRecord,
+        canonical_record_json,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+        ExternalOrderRelation,
+        ExternalOrderStoreTestLimits,
+        _open_external_order_store_for_test,
+    )
+
+    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
+        mode="python"
+    )
+    payload["exact_links"]["evidence"] = 2
+    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    evidence = tuple(
+        ExactCrossSourceLinkEvidenceRecord(
+            link_id="a" * 64,
+            evidence_role="left_identifier" if role_order == 0 else "right_identifier",
+            evidence_role_order=role_order,
+            evidence_ordinal=0,
+            raw_identifier="KR7000000001",
+            source_table="PREF01N001" if role_order == 0 else "PRFD01N001",
+            source_file=PurePosixPath("data/source.xlsx"),
+            source_sheet="Sheet1",
+            source_row_number=role_order + 2,
+            source_column_name="pd_itm_no" if role_order == 0 else "ksd_itm_no",
+            source_column_number=1,
+            source_column_letter="A",
+            source_checksum="a" * 64,
+            source_snapshot_date=date(2026, 7, 11),
+            source_applicable_date=None,
+        )
+        for role_order in (0, 1)
+    )
+    settings = _staging_settings(tmp_path / "repository")
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ) as session:
+        store_context = _open_external_order_store_for_test(
+            owner=session,
+            config=config,
+            limits=ExternalOrderStoreTestLimits(batch_rows=1, memory_limit_bytes=1 << 30),
+        )
+        store = store_context.__enter__()
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+        assert tuple(custody.iter_candidate_join_batches()) == ()
+
+        custody.admit_exact_evidence(iter(evidence))
+
+        stored_batches = tuple(
+            store.iter_ordered_batches(relation=ExternalOrderRelation.EXACT_LINK_EVIDENCE)
+        )
+        assert tuple(len(batch) for batch in stored_batches) == (1, 1)
+        stored = tuple(row for batch in stored_batches for row in batch)
+        assert tuple(row.key for row in stored) == (("a" * 64, 0, 0), ("a" * 64, 1, 0))
+        assert tuple(row.payload_json for row in stored) == tuple(
+            canonical_record_json(row) for row in evidence
+        )
+        with pytest.raises(ArtifactContractError):
+            custody.admit_exact_evidence(())
 
 
 def test_external_order_store_fixes_production_settings_and_isolates_private_test_limits(

@@ -14,6 +14,7 @@ from pydantic import ValidationError
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 from finproof.data.artifacts.parquet_io import StagedParquetSet
 from finproof.data.artifacts.reports import (
+    ExactEvidenceBronzeJoinObservations,
     ExactLinkedSide,
     LinkedRecordJson,
     QualityJoinObservations,
@@ -21,6 +22,7 @@ from finproof.data.artifacts.reports import (
 from finproof.data.artifacts.resources import quality_issue_schema_bytes
 from finproof.data.artifacts.serialization import serialize_table_row
 from finproof.data.artifacts.staging import (
+    ExactLinkCandidateStoreCustody,
     ExternalOrderJoinOperation,
     ExternalOrderJoinRow,
     ExternalOrderStore,
@@ -81,6 +83,26 @@ class StagedBoundedRelationVerifier:
             raise TypeError("relation verifier requires the exact external-order store")
         value = object.__new__(cls)
         value._store = store
+        return value
+
+    @classmethod
+    def for_candidate_custody(
+        cls,
+        custody: ExactLinkCandidateStoreCustody,
+    ) -> StagedBoundedRelationVerifier:
+        del cls
+        if type(custody) is not ExactLinkCandidateStoreCustody:
+            raise TypeError("relation verifier requires exact candidate custody")
+        custody._require_live()
+        if (
+            custody._candidate_state != "EXHAUSTED"
+            or custody._evidence_state != "SEALED"
+            or custody._verifier_issued
+        ):
+            raise ValueError("candidate custody is not sealed for verifier issuance")
+        value = object.__new__(StagedBoundedRelationVerifier)
+        value._store = custody._store
+        custody._verifier_issued = True
         return value
 
     def verify_quality_to_bronze(
@@ -166,15 +188,22 @@ class StagedBoundedRelationVerifier:
         except (AttributeError, KeyError, TypeError, ValidationError, ValueError) as exc:
             raise _quality_contract_error() from exc
 
-    def verify_exact_evidence_to_bronze(self, *, tables: StagedParquetSet) -> None:
+    def verify_exact_evidence_to_bronze(
+        self,
+        *,
+        tables: StagedParquetSet,
+    ) -> ExactEvidenceBronzeJoinObservations:
         try:
             previous_key: tuple[str | int, ...] | None = None
+            matched_bronze_cells = 0
+            max_batch_rows = 0
             for batch in self._store.iter_join_batches(
                 operation=ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE,
                 tables=tables,
             ):
                 if type(batch) is not tuple or len(batch) > 65_536:
                     raise ValueError("evidence join batch is not bounded")
+                max_batch_rows = max(max_batch_rows, len(batch))
                 for joined in batch:
                     if (
                         type(joined) is not ExternalOrderJoinRow
@@ -190,6 +219,11 @@ class StagedBoundedRelationVerifier:
                     ):
                         raise ValueError("evidence join row is invalid")
                     previous_key = joined.key
+                    matched_bronze_cells += 1
+            return ExactEvidenceBronzeJoinObservations(
+                matched_bronze_cells=matched_bronze_cells,
+                max_batch_rows=max_batch_rows,
+            )
         except ArtifactContractError:
             raise
         except (AttributeError, TypeError, ValueError) as exc:

@@ -20,9 +20,19 @@ from datetime import datetime
 from enum import StrEnum
 from pathlib import PurePosixPath
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, BinaryIO, Protocol, Self, cast
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, Protocol, Self, cast
 
 import duckdb
+import pyarrow as pa  # type: ignore[import-untyped]
+import pyarrow.compute as pc  # type: ignore[import-untyped]
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
@@ -39,12 +49,18 @@ from finproof.data.artifacts.parquet_io import (
     OwnedParquetVerificationWorkspace,
     OwnedStageArtifactOwner,
     StagedParquetSet,
+    _descriptor_path,
+)
+from finproof.data.artifacts.serialization import (
+    ExactCrossSourceLinkEvidenceRecord,
+    canonical_record_json,
 )
 from finproof.data.artifacts.table_specs import (
     TABLE_SPECS,
     TableSpec,
     require_registered_table_spec,
 )
+from finproof.domain.locators import SourceCellLocator
 
 if TYPE_CHECKING:
     from finproof.data.artifacts.bronze import (
@@ -421,12 +437,18 @@ class ArtifactBuildSession:
         if self._closed:
             return
         failed = False
+        failure_reason = "initial_stage_cleanup_failed"
         try:
             _require_session_generation(self)
             for writer in tuple(self._live_parquet_writers.values()):
                 writer.abort()
             for store in tuple(self._live_external_order_stores.values()):
-                store.close_and_remove_working_state()
+                try:
+                    store.close_and_remove_working_state()
+                except (ArtifactContractError, OSError, TypeError, ValueError):
+                    if store._candidate_custody_issued:
+                        failure_reason = "exact_link_candidate_store_abort_cleanup_failed"
+                    raise
             for workspace in tuple(self._live_database_workspaces.values()):
                 workspace._discard()
             if (
@@ -493,7 +515,7 @@ class ArtifactBuildSession:
             self._closed = True
             self._state = "CLOSED"
         if failed:
-            raise _staging_error("initial_stage_cleanup_failed")
+            raise _staging_error(failure_reason)
 
 
 class OwnedCandidateStage:
@@ -1405,10 +1427,12 @@ class ExternalOrderStore:
     """Pathless owner-managed external ordering store."""
 
     __slots__ = (
+        "_candidate_custody_issued",
         "_cleanup_state",
         "_closed",
         "_connection",
         "_database_identity",
+        "_expected_exact_link_evidence",
         "_forced_spill_names",
         "_limits",
         "_marker_identity",
@@ -1489,20 +1513,24 @@ class ExternalOrderStore:
             key_count = len(_external_order_key_types(relation))
             columns = ", ".join((*_external_order_key_columns(relation), "payload_json"))
             ordering = ", ".join((*_external_order_key_columns(relation), "payload_json"))
-            cursor = self._connection.execute(
-                f"SELECT {columns} FROM {table_name} ORDER BY {ordering}"  # noqa: S608 -- enum allowlist
-            )
-            while True:
-                rows = cursor.fetchmany(self._limits.batch_rows)
-                if not rows:
-                    return
-                yield tuple(
-                    ExternalOrderRow(
-                        key=tuple(row[:key_count]),
-                        payload_json=str(row[key_count]),
-                    )
-                    for row in rows
+            cursor = self._connection.cursor()
+            try:
+                cursor.execute(
+                    f"SELECT {columns} FROM {table_name} ORDER BY {ordering}"  # noqa: S608 -- enum allowlist
                 )
+                while True:
+                    rows = cursor.fetchmany(self._limits.batch_rows)
+                    if not rows:
+                        return
+                    yield tuple(
+                        ExternalOrderRow(
+                            key=tuple(row[:key_count]),
+                            payload_json=str(row[key_count]),
+                        )
+                        for row in rows
+                    )
+            finally:
+                cursor.close()
         except (duckdb.Error, TypeError, ValueError) as exc:
             raise _stage_contract_error("external_order_read_failed") from exc
 
@@ -1568,6 +1596,7 @@ class ExternalOrderStore:
         self,
         tables: StagedParquetSet,
     ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        operation = self._connection.cursor()
         projections = (
             (
                 "join_quality",
@@ -1627,12 +1656,13 @@ class ExternalOrderStore:
         try:
             for table_name, staged_name, columns in projections:
                 self._load_staged_join_projection(
+                    connection=operation,
                     tables=tables,
                     table_name=table_name,
                     staged_name=staged_name,
                     columns=columns,
                 )
-            cursor = self._connection.execute(_QUALITY_TO_BRONZE_SQL)
+            cursor = operation.execute(_QUALITY_TO_BRONZE_SQL)
             while rows := cursor.fetchmany(self._limits.batch_rows):
                 yield tuple(
                     ExternalOrderJoinRow(
@@ -1642,13 +1672,17 @@ class ExternalOrderStore:
                     for row in rows
                 )
         finally:
-            for table_name, _staged_name, _columns in reversed(projections):
-                self._connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+            try:
+                for table_name, _staged_name, _columns in reversed(projections):
+                    operation.execute(f"DROP TABLE IF EXISTS {table_name}")
+            finally:
+                operation.close()
 
     def _iter_exact_evidence_to_bronze_batches(
         self,
         tables: StagedParquetSet,
     ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        operation = self._connection.cursor()
         projections = (
             (
                 "join_exact_evidence",
@@ -1691,12 +1725,13 @@ class ExternalOrderStore:
         try:
             for table_name, staged_name, columns in projections:
                 self._load_staged_join_projection(
+                    connection=operation,
                     tables=tables,
                     table_name=table_name,
                     staged_name=staged_name,
                     columns=columns,
                 )
-            cursor = self._connection.execute(_EXACT_EVIDENCE_TO_BRONZE_SQL)
+            cursor = operation.execute(_EXACT_EVIDENCE_TO_BRONZE_SQL)
             while rows := cursor.fetchmany(self._limits.batch_rows):
                 yield tuple(
                     ExternalOrderJoinRow(
@@ -1706,8 +1741,11 @@ class ExternalOrderStore:
                     for row in rows
                 )
         finally:
-            for table_name, _staged_name, _columns in reversed(projections):
-                self._connection.execute(f"DROP TABLE IF EXISTS {table_name}")
+            try:
+                for table_name, _staged_name, _columns in reversed(projections):
+                    operation.execute(f"DROP TABLE IF EXISTS {table_name}")
+            finally:
+                operation.close()
 
     def _iter_linked_record_json_batches(
         self,
@@ -1719,58 +1757,114 @@ class ExternalOrderStore:
         id_column: str,
         sql: str,
     ) -> Iterator[tuple[ExternalOrderJoinRow, ...]]:
+        operation = self._connection.cursor()
         try:
-            self._connection.execute(
-                "CREATE TEMP TABLE join_exact_ids (exact_id VARCHAR PRIMARY KEY)"
-            )
+            operation.execute("CREATE TEMP TABLE join_exact_ids (exact_id VARCHAR PRIMARY KEY)")
             if exact_ids:
-                self._connection.executemany(
+                operation.executemany(
                     "INSERT INTO join_exact_ids VALUES (?)",
                     ((value,) for value in exact_ids),
                 )
             self._load_staged_join_projection(
+                connection=operation,
                 tables=tables,
                 table_name=join_table,
                 staged_name=staged_name,
                 columns=((id_column, "VARCHAR"), ("record_json", "VARCHAR")),
+                exact_ids=exact_ids,
             )
-            cursor = self._connection.execute(sql)
+            cursor = operation.execute(sql)
             while rows := cursor.fetchmany(self._limits.batch_rows):
                 yield tuple(
                     ExternalOrderJoinRow(key=(str(row[0]),), values=(str(row[1]),)) for row in rows
                 )
         finally:
-            self._connection.execute(f"DROP TABLE IF EXISTS {join_table}")
-            self._connection.execute("DROP TABLE IF EXISTS join_exact_ids")
+            try:
+                operation.execute(f"DROP TABLE IF EXISTS {join_table}")
+                operation.execute("DROP TABLE IF EXISTS join_exact_ids")
+            finally:
+                operation.close()
+
+    def _iter_exact_link_candidate_batches(
+        self,
+    ) -> Iterator[tuple["ExactLinkCandidateJoinRow", ...]]:
+        self._require_live()
+        try:
+            cursor = self._connection.execute(
+                """
+                SELECT l.key_0, l.key_1, r.key_1, l.payload_json, r.payload_json
+                FROM order_exact_link_left_candidate AS l
+                JOIN order_exact_link_right_candidate AS r ON l.key_0 = r.key_0
+                ORDER BY l.key_0, l.key_1, r.key_1
+                """
+            )
+            while rows := cursor.fetchmany(self._limits.batch_rows):
+                batch: list[ExactLinkCandidateJoinRow] = []
+                for raw_identifier, left_id, right_id, left_json, right_json in rows:
+                    if not all(
+                        type(value) is str
+                        for value in (raw_identifier, left_id, right_id, left_json, right_json)
+                    ):
+                        raise ValueError("candidate join storage changed type")
+                    left = _domestic_candidate_from_json(left_json)
+                    right = _fund_candidate_from_json(right_json)
+                    if (
+                        _canonical_candidate_json(left) != left_json
+                        or _canonical_candidate_json(right) != right_json
+                        or left.identifier.raw_identifier != raw_identifier
+                        or left.left_product_id != left_id
+                        or right.identifiers[0].raw_identifier != raw_identifier
+                        or right.right_product_id != right_id
+                    ):
+                        raise ValueError("candidate join key and payload disagree")
+                    batch.append(
+                        ExactLinkCandidateJoinRow(
+                            matched_raw_identifier=raw_identifier,
+                            left=left,
+                            right=right,
+                        )
+                    )
+                yield tuple(batch)
+        except (AttributeError, duckdb.Error, TypeError, ValueError) as exc:
+            raise _stage_contract_error("exact_link_candidate_join_failed") from exc
 
     def _load_staged_join_projection(
         self,
         *,
+        connection: duckdb.DuckDBPyConnection,
         tables: StagedParquetSet,
         table_name: str,
         staged_name: str,
         columns: tuple[tuple[str, str], ...],
+        exact_ids: tuple[str, ...] | None = None,
     ) -> None:
         definitions = ", ".join(f"{name} {logical_type}" for name, logical_type in columns)
-        self._connection.execute(f"CREATE TEMP TABLE {table_name} ({definitions})")
+        connection.execute(f"CREATE TEMP TABLE {table_name} ({definitions})")
         verification = tables.verification_for(staged_name)
         names = tuple(name for name, _logical_type in columns)
-        placeholders = ", ".join("?" for _ in columns)
+        selected_columns = ", ".join(names)
+        exact_id_values = pa.array(exact_ids, type=pa.string()) if exact_ids is not None else None
         with verification.handle.iter_batches(batch_size=self._limits.batch_rows) as batches:
             for batch in batches:
-                rows = batch.select(names).to_pylist()
-                if len(rows) > self._limits.batch_rows:
+                projection = batch.select(names)
+                if (
+                    projection.num_rows > self._limits.batch_rows
+                    or tuple(projection.schema.names) != names
+                ):
                     raise ValueError("staged join batch exceeds the fixed bound")
-                values = []
-                for row in rows:
-                    if type(row) is not dict or tuple(row) != names:
-                        raise ValueError("staged join projection changed")
-                    values.append(tuple(row[name] for name in names))
-                if values:
-                    self._connection.executemany(
-                        f"INSERT INTO {table_name} VALUES ({placeholders})",  # noqa: S608
-                        values,
+                if exact_id_values is not None:
+                    projection = projection.filter(
+                        pc.is_in(projection.column(0), value_set=exact_id_values)
                     )
+                if projection.num_rows:
+                    connection.register("finproof_staged_join_batch", projection)
+                    try:
+                        connection.execute(
+                            f"INSERT INTO {table_name} ({selected_columns}) "  # noqa: S608
+                            f"SELECT {selected_columns} FROM finproof_staged_join_batch"
+                        )
+                    finally:
+                        connection.unregister("finproof_staged_join_batch")
 
     def _insert_forced_spill_runs(
         self,
@@ -1918,6 +2012,285 @@ class ExternalOrderStore:
             self._closed = True
 
 
+class ExactLinkIdentifierSource(BaseModel):
+    """One raw identifier and its immutable source-cell lineage."""
+
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    raw_identifier: str = Field(min_length=1)
+    locator: SourceCellLocator
+
+    @field_validator("locator", mode="before")
+    @classmethod
+    def require_exact_locator(cls, value: object, info: ValidationInfo) -> object:
+        del cls
+        if info.mode == "json" and type(value) is dict:
+            return value
+        if type(value) is not SourceCellLocator:
+            raise ValueError("identifier source requires an exact locator")
+        return value
+
+
+class DomesticExactLinkCandidate(BaseModel):
+    """One domestic ETF candidate for the exact raw-identifier join."""
+
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    left_product_id: str = Field(min_length=1)
+    source_product_type: Literal["ETF"]
+    identifier: ExactLinkIdentifierSource
+
+    @field_validator("identifier", mode="before")
+    @classmethod
+    def require_exact_identifier_source(cls, value: object, info: ValidationInfo) -> object:
+        del cls
+        if info.mode == "json" and type(value) is dict:
+            return value
+        if type(value) is not ExactLinkIdentifierSource:
+            raise ValueError("domestic candidate requires an exact identifier source")
+        return value
+
+    @model_validator(mode="after")
+    def require_domestic_identifier_role(self) -> Self:
+        locator = self.identifier.locator
+        if locator.source_table != "PREF01N001" or locator.source_column_name != "pd_itm_no":
+            raise ValueError("domestic candidate requires the exact pd_itm_no locator")
+        return self
+
+
+class FundExactLinkCandidate(BaseModel):
+    """One public-fund item and every equivalent right-identifier source."""
+
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    right_product_id: str = Field(min_length=1)
+    identifiers: tuple[ExactLinkIdentifierSource, ...]
+
+    @field_validator("identifiers", mode="before")
+    @classmethod
+    def require_exact_identifier_tuple(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        del cls
+        if info.mode == "json" and type(value) is list and value:
+            return value
+        if type(value) is not tuple or not value:
+            raise ValueError("fund candidate requires a nonempty exact source tuple")
+        if any(type(source) is not ExactLinkIdentifierSource for source in value):
+            raise ValueError("fund candidate sources must be exact identifier sources")
+        return value
+
+    @model_validator(mode="after")
+    def require_fund_identifier_roles_and_order(self) -> Self:
+        raw_identifier = self.identifiers[0].raw_identifier
+        positions: list[tuple[int, int]] = []
+        for source in self.identifiers:
+            locator = source.locator
+            if (
+                locator.source_table != "PRFD01N001"
+                or locator.source_column_name != "ksd_itm_no"
+                or source.raw_identifier != raw_identifier
+            ):
+                raise ValueError("fund candidate identifier source changed role or raw value")
+            positions.append((locator.source_row_number, locator.source_column_number))
+        if len(set(positions)) != len(positions) or positions != sorted(positions):
+            raise ValueError("fund candidate identifier sources changed order or uniqueness")
+        return self
+
+
+@dataclass(frozen=True, slots=True)
+class ExactLinkCandidateJoinRow:
+    """One exact raw-identifier match between domestic and fund candidates."""
+
+    matched_raw_identifier: str
+    left: DomesticExactLinkCandidate
+    right: FundExactLinkCandidate
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.matched_raw_identifier) is not str
+            or not self.matched_raw_identifier
+            or type(self.left) is not DomesticExactLinkCandidate
+            or type(self.right) is not FundExactLinkCandidate
+            or self.left.identifier.raw_identifier != self.matched_raw_identifier
+            or self.right.identifiers[0].raw_identifier != self.matched_raw_identifier
+        ):
+            raise ValueError("exact candidate join row is not canonical")
+
+
+class ExactLinkCandidateStoreCustody:
+    """Opaque custody for the exact live CP6 candidate-store generation."""
+
+    _candidate_state: str
+    _evidence_state: str
+    _owner: ArtifactBuildSession
+    _store: ExternalOrderStore
+    _verifier_issued: bool
+
+    __slots__ = (
+        "_candidate_state",
+        "_evidence_state",
+        "_owner",
+        "_store",
+        "_verifier_issued",
+    )
+
+    def __new__(cls) -> "ExactLinkCandidateStoreCustody":
+        raise TypeError("ExactLinkCandidateStoreCustody is factory-owned")
+
+    @classmethod
+    def _issue(
+        cls,
+        *,
+        owner: ArtifactBuildSession,
+        store: ExternalOrderStore,
+    ) -> "ExactLinkCandidateStoreCustody":
+        del cls
+        try:
+            owner.assert_live()
+            store._require_live()
+            if (
+                type(owner) is not ArtifactBuildSession
+                or type(store) is not ExternalOrderStore
+                or store._owner is not owner
+                or owner._live_external_order_stores.get(id(store)) is not store
+                or store._candidate_custody_issued
+            ):
+                raise ValueError("candidate store is not the exact live generation")
+            value = object.__new__(ExactLinkCandidateStoreCustody)
+            value._candidate_state = "READY"
+            value._evidence_state = "READY"
+            value._owner = owner
+            value._store = store
+            value._verifier_issued = False
+            store._candidate_custody_issued = True
+            return value
+        except (ArtifactContractError, AttributeError, TypeError, ValueError) as exc:
+            raise _stage_contract_error("invalid_exact_link_candidate_custody") from exc
+
+    def iter_candidate_join_batches(
+        self,
+    ) -> Iterator[tuple[ExactLinkCandidateJoinRow, ...]]:
+        self._require_live()
+        if self._candidate_state != "READY":
+            raise _stage_contract_error("exact_link_candidate_stream_unavailable")
+        self._candidate_state = "ITERATING"
+        return self._stream_candidate_join_batches()
+
+    def _stream_candidate_join_batches(
+        self,
+    ) -> Iterator[tuple[ExactLinkCandidateJoinRow, ...]]:
+        exhausted = False
+        try:
+            yield from self._store._iter_exact_link_candidate_batches()
+            exhausted = True
+        finally:
+            self._candidate_state = "EXHAUSTED" if exhausted else "FAILED"
+
+    def admit_exact_evidence(
+        self,
+        rows: Iterable[ExactCrossSourceLinkEvidenceRecord],
+    ) -> None:
+        self._require_live()
+        if self._candidate_state != "EXHAUSTED" or self._evidence_state != "READY":
+            raise _stage_contract_error("exact_link_evidence_admission_unavailable")
+        self._evidence_state = "ADMITTING"
+        count = 0
+        previous_key: tuple[str, int, int] | None = None
+        batch: list[ExternalOrderRow] = []
+        try:
+            for row in rows:
+                if type(row) is not ExactCrossSourceLinkEvidenceRecord:
+                    raise ValueError("evidence admission requires exact CP3 records")
+                validated = ExactCrossSourceLinkEvidenceRecord.model_validate(
+                    row.model_dump(mode="python"),
+                    strict=True,
+                )
+                if validated != row:
+                    raise ValueError("evidence admission record changed")
+                key = (row.link_id, row.evidence_role_order, row.evidence_ordinal)
+                if (
+                    (previous_key is not None and key <= previous_key)
+                    or (
+                        row.evidence_role_order == 0
+                        and (row.evidence_role != "left_identifier" or row.evidence_ordinal != 0)
+                    )
+                    or (
+                        row.evidence_role_order == 1
+                        and (row.evidence_role != "right_identifier" or row.evidence_ordinal < 0)
+                    )
+                    or row.evidence_role_order not in (0, 1)
+                ):
+                    raise ValueError("evidence admission order or role changed")
+                previous_key = key
+                batch.append(
+                    ExternalOrderRow(
+                        key=key,
+                        payload_json=canonical_record_json(row),
+                    )
+                )
+                count += 1
+                if count > self._store._expected_exact_link_evidence:
+                    raise ValueError("evidence admission exceeded expected count")
+                if len(batch) == self._store._limits.batch_rows:
+                    self._store.insert_batch(
+                        relation=ExternalOrderRelation.EXACT_LINK_EVIDENCE,
+                        rows=tuple(batch),
+                    )
+                    batch.clear()
+            if count != self._store._expected_exact_link_evidence:
+                raise ValueError("evidence admission count changed")
+            if batch:
+                self._store.insert_batch(
+                    relation=ExternalOrderRelation.EXACT_LINK_EVIDENCE,
+                    rows=tuple(batch),
+                )
+            self._evidence_state = "SEALED"
+        except (ArtifactContractError, TypeError, ValueError) as exc:
+            self._evidence_state = "FAILED"
+            raise _stage_contract_error("exact_link_evidence_admission_failed") from exc
+
+    def close(self) -> None:
+        if self._candidate_state == "AMBIGUOUS":
+            raise _staging_error("exact_link_candidate_store_close_failed")
+        self._require_live()
+        self._candidate_state = "CLOSING"
+        try:
+            self._store.close_and_remove_working_state()
+        except (ArtifactContractError, OSError, TypeError, ValueError) as exc:
+            self._candidate_state = "AMBIGUOUS"
+            raise _staging_error("exact_link_candidate_store_close_failed") from exc
+        self._candidate_state = "CLOSED"
+
+    def _require_live(self) -> None:
+        try:
+            self._owner.assert_live()
+            self._store._require_live()
+            if (
+                self._store._owner is not self._owner
+                or self._owner._live_external_order_stores.get(id(self._store)) is not self._store
+            ):
+                raise ValueError("candidate store generation changed")
+        except (ArtifactContractError, AttributeError, TypeError, ValueError) as exc:
+            raise _stage_contract_error("exact_link_candidate_custody_not_live") from exc
+
+    def __copy__(self) -> "ExactLinkCandidateStoreCustody":
+        raise TypeError("ExactLinkCandidateStoreCustody cannot be copied")
+
+    def __deepcopy__(self, memo: object) -> "ExactLinkCandidateStoreCustody":
+        del memo
+        raise TypeError("ExactLinkCandidateStoreCustody cannot be copied")
+
+    def __reduce__(self) -> tuple[object, ...]:
+        raise TypeError("ExactLinkCandidateStoreCustody cannot be serialized")
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        del kwargs
+        raise TypeError("ExactLinkCandidateStoreCustody cannot be subclassed")
+
+
 def _open_external_order_store_for_test(
     *,
     owner: ArtifactBuildSession,
@@ -2003,14 +2376,7 @@ def _open_external_order_store(
                 connection,
                 memory_limit_bytes=limits.memory_limit_bytes,
             )
-        for relation in (
-            ExternalOrderRelation.BRONZE_SOURCE_ROW,
-            ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
-            ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
-            ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
-            ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
-            ExternalOrderRelation.SILVER_QUALITY_ISSUE,
-        ):
+        for relation in ExternalOrderRelation:
             table_name = _external_order_table(relation)
             key_columns = tuple(
                 f"key_{index} {'BIGINT' if key_type is int else 'VARCHAR'} NOT NULL"
@@ -2023,11 +2389,13 @@ def _open_external_order_store(
             )
         value = object.__new__(ExternalOrderStore)
         value._cleanup_state = "LIVE"
+        value._candidate_custody_issued = False
         value._closed = False
         value._connection = connection
         value._database_identity = _leaf_identity(
             os.stat("store.duckdb", dir_fd=workspace_fd, follow_symlinks=False)
         )
+        value._expected_exact_link_evidence = config.exact_links.evidence
         value._forced_spill_names = {}
         value._limits = limits
         value._marker_identity = marker_identity
@@ -2094,14 +2462,6 @@ def _read_external_spill_row(stream: BinaryIO) -> tuple[tuple[str | int, ...], s
     return key, payload[1]
 
 
-def _descriptor_path(descriptor: int) -> str:
-    if not hasattr(fcntl, "F_GETPATH"):
-        raise OSError("descriptor path lookup is unavailable")
-    value = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
-    raw = bytes(value).split(b"\0", 1)[0]
-    return os.fsdecode(raw)
-
-
 def _external_order_table(relation: ExternalOrderRelation) -> str:
     if type(relation) is not ExternalOrderRelation:
         raise _stage_contract_error("unknown_external_order_relation")
@@ -2118,9 +2478,9 @@ def _external_order_key_types(
         ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT: (str,),
         ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW: (str, int),
         ExternalOrderRelation.SILVER_QUALITY_ISSUE: (int, str, str, int, int, str, str),
-        ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE: (str,),
-        ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE: (str,),
-        ExternalOrderRelation.EXACT_LINK_EVIDENCE: (str, str),
+        ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE: (str, str),
+        ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE: (str, str),
+        ExternalOrderRelation.EXACT_LINK_EVIDENCE: (str, int, int),
     }
     if type(relation) is not ExternalOrderRelation:
         raise _stage_contract_error("unknown_external_order_relation")
@@ -2157,6 +2517,65 @@ def _coerce_external_order_row(
     ):
         raise ValueError("external order payload is not canonical")
     return row
+
+
+def _canonical_candidate_json(
+    value: DomesticExactLinkCandidate | FundExactLinkCandidate,
+) -> str:
+    return json.dumps(
+        value.model_dump(mode="json"),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _identifier_source_from_payload(value: object) -> ExactLinkIdentifierSource:
+    if type(value) is not dict or tuple(sorted(value)) != ("locator", "raw_identifier"):
+        raise ValueError("identifier source payload shape changed")
+    raw_identifier = value["raw_identifier"]
+    locator_payload = value["locator"]
+    if type(raw_identifier) is not str or type(locator_payload) is not dict:
+        raise ValueError("identifier source payload type changed")
+    locator_json = json.dumps(
+        locator_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    locator = SourceCellLocator.model_validate_json(locator_json, strict=True)
+    return ExactLinkIdentifierSource(raw_identifier=raw_identifier, locator=locator)
+
+
+def _domestic_candidate_from_json(payload_json: str) -> DomesticExactLinkCandidate:
+    payload = json.loads(payload_json)
+    if type(payload) is not dict or tuple(sorted(payload)) != (
+        "identifier",
+        "left_product_id",
+        "source_product_type",
+    ):
+        raise ValueError("domestic candidate payload shape changed")
+    return DomesticExactLinkCandidate(
+        left_product_id=payload["left_product_id"],
+        source_product_type=payload["source_product_type"],
+        identifier=_identifier_source_from_payload(payload["identifier"]),
+    )
+
+
+def _fund_candidate_from_json(payload_json: str) -> FundExactLinkCandidate:
+    payload = json.loads(payload_json)
+    if type(payload) is not dict or tuple(sorted(payload)) != (
+        "identifiers",
+        "right_product_id",
+    ):
+        raise ValueError("fund candidate payload shape changed")
+    identifier_payloads = payload["identifiers"]
+    if type(identifier_payloads) is not list:
+        raise ValueError("fund candidate identifier payload changed")
+    return FundExactLinkCandidate(
+        right_product_id=payload["right_product_id"],
+        identifiers=tuple(_identifier_source_from_payload(value) for value in identifier_payloads),
+    )
 
 
 def _require_external_order_workspace(store: ExternalOrderStore) -> None:

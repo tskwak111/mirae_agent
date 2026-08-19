@@ -1,5 +1,6 @@
 """Capability-bound Parquet writing and verification."""
 
+import fcntl
 import hashlib
 import os
 import secrets
@@ -894,6 +895,14 @@ class _DuckDBUniqueKeyIndex:
 _DescriptorIdentity = tuple[int, int, int, int, int]
 
 
+def _descriptor_path(descriptor: int) -> str:
+    if not hasattr(fcntl, "F_GETPATH"):
+        raise OSError("descriptor path lookup is unavailable")
+    value = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
+    raw = bytes(value).split(b"\0", 1)[0]
+    return os.fsdecode(raw)
+
+
 def _descriptor_identity(descriptor: int, *, directory: bool) -> _DescriptorIdentity:
     observed = os.fstat(descriptor)
     if directory:
@@ -1068,12 +1077,31 @@ class _FinalVerificationWorkspace:
         if limits.memory_limit_bytes != 1 << 30 or limits.batch_rows != 65_536:
             raise ValueError("final verification requires production limits")
         self.assert_unchanged()
+        try:
+            spill_path = _descriptor_path(self._spill_fd)
+        except OSError as exc:
+            raise _workspace_error("workspace_configure_failed") from exc
+        try:
+            if not spill_path:
+                raise _workspace_error("workspace_spill_changed")
+            observed = os.stat(spill_path, follow_symlinks=False)
+            resolved_identity = (
+                observed.st_dev,
+                observed.st_ino,
+                stat.S_IFMT(observed.st_mode),
+                stat.S_IMODE(observed.st_mode),
+                0,
+            )
+            if not stat.S_ISDIR(observed.st_mode) or resolved_identity != self._spill_identity:
+                raise _workspace_error("workspace_spill_changed")
+        except OSError as exc:
+            raise _workspace_error("workspace_spill_changed") from exc
         connection: duckdb.DuckDBPyConnection | None = None
         try:
             connection = duckdb.connect(":memory:")
             connection.execute("SET threads = 1")
             connection.execute("SET memory_limit = '1GiB'")
-            connection.execute("SET temp_directory = ?", [f"/dev/fd/{self._spill_fd}"])
+            connection.execute("SET temp_directory = ?", [spill_path])
             connection.execute("SET enable_external_access = false")
             connection.execute("SET allow_unsigned_extensions = false")
             connection.execute("SET autoinstall_known_extensions = false")

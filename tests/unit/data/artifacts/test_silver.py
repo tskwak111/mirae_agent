@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from copy import copy
 from datetime import UTC, datetime
 from pathlib import Path
@@ -169,6 +171,221 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
             assert len(batches[0]) == 1
             assert result.record is not None
             assert batches[0][0].payload_json == canonical_record_json(result.record)
+
+
+def test_silver_emitter_stages_only_domestic_etf_exact_raw_identifier_candidates(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.serialization import canonical_record_json
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        DomesticExactLinkCandidate,
+        ExactLinkIdentifierSource,
+        ExternalOrderRelation,
+    )
+    from finproof.data.normalization.domestic_listed import normalize_domestic_listed
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    valid = source_row("PREF01N001", {"pd_itm_no": "KR7000000009"}, excel_row=2)
+    excluded = (
+        source_row(
+            "PREF01N001",
+            {"pd_itm_no": "RAW-ETN", "pd_grp_no": "ETN"},
+            excel_row=3,
+        ),
+        source_row("PREF01N001", {"pd_itm_no": ""}, excel_row=4),
+        source_row("PREF02N001", {"pd_itm_no": "RAW-OVERSEAS"}, excel_row=5),
+    )
+    normalized = normalize_domestic_listed(valid, versions.dataset_version)
+    assert normalized.record is not None
+    expected = DomesticExactLinkCandidate(
+        left_product_id=str(normalized.record.product_id.normalized_value),
+        source_product_type="ETF",
+        identifier=ExactLinkIdentifierSource(
+            raw_identifier=valid.cell("pd_itm_no").raw_value,
+            locator=normalized.record.product_id.source,
+        ),
+    )
+
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        for row in (valid, *excluded):
+            emitter.consume(row)
+
+        candidates = tuple(
+            row
+            for batch in emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE
+            )
+            for row in batch
+        )
+        assert candidates == (
+            type(candidates[0])(
+                key=("KR7000000009", str(normalized.record.product_id.normalized_value)),
+                payload_json=canonical_record_json(expected),
+            ),
+        )
+
+
+def test_silver_emitter_stages_fund_representative_and_every_equal_ordered_locator(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.serialization import canonical_record_json
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkIdentifierSource,
+        ExternalOrderRelation,
+        FundExactLinkCandidate,
+    )
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    rows = (
+        source_row(
+            "PRFD01N001",
+            {
+                "itm_no": "KR5114601001",
+                "ksd_itm_no": "KR7000000009",
+                "prfd_attr_cd": "A101",
+            },
+            excel_row=2,
+        ),
+        source_row(
+            "PRFD01N001",
+            {
+                "itm_no": "KR5114601001",
+                "ksd_itm_no": "KR7000000009",
+                "prfd_attr_cd": "B101",
+            },
+            excel_row=3,
+        ),
+    )
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        for row in rows:
+            emitter.consume(row)
+        normalized_groups = tuple(emitter._iter_normalized_fund_groups())
+        assert len(normalized_groups) == 1
+        item = normalized_groups[0].items[0]
+        expected = FundExactLinkCandidate(
+            right_product_id=str(item.fund_item_id.representative.normalized_value),
+            identifiers=tuple(
+                ExactLinkIdentifierSource(
+                    raw_identifier=item.ksd_id.representative.raw_value,
+                    locator=locator,
+                )
+                for locator in item.ksd_id.equivalent_sources
+            ),
+        )
+        candidates = tuple(
+            row
+            for batch in emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE
+            )
+            for row in batch
+        )
+        assert len(candidates) == 1
+        assert candidates[0].key == (
+            "KR7000000009",
+            str(item.fund_item_id.representative.normalized_value),
+        )
+        assert candidates[0].payload_json == canonical_record_json(expected)
+        assert tuple(source.locator for source in expected.identifiers) == tuple(
+            item.ksd_id.equivalent_sources
+        )
+
+
+def test_silver_emitter_retains_fund_item_but_skips_empty_exact_link_identifier_candidate(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import ArtifactBuildSession, ExternalOrderRelation
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    row = source_row(
+        "PRFD01N001",
+        {
+            "itm_no": "KR5114601001",
+            "ksd_itm_no": "",
+            "prfd_attr_cd": "A101",
+        },
+        excel_row=2,
+    )
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        emitter.consume(row)
+
+        groups = tuple(emitter._iter_normalized_fund_groups())
+        candidates = tuple(
+            staged
+            for batch in emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE
+            )
+            for staged in batch
+        )
+
+        assert len(groups) == 1
+        assert len(groups[0].items) == 1
+        assert groups[0].items[0].fund_item_id.representative.normalized_value == "KR5114601001"
+        assert candidates == ()
 
 
 def test_issue_bearing_silver_build_uses_numeric_source_table_order_key_end_to_end(
@@ -568,6 +785,175 @@ def test_silver_build_result_is_factory_only_with_exact_six_field_order_and_obje
         assert require_silver_build_result(result) is result
 
 
+def test_silver_result_preserves_exact_six_fields_and_retains_only_private_candidate_custody(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import fields
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.silver import SilverArtifactEmitter, SilverBuildResult
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+
+        assert tuple(field.name for field in fields(SilverBuildResult)) == (
+            "input_identity",
+            "staged_tables",
+            "observations",
+            "quality_join_observations",
+            "quality_report",
+            "instrumentation",
+        )
+        assert not hasattr(result, "candidate_custody")
+        issuance = object.__getattribute__(result, "_issuance")
+        assert type(issuance.candidate_custody) is ExactLinkCandidateStoreCustody
+        assert issuance.candidate_custody._owner is session
+        assert tuple(session._live_external_order_stores.values()) == (emitter._order_store,)
+
+
+def test_take_exact_link_candidate_store_is_same_result_instance_bound_and_one_use(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.silver import (
+        SilverArtifactEmitter,
+        require_silver_build_result,
+        take_exact_link_candidate_store,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+        retained = result._issuance.candidate_custody
+
+        custody = take_exact_link_candidate_store(silver_result=result)
+
+        assert type(custody) is ExactLinkCandidateStoreCustody
+        assert custody is retained
+        assert result._issuance.candidate_custody is None
+        assert require_silver_build_result(result) is result
+        with pytest.raises(ValueError, match="already taken"):
+            take_exact_link_candidate_store(silver_result=result)
+
+
+def test_take_exact_link_candidate_store_rejects_copy_equal_forge_foreign_and_mutated_result_without_slot_move(  # noqa: E501
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.silver import (
+        SilverArtifactEmitter,
+        SilverBuildResult,
+        take_exact_link_candidate_store,
+    )
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+        retained = result._issuance.candidate_custody
+
+        forged = object.__new__(SilverBuildResult)
+        for name in SilverBuildResult.__annotations__:
+            object.__setattr__(forged, name, getattr(result, name))
+        object.__setattr__(forged, "_issuance", result._issuance)
+        with pytest.raises(ValueError, match=r"provenance|changed"):
+            take_exact_link_candidate_store(silver_result=forged)
+        assert result._issuance.candidate_custody is retained
+
+        original_report = result.quality_report
+        object.__setattr__(result, "quality_report", original_report.model_copy())
+        with pytest.raises(ValueError, match=r"provenance|changed"):
+            take_exact_link_candidate_store(silver_result=result)
+        assert result._issuance.candidate_custody is retained
+        object.__setattr__(result, "quality_report", original_report)
+
+        foreign_context = session.open_external_order_store(config=config)
+        foreign_store = foreign_context.__enter__()
+        foreign = ExactLinkCandidateStoreCustody._issue(
+            owner=session,
+            store=foreign_store,
+        )
+        result._issuance.candidate_custody = foreign
+        with pytest.raises(ValueError, match="changed"):
+            take_exact_link_candidate_store(silver_result=result)
+        assert result._issuance.candidate_custody is foreign
+        result._issuance.candidate_custody = retained
+
+        assert take_exact_link_candidate_store(silver_result=result) is retained
+
+
 def test_silver_build_result_is_frozen_finalizer_issued_and_revalidates_predecessor_relationships(
     tmp_path: Path,
 ) -> None:
@@ -749,4 +1135,136 @@ def test_silver_instrumentation_has_exact_names_counts_and_bounds(tmp_path: Path
             max_live_fund_group_rows=0,
             max_writer_batch_rows=0,
             max_relation_batch_rows=0,
+        )
+
+
+def test_silver_finalizer_accepts_unstaged_malformed_fund_row_backed_by_quality_issue(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactBuildOptions
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.source_rows import PUBLIC_FUND_COLUMNS
+    from tests.helpers.xlsx import write_complete_bronze_repository, write_xlsx
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    malformed = source_row("PRFD01N001", {"itm_no": '"'}, excel_row=2)
+    workbook = settings.source_root / "data/PRFD01N001_data.xlsx"
+    write_xlsx(workbook, rows=(PUBLIC_FUND_COLUMNS, malformed.raw_payload))
+    payload = workbook.read_bytes()
+    manifest_path = settings.source_root / "input_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    entry = next(item for item in manifest["files"] if item["path"] == "data/PRFD01N001_data.xlsx")
+    entry["size_bytes"] = len(payload)
+    entry["sha256"] = hashlib.sha256(payload).hexdigest()
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    config_payload = _silver_fixture_config(settings, versions).model_dump(mode="python")
+    config_payload["silver_counts"]["fund_item"] = 0
+    config_payload["silver_counts"]["fund_item_attribute"] = 0
+    config_payload["quarantine_source_rows"] = 1
+    config = ArtifactBuildConfig.model_validate(config_payload, strict=True)
+
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+
+    staged = {item.name: item.observed for item in result.instrumentation.staged_relation_rows}
+    assert result.instrumentation.source_consume_counts[-1].observed == 1
+    assert staged["PUBLIC_FUND_SOURCE_ROW"] == 0
+    assert staged["SILVER_QUALITY_ISSUE"] == 1
+    assert result.quality_join_observations.total_issues == 1
+
+
+def test_silver_result_successor_validator_accepts_only_exact_registered_eleven_table_successor(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.parquet_io import (
+        ParquetBatchWriter,
+        verify_staged_parquet_table,
+    )
+    from finproof.data.artifacts.silver import (
+        SilverArtifactEmitter,
+        require_silver_build_result_successor,
+    )
+    from finproof.data.artifacts.staging import ArtifactBuildSession
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session,
+            config=config,
+            versions=versions,
+            rating_registry=RatingRegistry.from_yaml(
+                settings.repository_root / "config/rating_scale.yaml"
+            ),
+        )
+        bronze_result = session.ingest_bronze(consumer=emitter)
+        result = emitter.finalize(bronze_result=bronze_result)
+        prefix_verifications = result.staged_tables.verifications
+        prefix_handles = result.staged_tables.handles
+        specs = (
+            TABLE_SPEC_BY_NAME["gold_exact_cross_source_link"],
+            TABLE_SPEC_BY_NAME["gold_exact_cross_source_link_evidence"],
+        )
+        leaves = tuple(session.claim_parquet_leaf(spec) for spec in specs)
+        for spec, leaf in zip(specs, leaves, strict=True):
+            ParquetBatchWriter(spec, leaf).close()
+        gold = tuple(
+            verify_staged_parquet_table(owner=session, leaf=leaf, spec=spec)
+            for spec, leaf in zip(specs, leaves, strict=True)
+        )
+        successor = result.staged_tables.extend_verified(
+            owner=session,
+            verifications=gold,
+        )
+
+        assert (
+            require_silver_build_result_successor(
+                silver_result=result,
+                successor=successor,
+            )
+            is result
+        )
+        assert all(
+            actual is expected
+            for actual, expected in zip(
+                successor.verifications[:9], prefix_verifications, strict=True
+            )
+        )
+        assert all(
+            actual is expected
+            for actual, expected in zip(successor.handles[:9], prefix_handles, strict=True)
         )

@@ -444,6 +444,123 @@ def test_unique_workspace_preserves_external_symlink_victim_bytes_and_mode(
     assert (tmp_path / retained[0]).is_dir()
 
 
+@pytest.mark.parametrize("case", ["valid", "unavailable", "empty", "foreign", "symlink", "changed"])
+def test_final_unique_workspace_uses_exact_held_spill_path_for_darwin_child_creation_and_rejects_invalid_resolution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+) -> None:
+    from finproof.data.artifacts import parquet_io
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+
+    parent = tmp_path / "trusted"
+    parent.mkdir(mode=0o700)
+    foreign = tmp_path / "foreign"
+    foreign.mkdir(mode=0o700)
+    sentinel = foreign / "sentinel"
+    sentinel.write_bytes(b"foreign-bytes")
+    symlink = tmp_path / "spill-link"
+    symlink.symlink_to(foreign, target_is_directory=True)
+    original_descriptor_path = parquet_io._descriptor_path
+    active_workspace: Any = None
+    connections = 0
+    received_paths: list[str] = []
+
+    def resolve(descriptor: int) -> str:
+        if case == "unavailable":
+            raise OSError("descriptor path lookup is unavailable")
+        if case == "empty":
+            return ""
+        if case == "foreign":
+            return os.fspath(foreign)
+        if case == "symlink":
+            return os.fspath(symlink)
+        path = original_descriptor_path(descriptor)
+        if case == "changed":
+            os.fchmod(descriptor, 0o755)
+        return path
+
+    class Connection:
+        def execute(self, sql: str, parameters=None):
+            if sql == "SET temp_directory = ?":
+                assert active_workspace is not None
+                spill_path = parameters[0]
+                received_paths.append(spill_path)
+                observed = os.stat(spill_path, follow_symlinks=False)
+                held = os.fstat(active_workspace._spill_fd)
+                assert (observed.st_dev, observed.st_ino) == (held.st_dev, held.st_ino)
+                child = os.path.join(spill_path, "duckdb-child.tmp")
+                descriptor = os.open(
+                    child,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
+                    0o600,
+                )
+                os.close(descriptor)
+                os.unlink(child)
+            return self
+
+        def executemany(self, sql: str, parameters) -> None:
+            del sql
+            tuple(parameters)
+
+        def fetchone(self):
+            return None
+
+        def close(self) -> None:
+            pass
+
+    def connect(target: str) -> Connection:
+        nonlocal connections
+        assert target == ":memory:"
+        connections += 1
+        return Connection()
+
+    monkeypatch.setattr(parquet_io, "_descriptor_path", resolve)
+    monkeypatch.setattr(parquet_io.duckdb, "connect", connect)
+    with parquet_io._final_verification_workspace(
+        trusted_parent=_trusted_workspace_parent(parent)
+    ) as workspace:
+        active_workspace = workspace
+        if case == "valid":
+            with workspace.create_unique_key_index(limits=parquet_io.ParquetVerificationLimits()):
+                pass
+        else:
+            with pytest.raises(ArtifactContractError) as caught:
+                with workspace.create_unique_key_index(
+                    limits=parquet_io.ParquetVerificationLimits()
+                ):
+                    pass
+            if case == "changed":
+                os.fchmod(workspace._spill_fd, 0o700)
+            error = caught.value
+            assert error.code is (
+                ArtifactErrorCode.DATABASE_VALIDATION_FAILED
+                if case == "unavailable"
+                else ArtifactErrorCode.EXACT_TREE_MISMATCH
+            )
+            assert error.operation_id == (
+                "parquet-workspace-configure"
+                if case == "unavailable"
+                else "parquet-workspace-revalidate"
+            )
+            assert dict(error.internal_context) == {
+                "reason": (
+                    "workspace_configure_failed"
+                    if case == "unavailable"
+                    else "workspace_spill_changed"
+                )
+            }
+            assert error.published is False
+            assert error.target_basename is None
+            assert os.fspath(tmp_path) not in str(error)
+
+    if case == "valid":
+        assert connections == 1
+        assert len(received_paths) == 1
+    else:
+        assert connections == 0
+        assert received_paths == []
+    assert sentinel.read_bytes() == b"foreign-bytes"
+
+
 @pytest.mark.parametrize(
     "case",
     [

@@ -553,3 +553,100 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
                 )
                 for row in batch
             ) == (LinkedRecordJson(product_id="product-1", record_json="{}"),)
+
+
+def test_candidate_custody_issues_one_exact_closed_relation_verifier_without_store_access(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.quality_persistence import StagedBoundedRelationVerifier
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExactLinkCandidateStoreCustody,
+    )
+
+    payload = dict(_EXPECTED_ARTIFACT_CONFIG)
+    payload["exact_links"] = {
+        "links": 0,
+        "evidence": 0,
+        "pair_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    }
+    config = ArtifactBuildConfig.model_validate(payload)
+    settings = artifact_staging_settings(tmp_path / "repository")
+    with ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        store_context = session.open_external_order_store(config=config)
+        store = store_context.__enter__()
+        custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
+        assert tuple(custody.iter_candidate_join_batches()) == ()
+        custody.admit_exact_evidence(())
+
+        verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
+
+        assert type(verifier) is StagedBoundedRelationVerifier
+        assert not any(name in dir(verifier) for name in ("store", "execute", "connection"))
+        with pytest.raises((TypeError, ValueError)):
+            StagedBoundedRelationVerifier.for_candidate_custody(custody)
+        custody.close()
+
+
+def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_returns_measured_bounds(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import (
+        _EXPECTED_ARTIFACT_CONFIG,
+        ArtifactBuildConfig,
+        ArtifactBuildOptions,
+    )
+    from finproof.data.artifacts.quality_persistence import StagedBoundedRelationVerifier
+    from finproof.data.artifacts.reports import ExactEvidenceBronzeJoinObservations
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        ExternalOrderJoinOperation,
+        ExternalOrderJoinRow,
+        ExternalOrderStore,
+    )
+
+    def typed_batches(
+        self: ExternalOrderStore,
+        *,
+        operation: ExternalOrderJoinOperation,
+        tables: Any,
+        exact_ids: tuple[str, ...] = (),
+    ) -> Any:
+        del self, tables
+        assert operation is ExternalOrderJoinOperation.EXACT_EVIDENCE_TO_BRONZE
+        assert exact_ids == ()
+        yield (ExternalOrderJoinRow(key=("a" * 64, 0, 0), values=("ID", 1)),)
+
+    monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
+    settings = artifact_staging_settings(tmp_path / "repository")
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
+    with (
+        ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=artifact_build_input_identity(settings),
+        ) as session,
+        session.open_external_order_store(config=config) as store,
+    ):
+        observed = StagedBoundedRelationVerifier.for_store(store).verify_exact_evidence_to_bronze(
+            tables=_empty_staged_set(session, count=11)
+        )
+
+        assert observed == ExactEvidenceBronzeJoinObservations(
+            matched_bronze_cells=1,
+            max_batch_rows=1,
+        )

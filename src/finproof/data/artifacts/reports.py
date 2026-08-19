@@ -40,6 +40,21 @@ class LinkedRecordJson:
     record_json: str
 
 
+class ExactEvidenceBronzeJoinObservations(BaseModel):
+    """Measured bounded facts from the exact evidence-to-Bronze relation."""
+
+    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+
+    matched_bronze_cells: NonNegativeInt
+    max_batch_rows: NonNegativeInt
+
+    @model_validator(mode="after")
+    def require_closed_batch_bound(self) -> Self:
+        if self.max_batch_rows > 65_536:
+            raise ValueError("exact evidence relation batch bound changed")
+        return self
+
+
 class BoundedRelationVerifier(Protocol):
     """Closed bounded verification port shared by CP5 and CP6."""
 
@@ -49,7 +64,11 @@ class BoundedRelationVerifier(Protocol):
         tables: StagedParquetSet,
     ) -> QualityJoinObservations: ...
 
-    def verify_exact_evidence_to_bronze(self, *, tables: StagedParquetSet) -> None: ...
+    def verify_exact_evidence_to_bronze(
+        self,
+        *,
+        tables: StagedParquetSet,
+    ) -> ExactEvidenceBronzeJoinObservations: ...
 
     def iter_linked_record_json(
         self,
@@ -284,6 +303,50 @@ class ExpectedObservedSha256(BaseModel):
         return self
 
 
+class _ExactEvidenceVerificationProvenance:
+    __slots__ = ("_issuance",)
+
+    _issuance: _ExactEvidenceVerificationIssuance
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class ExactEvidenceVerificationObservations(_ExactEvidenceVerificationProvenance):
+    """Factory-issued complete CP6 exact-link verification facts."""
+
+    exact_links: ExpectedObservedCount
+    exact_link_evidence: ExpectedObservedCount
+    exact_link_pair_sha256: ExpectedObservedSha256
+    matched_bronze_cells: int
+    matched_left_records: int
+    matched_right_records: int
+    max_relation_batch_rows: int
+
+    def __new__(cls, *args: object, **kwargs: object) -> ExactEvidenceVerificationObservations:
+        del args, kwargs
+        raise TypeError("ExactEvidenceVerificationObservations is verifier-issued")
+
+    def __copy__(self) -> ExactEvidenceVerificationObservations:
+        raise TypeError("ExactEvidenceVerificationObservations cannot be copied")
+
+    def __deepcopy__(self, memo: object) -> ExactEvidenceVerificationObservations:
+        del memo
+        raise TypeError("ExactEvidenceVerificationObservations cannot be copied")
+
+
+class _ExactEvidenceVerificationIssuance:
+    __slots__ = ("facts", "owner", "value")
+
+    def __init__(
+        self,
+        value: ExactEvidenceVerificationObservations,
+        *,
+        owner: object,
+    ) -> None:
+        self.value = value
+        self.owner = owner
+        self.facts = tuple(getattr(value, name) for name in value.__dataclass_fields__)
+
+
 @dataclass(frozen=True, init=False, slots=True)
 class SilverSourceAuditObservations:
     """Exact CP5 source-audit successor with no link-phase fields."""
@@ -353,9 +416,53 @@ class SilverSourceAuditObservations:
         )
         return value
 
+    def with_links(
+        self,
+        *,
+        verified: ExactEvidenceVerificationObservations,
+    ) -> CompleteSourceAuditObservations:
+        require_silver_source_audit_observations(self)
+        issuance = self._issuance
+        if issuance.transitioned:
+            raise ValueError("Silver observations were already advanced")
+        if type(verified) is not ExactEvidenceVerificationObservations:
+            raise TypeError("Complete observations require exact verification facts")
+        verified_issuance = object.__getattribute__(verified, "_issuance")
+        if (
+            type(verified_issuance) is not _ExactEvidenceVerificationIssuance
+            or verified_issuance.value is not verified
+            or verified_issuance.facts
+            != tuple(getattr(verified, name) for name in verified.__dataclass_fields__)
+        ):
+            raise ValueError("exact evidence verification issuance changed")
+        value = object.__new__(CompleteSourceAuditObservations)
+        for name in (
+            "source_snapshot_date",
+            "source_manifest_sha256",
+            "schema_catalog_sha256",
+            "source_tables",
+            "silver_tables",
+            "quarantine_source_rows",
+        ):
+            object.__setattr__(value, name, getattr(self, name))
+        object.__setattr__(value, "exact_links", verified.exact_links)
+        object.__setattr__(value, "exact_link_evidence", verified.exact_link_evidence)
+        object.__setattr__(value, "exact_link_pair_sha256", verified.exact_link_pair_sha256)
+        object.__setattr__(
+            value,
+            "_issuance",
+            _CompleteObservationIssuance(
+                value=value,
+                predecessor=self,
+                verified=verified,
+            ),
+        )
+        issuance.transitioned = True
+        return value
+
 
 class _SilverObservationIssuance:
-    __slots__ = ("members", "predecessor", "value")
+    __slots__ = ("members", "predecessor", "transitioned", "value")
 
     def __init__(
         self,
@@ -365,6 +472,7 @@ class _SilverObservationIssuance:
     ) -> None:
         self.value = value
         self.predecessor = predecessor
+        self.transitioned = False
         self.members = (
             value.source_snapshot_date,
             value.source_manifest_sha256,
@@ -373,6 +481,84 @@ class _SilverObservationIssuance:
             value.silver_tables,
             value.quarantine_source_rows,
         )
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class CompleteSourceAuditObservations:
+    """Exact CP6 source-audit successor including verified link facts."""
+
+    source_snapshot_date: date
+    source_manifest_sha256: str
+    schema_catalog_sha256: str
+    source_tables: tuple[SourceTableAudit, ...]
+    silver_tables: tuple[NamedExpectedObservedCount, ...]
+    quarantine_source_rows: ExpectedObservedCount
+    exact_links: ExpectedObservedCount
+    exact_link_evidence: ExpectedObservedCount
+    exact_link_pair_sha256: ExpectedObservedSha256
+    _issuance: _CompleteObservationIssuance
+
+    def __new__(cls, *args: object, **kwargs: object) -> CompleteSourceAuditObservations:
+        del args, kwargs
+        raise TypeError("CompleteSourceAuditObservations is predecessor-issued")
+
+
+class _CompleteObservationIssuance:
+    __slots__ = ("predecessor", "value", "verified")
+
+    def __init__(
+        self,
+        *,
+        value: CompleteSourceAuditObservations,
+        predecessor: SilverSourceAuditObservations,
+        verified: ExactEvidenceVerificationObservations,
+    ) -> None:
+        self.value = value
+        self.predecessor = predecessor
+        self.verified = verified
+
+
+def require_complete_source_audit_observations(value: object) -> None:
+    if type(value) is not CompleteSourceAuditObservations:
+        raise TypeError("observations must have the exact Complete runtime type")
+    issuance = object.__getattribute__(value, "_issuance")
+    if (
+        type(issuance) is not _CompleteObservationIssuance
+        or issuance.value is not value
+        or type(issuance.predecessor) is not SilverSourceAuditObservations
+        or type(issuance.verified) is not ExactEvidenceVerificationObservations
+    ):
+        raise ValueError("Complete observation issuance changed")
+    require_silver_source_audit_observations(issuance.predecessor)
+    verified_issuance = object.__getattribute__(issuance.verified, "_issuance")
+    if (
+        type(verified_issuance) is not _ExactEvidenceVerificationIssuance
+        or verified_issuance.value is not issuance.verified
+        or verified_issuance.facts
+        != tuple(
+            getattr(issuance.verified, name) for name in issuance.verified.__dataclass_fields__
+        )
+        or any(
+            getattr(value, name) is not getattr(issuance.predecessor, name)
+            for name in (
+                "source_tables",
+                "silver_tables",
+                "quarantine_source_rows",
+            )
+        )
+        or any(
+            getattr(value, name) is not getattr(issuance.verified, name)
+            for name in (
+                "exact_links",
+                "exact_link_evidence",
+                "exact_link_pair_sha256",
+            )
+        )
+        or value.source_snapshot_date != issuance.predecessor.source_snapshot_date
+        or value.source_manifest_sha256 != issuance.predecessor.source_manifest_sha256
+        or value.schema_catalog_sha256 != issuance.predecessor.schema_catalog_sha256
+    ):
+        raise ValueError("Complete observation members changed")
 
 
 def require_silver_source_audit_observations(value: object) -> None:
@@ -420,6 +606,76 @@ class SourceAuditReport(BaseModel):
     exact_links: ExpectedObservedCount
     exact_link_evidence: ExpectedObservedCount
     exact_link_pair_sha256: ExpectedObservedSha256
+
+    @classmethod
+    def from_complete_observations(
+        cls,
+        *,
+        config: object,
+        observations: CompleteSourceAuditObservations,
+    ) -> SourceAuditReport:
+        from finproof.data.artifacts.config import ArtifactBuildConfig
+
+        if type(config) is not ArtifactBuildConfig:
+            raise TypeError("source-audit report requires exact build config")
+        validated = ArtifactBuildConfig.model_validate(
+            config.model_dump(mode="python"), strict=True
+        )
+        if validated != config:
+            raise ValueError("source-audit build config changed")
+        require_complete_source_audit_observations(observations)
+        expected_source = tuple(
+            (item.table, item.rows, item.columns, item.cells) for item in config.sources
+        )
+        observed_source = tuple(
+            (
+                item.source_table,
+                item.expected_rows,
+                item.expected_columns,
+                item.expected_cells,
+            )
+            for item in observations.source_tables
+        )
+        configured_silver = (
+            config.silver_counts.bond_instrument,
+            config.silver_counts.domestic_listed_product,
+            config.silver_counts.overseas_listed_product,
+            config.silver_counts.fund_item,
+            config.silver_counts.fund_item_attribute,
+        )
+        if (
+            expected_source != observed_source
+            or configured_silver != tuple(item.expected for item in observations.silver_tables)
+            or config.quarantine_source_rows != observations.quarantine_source_rows.expected
+            or config.exact_links.links != observations.exact_links.expected
+            or config.exact_links.evidence != observations.exact_link_evidence.expected
+            or config.exact_links.pair_sha256 != observations.exact_link_pair_sha256.expected
+        ):
+            raise ValueError("source-audit observations disagree with build config")
+        report = cls(
+            report_id="source_audit",
+            report_contract_version="1.0.0",
+            artifact_contract_version=cast(Literal["1.0.0"], config.artifact_contract_version),
+            source_snapshot_date=observations.source_snapshot_date,
+            source_manifest_sha256=observations.source_manifest_sha256,
+            schema_catalog_sha256=observations.schema_catalog_sha256,
+            source_tables=observations.source_tables,
+            silver_tables=observations.silver_tables,
+            quarantine_source_rows=observations.quarantine_source_rows,
+            exact_links=observations.exact_links,
+            exact_link_evidence=observations.exact_link_evidence,
+            exact_link_pair_sha256=observations.exact_link_pair_sha256,
+        )
+        for name in (
+            "source_tables",
+            "silver_tables",
+            "quarantine_source_rows",
+            "exact_links",
+            "exact_link_evidence",
+            "exact_link_pair_sha256",
+        ):
+            object.__setattr__(report, name, getattr(observations, name))
+        return report
 
     @model_validator(mode="after")
     def require_closed_inventory_order(self) -> Self:

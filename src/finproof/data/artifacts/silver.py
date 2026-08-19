@@ -33,9 +33,13 @@ from finproof.data.artifacts.reports import (
 from finproof.data.artifacts.serialization import canonical_record_json, serialize_table_row
 from finproof.data.artifacts.staging import (
     ArtifactBuildSession,
+    DomesticExactLinkCandidate,
+    ExactLinkCandidateStoreCustody,
+    ExactLinkIdentifierSource,
     ExternalOrderRelation,
     ExternalOrderRow,
     ExternalOrderStore,
+    FundExactLinkCandidate,
 )
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TableSpec
 from finproof.data.normalization.bonds import normalize_bond
@@ -133,7 +137,7 @@ class SilverBuildInstrumentation(_SilverInstrumentationProvenance):
 
 
 class _SilverFinalizerAuthorization:
-    __slots__ = ("members", "result")
+    __slots__ = ("candidate_custody", "members", "result")
 
     def __init__(
         self,
@@ -144,6 +148,7 @@ class _SilverFinalizerAuthorization:
         quality_join_observations: QualityJoinObservations,
         quality_report: QualitySummaryReport,
         instrumentation: SilverBuildInstrumentation,
+        candidate_custody: ExactLinkCandidateStoreCustody,
     ) -> None:
         self.members = (
             bronze_result,
@@ -153,6 +158,7 @@ class _SilverFinalizerAuthorization:
             quality_report,
             instrumentation,
         )
+        self.candidate_custody = candidate_custody
         self.result: SilverBuildResult | None = None
 
 
@@ -277,6 +283,7 @@ class SilverBuildResult(_SilverBuildResultProvenance):
             item.observed_rows for item in exact_bronze.observations.source_tables
         )
         staged_counts = {item.name: item.observed for item in instrumentation.staged_relation_rows}
+        unstaged_fund_rows = source_counts[3] - staged_counts["PUBLIC_FUND_SOURCE_ROW"]
         if (
             tuple(item.observed for item in instrumentation.source_consume_counts) != source_counts
             or instrumentation.source_rows_consumed != sum(source_counts)
@@ -285,7 +292,7 @@ class SilverBuildResult(_SilverBuildResultProvenance):
             != observed_rows["silver_domestic_listed_product"]
             or staged_counts["SILVER_OVERSEAS_LISTED_PRODUCT"]
             != observed_rows["silver_overseas_listed_product"]
-            or staged_counts["PUBLIC_FUND_SOURCE_ROW"] != source_counts[3]
+            or not 0 <= unstaged_fund_rows <= quality_join_observations.quarantined_source_row_count
             or staged_counts["SILVER_QUALITY_ISSUE"] != observed_rows["silver_quality_issue"]
         ):
             raise ValueError("Silver result instrumentation relationship changed")
@@ -334,7 +341,9 @@ class SilverBuildResult(_SilverBuildResultProvenance):
 
 
 class _SilverBuildResultIssuance:
-    __slots__ = ("authorization", "facts", "members", "value")
+    __slots__ = ("authorization", "candidate_custody", "facts", "members", "value")
+
+    candidate_custody: ExactLinkCandidateStoreCustody | None
 
     def __init__(
         self,
@@ -344,6 +353,7 @@ class _SilverBuildResultIssuance:
     ) -> None:
         self.value = value
         self.authorization = authorization
+        self.candidate_custody = authorization.candidate_custody
         self.members = (
             value.input_identity,
             value.staged_tables,
@@ -402,6 +412,94 @@ def require_silver_build_result(value: object) -> SilverBuildResult:
     except AttributeError as exc:
         raise ValueError("Silver result issuance is absent") from exc
     return value
+
+
+def take_exact_link_candidate_store(
+    *,
+    silver_result: SilverBuildResult,
+) -> ExactLinkCandidateStoreCustody:
+    """Move exact-link candidate custody out of one exact Silver result once."""
+    exact = require_silver_build_result(silver_result)
+    issuance = exact._issuance
+    custody = issuance.candidate_custody
+    if custody is None:
+        raise ValueError("exact-link candidate custody was already taken")
+    if (
+        type(custody) is not ExactLinkCandidateStoreCustody
+        or custody is not issuance.authorization.candidate_custody
+    ):
+        raise ValueError("exact-link candidate custody changed")
+    custody._require_live()
+    issuance.candidate_custody = None
+    return custody
+
+
+def require_silver_build_result_successor(
+    *,
+    silver_result: SilverBuildResult,
+    successor: StagedParquetSet,
+) -> SilverBuildResult:
+    if type(silver_result) is not SilverBuildResult or type(successor) is not StagedParquetSet:
+        raise TypeError("Silver successor validation requires exact runtime types")
+    issuance = object.__getattribute__(silver_result, "_issuance")
+    members = (
+        silver_result.input_identity,
+        silver_result.staged_tables,
+        silver_result.observations,
+        silver_result.quality_join_observations,
+        silver_result.quality_report,
+        silver_result.instrumentation,
+    )
+    prefix = silver_result.staged_tables
+    if (
+        type(issuance) is not _SilverBuildResultIssuance
+        or issuance.value is not silver_result
+        or issuance.authorization.result is not silver_result
+        or any(left is not right for left, right in zip(issuance.members, members, strict=True))
+        or issuance.facts
+        != (
+            silver_result.quality_join_observations.model_dump_json(),
+            silver_result.quality_report.model_dump_json(),
+            _instrumentation_facts(silver_result.instrumentation),
+        )
+    ):
+        raise ValueError("Silver result issuance changed")
+    silver_result.input_identity.assert_unchanged()
+    require_silver_source_audit_observations(silver_result.observations)
+    QualityJoinObservations.model_validate(
+        silver_result.quality_join_observations.model_dump(mode="python"),
+        strict=True,
+    )
+    QualitySummaryReport.model_validate(
+        silver_result.quality_report.model_dump(mode="python"),
+        strict=True,
+    )
+    if type(silver_result.instrumentation) is not SilverBuildInstrumentation:
+        raise TypeError("Silver instrumentation must have the exact runtime type")
+    successor.assert_live()
+    if (
+        len(prefix.verifications) != 9
+        or len(successor.verifications) != 11
+        or prefix._owner is not successor._owner
+        or prefix.persistence_timestamp != successor.persistence_timestamp
+        or any(
+            actual is not expected
+            for actual, expected in zip(
+                successor.verifications[:9], prefix.verifications, strict=True
+            )
+        )
+        or any(
+            actual is not expected
+            for actual, expected in zip(successor.handles[:9], prefix.handles, strict=True)
+        )
+        or tuple(item.logical.name for item in successor.verifications[9:])
+        != (
+            "gold_exact_cross_source_link",
+            "gold_exact_cross_source_link_evidence",
+        )
+    ):
+        raise ValueError("staged tables are not the exact Silver successor")
+    return silver_result
 
 
 def _instrumentation_facts(value: SilverBuildInstrumentation) -> tuple[object, ...]:
@@ -586,6 +684,28 @@ class SilverArtifactEmitter:
                 ),
             ),
         )
+        if (
+            relation is ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
+            and type(result.record) is ListedProduct
+            and result.record.product_type.normalized_value == "ETF"
+        ):
+            candidate = DomesticExactLinkCandidate(
+                left_product_id=product_id,
+                source_product_type="ETF",
+                identifier=ExactLinkIdentifierSource(
+                    raw_identifier=result.record.product_id.raw_value,
+                    locator=result.record.product_id.source,
+                ),
+            )
+            self._order_store.insert_batch(
+                relation=ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE,
+                rows=(
+                    ExternalOrderRow(
+                        key=(candidate.identifier.raw_identifier, product_id),
+                        payload_json=canonical_record_json(candidate),
+                    ),
+                ),
+            )
         self._staged_relation_rows[relation.name] += 1
 
     def _stage_quality_issues(self, issues: Sequence[DataQualityIssue]) -> None:
@@ -707,7 +827,10 @@ class SilverArtifactEmitter:
             max_writer_batch_rows=self._max_writer_batch_rows,
             max_relation_batch_rows=self._max_relation_batch_rows,
         )
-        self._order_store.close_and_remove_working_state()
+        candidate_custody = ExactLinkCandidateStoreCustody._issue(
+            owner=self._session,
+            store=self._order_store,
+        )
         authorization = _SilverFinalizerAuthorization(
             bronze_result=exact,
             staged_tables=self._staged_tables,
@@ -715,6 +838,7 @@ class SilverArtifactEmitter:
             quality_join_observations=self._quality_join_observations,
             quality_report=self._quality_report,
             instrumentation=self._instrumentation,
+            candidate_custody=candidate_custody,
         )
         object.__setattr__(
             self._instrumentation,
@@ -845,6 +969,32 @@ class SilverArtifactEmitter:
             self._last_fund_group_size = len(group)
             result = normalize_public_fund_item_group(tuple(group))
             group.clear()
+            for item in result.items:
+                right_product_id = item.fund_item_id.representative.normalized_value
+                if type(right_product_id) is not str:
+                    raise ValueError("normalized fund item ID is missing")
+                raw_identifier = item.ksd_id.representative.raw_value
+                if raw_identifier == "":
+                    continue
+                candidate = FundExactLinkCandidate(
+                    right_product_id=right_product_id,
+                    identifiers=tuple(
+                        ExactLinkIdentifierSource(
+                            raw_identifier=raw_identifier,
+                            locator=source,
+                        )
+                        for source in item.ksd_id.equivalent_sources
+                    ),
+                )
+                self._order_store.insert_batch(
+                    relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
+                    rows=(
+                        ExternalOrderRow(
+                            key=(raw_identifier, right_product_id),
+                            payload_json=canonical_record_json(candidate),
+                        ),
+                    ),
+                )
             return result
 
         for batch in self._order_store.iter_ordered_batches(
