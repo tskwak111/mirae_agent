@@ -172,7 +172,9 @@ def test_cp4_bronze_observations_reject_forged_later_typestate_and_report_admiss
     assert reports.SilverSourceAuditObservations.__name__ == "SilverSourceAuditObservations"
     with pytest.raises(TypeError):
         reports.SilverSourceAuditObservations()
-    assert not hasattr(reports, "CompleteSourceAuditObservations")
+    assert reports.CompleteSourceAuditObservations.__name__ == ("CompleteSourceAuditObservations")
+    with pytest.raises(TypeError):
+        reports.CompleteSourceAuditObservations()
     assert not hasattr(reports, "produce_source_audit_report")
 
 
