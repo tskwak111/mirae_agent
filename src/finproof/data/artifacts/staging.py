@@ -72,6 +72,7 @@ if TYPE_CHECKING:
 _TRANSFERRED_STAGE_SLOTS = (
     "_database_claimed",
     "_database_leaf",
+    "_final_leaf_identities",
     "_input_identity",
     "_lock_fd",
     "_marker_identity",
@@ -82,6 +83,7 @@ _TRANSFERRED_STAGE_SLOTS = (
     "_parquet_fd",
     "_registered_parquet_names",
     "_registered_stage_names",
+    "_reports_identity",
     "_sealed_database",
     "_sealed_issuance",
     "_sealed_leaf_token",
@@ -110,6 +112,7 @@ class ArtifactBuildSession:
         "_closed",
         "_database_claimed",
         "_database_leaf",
+        "_final_leaf_identities",
         "_input_identity",
         "_leaf_objects",
         "_live_database_workspaces",
@@ -124,6 +127,7 @@ class ArtifactBuildSession:
         "_parquet_fd",
         "_registered_parquet_names",
         "_registered_stage_names",
+        "_reports_identity",
         "_sealed_database",
         "_sealed_issuance",
         "_sealed_leaf_token",
@@ -197,7 +201,8 @@ class ArtifactBuildSession:
             self._live_parquet_writers
             or self._live_external_order_stores
             or self._live_database_workspaces
-            or self._registered_stage_names - {"parquet", "finproof.duckdb"}
+            or self._registered_stage_names
+            - {"parquet", "finproof.duckdb", "reports", "manifest.json"}
         ):
             raise _staging_error("working_state_not_closed")
         value = object.__new__(OwnedCandidateStage)
@@ -322,6 +327,102 @@ class ArtifactBuildSession:
     ) -> AbstractContextManager["ManagedStageDatabaseBuild"]:
         self.assert_live()
         return _open_managed_stage_database_build(self)
+
+    def _write_final_artifact(
+        self,
+        *,
+        relative_path: Literal[
+            "reports/source_audit.json",
+            "reports/quality_summary.json",
+            "manifest.json",
+        ],
+        payload: bytes,
+    ) -> tuple[int, str]:
+        """Write one closed CP7 final leaf through retained stage descriptors."""
+        self.assert_live()
+        supplied_path: object = relative_path
+        allowed = {
+            "reports/source_audit.json",
+            "reports/quality_summary.json",
+            "manifest.json",
+        }
+        if (
+            type(supplied_path) is not str
+            or supplied_path not in allowed
+            or type(payload) is not bytes
+            or not payload
+            or supplied_path in self._final_leaf_identities
+        ):
+            raise _stage_contract_error("invalid_final_artifact_leaf")
+        relative_path = supplied_path
+        parent_fd = self._stage_fd
+        leaf_name = relative_path
+        reports_fd = -1
+        reports_created = False
+        created_leaf_identity: tuple[int, int, int, int, int] | None = None
+        try:
+            if relative_path.startswith("reports/"):
+                if self._reports_identity is None:
+                    os.mkdir("reports", mode=0o700, dir_fd=self._stage_fd)
+                    reports_created = True
+                    self._registered_stage_names.add("reports")
+                    self._reports_identity = _directory_identity(
+                        os.stat("reports", dir_fd=self._stage_fd, follow_symlinks=False)
+                    )
+                reports_fd = os.open(
+                    "reports",
+                    os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=self._stage_fd,
+                )
+                if _directory_identity(os.fstat(reports_fd)) != self._reports_identity:
+                    raise ValueError("reports directory changed")
+                parent_fd = reports_fd
+                leaf_name = PurePosixPath(relative_path).name
+            descriptor = os.open(
+                leaf_name,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+                0o600,
+                dir_fd=parent_fd,
+            )
+            try:
+                created_leaf_identity = _leaf_identity(os.fstat(descriptor))
+                view = memoryview(payload)
+                while view:
+                    written = os.write(descriptor, view)
+                    if written <= 0:
+                        raise OSError("final artifact write made no progress")
+                    view = view[written:]
+                os.fsync(descriptor)
+                identity = _leaf_identity(os.fstat(descriptor))
+            finally:
+                os.close(descriptor)
+            self._final_leaf_identities[relative_path] = identity
+            if relative_path == "manifest.json":
+                self._registered_stage_names.add("manifest.json")
+            _refresh_owned_database_mutation(self)
+            return len(payload), hashlib.sha256(payload).hexdigest()
+        except (OSError, TypeError, ValueError) as exc:
+            if created_leaf_identity is not None:
+                try:
+                    named = os.stat(leaf_name, dir_fd=parent_fd, follow_symlinks=False)
+                    if _leaf_identity(named) != created_leaf_identity:
+                        raise ValueError("partial final artifact leaf changed")
+                    os.unlink(leaf_name, dir_fd=parent_fd)
+                    if reports_created:
+                        os.close(reports_fd)
+                        reports_fd = -1
+                        os.rmdir("reports", dir_fd=self._stage_fd)
+                        self._registered_stage_names.remove("reports")
+                        self._reports_identity = None
+                    _refresh_owned_database_mutation(self)
+                except (OSError, TypeError, ValueError) as cleanup_exc:
+                    raise _stage_contract_error(
+                        "write_final_artifact_cleanup_failed"
+                    ) from cleanup_exc
+            raise _stage_contract_error("write_final_artifact_failed") from exc
+        finally:
+            if reports_fd >= 0:
+                os.close(reports_fd)
 
     def _register_live_parquet_writer(self, writer: object, leaf: object) -> None:
         from finproof.data.artifacts.parquet_io import ParquetBatchWriter
@@ -459,8 +560,14 @@ class ArtifactBuildSession:
                 raise ValueError("live working object remained registered after abort")
             self._state = "CLOSING"
             _require_session_generation(self)
-            if self._registered_stage_names - {"parquet", "finproof.duckdb"}:
+            if self._registered_stage_names - {
+                "parquet",
+                "finproof.duckdb",
+                "reports",
+                "manifest.json",
+            }:
                 raise ValueError("live working state remains registered")
+            _remove_owned_final_artifacts(self)
             for leaf in sorted(
                 self._leaf_objects.values(),
                 key=lambda value: PurePosixPath(value._spec.parquet_path).name,
@@ -526,6 +633,7 @@ class OwnedCandidateStage:
         "_closed",
         "_database_claimed",
         "_database_leaf",
+        "_final_leaf_identities",
         "_input_identity",
         "_leaf_objects",
         "_lock_fd",
@@ -537,6 +645,7 @@ class OwnedCandidateStage:
         "_parquet_fd",
         "_registered_parquet_names",
         "_registered_stage_names",
+        "_reports_identity",
         "_sealed_database",
         "_sealed_issuance",
         "_sealed_leaf_token",
@@ -2915,6 +3024,78 @@ class ExpectedAcceptedCustodyReceiver(Protocol):
     ) -> None: ...
 
 
+def _validate_owned_final_artifacts(
+    owner: ArtifactBuildSession | OwnedCandidateStage | CandidateStageCustody,
+) -> None:
+    identities = owner._final_leaf_identities
+    if type(identities) is not dict:
+        raise ValueError("final artifact registry changed")
+    report_paths = {path for path in identities if path.startswith("reports/")}
+    if report_paths:
+        if owner._reports_identity is None:
+            raise ValueError("reports directory registry changed")
+        named = os.stat("reports", dir_fd=owner._stage_fd, follow_symlinks=False)
+        if _directory_identity(named) != owner._reports_identity:
+            raise ValueError("reports directory changed")
+        reports_fd = os.open(
+            "reports",
+            os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=owner._stage_fd,
+        )
+        try:
+            with os.scandir(reports_fd) as entries:
+                observed = {entry.name for entry in entries}
+            if observed != {PurePosixPath(path).name for path in report_paths}:
+                raise ValueError("reports inventory changed")
+            for path in report_paths:
+                named = os.stat(
+                    PurePosixPath(path).name,
+                    dir_fd=reports_fd,
+                    follow_symlinks=False,
+                )
+                if _leaf_identity(named) != identities[path]:
+                    raise ValueError("report leaf changed")
+        finally:
+            os.close(reports_fd)
+    elif owner._reports_identity is not None:
+        raise ValueError("empty reports registry changed")
+    manifest_identity = identities.get("manifest.json")
+    if manifest_identity is not None:
+        named = os.stat("manifest.json", dir_fd=owner._stage_fd, follow_symlinks=False)
+        if _leaf_identity(named) != manifest_identity:
+            raise ValueError("manifest leaf changed")
+
+
+def _remove_owned_final_artifacts(
+    owner: ArtifactBuildSession | OwnedCandidateStage | CandidateStageCustody,
+) -> None:
+    _validate_owned_final_artifacts(owner)
+    report_paths = sorted(
+        path for path in owner._final_leaf_identities if path.startswith("reports/")
+    )
+    if report_paths:
+        reports_fd = os.open(
+            "reports",
+            os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW,
+            dir_fd=owner._stage_fd,
+        )
+        try:
+            for path in report_paths:
+                os.unlink(PurePosixPath(path).name, dir_fd=reports_fd)
+                del owner._final_leaf_identities[path]
+        finally:
+            os.close(reports_fd)
+        os.rmdir("reports", dir_fd=owner._stage_fd)
+        owner._registered_stage_names.remove("reports")
+        owner._reports_identity = None
+    if "manifest.json" in owner._final_leaf_identities:
+        os.unlink("manifest.json", dir_fd=owner._stage_fd)
+        del owner._final_leaf_identities["manifest.json"]
+        owner._registered_stage_names.remove("manifest.json")
+    if type(owner) is ArtifactBuildSession:
+        _refresh_owned_database_mutation(owner)
+
+
 def _discard_exact_candidate(
     owner: OwnedCandidateStage | CandidateStageCustody,
     *,
@@ -2932,6 +3113,7 @@ def _discard_exact_candidate(
     owner._state = "CLOSING"
     failed = False
     try:
+        _remove_owned_final_artifacts(owner)
         for leaf_name in sorted(owner._registered_parquet_names):
             leaf = next(
                 value
@@ -3017,6 +3199,7 @@ def _duplicate_candidate_root_adoption(
 def _require_exact_candidate_children(
     owner: OwnedCandidateStage | CandidateStageCustody,
 ) -> None:
+    _validate_owned_final_artifacts(owner)
     expected_parquet: dict[str, _OwnedParquetLeaf] = {}
     for leaf in owner._leaf_objects.values():
         if not leaf._created:
@@ -3031,6 +3214,10 @@ def _require_exact_candidate_children(
     if set(expected_parquet) != owner._registered_parquet_names:
         raise _staging_error("candidate_parquet_registry_mismatch")
     expected_stage_names = {"parquet"}
+    if owner._reports_identity is not None:
+        expected_stage_names.add("reports")
+    if "manifest.json" in owner._final_leaf_identities:
+        expected_stage_names.add("manifest.json")
     database_leaf = owner._database_leaf
     if database_leaf is not None and database_leaf._created:
         if database_leaf._identity is None:
@@ -3143,6 +3330,8 @@ def _initialize_session(
         value._versions = versions
         value._registered_parquet_names = set()
         value._registered_stage_names = {"parquet"}
+        value._final_leaf_identities = {}
+        value._reports_identity = None
         value._claimed_specs = set()
         value._leaf_objects = {}
         value._live_parquet_writers = {}

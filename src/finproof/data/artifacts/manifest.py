@@ -22,6 +22,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    PrivateAttr,
     field_serializer,
     field_validator,
     model_validator,
@@ -524,6 +525,62 @@ class ArtifactManifest(BaseModel):
     database_sha256: Sha256
     tables: Mapping[str, ArtifactTable]
     logical_hash: Sha256
+    _build_input_identity: BuildInputIdentityView | None = PrivateAttr(default=None)
+
+    @classmethod
+    def from_build(
+        cls,
+        *,
+        input_identity: BuildInputIdentityView,
+        persistence_timestamp: datetime,
+        versions: ArtifactVersions,
+        files: tuple[ArtifactFile, ...],
+        database_sha256: str,
+        tables: Mapping[str, ArtifactTable],
+        logical_hash: str,
+    ) -> Self:
+        """Construct one build-authorized manifest from the retained input carrier."""
+        input_identity.assert_unchanged()
+        source_inputs = input_identity.logical_inputs
+        if (
+            type(source_inputs) is not tuple
+            or source_inputs[0].sha256 != input_identity.source_manifest_sha256
+            or source_inputs[1].sha256 != input_identity.schema_catalog_sha256
+        ):
+            raise ValueError("build input identity facts changed")
+        seal = input_identity.take_manifest_identity_seal()
+        _consume_build_input_manifest_seal(seal, input_identity)
+        value = cls(
+            manifest_version="1.0.0",
+            artifact_contract_version="1.0.0",
+            artifact_set_id="finproof-data-artifacts/v1",
+            dataset_version=versions.dataset_version,
+            persistence_timestamp=persistence_timestamp,
+            source_inputs=source_inputs,
+            versions=versions,
+            files=files,
+            database_path="finproof.duckdb",
+            database_sha256=database_sha256,
+            tables=tables,
+            logical_hash=logical_hash,
+        )
+        object.__setattr__(value, "source_inputs", source_inputs)
+        object.__setattr__(value, "_build_input_identity", input_identity)
+        return value
+
+    def require_build_input_identity(self, value: BuildInputIdentityView) -> None:
+        try:
+            if self._build_input_identity is not value:
+                raise ValueError("build input identity changed")
+            value.assert_unchanged()
+            if (
+                self.source_inputs is not value.logical_inputs
+                or self.source_inputs[0].sha256 != value.source_manifest_sha256
+                or self.source_inputs[1].sha256 != value.schema_catalog_sha256
+            ):
+                raise ValueError("build input identity facts changed")
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise ValueError("build input identity changed") from exc
 
     @classmethod
     def load(cls, path: Path) -> Self:
@@ -1254,6 +1311,44 @@ class ArtifactVerificationKernel:
         assert self._report_verifier is not None
         assert self._database_verifier is not None
         with verify_declared_inventory(manifest, root) as inventory:
+            specs = self._table_registry.ordered_specs()
+            tables = self._table_verifier.verify_tables(
+                manifest=manifest,
+                inventory=inventory,
+                specs=specs,
+            )
+            tables.validate_against(inventory)
+            reports = self._report_verifier.verify_reports(
+                manifest=manifest,
+                inventory=inventory,
+                tables=tables,
+            )
+            tables.validate_against(inventory)
+            logical = _build_core_result(manifest, tables, reports)
+            tables.validate_against(inventory)
+            self._database_verifier.verify_database(
+                manifest=manifest,
+                inventory=inventory,
+                specs=specs,
+                tables=tables,
+                logical=logical,
+            )
+            inventory.assert_unchanged()
+            return logical
+
+    def verify_candidate_core_from_root(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        root: ManagedArtifactVerificationRoot,
+    ) -> ArtifactCoreVerificationResult:
+        """Verify a candidate through one retained path-free root capability."""
+        self._require_ports(include_expected=False)
+        assert self._table_registry is not None
+        assert self._table_verifier is not None
+        assert self._report_verifier is not None
+        assert self._database_verifier is not None
+        with root.open_inventory(manifest=manifest) as inventory:
             specs = self._table_registry.ordered_specs()
             tables = self._table_verifier.verify_tables(
                 manifest=manifest,

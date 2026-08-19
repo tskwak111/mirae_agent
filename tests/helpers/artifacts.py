@@ -3,7 +3,7 @@
 import hashlib
 from datetime import UTC, date, datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any, Final, Literal, cast
 
 from finproof.data.artifacts.parquet_io import (
     StagedParquetHandle,
@@ -319,6 +319,367 @@ def write_empty_parquet_artifact_tree(root: Path) -> Any:
     manifest = ArtifactManifest.model_validate(payload, strict=True)
     (root / "manifest.json").write_text(manifest.model_dump_json(), encoding="utf-8")
     return manifest
+
+
+def write_empty_database_artifact_tree(root: Path) -> Any:
+    """Write one complete tree whose DuckDB exactly matches eleven empty Parquets."""
+    import duckdb
+
+    from finproof.data.artifacts.manifest import ArtifactManifest
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    manifest = write_empty_parquet_artifact_tree(root)
+    database_path = root / "finproof.duckdb"
+    database_path.unlink()
+    connection = duckdb.connect(str(database_path))
+    try:
+        for spec in TABLE_SPECS:
+            columns = ", ".join(
+                f'"{column.name}" {column.duckdb_type}' + ("" if column.nullable else " NOT NULL")
+                for column in spec.columns
+            )
+            connection.execute(f'CREATE TABLE "{spec.table_name}" ({columns})')
+    finally:
+        connection.close()
+    payload = manifest.model_dump(mode="python")
+    content = database_path.read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    files = [dict(entry) for entry in payload["files"]]
+    files[0]["size_bytes"] = len(content)
+    files[0]["sha256"] = digest
+    payload["files"] = tuple(files)
+    payload["database_sha256"] = digest
+    updated = ArtifactManifest.model_validate(payload, strict=True)
+    (root / "manifest.json").write_text(updated.model_dump_json(), encoding="utf-8")
+    return updated
+
+
+def write_database_artifact_tree(
+    root: Path,
+    rows_by_table: dict[str, tuple[dict[str, object], ...]],
+) -> Any:
+    """Write one small complete Parquet/DuckDB-equivalent CP7 fixture tree."""
+    import duckdb
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    from finproof.data.artifacts.hashing import schema_sha256, table_logical_hash
+    from finproof.data.artifacts.manifest import ArtifactManifest
+    from finproof.data.artifacts.parquet_io import _arrow_schema
+    from finproof.data.artifacts.serialization import logical_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    payload = manifest_payload()
+    files = [dict(entry) for entry in payload["files"]]
+    root.mkdir()
+    (root / "parquet").mkdir()
+    (root / "reports").mkdir()
+    tables: dict[str, object] = {}
+    arrow_tables: dict[str, pa.Table] = {}
+    for spec in TABLE_SPECS:
+        rows = rows_by_table.get(spec.table_name, ())
+        table = pa.Table.from_pylist(list(rows), schema=_arrow_schema(spec))
+        arrow_tables[spec.table_name] = table
+        pq.write_table(
+            table,
+            root / spec.parquet_path,
+            compression="zstd",
+            compression_level=3,
+            write_statistics=True,
+            data_page_size=1_048_576,
+            row_group_size=65_536,
+        )
+        tables[spec.table_name] = {
+            "table_name": spec.table_name,
+            "layer": spec.layer,
+            "grain": spec.grain,
+            "parquet_path": spec.parquet_path,
+            "row_count": len(rows),
+            "schema_sha256": schema_sha256(spec),
+            "sort_key": spec.sort_key,
+            "unique_key": spec.unique_key,
+            "logical_hash": table_logical_hash(
+                spec,
+                row_count=len(rows),
+                rows=(logical_table_row(spec, row) for row in rows),
+            ),
+        }
+    database_path = root / "finproof.duckdb"
+    connection = duckdb.connect(str(database_path))
+    try:
+        for index, spec in enumerate(TABLE_SPECS):
+            columns = ", ".join(
+                f'"{column.name}" {column.duckdb_type}' + ("" if column.nullable else " NOT NULL")
+                for column in spec.columns
+            )
+            connection.execute(f'CREATE TABLE "{spec.table_name}" ({columns})')
+            table = arrow_tables[spec.table_name]
+            if table.num_rows:
+                name = f"_fixture_{index}"
+                connection.register(name, table)
+                try:
+                    connection.execute(
+                        f'INSERT INTO "{spec.table_name}" SELECT * FROM "{name}"'  # noqa: S608 -- test-only closed spec identifiers
+                    )
+                finally:
+                    connection.unregister(name)
+    finally:
+        connection.close()
+    for entry in files:
+        path = root / str(entry["path"])
+        if entry["kind"] == "report":
+            path.write_bytes(f"synthetic:{entry['path']}\n".encode())
+        content = path.read_bytes()
+        entry["size_bytes"] = len(content)
+        entry["sha256"] = hashlib.sha256(content).hexdigest()
+    database = files[0]
+    payload["database_sha256"] = database["sha256"]
+    payload["files"] = tuple(files)
+    payload["tables"] = {name: tables[name] for name in sorted(tables)}
+    manifest = ArtifactManifest.model_validate(payload, strict=True)
+    (root / "manifest.json").write_text(manifest.model_dump_json(), encoding="utf-8")
+    return manifest
+
+
+def write_report_artifact_tree(
+    root: Path,
+    rows_by_table: dict[str, tuple[dict[str, object], ...]],
+) -> Any:
+    """Write one small complete tree with strict internally consistent reports."""
+    from finproof.data.artifacts.expected_contract import (
+        ExpectedLogicalInput,
+        ExpectedLogicalTable,
+        ExpectedSemanticReport,
+    )
+    from finproof.data.artifacts.hashing import manifest_logical_hash, report_logical_hash
+    from finproof.data.artifacts.links import (
+        canonical_link_pair_tsv,
+        exact_link_pair_sha256,
+    )
+    from finproof.data.artifacts.manifest import ArtifactManifest, _ManifestLogicalProjection
+    from finproof.data.artifacts.reports import (
+        ExcludedSilverCount,
+        ExpectedObservedCount,
+        ExpectedObservedSha256,
+        NamedExpectedObservedCount,
+        QualityJoinObservations,
+        QualitySummaryReport,
+        SourceAuditReport,
+        SourceTableAudit,
+    )
+    from finproof.data.artifacts.serialization import ExactCrossSourceLinkRecord
+    from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
+    from finproof.domain.quality import DataQualityIssue
+
+    manifest = write_database_artifact_tree(root, rows_by_table)
+    source_tables = tuple(
+        SourceTableAudit(
+            source_table=cast(
+                Literal["PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001"],
+                table,
+            ),
+            expected_rows=sum(
+                row["source_table"] == table for row in rows_by_table.get("bronze_source_row", ())
+            ),
+            observed_rows=sum(
+                row["source_table"] == table for row in rows_by_table.get("bronze_source_row", ())
+            ),
+            expected_columns=sum(
+                row["source_table"] == table
+                for row in rows_by_table.get("bronze_source_column", ())
+            ),
+            observed_columns=sum(
+                row["source_table"] == table
+                for row in rows_by_table.get("bronze_source_column", ())
+            ),
+            expected_cells=sum(
+                row["source_table"] == table for row in rows_by_table.get("bronze_source_cell", ())
+            ),
+            observed_cells=sum(
+                row["source_table"] == table for row in rows_by_table.get("bronze_source_cell", ())
+            ),
+        )
+        for table in OFFICIAL_TABLE_IDS
+    )
+    silver_names = (
+        ("bond_instrument", "silver_bond_instrument"),
+        ("domestic_listed_product", "silver_domestic_listed_product"),
+        ("overseas_listed_product", "silver_overseas_listed_product"),
+        ("fund_item", "silver_fund_item"),
+        ("fund_item_attribute", "silver_fund_item_attribute"),
+    )
+    silver_tables = tuple(
+        NamedExpectedObservedCount(
+            name=cast(
+                Literal[
+                    "bond_instrument",
+                    "domestic_listed_product",
+                    "overseas_listed_product",
+                    "fund_item",
+                    "fund_item_attribute",
+                ],
+                name,
+            ),
+            expected=len(rows_by_table.get(table_name, ())),
+            observed=len(rows_by_table.get(table_name, ())),
+        )
+        for name, table_name in silver_names
+    )
+    quality_issues = tuple(
+        DataQualityIssue.model_validate_json(str(row["record_json"]), strict=True)
+        for row in rows_by_table.get("silver_quality_issue", ())
+    )
+    quarantined_rows = len(
+        {
+            (
+                issue.source.source_table,
+                issue.source.source_file,
+                issue.source.source_sheet,
+                issue.source.source_row_number,
+            )
+            for issue in quality_issues
+            if issue.quarantined
+        }
+    )
+    link_count = len(rows_by_table.get("gold_exact_cross_source_link", ()))
+    evidence_count = len(rows_by_table.get("gold_exact_cross_source_link_evidence", ()))
+    link_models = tuple(
+        ExactCrossSourceLinkRecord.model_validate(row, strict=True)
+        for row in rows_by_table.get("gold_exact_cross_source_link", ())
+    )
+    pair_hash = exact_link_pair_sha256(
+        canonical_link_pair_tsv(link_models, expected_links=link_count)
+    )
+    source_report = SourceAuditReport(
+        report_id="source_audit",
+        report_contract_version="1.0.0",
+        artifact_contract_version="1.0.0",
+        source_snapshot_date=manifest.dataset_version,
+        source_manifest_sha256=manifest.source_inputs[0].sha256,
+        schema_catalog_sha256=manifest.source_inputs[1].sha256,
+        source_tables=source_tables,
+        silver_tables=silver_tables,
+        quarantine_source_rows=ExpectedObservedCount(
+            expected=quarantined_rows,
+            observed=quarantined_rows,
+        ),
+        exact_links=ExpectedObservedCount(expected=link_count, observed=link_count),
+        exact_link_evidence=ExpectedObservedCount(
+            expected=evidence_count,
+            observed=evidence_count,
+        ),
+        exact_link_pair_sha256=ExpectedObservedSha256(
+            expected=pair_hash,
+            observed=pair_hash,
+        ),
+    )
+    quality_hash = manifest.tables["silver_quality_issue"].logical_hash
+    total = len(quality_issues)
+    observations = QualityJoinObservations(
+        total_issues=total,
+        distinct_issue_ids=total,
+        matched_bronze_rows=total,
+        matched_bronze_cells=total,
+        distinct_affected_source_rows=len(
+            {
+                (
+                    issue.source.source_table,
+                    issue.source.source_file,
+                    issue.source.source_sheet,
+                    issue.source.source_row_number,
+                )
+                for issue in quality_issues
+            }
+        ),
+        quarantined_issue_count=sum(issue.quarantined for issue in quality_issues),
+        quarantined_source_row_count=quarantined_rows,
+        persistence_timestamp=manifest.persistence_timestamp,
+        quality_table_logical_hash=quality_hash,
+    )
+    quality_report = QualitySummaryReport.from_verified_quality(
+        issues=quality_issues,
+        join_observations=observations,
+        excluded_silver_records=tuple(
+            ExcludedSilverCount(
+                grain=cast(
+                    Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
+                    grain,
+                ),
+                count=count,
+            )
+            for grain, count in (
+                (
+                    "fund_attribute",
+                    source_tables[3].observed_rows
+                    - len(rows_by_table.get("silver_fund_item_attribute", ())),
+                ),
+                (
+                    "instrument",
+                    source_tables[0].observed_rows
+                    - len(rows_by_table.get("silver_bond_instrument", ())),
+                ),
+                (
+                    "listed_product",
+                    source_tables[1].observed_rows
+                    + source_tables[2].observed_rows
+                    - len(rows_by_table.get("silver_domestic_listed_product", ()))
+                    - len(rows_by_table.get("silver_overseas_listed_product", ())),
+                ),
+            )
+            if count > 0
+        ),
+    )
+    reports = (source_report, quality_report)
+    files = [dict(entry) for entry in manifest.model_dump(mode="python")["files"]]
+    for report in reports:
+        path = root / "reports" / f"{report.report_id}.json"
+        path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
+        content = path.read_bytes()
+        entry = next(value for value in files if value["report_id"] == report.report_id)
+        entry["size_bytes"] = len(content)
+        entry["sha256"] = hashlib.sha256(content).hexdigest()
+        entry["logical_hash"] = report_logical_hash(report)
+    report_entries = tuple(
+        ExpectedSemanticReport(
+            report_id=report.report_id,
+            semantic_hash=report_logical_hash(report),
+        )
+        for report in reports
+    )
+    logical_tables = tuple(
+        ExpectedLogicalTable(
+            name=manifest.tables[spec_name].table_name,
+            grain=manifest.tables[spec_name].grain,
+            schema_hash=manifest.tables[spec_name].schema_sha256,
+            row_count=manifest.tables[spec_name].row_count,
+            sort_key=manifest.tables[spec_name].sort_key,
+            unique_key=manifest.tables[spec_name].unique_key,
+            logical_hash=manifest.tables[spec_name].logical_hash,
+        )
+        for spec_name, _, _ in TABLES
+    )
+    inputs = tuple(
+        ExpectedLogicalInput.model_validate(item.model_dump(mode="python"), strict=True)
+        for item in manifest.source_inputs
+    )
+    logical_hash = manifest_logical_hash(
+        _ManifestLogicalProjection(
+            manifest_version=manifest.manifest_version,
+            artifact_contract_version=manifest.artifact_contract_version,
+            artifact_set_id=manifest.artifact_set_id,
+            dataset_version=manifest.dataset_version,
+            logical_inputs=inputs,
+            versions=manifest.versions,
+            tables=logical_tables,
+            reports=report_entries,
+        )
+    )
+    payload = manifest.model_dump(mode="python")
+    payload["files"] = tuple(files)
+    payload["logical_hash"] = logical_hash
+    updated = ArtifactManifest.model_validate(payload, strict=True)
+    (root / "manifest.json").write_text(updated.model_dump_json(), encoding="utf-8")
+    return updated
 
 
 class TestUniqueKeyIndex:

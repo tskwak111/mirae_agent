@@ -1584,6 +1584,38 @@ class VerifiedParquetTable:
         raise TypeError("VerifiedParquetTable is issued only by final verification")
 
 
+@contextmanager
+def _open_final_verified_batches(
+    *,
+    inventory: VerifiedPhysicalInventory,
+    tables: TableVerificationResult,
+    spec: TableSpec,
+    handle: VerifiedParquetTable,
+    batch_size: int = 65_536,
+) -> Iterator[Iterator[pa.RecordBatch]]:
+    """Reopen one exact final handle as bounded Arrow batches."""
+    require_registered_table_spec(spec)
+    tables.validate_against(inventory)
+    if (
+        type(handle) is not VerifiedParquetTable
+        or handle.table_name != spec.table_name
+        or not any(candidate is handle for candidate in tables.handles)
+        or type(batch_size) is not int
+        or not 1 <= batch_size <= 65_536
+    ):
+        raise ValueError("invalid final Parquet batch request")
+    inventory.require_owned_verified_table_handle(handle)
+    inventory.assert_unchanged()
+    with inventory.open_verified(handle.entry) as stream:
+        parquet = pq.ParquetFile(stream)
+        try:
+            yield parquet.iter_batches(batch_size=batch_size, use_threads=False)
+        finally:
+            require_registered_table_spec(spec)
+            tables.validate_against(inventory)
+    inventory.assert_unchanged()
+
+
 class ParquetArtifactTableVerifier:
     """Adapter from a complete final inventory to verified table facts."""
 

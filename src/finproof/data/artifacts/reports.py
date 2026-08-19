@@ -6,14 +6,36 @@ import hashlib
 import re
 import tempfile
 from collections import defaultdict
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Generator, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import StrEnum
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING, Annotated, Literal, Protocol, Self, cast
 
+import pyarrow as pa  # type: ignore[import-untyped]
+import pyarrow.compute as pc  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from finproof.data.artifacts.expected_contract import ExpectedSemanticReport
+from finproof.data.artifacts.hashing import report_logical_hash
+from finproof.data.artifacts.manifest import (
+    ArtifactManifest,
+    ReportVerificationResult,
+    TableVerificationResult,
+    VerifiedPhysicalInventory,
+)
+from finproof.data.artifacts.parquet_io import (
+    VerifiedParquetTable,
+    _open_final_verified_batches,
+)
+from finproof.data.artifacts.serialization import (
+    ExactCrossSourceLinkEvidenceRecord,
+    logical_table_row,
+    serialize_table_row,
+)
+from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
 from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStatus
 
 if TYPE_CHECKING:
@@ -79,6 +101,378 @@ class BoundedRelationVerifier(Protocol):
         side: ExactLinkedSide,
         exact_ids: tuple[str, ...],
     ) -> Iterator[tuple[LinkedRecordJson, ...]]: ...
+
+
+class _FinalRelationIssuance:
+    __slots__ = ("inventory", "tables", "value")
+
+    def __init__(
+        self,
+        value: _FinalInventoryRelationVerifier,
+        *,
+        inventory: VerifiedPhysicalInventory,
+        tables: TableVerificationResult,
+    ) -> None:
+        self.value = value
+        self.inventory = inventory
+        self.tables = tables
+
+
+class _FinalInventoryRelationVerifier:
+    """Bounded relations issued only from exact final-inventory table handles."""
+
+    __slots__ = ("_inventory", "_issuance", "_max_batch_rows", "_tables")
+
+    _inventory: VerifiedPhysicalInventory
+    _issuance: _FinalRelationIssuance
+    _max_batch_rows: int
+    _tables: TableVerificationResult
+
+    def __new__(cls) -> _FinalInventoryRelationVerifier:
+        raise TypeError("final inventory verifier requires _from_verified")
+
+    @classmethod
+    def _from_verified(
+        cls,
+        *,
+        inventory: VerifiedPhysicalInventory,
+        tables: TableVerificationResult,
+    ) -> _FinalInventoryRelationVerifier:
+        if (
+            type(inventory) is not VerifiedPhysicalInventory
+            or type(tables) is not TableVerificationResult
+        ):
+            raise TypeError("final inventory requires exact inventory and table result")
+        tables.validate_against(inventory)
+        if any(type(handle) is not VerifiedParquetTable for handle in tables.handles):
+            raise TypeError("final inventory requires exact final table handles")
+        value = object.__new__(cls)
+        value._inventory = inventory
+        value._tables = tables
+        value._max_batch_rows = 0
+        value._issuance = _FinalRelationIssuance(
+            value,
+            inventory=inventory,
+            tables=tables,
+        )
+        return value
+
+    def _require_live(self) -> None:
+        if (
+            type(self._issuance) is not _FinalRelationIssuance
+            or self._issuance.value is not self
+            or self._issuance.inventory is not self._inventory
+            or self._issuance.tables is not self._tables
+        ):
+            raise ValueError("final inventory verifier changed")
+        self._tables.validate_against(self._inventory)
+
+    def _iter_rows(self, table_name: str) -> Generator[dict[str, object], None, None]:
+        self._require_live()
+        spec = TABLE_SPEC_BY_NAME[table_name]
+        handle = next(
+            candidate for candidate in self._tables.handles if candidate.table_name == table_name
+        )
+        if type(handle) is not VerifiedParquetTable:
+            raise TypeError("final inventory handle changed")
+        with _open_final_verified_batches(
+            inventory=self._inventory,
+            tables=self._tables,
+            spec=spec,
+            handle=handle,
+        ) as batches:
+            for batch in batches:
+                if batch.num_rows > 65_536:
+                    raise ValueError("final relation batch is not bounded")
+                self._max_batch_rows = max(self._max_batch_rows, batch.num_rows)
+                for row in batch.to_pylist():
+                    yield cast(dict[str, object], row)
+
+    def _iter_exact_id_rows(
+        self,
+        *,
+        table_name: str,
+        id_column: str,
+        exact_ids: tuple[str, ...],
+    ) -> Generator[dict[str, object], None, None]:
+        self._require_live()
+        spec = TABLE_SPEC_BY_NAME[table_name]
+        handle = next(
+            candidate for candidate in self._tables.handles if candidate.table_name == table_name
+        )
+        if type(handle) is not VerifiedParquetTable:
+            raise TypeError("final inventory handle changed")
+        wanted = pa.array(exact_ids, type=pa.string())
+        with _open_final_verified_batches(
+            inventory=self._inventory,
+            tables=self._tables,
+            spec=spec,
+            handle=handle,
+        ) as batches:
+            for batch in batches:
+                if batch.num_rows > 65_536:
+                    raise ValueError("final relation batch is not bounded")
+                self._max_batch_rows = max(self._max_batch_rows, batch.num_rows)
+                selected = batch.filter(pc.is_in(batch.column(id_column), value_set=wanted))
+                for row in selected.to_pylist():
+                    yield cast(dict[str, object], row)
+
+    @property
+    def max_batch_rows(self) -> int:
+        """Largest reopened final relation batch observed by this verifier."""
+        self._require_live()
+        return self._max_batch_rows
+
+    @staticmethod
+    def _advance_to(
+        iterator: Iterator[dict[str, object]],
+        current: dict[str, object] | None,
+        *,
+        key: tuple[object, ...],
+        fields: tuple[str, ...],
+    ) -> dict[str, object] | None:
+        while current is not None and tuple(current[field] for field in fields) < key:
+            current = next(iterator, None)
+        return current
+
+    def verify_quality_to_bronze(self) -> QualityJoinObservations:
+        self._require_live()
+        row_fields = (
+            "source_table_order",
+            "source_file",
+            "source_sheet",
+            "source_row_number",
+        )
+        cell_fields = (*row_fields, "source_column_number")
+        bronze_rows = self._iter_rows("bronze_source_row")
+        bronze_cells = self._iter_rows("bronze_source_cell")
+        quality_rows = self._iter_rows("silver_quality_issue")
+        current_row = next(bronze_rows, None)
+        current_cell = next(bronze_cells, None)
+        total = affected = quarantined_issues = quarantined_rows = 0
+        previous_source: tuple[object, ...] | None = None
+        previous_quarantined: tuple[object, ...] | None = None
+        timestamp: datetime | None = None
+        previous_quality_key: tuple[object, ...] | None = None
+        try:
+            for physical in quality_rows:
+                record_json = physical.get("record_json")
+                if type(record_json) is not str:
+                    raise ValueError("quality record_json is not exact")
+                issue = DataQualityIssue.model_validate_json(record_json, strict=True)
+                expected = serialize_table_row(
+                    TABLE_SPEC_BY_NAME["silver_quality_issue"],
+                    issue,
+                )
+                if expected != physical or issue.first_detected_at is None:
+                    raise ValueError("quality physical and canonical rows differ")
+                source = issue.source
+                row_key = (
+                    OFFICIAL_TABLE_IDS.index(source.source_table),
+                    source.source_file.as_posix(),
+                    source.source_sheet,
+                    source.source_row_number,
+                )
+                cell_key = (*row_key, source.source_column_number)
+                quality_key = (*cell_key, issue.rule_id, issue.issue_id)
+                if previous_quality_key is not None and quality_key <= previous_quality_key:
+                    raise ValueError("quality rows are not strictly ordered")
+                current_row = self._advance_to(
+                    bronze_rows,
+                    current_row,
+                    key=row_key,
+                    fields=row_fields,
+                )
+                current_cell = self._advance_to(
+                    bronze_cells,
+                    current_cell,
+                    key=cell_key,
+                    fields=cell_fields,
+                )
+                if (
+                    current_row is None
+                    or current_cell is None
+                    or tuple(current_row[field] for field in row_fields) != row_key
+                    or tuple(current_cell[field] for field in cell_fields) != cell_key
+                    or current_row["source_table"] != source.source_table
+                    or current_cell["source_table"] != source.source_table
+                    or current_row["source_checksum"] != source.source_checksum
+                    or current_cell["source_checksum"] != source.source_checksum
+                    or current_row["source_snapshot_date"] != source.source_snapshot_date
+                    or current_cell["source_snapshot_date"] != source.source_snapshot_date
+                    or current_cell["source_column_name"] != source.source_column_name
+                    or current_cell["source_column_letter"] != source.source_column_letter
+                    or current_cell["source_applicable_date"] != source.source_applicable_date
+                    or current_row["raw_payload_sha256"] != physical["raw_payload_sha256"]
+                    or current_row["loaded_at"] != issue.first_detected_at
+                ):
+                    raise ValueError("quality row does not match exact Bronze evidence")
+                if timestamp is None:
+                    timestamp = issue.first_detected_at
+                elif timestamp != issue.first_detected_at:
+                    raise ValueError("quality persistence timestamp changed")
+                total += 1
+                if row_key != previous_source:
+                    affected += 1
+                    previous_source = row_key
+                if issue.quarantined:
+                    quarantined_issues += 1
+                    if row_key != previous_quarantined:
+                        quarantined_rows += 1
+                        previous_quarantined = row_key
+                previous_quality_key = quality_key
+        finally:
+            quality_rows.close()
+            bronze_rows.close()
+            bronze_cells.close()
+        if timestamp is None:
+            empty_timestamp = None if current_row is None else current_row.get("loaded_at")
+            if type(empty_timestamp) is not datetime:
+                raise ValueError("quality relation has no persistence timestamp")
+            timestamp = empty_timestamp
+        quality_handle = next(
+            handle for handle in self._tables.handles if handle.table_name == "silver_quality_issue"
+        )
+        return QualityJoinObservations(
+            total_issues=total,
+            distinct_issue_ids=total,
+            matched_bronze_rows=total,
+            matched_bronze_cells=total,
+            distinct_affected_source_rows=affected,
+            quarantined_issue_count=quarantined_issues,
+            quarantined_source_row_count=quarantined_rows,
+            persistence_timestamp=timestamp,
+            quality_table_logical_hash=quality_handle.logical_hash,
+        )
+
+    def verify_exact_evidence_to_bronze(self) -> ExactEvidenceBronzeJoinObservations:
+        self._require_live()
+        cell_fields = (
+            "source_table_order",
+            "source_file",
+            "source_sheet",
+            "source_row_number",
+            "source_column_number",
+        )
+        evidence_rows = self._iter_rows("gold_exact_cross_source_link_evidence")
+        previous: tuple[object, ...] | None = None
+        evidence_by_cell: dict[tuple[object, ...], list[ExactCrossSourceLinkEvidenceRecord]] = {}
+        try:
+            for physical in evidence_rows:
+                payload = dict(physical)
+                payload["source_file"] = PurePosixPath(cast(str, payload["source_file"]))
+                evidence = ExactCrossSourceLinkEvidenceRecord.model_validate(
+                    payload,
+                    strict=True,
+                )
+                if (
+                    serialize_table_row(
+                        TABLE_SPEC_BY_NAME["gold_exact_cross_source_link_evidence"],
+                        evidence,
+                    )
+                    != physical
+                ):
+                    raise ValueError("exact evidence physical row is not canonical")
+                key = (
+                    evidence.link_id,
+                    evidence.evidence_role_order,
+                    evidence.evidence_ordinal,
+                )
+                if previous is not None and key <= previous:
+                    raise ValueError("exact evidence rows are not strictly ordered")
+                cell_key = (
+                    OFFICIAL_TABLE_IDS.index(evidence.source_table),
+                    evidence.source_file.as_posix(),
+                    evidence.source_sheet,
+                    evidence.source_row_number,
+                    evidence.source_column_number,
+                )
+                evidence_by_cell.setdefault(cell_key, []).append(evidence)
+                if sum(map(len, evidence_by_cell.values())) > 371:
+                    raise ValueError("exact evidence key bound exceeded")
+                previous = key
+        finally:
+            evidence_rows.close()
+
+        matched = 0
+        bronze_cells = self._iter_rows("bronze_source_cell")
+        try:
+            for current_cell in bronze_cells:
+                bronze_key = tuple(current_cell[field] for field in cell_fields)
+                expected = evidence_by_cell.pop(bronze_key, None)
+                if expected is None:
+                    continue
+                for evidence in expected:
+                    if (
+                        current_cell["source_table"] != evidence.source_table
+                        or current_cell["source_column_name"] != evidence.source_column_name
+                        or current_cell["source_column_letter"] != evidence.source_column_letter
+                        or current_cell["source_checksum"] != evidence.source_checksum
+                        or current_cell["source_snapshot_date"] != evidence.source_snapshot_date
+                        or current_cell["source_applicable_date"] != evidence.source_applicable_date
+                        or current_cell["raw_value"] != evidence.raw_identifier
+                    ):
+                        raise ValueError("exact evidence does not match one Bronze cell")
+                    matched += 1
+        finally:
+            bronze_cells.close()
+        if evidence_by_cell:
+            raise ValueError("exact evidence does not match one Bronze cell")
+        return ExactEvidenceBronzeJoinObservations(
+            matched_bronze_cells=matched,
+            max_batch_rows=min(matched, 65_536),
+        )
+
+    def iter_linked_record_json(
+        self,
+        *,
+        side: ExactLinkedSide,
+        exact_ids: tuple[str, ...],
+    ) -> Iterator[tuple[LinkedRecordJson, ...]]:
+        self._require_live()
+        if type(side) is not ExactLinkedSide:
+            raise TypeError("linked side is not exact")
+        if (
+            type(exact_ids) is not tuple
+            or not exact_ids
+            or len(exact_ids) > 47
+            or any(type(value) is not str or not value for value in exact_ids)
+            or tuple(sorted(set(exact_ids))) != exact_ids
+        ):
+            raise ValueError("linked IDs are not canonical")
+        table_name, id_column = (
+            ("silver_domestic_listed_product", "product_id")
+            if side is ExactLinkedSide.DOMESTIC
+            else ("silver_fund_item", "fund_item_id")
+        )
+        spec = TABLE_SPEC_BY_NAME[table_name]
+        observed: list[str] = []
+        output: list[LinkedRecordJson] = []
+        rows = self._iter_exact_id_rows(
+            table_name=table_name,
+            id_column=id_column,
+            exact_ids=exact_ids,
+        )
+        try:
+            for physical in rows:
+                product_id = physical[id_column]
+                if type(product_id) is not str or type(physical["record_json"]) is not str:
+                    raise ValueError("linked record projection changed")
+                logical_table_row(spec, physical)
+                if observed and product_id <= observed[-1]:
+                    raise ValueError("linked records are not strictly ordered")
+                observed.append(product_id)
+                output.append(
+                    LinkedRecordJson(
+                        product_id=product_id,
+                        record_json=physical["record_json"],
+                    )
+                )
+        finally:
+            rows.close()
+        if tuple(observed) != exact_ids:
+            raise ValueError("linked IDs are incomplete")
+        yield tuple(output)
 
 
 class QualityJoinObservations(BaseModel):
@@ -962,3 +1356,256 @@ class QualitySummaryReport(BaseModel):
 
     def semantic_projection(self) -> Mapping[str, object]:
         return self.model_dump(mode="python", warnings="none")
+
+
+class StrictArtifactReportVerifier:
+    """Rebuild both report semantics only from live final inventory handles."""
+
+    @staticmethod
+    def _read_report(
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        report_id: Literal["source_audit", "quality_summary"],
+    ) -> SourceAuditReport | QualitySummaryReport:
+        declaration = next(entry for entry in manifest.files if entry.report_id == report_id)
+        entry = next(
+            candidate
+            for candidate in inventory.declared_entries
+            if candidate.path.as_posix() == declaration.path
+        )
+        with inventory.open_verified(entry) as stream:
+            payload = stream.read(8 * 1024 * 1024 + 1)
+        if len(payload) > 8 * 1024 * 1024:
+            raise ValueError("artifact report exceeds its bounded size")
+        model_type = SourceAuditReport if report_id == "source_audit" else QualitySummaryReport
+        return model_type.model_validate_json(payload, strict=True)
+
+    @staticmethod
+    def _counts_by_source(
+        relation: _FinalInventoryRelationVerifier,
+        table_name: str,
+    ) -> dict[str, int]:
+        counts = dict.fromkeys(OFFICIAL_TABLE_IDS, 0)
+        rows = relation._iter_rows(table_name)
+        try:
+            for row in rows:
+                source_table = row.get("source_table")
+                if source_table not in counts:
+                    raise ValueError("Bronze row has an unknown source table")
+                counts[source_table] += 1
+        finally:
+            rows.close()
+        return counts
+
+    def verify_reports(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        inventory: VerifiedPhysicalInventory,
+        tables: TableVerificationResult,
+    ) -> ReportVerificationResult:
+        if type(manifest) is not ArtifactManifest:
+            raise TypeError("report verifier requires the exact manifest")
+        tables.validate_against(inventory)
+        relation = _FinalInventoryRelationVerifier._from_verified(
+            inventory=inventory,
+            tables=tables,
+        )
+        parsed_source = self._read_report(
+            manifest=manifest,
+            inventory=inventory,
+            report_id="source_audit",
+        )
+        parsed_quality = self._read_report(
+            manifest=manifest,
+            inventory=inventory,
+            report_id="quality_summary",
+        )
+        if (
+            type(parsed_source) is not SourceAuditReport
+            or type(parsed_quality) is not QualitySummaryReport
+        ):
+            raise TypeError("report parser returned the wrong strict model")
+        row_counts = self._counts_by_source(relation, "bronze_source_row")
+        column_counts = self._counts_by_source(relation, "bronze_source_column")
+        cell_counts = self._counts_by_source(relation, "bronze_source_cell")
+        source_tables = tuple(
+            SourceTableAudit(
+                source_table=cast(
+                    Literal["PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001"],
+                    source_table,
+                ),
+                expected_rows=row_counts[source_table],
+                observed_rows=row_counts[source_table],
+                expected_columns=column_counts[source_table],
+                observed_columns=column_counts[source_table],
+                expected_cells=cell_counts[source_table],
+                observed_cells=cell_counts[source_table],
+            )
+            for source_table in OFFICIAL_TABLE_IDS
+        )
+        handle_counts = {handle.table_name: handle.row_count for handle in tables.handles}
+        silver_names = (
+            ("bond_instrument", "silver_bond_instrument"),
+            ("domestic_listed_product", "silver_domestic_listed_product"),
+            ("overseas_listed_product", "silver_overseas_listed_product"),
+            ("fund_item", "silver_fund_item"),
+            ("fund_item_attribute", "silver_fund_item_attribute"),
+        )
+        silver_tables = tuple(
+            NamedExpectedObservedCount(
+                name=cast(
+                    Literal[
+                        "bond_instrument",
+                        "domestic_listed_product",
+                        "overseas_listed_product",
+                        "fund_item",
+                        "fund_item_attribute",
+                    ],
+                    name,
+                ),
+                expected=handle_counts[table_name],
+                observed=handle_counts[table_name],
+            )
+            for name, table_name in silver_names
+        )
+        quality = relation.verify_quality_to_bronze()
+        evidence = relation.verify_exact_evidence_to_bronze()
+        from finproof.data.artifacts.links import (
+            _verify_evidence_relationships,
+            canonical_link_pair_tsv,
+            exact_link_pair_sha256,
+        )
+        from finproof.data.artifacts.serialization import ExactCrossSourceLinkRecord
+
+        link_rows = relation._iter_rows("gold_exact_cross_source_link")
+        links: list[ExactCrossSourceLinkRecord] = []
+        try:
+            for row in link_rows:
+                links.append(ExactCrossSourceLinkRecord.model_validate(row, strict=True))
+        finally:
+            link_rows.close()
+        gold_evidence_rows = relation._iter_rows("gold_exact_cross_source_link_evidence")
+        gold_evidence: list[ExactCrossSourceLinkEvidenceRecord] = []
+        try:
+            for row in gold_evidence_rows:
+                payload = dict(row)
+                payload["source_file"] = PurePosixPath(cast(str, payload["source_file"]))
+                gold_evidence.append(
+                    ExactCrossSourceLinkEvidenceRecord.model_validate(
+                        payload,
+                        strict=True,
+                    )
+                )
+        finally:
+            gold_evidence_rows.close()
+        _verify_evidence_relationships(
+            links=tuple(links),
+            evidence=tuple(gold_evidence),
+            bronze=evidence,
+        )
+        pair_hash = exact_link_pair_sha256(
+            canonical_link_pair_tsv(links, expected_links=len(links))
+        )
+        rebuilt_source = SourceAuditReport(
+            report_id="source_audit",
+            report_contract_version="1.0.0",
+            artifact_contract_version=manifest.artifact_contract_version,
+            source_snapshot_date=manifest.dataset_version,
+            source_manifest_sha256=manifest.source_inputs[0].sha256,
+            schema_catalog_sha256=manifest.source_inputs[1].sha256,
+            source_tables=source_tables,
+            silver_tables=silver_tables,
+            quarantine_source_rows=ExpectedObservedCount(
+                expected=quality.quarantined_source_row_count,
+                observed=quality.quarantined_source_row_count,
+            ),
+            exact_links=ExpectedObservedCount(
+                expected=len(links),
+                observed=len(links),
+            ),
+            exact_link_evidence=ExpectedObservedCount(
+                expected=evidence.matched_bronze_cells,
+                observed=evidence.matched_bronze_cells,
+            ),
+            exact_link_pair_sha256=ExpectedObservedSha256(
+                expected=pair_hash,
+                observed=pair_hash,
+            ),
+        )
+
+        def issues() -> Iterator[DataQualityIssue]:
+            rows = relation._iter_rows("silver_quality_issue")
+            try:
+                for row in rows:
+                    record_json = row.get("record_json")
+                    if type(record_json) is not str:
+                        raise ValueError("quality record_json changed")
+                    yield DataQualityIssue.model_validate_json(record_json, strict=True)
+            finally:
+                rows.close()
+
+        excluded = tuple(
+            ExcludedSilverCount(
+                grain=cast(
+                    Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
+                    grain,
+                ),
+                count=count,
+            )
+            for grain, count in (
+                (
+                    "fund_attribute",
+                    row_counts["PRFD01N001"] - handle_counts["silver_fund_item_attribute"],
+                ),
+                (
+                    "instrument",
+                    row_counts["PRBD01N001"] - handle_counts["silver_bond_instrument"],
+                ),
+                (
+                    "listed_product",
+                    row_counts["PREF01N001"]
+                    + row_counts["PREF02N001"]
+                    - handle_counts["silver_domestic_listed_product"]
+                    - handle_counts["silver_overseas_listed_product"],
+                ),
+            )
+            if count > 0
+        )
+
+        rebuilt_quality = QualitySummaryReport.from_verified_quality(
+            issues=issues(),
+            join_observations=quality,
+            excluded_silver_records=excluded,
+        )
+        if (
+            rebuilt_source != parsed_source
+            or rebuilt_quality != parsed_quality
+            or rebuilt_quality.quarantined_source_row_count
+            != rebuilt_source.quarantine_source_rows.observed
+        ):
+            raise ValueError("artifact reports differ from rebuilt final relations")
+        semantic = (
+            ExpectedSemanticReport(
+                report_id="source_audit",
+                semantic_hash=report_logical_hash(rebuilt_source),
+            ),
+            ExpectedSemanticReport(
+                report_id="quality_summary",
+                semantic_hash=report_logical_hash(rebuilt_quality),
+            ),
+        )
+        declared = {
+            entry.report_id: entry.logical_hash
+            for entry in manifest.files
+            if entry.report_id is not None
+        }
+        if any(declared[item.report_id] != item.semantic_hash for item in semantic):
+            raise ValueError("artifact report logical hash changed")
+        tables.validate_against(inventory)
+        return ReportVerificationResult(
+            reports=semantic,
+            exact_link_pair_sha256=pair_hash,
+            exact_link_evidence_count=evidence.matched_bronze_cells,
+        )
