@@ -7,12 +7,28 @@ import importlib
 import json
 import sys
 from collections.abc import Callable, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
-from typing import cast
+from typing import Protocol, cast
 
 from finproof.core.errors import FinProofError
+from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
+from finproof.data.artifacts.builder import build_artifacts
+from finproof.data.artifacts.config import ArtifactBuildOptions
+from finproof.data.artifacts.errors import ArtifactContractError
+from finproof.data.artifacts.manifest import ArtifactManifest
+
+
+class _ArtifactBuilder(Protocol):
+    def __call__(
+        self,
+        settings: Settings,
+        versions: VersionBundle,
+        *,
+        options: ArtifactBuildOptions,
+    ) -> ArtifactManifest: ...
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -21,6 +37,8 @@ def _parser() -> argparse.ArgumentParser:
     subcommands.add_parser("verify-handoff", help="Verify the repository handoff contract")
     subcommands.add_parser("audit-source", help="Check official data against the frozen audit")
     subcommands.add_parser("show-versions", help="Print the current immutable version bundle")
+    build_data = subcommands.add_parser("build-data", help="Build verified data artifacts")
+    build_data.add_argument("--clean", action="store_true")
     return parser
 
 
@@ -66,8 +84,48 @@ def _audit_source() -> int:
     return tool_main(["--check"])
 
 
-def main(argv: Sequence[str] | None = None) -> int:
-    """Dispatch a FinProof bootstrap command and return its exit code."""
+def _utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
+def _build_data(
+    *,
+    clean: bool,
+    builder: _ArtifactBuilder,
+    clock: Callable[[], datetime],
+) -> int:
+    settings = Settings()
+    versions = VersionBundle()
+    timestamp = clock()
+    manifest = builder(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(
+            clean=clean,
+            persistence_timestamp=timestamp,
+        ),
+    )
+    rendered = json.dumps(
+        {
+            "database_path": manifest.database_path,
+            "logical_hash": manifest.logical_hash,
+            "manifest_path": "manifest.json",
+            "target_basename": settings.artifact_dir.name,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    sys.stdout.write(rendered + "\n")
+    return 0
+
+
+def _run_main(
+    argv: Sequence[str] | None,
+    *,
+    builder: _ArtifactBuilder = build_artifacts,
+    clock: Callable[[], datetime] = _utc_now,
+) -> int:
     args = _parser().parse_args(None if argv is None else list(argv))
     command = cast(str, args.command)
 
@@ -76,10 +134,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _verify_handoff()
         if command == "audit-source":
             return _audit_source()
+        if command == "build-data":
+            return _build_data(
+                clean=cast(bool, args.clean),
+                builder=builder,
+                clock=clock,
+            )
         return _show_versions()
+    except ArtifactContractError as error:
+        sys.stderr.write(f"error: {error.safe_message}\n")
+        return 2
     except FinProofError as error:
         sys.stderr.write(f"error: {error}\n")
         return 2
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Dispatch a FinProof command and return its exit code."""
+    return _run_main(argv)
 
 
 if __name__ == "__main__":

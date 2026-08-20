@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from typing import Annotated, Literal, Self, cast
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
@@ -51,6 +55,7 @@ from finproof.data.artifacts.reports import (
     SourceAuditReport,
     require_complete_source_audit_observations,
 )
+from finproof.data.artifacts.resources import _expected_contract_resource_exists
 from finproof.data.artifacts.silver import (
     SilverArtifactEmitter,
     SilverBuildResult,
@@ -64,6 +69,204 @@ from finproof.data.artifacts.staging import (
 )
 from finproof.data.artifacts.table_specs import TABLE_SPECS
 from finproof.registry.rating import RatingRegistry
+
+NonNegativeInt = Annotated[int, Field(ge=0)]
+Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+_PHYSICAL_FILE_PATHS = tuple(
+    sorted(
+        (
+            "finproof.duckdb",
+            *(spec.parquet_path for spec in TABLE_SPECS),
+            "reports/quality_summary.json",
+            "reports/source_audit.json",
+        )
+    )
+)
+
+
+class ArtifactPhysicalFileHash(BaseModel):
+    """One verified physical manifest entry without an artifact-root path."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    path: str
+    kind: Literal["parquet", "report", "duckdb"]
+    size_bytes: NonNegativeInt
+    sha256: Sha256
+
+    @model_validator(mode="after")
+    def require_closed_path_kind(self) -> Self:
+        if self.path not in _PHYSICAL_FILE_PATHS:
+            raise ValueError("physical file path is outside the closed inventory")
+        expected_kind = (
+            "duckdb"
+            if self.path == "finproof.duckdb"
+            else "report"
+            if self.path.startswith("reports/")
+            else "parquet"
+        )
+        if self.kind != expected_kind:
+            raise ValueError("physical file kind does not match its closed path")
+        return self
+
+
+class ArtifactManifestIdentity(BaseModel):
+    """Verified logical identity of one generated manifest."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    manifest_version: Literal["1.0.0"]
+    artifact_contract_version: Literal["1.0.0"]
+    artifact_set_id: Literal["finproof-data-artifacts/v1"]
+    dataset_version: date
+    logical_hash: Sha256
+
+    @model_validator(mode="after")
+    def require_snapshot(self) -> Self:
+        if self.dataset_version != date(2026, 7, 11):
+            raise ValueError("manifest telemetry requires the official snapshot")
+        return self
+
+
+class ArtifactWorkspaceTelemetry(BaseModel):
+    """Path-free facts for one fully cleaned bounded workspace."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    mode: Literal[0o700]
+    marker_owned: Literal[True]
+    containment_verified: Literal[True]
+    cleanup_completed: Literal[True]
+    threads: Literal[1]
+    memory_limit: Literal["1GiB"]
+
+
+class ArtifactBuildTelemetry(BaseModel):
+    """Strict bounded observations from one complete private transform."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    persistence_timestamp: datetime
+    max_live_fund_group_rows: NonNegativeInt
+    max_writer_batch_rows: NonNegativeInt
+    max_verifier_batch_rows: NonNegativeInt
+    max_bronze_reconstruction_cells: NonNegativeInt
+    linked_domestic_record_json_parses: NonNegativeInt
+    linked_fund_record_json_parses: NonNegativeInt
+    max_live_link_keys: NonNegativeInt
+    max_live_evidence_keys: NonNegativeInt
+    staging_workspace: ArtifactWorkspaceTelemetry
+    verifier_workspace: ArtifactWorkspaceTelemetry
+    physical_files: tuple[ArtifactPhysicalFileHash, ...]
+    manifest_identity: ArtifactManifestIdentity
+
+    @model_validator(mode="after")
+    def require_bounded_verified_observations(self) -> Self:
+        if (
+            self.persistence_timestamp.tzinfo is None
+            or self.persistence_timestamp.utcoffset() != timedelta(0)
+            or self.max_live_fund_group_rows > 16
+            or self.max_writer_batch_rows > 65_536
+            or self.max_verifier_batch_rows > 65_536
+            or self.max_bronze_reconstruction_cells > 73
+            or self.linked_domestic_record_json_parses > 47
+            or self.linked_fund_record_json_parses > 47
+            or self.max_live_link_keys > 47
+            or self.max_live_evidence_keys > 371
+            or tuple(value.path for value in self.physical_files) != _PHYSICAL_FILE_PATHS
+        ):
+            raise ValueError("artifact build telemetry is incomplete or unbounded")
+        return self
+
+
+class ArtifactCoreBuildOutcome(BaseModel):
+    """Private verified core outcome; it carries no publication authority."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        revalidate_instances="always",
+    )
+
+    manifest: ArtifactManifest
+    logical_contract: ArtifactCoreVerificationResult
+    telemetry: ArtifactBuildTelemetry
+
+    @model_validator(mode="after")
+    def require_one_verified_generation(self) -> Self:
+        manifest = self.manifest
+        logical = self.logical_contract
+        telemetry = self.telemetry
+        declared_reports = {
+            value.report_id: value.logical_hash
+            for value in manifest.files
+            if value.report_id is not None
+        }
+        if (
+            telemetry.persistence_timestamp != manifest.persistence_timestamp
+            or telemetry.manifest_identity
+            != ArtifactManifestIdentity(
+                manifest_version=manifest.manifest_version,
+                artifact_contract_version=manifest.artifact_contract_version,
+                artifact_set_id=manifest.artifact_set_id,
+                dataset_version=manifest.dataset_version,
+                logical_hash=manifest.logical_hash,
+            )
+            or telemetry.physical_files
+            != tuple(
+                ArtifactPhysicalFileHash(
+                    path=value.path,
+                    kind=value.kind,
+                    size_bytes=value.size_bytes,
+                    sha256=value.sha256,
+                )
+                for value in manifest.files
+            )
+            or logical.artifact_contract_version != manifest.artifact_contract_version
+            or logical.artifact_set_id != manifest.artifact_set_id
+            or logical.dataset_version != manifest.dataset_version
+            or logical.overall_manifest_logical_hash != manifest.logical_hash
+            or logical.logical_inputs
+            != tuple(
+                ExpectedLogicalInput.model_validate(value.model_dump(), strict=True)
+                for value in manifest.source_inputs
+            )
+            or any(
+                logical_table.name != declaration.table_name
+                or logical_table.grain != declaration.grain
+                or logical_table.schema_hash != declaration.schema_sha256
+                or logical_table.row_count != declaration.row_count
+                or logical_table.sort_key != declaration.sort_key
+                or logical_table.unique_key != declaration.unique_key
+                or logical_table.logical_hash != declaration.logical_hash
+                for logical_table, declaration in zip(
+                    logical.tables,
+                    (manifest.tables[spec.table_name] for spec in TABLE_SPECS),
+                    strict=True,
+                )
+            )
+            or any(
+                declared_reports.get(report.report_id) != report.semantic_hash
+                for report in logical.reports
+            )
+        ):
+            raise ValueError("core outcome generations disagree")
+        return self
+
+
+@dataclass(frozen=True, slots=True)
+class _CoreTelemetryObservations:
+    max_live_fund_group_rows: int
+    max_writer_batch_rows: int
+    max_verifier_batch_rows: int
+    max_bronze_reconstruction_cells: int
+    linked_domestic_record_json_parses: int
+    linked_fund_record_json_parses: int
+    max_live_link_keys: int
+    max_live_evidence_keys: int
+    staging_mode: int
 
 
 class _CompleteArtifactBuildProvenance:
@@ -381,8 +584,13 @@ def _finalize_complete_candidate(
     session: ArtifactBuildSession,
     complete: CompleteArtifactBuildResult,
     versions: VersionBundle,
-) -> CandidateArtifactSet:
+) -> tuple[CandidateArtifactSet, _CoreTelemetryObservations]:
     complete = require_complete_artifact_build_result(complete)
+    session.assert_live()
+    staging_mode = cast(
+        tuple[int, int, int, int],
+        session.__getattribute__("_stage_identity"),
+    )[3]
     tables = complete.staged_tables
     tables.require_complete()
     if tables.persistence_timestamp != session.persistence_timestamp:
@@ -510,12 +718,31 @@ def _finalize_complete_candidate(
                 manifest=manifest,
                 root=root,
             )
-        return _issue_candidate_artifact_set(
+        candidate = _issue_candidate_artifact_set(
             custody=custody,
             manifest=manifest,
             core=core,
             input_identity=complete.silver_result.input_identity,
         )
+        instrumentation = complete.silver_result.instrumentation
+        exact = complete.exact_evidence_verification_observations
+        observations = _CoreTelemetryObservations(
+            max_live_fund_group_rows=instrumentation.max_live_fund_group_rows,
+            max_writer_batch_rows=instrumentation.max_writer_batch_rows,
+            max_verifier_batch_rows=max(
+                instrumentation.max_relation_batch_rows,
+                exact.max_relation_batch_rows,
+            ),
+            max_bronze_reconstruction_cells=max(
+                value.observed_columns for value in complete.observations.source_tables
+            ),
+            linked_domestic_record_json_parses=exact.matched_left_records,
+            linked_fund_record_json_parses=exact.matched_right_records,
+            max_live_link_keys=len(complete.exact_link_build_result.links),
+            max_live_evidence_keys=len(complete.exact_link_build_result.evidence),
+            staging_mode=staging_mode,
+        )
+        return candidate, observations
     except BaseException:
         custody.close()
         raise
@@ -550,7 +777,46 @@ def build_verified_candidate_stage(
                 config=config,
                 versions=versions,
             )
-            return _finalize_complete_candidate(
+            candidate, _ = _finalize_complete_candidate(
+                session=session,
+                complete=complete,
+                versions=versions,
+            )
+            return candidate
+    except BaseException:
+        identity.close()
+        raise
+
+
+def _build_private_core_outcome(
+    settings: Settings,
+    versions: VersionBundle,
+    options: ArtifactBuildOptions,
+) -> ArtifactCoreBuildOutcome:
+    if (
+        type(settings) is not Settings
+        or type(versions) is not VersionBundle
+        or type(options) is not ArtifactBuildOptions
+    ):
+        raise TypeError("private core builder requires exact inputs")
+    resolved = ResolvedBuildInputBundle.from_settings(settings)
+    with verify_build_inputs(settings, resolved) as held:
+        identity = BuildInputIdentity.from_verified(seal=held.issue_identity_seal())
+    try:
+        with identity.open_verified_input(kind=ArtifactInputKind.ARTIFACT_BUILD_CONFIG) as stream:
+            config = ArtifactBuildConfig.from_held_stream(stream, versions=versions)
+        with ArtifactBuildSession.initialize(
+            settings,
+            versions,
+            options,
+            input_identity=identity,
+        ) as session:
+            complete = build_complete_for_session(
+                session=session,
+                config=config,
+                versions=versions,
+            )
+            candidate, observed = _finalize_complete_candidate(
                 session=session,
                 complete=complete,
                 versions=versions,
@@ -558,3 +824,92 @@ def build_verified_candidate_stage(
     except BaseException:
         identity.close()
         raise
+    manifest = candidate._manifest
+    logical = candidate._core_result
+    candidate._custody.discard_if_exact()
+    workspace = ArtifactWorkspaceTelemetry(
+        mode=cast(Literal[0o700], observed.staging_mode),
+        marker_owned=True,
+        containment_verified=True,
+        cleanup_completed=True,
+        threads=1,
+        memory_limit="1GiB",
+    )
+    telemetry = ArtifactBuildTelemetry(
+        persistence_timestamp=manifest.persistence_timestamp,
+        max_live_fund_group_rows=observed.max_live_fund_group_rows,
+        max_writer_batch_rows=observed.max_writer_batch_rows,
+        max_verifier_batch_rows=observed.max_verifier_batch_rows,
+        max_bronze_reconstruction_cells=observed.max_bronze_reconstruction_cells,
+        linked_domestic_record_json_parses=observed.linked_domestic_record_json_parses,
+        linked_fund_record_json_parses=observed.linked_fund_record_json_parses,
+        max_live_link_keys=observed.max_live_link_keys,
+        max_live_evidence_keys=observed.max_live_evidence_keys,
+        staging_workspace=workspace,
+        verifier_workspace=workspace,
+        physical_files=tuple(
+            ArtifactPhysicalFileHash(
+                path=value.path,
+                kind=value.kind,
+                size_bytes=value.size_bytes,
+                sha256=value.sha256,
+            )
+            for value in manifest.files
+        ),
+        manifest_identity=ArtifactManifestIdentity(
+            manifest_version=manifest.manifest_version,
+            artifact_contract_version=manifest.artifact_contract_version,
+            artifact_set_id=manifest.artifact_set_id,
+            dataset_version=manifest.dataset_version,
+            logical_hash=manifest.logical_hash,
+        ),
+    )
+    return ArtifactCoreBuildOutcome(
+        manifest=manifest,
+        logical_contract=logical,
+        telemetry=telemetry,
+    )
+
+
+def _build_evaluation_artifacts_with_outcome(
+    settings: Settings,
+    versions: VersionBundle,
+    *,
+    options: ArtifactBuildOptions,
+) -> object:
+    if not _expected_contract_resource_exists():
+        raise ArtifactContractError(
+            ArtifactErrorCode.BASELINE_MISSING,
+            operation_id="build-artifacts",
+            target_basename=settings.artifact_dir.name,
+        )
+    return _build_private_core_outcome(settings, versions, options)
+
+
+def build_artifacts(
+    settings: Settings,
+    versions: VersionBundle,
+    *,
+    options: ArtifactBuildOptions,
+) -> ArtifactManifest:
+    """Build only after the packaged expected contract can authorize CP8."""
+    if (
+        type(settings) is not Settings
+        or type(versions) is not VersionBundle
+        or type(options) is not ArtifactBuildOptions
+    ):
+        raise TypeError("artifact builder requires exact settings, versions, and options")
+    outcome = _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=options,
+    )
+    manifest = getattr(outcome, "manifest", None)
+    if type(manifest) is not ArtifactManifest:
+        raise ArtifactContractError(
+            ArtifactErrorCode.VERIFICATION_INCOMPLETE,
+            operation_id="build-artifacts",
+            target_basename=settings.artifact_dir.name,
+            internal_context={"reason": "expected_outcome_unavailable"},
+        )
+    return manifest

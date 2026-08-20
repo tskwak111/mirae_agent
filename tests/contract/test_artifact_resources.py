@@ -912,3 +912,27 @@ def test_candidate_production_probe_and_tool_remain_private_and_absent() -> None
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["scripts"]
     assert set(scripts) == {"finproof"}
     assert not hasattr(finproof, "build_candidate_artifacts")
+
+
+def test_artifact_package_exports_only_closed_public_runtime_surface() -> None:
+    from finproof.data import artifacts
+
+    assert artifacts.__all__ == (
+        "ArtifactBuildOptions",
+        "ArtifactManifest",
+        "build_artifacts",
+        "open_read_only_database",
+    )
+    assert (
+        tuple(name for name in artifacts.__all__ if hasattr(artifacts, name)) == artifacts.__all__
+    )
+    for forbidden in (
+        "ArtifactCoreBuildOutcome",
+        "ArtifactBuildTelemetry",
+        "CandidateArtifactSet",
+        "build_candidate_artifacts",
+        "build_verified_candidate_stage",
+        "PublicationState",
+        "recover_owned_remnants",
+    ):
+        assert not hasattr(artifacts, forbidden)
