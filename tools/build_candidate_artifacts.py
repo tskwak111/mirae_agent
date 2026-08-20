@@ -12,7 +12,9 @@ from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
 from finproof.data.artifacts.builder import (
     ArtifactCoreBuildOutcome,
-    _build_private_core_outcome,
+    _build_private_live_candidate,
+    _discard_live_candidate_to_core_outcome,
+    _LiveArtifactBuildCandidate,
 )
 from finproof.data.artifacts.config import ArtifactBuildOptions
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
@@ -64,14 +66,20 @@ def _build_candidate_artifacts_with_probe(
     probe: CandidateBaselineProbe,
     transform: Callable[
         [Settings, VersionBundle, ArtifactBuildOptions],
-        ArtifactCoreBuildOutcome,
+        _LiveArtifactBuildCandidate,
     ],
     stdout: TextIO,
     stderr: TextIO,
 ) -> ArtifactCoreVerificationResult:
     """Run the closed two-check candidate sequence with no publication authority."""
     assert_candidate_bootstrap_allowed(probe)
-    outcome = transform(settings, versions, options)
+    carrier = transform(settings, versions, options)
+    try:
+        probe.second_check()
+    except BaseException:
+        _discard_live_candidate_to_core_outcome(carrier)
+        raise
+    outcome = _discard_live_candidate_to_core_outcome(carrier)
     if type(outcome) is not ArtifactCoreBuildOutcome:
         raise TypeError("candidate transform returned an invalid core outcome")
     validated = ArtifactCoreBuildOutcome.model_validate(
@@ -80,7 +88,6 @@ def _build_candidate_artifacts_with_probe(
     )
     if validated != outcome:
         raise TypeError("candidate transform returned an invalid core outcome")
-    probe.second_check()
     stdout.write(outcome.logical_contract.model_dump_json() + "\n")
     stderr.write(outcome.telemetry.model_dump_json() + "\n")
     return outcome.logical_contract
@@ -98,7 +105,7 @@ def build_candidate_artifacts(
         versions,
         options=options,
         probe=_ProductionCandidateBaselineProbe(settings),
-        transform=_build_private_core_outcome,
+        transform=_build_private_live_candidate,
         stdout=sys.stdout,
         stderr=sys.stderr,
     )

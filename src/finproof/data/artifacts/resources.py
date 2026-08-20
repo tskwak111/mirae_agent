@@ -15,10 +15,13 @@ from finproof.data.artifacts.safe_files import (
 
 
 class RuntimeArtifactResource(StrEnum):
-    """Frozen distribution destinations available during Checkpoint 1."""
+    """Frozen distribution destinations available at runtime."""
 
     ARTIFACT_MANIFEST_SCHEMA = "finproof/resources/schemas/artifact_manifest.schema.json"
     QUALITY_ISSUE_SCHEMA = "finproof/resources/schemas/quality_issue.schema.json"
+    EXPECTED_PHASE1_ARTIFACT_CONTRACT = (
+        "finproof/resources/contracts/expected_phase1_artifacts.json"
+    )
 
 
 class CandidateBaselineProbe(Protocol):
@@ -48,6 +51,11 @@ def artifact_manifest_schema_bytes() -> bytes:
 def quality_issue_schema_bytes() -> bytes:
     """Return the packaged quality-issue schema bytes."""
     return _resource_bytes(RuntimeArtifactResource.QUALITY_ISSUE_SCHEMA)
+
+
+def expected_phase1_contract_bytes() -> bytes:
+    """Return the packaged reviewed Phase 1 expected-contract bytes."""
+    return _resource_bytes(RuntimeArtifactResource.EXPECTED_PHASE1_ARTIFACT_CONTRACT)
 
 
 def _resource_bytes(resource: RuntimeArtifactResource) -> bytes:

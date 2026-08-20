@@ -142,7 +142,8 @@ def _run_main(
             )
         return _show_versions()
     except ArtifactContractError as error:
-        sys.stderr.write(f"error: {error.safe_message}\n")
+        published = "; published verified target retained" if error.published else ""
+        sys.stderr.write(f"error: {error.safe_message}{published}\n")
         return 2
     except FinProofError as error:
         sys.stderr.write(f"error: {error}\n")

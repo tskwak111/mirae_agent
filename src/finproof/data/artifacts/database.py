@@ -15,7 +15,11 @@ from typing import cast
 import duckdb
 
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
-from finproof.data.artifacts.expected_contract import ArtifactLogicalContractView
+from finproof.data.artifacts.expected_contract import (
+    ArtifactLogicalContractView,
+    ExpectedPhase1ArtifactContract,
+    compare_expected_artifact_contract,
+)
 from finproof.data.artifacts.hashing import TableSpecIdentity
 from finproof.data.artifacts.manifest import (
     ArtifactCoreVerificationResult,
@@ -37,7 +41,7 @@ from finproof.data.artifacts.reports import (
     StrictArtifactReportVerifier,
     _FinalReportVerificationObservations,
 )
-from finproof.data.artifacts.resources import _expected_contract_resource_exists
+from finproof.data.artifacts.resources import expected_phase1_contract_bytes
 from finproof.data.artifacts.staging import (
     OwnedStageDatabaseLeaf,
     OwnedStageDatabaseOwner,
@@ -54,6 +58,35 @@ def _identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def _lexicographic_boundary(
+    columns: tuple[str, ...],
+    values: tuple[object, ...],
+    *,
+    lower: bool,
+) -> tuple[str, list[object]]:
+    terms: list[str] = []
+    parameters: list[object] = []
+    for index, (column, value) in enumerate(zip(columns, values, strict=True)):
+        prefix = [
+            f"actual.{_identifier(prefix_column)} IS NOT DISTINCT FROM ?"
+            for prefix_column in columns[:index]
+        ]
+        operator = (
+            ">="
+            if lower and index == len(columns) - 1
+            else "<="
+            if not lower and index == len(columns) - 1
+            else ">"
+            if lower
+            else "<"
+        )
+        terms.append(
+            "(" + " AND ".join([*prefix, f"actual.{_identifier(column)} {operator} ?"]) + ")"
+        )
+        parameters.extend([*values[:index], value])
+    return "(" + " OR ".join(terms) + ")", parameters
+
+
 def _create_table_sql(spec: TableSpec) -> str:
     columns = ", ".join(
         f"{_identifier(column.name)} {column.duckdb_type}"
@@ -67,13 +100,15 @@ def _materialize_tables(connection: object, tables: StagedParquetSet) -> None:
     execute = connection.execute  # type: ignore[attr-defined]
     execute("SET threads = 1")
     execute("SET preserve_insertion_order = true")
+    execute("SET write_buffer_row_group_count = 1")
+    execute("SET wal_autocheckpoint = '1MiB'")
     execute("SET TimeZone = 'UTC'")
     for spec in TABLE_SPECS:
         execute(_create_table_sql(spec))
         handle = tables.verification_for(spec.table_name).handle
         columns = ", ".join(_identifier(column.name) for column in spec.columns)
         order = ", ".join(_identifier(name) for name in spec.sort_key)
-        with handle.iter_batches() as batches:
+        with handle.iter_batches(batch_size=256) as batches:
             for batch in batches:
                 connection.register("_finproof_batch", batch)  # type: ignore[attr-defined]
                 try:
@@ -540,7 +575,7 @@ def _verify_database_against_parquet(
                 for handle in tables.handles
                 if type(handle) is VerifiedParquetTable
             }
-            for index, spec in enumerate(TABLE_SPECS):
+            for spec in TABLE_SPECS:
                 columns_schema = connection.execute(
                     "SELECT column_name, data_type, is_nullable "
                     "FROM information_schema.columns "
@@ -563,38 +598,64 @@ def _verify_database_against_parquet(
                 handle = handles.get(spec.table_name)
                 if handle is None:
                     raise ValueError("DuckDB differs from Parquet handle inventory")
-                expected = f"_finproof_expected_{index}"
-                quoted_expected = _identifier(expected)
                 quoted_table = _identifier(spec.table_name)
                 columns = ", ".join(_identifier(column.name) for column in spec.columns)
-                connection.execute(
-                    f"CREATE TEMP TABLE {quoted_expected} AS "  # noqa: S608 -- closed TABLE_SPECS identifiers
-                    f"SELECT {columns} FROM {quoted_table} WHERE false"
+                if connection.execute(
+                    f"SELECT count(*) FROM {quoted_table}"  # noqa: S608 -- closed TABLE_SPECS identifier
+                ).fetchone() != (handle.row_count,):
+                    raise ValueError("DuckDB differs from Parquet")
+                actual_columns = ", ".join(
+                    f"actual.{_identifier(column.name)}" for column in spec.columns
+                )
+                join_predicate = " AND ".join(
+                    f"actual.{_identifier(column)} IS NOT DISTINCT FROM "
+                    f"expected.{_identifier(column)}"
+                    for column in spec.unique_key
                 )
                 with _open_final_verified_batches(
                     inventory=inventory,
                     tables=tables,
                     spec=spec,
                     handle=handle,
+                    batch_size=1_024,
                 ) as batches:
                     for batch in batches:
+                        lower = tuple(
+                            batch.column(batch.schema.get_field_index(column))[0].as_py()
+                            for column in spec.sort_key
+                        )
+                        upper = tuple(
+                            batch.column(batch.schema.get_field_index(column))[-1].as_py()
+                            for column in spec.sort_key
+                        )
+                        lower_predicate, lower_parameters = _lexicographic_boundary(
+                            spec.sort_key,
+                            lower,
+                            lower=True,
+                        )
+                        upper_predicate, upper_parameters = _lexicographic_boundary(
+                            spec.sort_key,
+                            upper,
+                            lower=False,
+                        )
                         connection.register("_finproof_batch", batch)
                         try:
-                            connection.execute(
-                                f"INSERT INTO {quoted_expected} ({columns}) "  # noqa: S608 -- closed TABLE_SPECS identifiers
-                                f"SELECT {columns} FROM _finproof_batch"
-                            )
+                            difference = connection.execute(
+                                "WITH actual_batch AS ("  # noqa: S608 -- closed TABLE_SPECS identifiers
+                                f"SELECT {actual_columns} FROM {quoted_table} AS actual "
+                                f"INNER JOIN _finproof_batch AS expected ON {join_predicate} "
+                                f"WHERE {lower_predicate} AND {upper_predicate}) "
+                                "SELECT count(*) FROM ("
+                                f"(SELECT {columns} FROM actual_batch EXCEPT ALL "
+                                f"SELECT {columns} FROM _finproof_batch) UNION ALL "
+                                f"(SELECT {columns} FROM _finproof_batch EXCEPT ALL "
+                                f"SELECT {columns} FROM actual_batch))",
+                                [*lower_parameters, *upper_parameters],
+                            ).fetchone()
+                            if difference != (0,):
+                                raise ValueError("DuckDB differs from Parquet")
                         finally:
                             connection.unregister("_finproof_batch")
-                difference = connection.execute(
-                    "SELECT count(*) FROM ("  # noqa: S608 -- closed TABLE_SPECS identifiers
-                    f"(SELECT {columns} FROM {quoted_table} EXCEPT ALL "
-                    f"SELECT {columns} FROM {quoted_expected}) UNION ALL "
-                    f"(SELECT {columns} FROM {quoted_expected} EXCEPT ALL "
-                    f"SELECT {columns} FROM {quoted_table}))"
-                ).fetchone()
-                if difference != (0,):
-                    raise ValueError("DuckDB differs from Parquet")
         except (duckdb.Error, OSError) as exc:
             raise _runtime_failure("runtime_database_query_failed") from exc
         finally:
@@ -699,20 +760,14 @@ class DuckDBArtifactDatabaseVerifier:
 
 
 class PackagedArtifactExpectedComparator:
-    """CP7 assembly shape; CP8 supplies the deliberately absent baseline bytes."""
+    """Compare verified logical facts with the packaged reviewed baseline."""
 
     def compare(self, *, actual: ArtifactLogicalContractView) -> None:
-        del actual
-        reason = (
-            "expected_contract_loader_unavailable"
-            if _expected_contract_resource_exists()
-            else "expected_contract_resource_absent"
+        expected = ExpectedPhase1ArtifactContract.model_validate_json(
+            expected_phase1_contract_bytes(),
+            strict=True,
         )
-        raise ArtifactContractError(
-            ArtifactErrorCode.BASELINE_MISSING,
-            operation_id="compare-packaged-artifact-contract",
-            internal_context={"reason": reason},
-        )
+        compare_expected_artifact_contract(actual, expected)
 
 
 def artifact_verification_kernel(

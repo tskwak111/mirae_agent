@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import io
+import pickle
+from copy import copy, deepcopy
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,7 +15,7 @@ import pytest
 if TYPE_CHECKING:
     from finproof.core.settings import Settings
     from finproof.core.versions import VersionBundle
-    from finproof.data.artifacts.builder import ArtifactCoreBuildOutcome
+    from finproof.data.artifacts.builder import _LiveArtifactBuildCandidate
     from finproof.data.artifacts.config import ArtifactBuildOptions
 
 
@@ -115,12 +117,105 @@ def _install_small_fixture(
     return settings, versions
 
 
-def test_evaluation_build_blocks_missing_expected_before_private_transform(
+def test_private_transform_returns_one_provenance_bound_live_candidate_carrier(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from finproof.data.artifacts.builder import (
+        _build_private_live_candidate,
+        _LiveArtifactBuildCandidate,
+    )
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+    with pytest.raises(TypeError, match="builder-issued"):
+        _LiveArtifactBuildCandidate()
+    carrier = _build_private_live_candidate(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, 1, 2, 3, tzinfo=UTC)),
+    )
+    issuance = object.__getattribute__(carrier, "_issuance")
+    try:
+        assert type(carrier) is _LiveArtifactBuildCandidate
+        assert issuance.value is carrier
+        issuance.candidate._require_issued()
+        assert not any(
+            hasattr(carrier, name)
+            for name in ("candidate", "observations", "manifest", "custody", "path")
+        )
+        for operation in (copy, deepcopy, pickle.dumps):
+            with pytest.raises(TypeError, match="cannot be copied"):
+                operation(carrier)
+    finally:
+        issuance.candidate._custody.discard_if_exact()
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+
+
+def test_candidate_tool_discards_live_carrier_before_core_outcome(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tools.build_candidate_artifacts import _build_candidate_artifacts_with_probe
+
+    from finproof.data.artifacts.builder import (
+        ArtifactBuildTelemetry,
+        _build_private_live_candidate,
+        _discard_live_candidate_to_core_outcome,
+    )
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.manifest import ArtifactCoreVerificationResult
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    class LiveProbe(_AbsentProbe):
+        def second_check(self) -> None:
+            assert tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+            super().second_check()
+
+    carrier: _LiveArtifactBuildCandidate | None = None
+
+    def transform(
+        settings: Settings,
+        versions: VersionBundle,
+        options: ArtifactBuildOptions,
+    ) -> _LiveArtifactBuildCandidate:
+        nonlocal carrier
+        carrier = _build_private_live_candidate(settings, versions, options)
+        return carrier
+
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+    probe = LiveProbe()
+    returned = _build_candidate_artifacts_with_probe(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(
+            persistence_timestamp=datetime(2026, 8, 15, 9, 8, 7, tzinfo=UTC)
+        ),
+        probe=probe,
+        transform=transform,
+        stdout=stdout,
+        stderr=stderr,
+    )
+    assert probe.second_checks == 1
+    assert returned == ArtifactCoreVerificationResult.model_validate_json(
+        stdout.getvalue(), strict=True
+    )
+    assert ArtifactBuildTelemetry.model_validate_json(stderr.getvalue(), strict=True)
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+    assert carrier is not None
+    with pytest.raises(ValueError, match="already consumed"):
+        _discard_live_candidate_to_core_outcome(carrier)
+
+
+def test_real_candidate_default_permanently_refuses_after_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tools import build_candidate_artifacts as candidate_tool
+
     from finproof.core.versions import VersionBundle
-    from finproof.data.artifacts import builder
     from finproof.data.artifacts.config import ArtifactBuildOptions
     from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
     from tests.helpers.artifacts import artifact_staging_settings
@@ -133,47 +228,44 @@ def test_evaluation_build_blocks_missing_expected_before_private_transform(
         del args, kwargs
         calls += 1
 
-    monkeypatch.setattr(builder, "_build_private_core_outcome", forbidden_transform)
+    monkeypatch.setattr(candidate_tool, "_build_private_live_candidate", forbidden_transform)
     with pytest.raises(ArtifactContractError) as raised:
-        builder.build_artifacts(
+        candidate_tool.build_candidate_artifacts(
             settings,
             VersionBundle(),
             options=ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
         )
-    assert raised.value.code is ArtifactErrorCode.BASELINE_MISSING
+    assert raised.value.code is ArtifactErrorCode.BASELINE_ALREADY_EXISTS
     assert calls == 0
     assert not settings.artifact_dir.exists()
 
 
-def test_evaluation_build_blocks_present_resource_without_cp8_comparator_before_transform(
+def test_evaluation_build_with_expected_resource_reaches_private_transform(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts import builder
     from finproof.data.artifacts.config import ArtifactBuildOptions
-    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
     from tests.helpers.artifacts import artifact_staging_settings
 
     settings = artifact_staging_settings(tmp_path / "repository")
     calls = 0
 
-    def forbidden_transform(*args: object, **kwargs: object) -> None:
+    def observed_transform(*args: object, **kwargs: object) -> None:
         nonlocal calls
         del args, kwargs
         calls += 1
+        raise RuntimeError("observed expected-route transform")
 
-    monkeypatch.setattr(builder, "_expected_contract_resource_exists", lambda: True)
-    monkeypatch.setattr(builder, "_build_private_core_outcome", forbidden_transform)
-    with pytest.raises(ArtifactContractError) as raised:
+    monkeypatch.setattr(builder, "_build_private_live_candidate", observed_transform)
+    with pytest.raises(RuntimeError, match="observed expected-route transform"):
         builder.build_artifacts(
             settings,
             VersionBundle(),
             options=ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
         )
-    assert raised.value.code is ArtifactErrorCode.BASELINE_MISSING
-    assert raised.value.internal_context == {"reason": "expected_contract_comparator_unavailable"}
-    assert calls == 0
+    assert calls == 1
     assert not settings.artifact_dir.exists()
 
 
@@ -202,7 +294,7 @@ def test_candidate_existing_baseline_states_block_before_transform_or_output(
         settings: Settings,
         versions: VersionBundle,
         options: ArtifactBuildOptions,
-    ) -> ArtifactCoreBuildOutcome:
+    ) -> _LiveArtifactBuildCandidate:
         nonlocal calls
         del settings, versions, options
         calls += 1
@@ -236,13 +328,13 @@ def test_candidate_second_check_race_emits_nothing_after_exact_cleanup(
 
     settings, versions = _install_small_fixture(tmp_path, monkeypatch)
     transform_calls = 0
-    production_transform = builder._build_private_core_outcome
+    production_transform = builder._build_private_live_candidate
 
     def instrumented_transform(
         settings: Settings,
         versions: VersionBundle,
         options: ArtifactBuildOptions,
-    ) -> ArtifactCoreBuildOutcome:
+    ) -> _LiveArtifactBuildCandidate:
         nonlocal transform_calls
         transform_calls += 1
         return production_transform(settings, versions, options)
@@ -291,7 +383,7 @@ def test_candidate_outputs_contract_then_path_free_telemetry_only_after_second_c
             persistence_timestamp=datetime(2026, 8, 15, 9, 8, 7, tzinfo=UTC)
         ),
         probe=probe,
-        transform=builder._build_private_core_outcome,
+        transform=builder._build_private_live_candidate,
         stdout=stdout,
         stderr=stderr,
     )

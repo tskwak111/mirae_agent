@@ -335,12 +335,24 @@ def adopt_held_artifact_root(
 
 
 class _ManagedArtifactVerificationRoot:
-    __slots__ = ("_closed", "_inventory_opened", "_tree")
+    __slots__ = (
+        "_basename",
+        "_closed",
+        "_expected_result",
+        "_expected_seal_taken",
+        "_inventory_opened",
+        "_root_identity",
+        "_tree",
+    )
 
     def __init__(self, tree: "_HeldArtifactTree") -> None:
         self._tree = tree
+        self._basename = tree._chain_records[-1][1]
+        self._root_identity = _stat_identity(os.fstat(tree._root_fd))
         self._closed = False
         self._inventory_opened = False
+        self._expected_result: ArtifactExpectedVerificationResult | None = None
+        self._expected_seal_taken = False
 
     def open_inventory(
         self,
@@ -357,8 +369,25 @@ class _ManagedArtifactVerificationRoot:
             raise _inventory_error() from exc
 
     def take_expected_acceptance_seal(self) -> object:
-        self._require_live()
-        raise _inventory_capability_error("expected_acceptance_unavailable")
+        if self._expected_result is None or self._expected_seal_taken:
+            raise _inventory_capability_error("expected_acceptance_unavailable")
+        self._expected_seal_taken = True
+        return _ExpectedAcceptanceSeal._issue(
+            basename=self._basename,
+            root_identity=self._root_identity,
+            result=self._expected_result,
+        )
+
+    def _record_expected_acceptance(
+        self,
+        result: "ArtifactExpectedVerificationResult",
+    ) -> None:
+        if (
+            self._expected_result is not None
+            or type(result) is not ArtifactExpectedVerificationResult
+        ):
+            raise _inventory_capability_error("expected_acceptance_unavailable")
+        self._expected_result = result
 
     def close(self) -> None:
         if self._closed:
@@ -372,6 +401,46 @@ class _ManagedArtifactVerificationRoot:
     def _require_live(self) -> None:
         if self._closed:
             raise _held_root_adoption_error()
+
+
+class _ExpectedAcceptanceSeal:
+    __slots__ = ("_basename", "_consumed", "_result", "_root_identity")
+
+    def __new__(cls) -> "_ExpectedAcceptanceSeal":
+        raise TypeError("expected-acceptance seal is verifier-owned")
+
+    @classmethod
+    def _issue(
+        cls,
+        *,
+        basename: str,
+        root_identity: tuple[int, int, int],
+        result: "ArtifactExpectedVerificationResult",
+    ) -> "_ExpectedAcceptanceSeal":
+        value = object.__new__(cls)
+        value._basename = basename
+        value._root_identity = root_identity
+        value._result = result
+        value._consumed = False
+        return value
+
+
+def _consume_expected_acceptance_seal(
+    seal: object,
+    *,
+    stage_name: str,
+    stage_identity: tuple[int, int, int, int],
+) -> "ArtifactExpectedVerificationResult":
+    if (
+        type(seal) is not _ExpectedAcceptanceSeal
+        or seal._consumed
+        or seal._basename != stage_name
+        or seal._root_identity != stage_identity[:3]
+        or type(seal._result) is not ArtifactExpectedVerificationResult
+    ):
+        raise _inventory_capability_error("invalid_expected_acceptance_seal")
+    seal._consumed = True
+    return seal._result
 
 
 def _consume_held_root_adoption(
@@ -599,6 +668,14 @@ class ArtifactManifest(BaseModel):
                 operation_id="load-artifact-manifest",
                 internal_context={"reason": "invalid_manifest"},
             ) from exc
+
+    def verify(self, root: Path) -> "VerifiedArtifactSet":
+        """Verify this published manifest against the reviewed packaged contract."""
+        from finproof.data.artifacts.database import artifact_verification_kernel
+
+        return VerifiedArtifactSet._from_expected(
+            artifact_verification_kernel().verify_expected(manifest=self, root=root)
+        )
 
     @classmethod
     def _from_bytes(cls, payload: bytes) -> Self:
@@ -1267,6 +1344,67 @@ class ArtifactExpectedVerificationResult(ArtifactCoreVerificationResult):
     pass
 
 
+@dataclass(frozen=True, init=False, slots=True)
+class VerifiedArtifactSet:
+    """Public expected-accepted view of one fully reopened artifact generation."""
+
+    _result: ArtifactExpectedVerificationResult
+
+    def __new__(cls) -> "VerifiedArtifactSet":
+        raise TypeError("VerifiedArtifactSet is verification-issued")
+
+    @classmethod
+    def _from_expected(
+        cls,
+        result: ArtifactExpectedVerificationResult,
+    ) -> "VerifiedArtifactSet":
+        if type(result) is not ArtifactExpectedVerificationResult:
+            raise TypeError("verified artifact set requires exact expected result")
+        value = object.__new__(cls)
+        object.__setattr__(value, "_result", result)
+        return value
+
+    @property
+    def logical_contract(self) -> ArtifactExpectedVerificationResult:
+        return self._result
+
+    @property
+    def artifact_contract_version(self) -> str:
+        return self._result.artifact_contract_version
+
+    @property
+    def artifact_set_id(self) -> str:
+        return self._result.artifact_set_id
+
+    @property
+    def dataset_version(self) -> date:
+        return self._result.dataset_version
+
+    @property
+    def logical_inputs(self) -> tuple[ExpectedLogicalInput, ...]:
+        return self._result.logical_inputs
+
+    @property
+    def tables(self) -> tuple[ExpectedLogicalTable, ...]:
+        return self._result.tables
+
+    @property
+    def reports(self) -> tuple[ExpectedSemanticReport, ...]:
+        return self._result.reports
+
+    @property
+    def overall_manifest_logical_hash(self) -> str:
+        return self._result.overall_manifest_logical_hash
+
+    @property
+    def exact_link_pair_sha256(self) -> str:
+        return self._result.exact_link_pair_sha256
+
+    @property
+    def exact_link_evidence_count(self) -> int:
+        return self._result.exact_link_evidence_count
+
+
 class ArtifactDatabaseVerifier(Protocol):
     def verify_database(
         self,
@@ -1415,6 +1553,52 @@ class ArtifactVerificationKernel:
                 logical.model_dump(mode="python"),
                 strict=True,
             )
+
+    def verify_expected_from_root(
+        self,
+        *,
+        manifest: ArtifactManifest,
+        root: ManagedArtifactVerificationRoot,
+    ) -> ArtifactExpectedVerificationResult:
+        self._require_ports(include_expected=True)
+        if type(root) is not _ManagedArtifactVerificationRoot:
+            raise _inventory_capability_error("invalid_expected_verification_root")
+        assert self._table_registry is not None
+        assert self._table_verifier is not None
+        assert self._report_verifier is not None
+        assert self._database_verifier is not None
+        assert self._expected_comparator is not None
+        with root.open_inventory(manifest=manifest) as inventory:
+            specs = self._table_registry.ordered_specs()
+            tables = self._table_verifier.verify_tables(
+                manifest=manifest,
+                inventory=inventory,
+                specs=specs,
+            )
+            tables.validate_against(inventory)
+            reports = self._report_verifier.verify_reports(
+                manifest=manifest,
+                inventory=inventory,
+                tables=tables,
+            )
+            tables.validate_against(inventory)
+            logical = _build_core_result(manifest, tables, reports)
+            tables.validate_against(inventory)
+            self._database_verifier.verify_database(
+                manifest=manifest,
+                inventory=inventory,
+                specs=specs,
+                tables=tables,
+                logical=logical,
+            )
+            self._expected_comparator.compare(actual=logical)
+            inventory.assert_unchanged()
+            result = ArtifactExpectedVerificationResult.model_validate(
+                logical.model_dump(mode="python"),
+                strict=True,
+            )
+        root._record_expected_acceptance(result)
+        return result
 
     def _require_ports(self, *, include_expected: bool) -> None:
         ports: dict[str, object | None] = {

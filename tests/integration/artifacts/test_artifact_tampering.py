@@ -8,6 +8,22 @@ from typing import Any, Literal, cast
 import pytest
 
 
+def test_public_manifest_verify_rejects_small_core_against_official_expected(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from tests.helpers.artifacts import write_report_artifact_tree
+    from tests.integration.artifacts.test_artifact_equality import _quality_rows
+
+    root = tmp_path / "published"
+    manifest = write_report_artifact_tree(root, _quality_rows())
+
+    with pytest.raises(ArtifactContractError) as caught:
+        manifest.verify(root)
+
+    assert caught.value.code is ArtifactErrorCode.REPRODUCIBILITY_MISMATCH
+
+
 def test_build_verified_candidate_stage_invokes_complete_core_before_return(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

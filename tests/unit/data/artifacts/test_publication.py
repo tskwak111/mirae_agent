@@ -29,6 +29,153 @@ def _snapshot(root: Path) -> tuple[tuple[str, int, int, bytes | str | None], ...
     return tuple(sorted(observed))
 
 
+def test_publisher_rejects_core_result_substitution_before_filesystem_work(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.builder import ArtifactCoreBuildOutcome
+    from finproof.data.artifacts.publication import publish_verified_stage
+    from tests.helpers.artifacts import artifact_staging_settings
+
+    class UntouchedFilesystem:
+        def target_exists(self) -> bool:
+            raise AssertionError("filesystem touched before trusted-stage admission")
+
+    core = ArtifactCoreBuildOutcome.model_construct()
+
+    with pytest.raises(TypeError, match="expected-accepted publication stage"):
+        publish_verified_stage(
+            core,  # type: ignore[arg-type]
+            settings=artifact_staging_settings(tmp_path / "repository"),
+            clean=False,
+            filesystem=UntouchedFilesystem(),  # type: ignore[arg-type]
+        )
+
+
+def test_expected_receiver_admission_issues_exact_one_use_slot_with_source_unchanged(
+    tmp_path: Path,
+) -> None:
+    from datetime import UTC, datetime
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        _ExpectedAcceptedReceiverAdmission,
+    )
+    from tests.unit.data.artifacts.test_staging import _input_identity, _staging_settings
+
+    class Receiver:
+        admission: _ExpectedAcceptedReceiverAdmission | None = None
+
+        def preflight_expected_accepted_custody(
+            self,
+            *,
+            admission: _ExpectedAcceptedReceiverAdmission,
+        ) -> None:
+            self.admission = admission
+
+    settings = _staging_settings(tmp_path / "repository")
+    session = ArtifactBuildSession.initialize(
+        settings,
+        VersionBundle(),
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=_input_identity(settings),
+    ).__enter__()
+    custody = session.transfer_candidate_stage().issue_candidate_custody()
+    before = (custody._parent_fd, custody._stage_fd, custody._parquet_fd, custody._lock_fd)
+    receiver = Receiver()
+    try:
+        with pytest.raises(TypeError, match="issuer-owned"):
+            _ExpectedAcceptedReceiverAdmission()
+        admission = custody.issue_expected_accepted_receiver_admission(receiver=receiver)
+        assert receiver.admission is admission
+        assert object.__getattribute__(admission, "_issuance").custody is None
+        assert (
+            custody._parent_fd,
+            custody._stage_fd,
+            custody._parquet_fd,
+            custody._lock_fd,
+        ) == before
+        custody.assert_live()
+    finally:
+        custody.close()
+
+
+@pytest.mark.parametrize("case", ["copied", "foreign", "prefilled", "throwing"])
+def test_expected_receiver_admission_rejects_foreign_prefilled_copied_and_throwing_before_custody_move(  # noqa: E501
+    tmp_path: Path,
+    case: str,
+) -> None:
+    from copy import copy
+    from datetime import UTC, datetime
+
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.staging import (
+        ArtifactBuildSession,
+        CandidateStageCustody,
+        _ExpectedAcceptedReceiverAdmission,
+    )
+    from tests.unit.data.artifacts.test_staging import _input_identity, _staging_settings
+
+    def new_custody(name: str) -> CandidateStageCustody:
+        settings = _staging_settings(tmp_path / name)
+        session = ArtifactBuildSession.initialize(
+            settings,
+            VersionBundle(),
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+            input_identity=_input_identity(settings),
+        ).__enter__()
+        return session.transfer_candidate_stage().issue_candidate_custody()
+
+    foreign_custody = new_custody("foreign")
+
+    class AcceptingReceiver:
+        def preflight_expected_accepted_custody(
+            self,
+            *,
+            admission: _ExpectedAcceptedReceiverAdmission,
+        ) -> None:
+            del admission
+
+    foreign_admission = foreign_custody.issue_expected_accepted_receiver_admission(
+        receiver=AcceptingReceiver()
+    )
+    custody = new_custody("source")
+    before = (custody._parent_fd, custody._stage_fd, custody._parquet_fd, custody._lock_fd)
+
+    class RejectingReceiver:
+        def preflight_expected_accepted_custody(
+            self,
+            *,
+            admission: _ExpectedAcceptedReceiverAdmission,
+        ) -> object:
+            if case == "copied":
+                return copy(admission)
+            if case == "foreign":
+                return foreign_admission
+            if case == "prefilled":
+                object.__getattribute__(admission, "_issuance").custody = object()
+                return None
+            raise RuntimeError("injected preflight failure")
+
+    try:
+        with pytest.raises((TypeError, ValueError, RuntimeError)):
+            custody.issue_expected_accepted_receiver_admission(
+                receiver=RejectingReceiver()  # type: ignore[arg-type]
+            )
+        assert (
+            custody._parent_fd,
+            custody._stage_fd,
+            custody._parquet_fd,
+            custody._lock_fd,
+        ) == before
+        custody.assert_live()
+    finally:
+        custody.close()
+        foreign_custody.close()
+
+
 def test_publication_requires_synthetic_expected_acceptance_before_first_rename(
     tmp_path: Path,
 ) -> None:

@@ -1193,6 +1193,9 @@ def test_silver_finalizer_accepts_unstaged_malformed_fund_row_backed_by_quality_
     assert staged["PUBLIC_FUND_SOURCE_ROW"] == 0
     assert staged["SILVER_QUALITY_ISSUE"] == 1
     assert result.quality_join_observations.total_issues == 1
+    assert tuple(
+        (item.grain, item.count) for item in result.quality_report.excluded_silver_records
+    ) == (("fund_attribute", 1),)
 
 
 def test_silver_result_successor_validator_accepts_only_exact_registered_eleven_table_successor(

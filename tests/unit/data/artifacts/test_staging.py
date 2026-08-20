@@ -135,7 +135,84 @@ def test_artifact_module_ownership_excludes_identity_cycle_and_publication_trans
     assert inspect.isclass(ExpectedAcceptedCustodyReceiver)
     assert tuple(
         inspect.signature(CandidateArtifactSet.transfer_expected_accepted_custody).parameters
-    ) == ("self", "expected_acceptance_seal", "receiver")
+    ) == ("self", "expected_acceptance_seal", "admission")
+
+
+def test_expected_custody_move_atomically_installs_receiver_slot_invalidates_source_and_leaves_no_duplicate_owner(  # noqa: E501
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_private_live_candidate
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError
+    from finproof.data.artifacts.staging import (
+        TransferredCandidateCustody,
+        _ExpectedAcceptedReceiverAdmission,
+    )
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+    carrier = _build_private_live_candidate(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+    )
+    candidate = object.__getattribute__(carrier, "_issuance").candidate
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    with candidate.open_verification_root() as root:
+        database.artifact_verification_kernel().verify_expected_from_root(
+            manifest=candidate._manifest,
+            root=root,
+        )
+        seal = root.take_expected_acceptance_seal()
+
+    class Receiver:
+        def preflight_expected_accepted_custody(
+            self,
+            *,
+            admission: _ExpectedAcceptedReceiverAdmission,
+        ) -> None:
+            del admission
+
+    receiver = Receiver()
+    admission = candidate.issue_expected_accepted_receiver_admission(receiver=receiver)
+    before = tuple(
+        getattr(candidate._custody, name)
+        for name in ("_parent_fd", "_stage_fd", "_parquet_fd", "_lock_fd")
+    )
+
+    candidate.transfer_expected_accepted_custody(
+        expected_acceptance_seal=seal,
+        admission=admission,
+    )
+
+    issuance = object.__getattribute__(admission, "_issuance")
+    transferred = issuance.custody
+    assert type(transferred) is TransferredCandidateCustody
+    assert (
+        tuple(
+            getattr(transferred, name)
+            for name in ("_parent_fd", "_stage_fd", "_parquet_fd", "_lock_fd")
+        )
+        == before
+    )
+    assert tuple(
+        getattr(candidate._custody, name)
+        for name in ("_parent_fd", "_stage_fd", "_parquet_fd", "_lock_fd")
+    ) == (-1, -1, -1, -1)
+    with pytest.raises(ArtifactContractError):
+        candidate._require_issued()
+    with pytest.raises(ArtifactContractError):
+        candidate.transfer_expected_accepted_custody(
+            expected_acceptance_seal=seal,
+            admission=admission,
+        )
+    transferred.close()
 
 
 def test_build_session_initializes_exact_lock_marker_and_descriptor_owned_stage(

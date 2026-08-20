@@ -25,6 +25,7 @@ _SCHEMA_DESTINATIONS = {
     "finproof/resources/schemas/quality_issue.schema.json": ROOT
     / "schemas/quality_issue.schema.json",
 }
+_EXPECTED_CONTRACT_SOURCE = ROOT / "config/expected_phase1_artifacts.json"
 
 
 class _MemoryTraversable:
@@ -130,7 +131,8 @@ def test_built_wheel_archive_contains_exact_schema_sources(tmp_path: Path) -> No
                 hashlib.sha256(packaged_bytes).hexdigest()
                 == hashlib.sha256(source_bytes).hexdigest()
             )
-        assert "finproof/resources/contracts/expected_phase1_artifacts.json" not in names
+        expected_destination = "finproof/resources/contracts/expected_phase1_artifacts.json"
+        assert archive.read(expected_destination) == _EXPECTED_CONTRACT_SOURCE.read_bytes()
         assert all("build_candidate_artifacts" not in name for name in names)
 
 
@@ -650,6 +652,117 @@ def test_runtime_schema_resources_equal_repository_bytes() -> None:
     assert quality_issue_schema_bytes() == (ROOT / "schemas/quality_issue.schema.json").read_bytes()
 
 
+def test_expected_contract_resource_matches_reviewed_source_bytes() -> None:
+    from finproof.data.artifacts.expected_contract import ExpectedPhase1ArtifactContract
+    from finproof.data.artifacts.resources import expected_phase1_contract_bytes
+
+    source = _EXPECTED_CONTRACT_SOURCE.read_bytes()
+    resource = expected_phase1_contract_bytes()
+
+    assert resource == source
+    assert hashlib.sha256(resource).hexdigest() == (
+        "7281eae4f076985f00bea997469ed26b655229cfbfeecbb55de2006f081c155a"
+    )
+    ExpectedPhase1ArtifactContract.model_validate_json(resource, strict=True)
+
+
+def test_active_standard_editable_expected_contract_loader_matches_source_outside_cwd(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts.resources import expected_phase1_contract_bytes
+
+    unrelated = tmp_path / "unrelated"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
+
+    assert expected_phase1_contract_bytes() == _EXPECTED_CONTRACT_SOURCE.read_bytes()
+
+
+def test_standard_editable_expected_contract_loader_uses_distribution_fallback_when_src_shadows(
+    tmp_path: Path,
+) -> None:
+    venv = tmp_path / "editable-venv"
+    subprocess.run(  # noqa: S603
+        [UV, "venv", "--python", "3.12", str(venv)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    python = venv / "bin/python"
+    subprocess.run(  # noqa: S603
+        [UV, "pip", "install", "--python", str(python), "-e", str(ROOT)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    unrelated = tmp_path / "outside"
+    (unrelated / "finproof/resources/contracts").mkdir(parents=True)
+    (unrelated / "finproof/resources/contracts/expected_phase1_artifacts.json").write_bytes(
+        b"conflict"
+    )
+    script = """
+from pathlib import Path
+from finproof.data.artifacts.resources import expected_phase1_contract_bytes
+root = Path(__import__('sys').argv[1])
+source = (root / 'config/expected_phase1_artifacts.json').read_bytes()
+assert expected_phase1_contract_bytes() == source
+"""
+    subprocess.run(  # noqa: S603
+        [str(python), "-c", script, str(ROOT)],
+        cwd=unrelated,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_built_wheel_expected_contract_loader_uses_importlib_resources_primary(
+    tmp_path: Path,
+) -> None:
+    wheel_dir = tmp_path / "wheel"
+    subprocess.run(  # noqa: S603
+        [UV, "build", "--wheel", "--out-dir", str(wheel_dir)],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    wheel = next(wheel_dir.glob("*.whl"))
+    venv = tmp_path / "wheel-venv"
+    subprocess.run(  # noqa: S603
+        [UV, "venv", "--python", "3.12", str(venv)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    python = venv / "bin/python"
+    subprocess.run(  # noqa: S603
+        [UV, "pip", "install", "--python", str(python), str(wheel)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    script = """
+from importlib import metadata
+from pathlib import Path
+def forbidden_distribution(_name):
+    raise AssertionError('wheel primary touched metadata fallback')
+metadata.distribution = forbidden_distribution
+from finproof.data.artifacts.resources import expected_phase1_contract_bytes
+root = Path(__import__('sys').argv[1])
+source = (root / 'config/expected_phase1_artifacts.json').read_bytes()
+assert expected_phase1_contract_bytes() == source
+"""
+    subprocess.run(  # noqa: S603
+        [str(python), "-c", script, str(ROOT)],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
 def test_active_editable_manifest_schema_resource_matches_new_contract_outside_cwd(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -708,7 +821,7 @@ def test_active_standard_editable_schema_loader_matches_current_repository_sourc
     expected_location = distribution.locate_file(
         "finproof/resources/contracts/expected_phase1_artifacts.json"
     )
-    assert not Path(str(expected_location)).exists()
+    assert Path(str(expected_location)).read_bytes() == _EXPECTED_CONTRACT_SOURCE.read_bytes()
 
 
 def test_standard_editable_schema_loader_uses_distribution_fallback_when_src_shadows(
@@ -741,6 +854,7 @@ from pathlib import Path
 import finproof
 from finproof.data.artifacts.resources import (
     artifact_manifest_schema_bytes,
+    expected_phase1_contract_bytes,
     quality_issue_schema_bytes,
 )
 
@@ -778,7 +892,10 @@ for destination, source, loader in items:
 expected = distribution.locate_file(
     'finproof/resources/contracts/expected_phase1_artifacts.json'
 )
-assert not Path(expected).exists()
+assert Path(expected).read_bytes() == (root / 'config/expected_phase1_artifacts.json').read_bytes()
+assert expected_phase1_contract_bytes() == (
+    root / 'config/expected_phase1_artifacts.json'
+).read_bytes()
 """
     subprocess.run(  # noqa: S603
         [str(python), "-c", script, str(ROOT)],
@@ -804,7 +921,9 @@ def test_built_wheel_schema_loader_uses_importlib_resources_primary(
     with zipfile.ZipFile(wheel) as archive:
         names = set(archive.namelist())
         assert set(_SCHEMA_DESTINATIONS) <= names
-        assert "finproof/resources/contracts/expected_phase1_artifacts.json" not in names
+        assert archive.read("finproof/resources/contracts/expected_phase1_artifacts.json") == (
+            _EXPECTED_CONTRACT_SOURCE.read_bytes()
+        )
         assert all("build_candidate_artifacts" not in name for name in names)
 
     venv = tmp_path / "wheel-venv"
@@ -835,6 +954,7 @@ def forbidden_distribution(_name):
 metadata.distribution = forbidden_distribution
 from finproof.data.artifacts.resources import (
     artifact_manifest_schema_bytes,
+    expected_phase1_contract_bytes,
     quality_issue_schema_bytes,
 )
 root = Path(sys.argv[1])
@@ -846,6 +966,10 @@ for loader, source in (
     source_bytes = source.read_bytes()
     assert loaded == source_bytes
     assert hashlib.sha256(loaded).digest() == hashlib.sha256(source_bytes).digest()
+expected = expected_phase1_contract_bytes()
+expected_source = (root / 'config/expected_phase1_artifacts.json').read_bytes()
+assert expected == expected_source
+assert hashlib.sha256(expected).digest() == hashlib.sha256(expected_source).digest()
 """
     subprocess.run(  # noqa: S603
         [str(python), "-c", script, str(ROOT)],
@@ -894,6 +1018,7 @@ def test_candidate_production_probe_and_tool_remain_private_and_absent() -> None
 
     import finproof
     from finproof.core.settings import Settings
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 
     settings = Settings(
         repository_root=ROOT,
@@ -906,9 +1031,11 @@ def test_candidate_production_probe_and_tool_remain_private_and_absent() -> None
     )
     probe = _ProductionCandidateBaselineProbe(settings)
 
-    assert probe.source_exists() is False
-    assert probe.resource_exists() is False
-    probe.second_check()
+    assert probe.source_exists() is True
+    assert probe.resource_exists() is True
+    with pytest.raises(ArtifactContractError) as caught:
+        probe.second_check()
+    assert caught.value.code is ArtifactErrorCode.BASELINE_ALREADY_EXISTS
     scripts = tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["scripts"]
     assert set(scripts) == {"finproof"}
     assert not hasattr(finproof, "build_candidate_artifacts")
@@ -936,3 +1063,37 @@ def test_artifact_package_exports_only_closed_public_runtime_surface() -> None:
         "recover_owned_remnants",
     ):
         assert not hasattr(artifacts, forbidden)
+
+
+def test_artifact_public_surface_exposes_no_core_candidate_or_expected_bypass() -> None:
+    import finproof
+    from finproof.data import artifacts
+
+    assert artifacts.__all__ == (
+        "ArtifactBuildOptions",
+        "ArtifactManifest",
+        "build_artifacts",
+        "open_read_only_database",
+    )
+    assert set(tomllib.loads((ROOT / "pyproject.toml").read_text())["project"]["scripts"]) == {
+        "finproof"
+    }
+    for owner in (finproof, artifacts):
+        for forbidden in (
+            "ArtifactBuildOutcome",
+            "ArtifactCoreBuildOutcome",
+            "ArtifactBuildTelemetry",
+            "CandidateArtifactSet",
+            "ExpectedAcceptedPublicationStage",
+            "VerifiedArtifactSet",
+            "_LiveArtifactBuildCandidate",
+            "_ExpectedAcceptedReceiverAdmission",
+            "accept_expected_contract",
+            "build_candidate_artifacts",
+            "build_verified_candidate_stage",
+            "compare_expected_artifact_contract",
+            "recover_owned_remnants",
+            "skip_expected_contract",
+            "update_expected_contract",
+        ):
+            assert not hasattr(owner, forbidden)

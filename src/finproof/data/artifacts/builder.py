@@ -41,6 +41,7 @@ from finproof.data.artifacts.links import (
 )
 from finproof.data.artifacts.manifest import (
     ArtifactCoreVerificationResult,
+    ArtifactExpectedVerificationResult,
     ArtifactFile,
     ArtifactManifest,
     ArtifactVersions,
@@ -57,7 +58,6 @@ from finproof.data.artifacts.reports import (
     _FinalReportVerificationObservations,
     require_complete_source_audit_observations,
 )
-from finproof.data.artifacts.resources import _expected_contract_resource_exists
 from finproof.data.artifacts.silver import (
     SilverArtifactEmitter,
     SilverBuildResult,
@@ -68,6 +68,7 @@ from finproof.data.artifacts.staging import (
     ArtifactBuildSession,
     CandidateStageCustody,
     ExpectedAcceptedCustodyReceiver,
+    _ExpectedAcceptedReceiverAdmission,
 )
 from finproof.data.artifacts.table_specs import TABLE_SPECS
 from finproof.registry.rating import RatingRegistry
@@ -258,6 +259,33 @@ class ArtifactCoreBuildOutcome(BaseModel):
         return self
 
 
+class ArtifactBuildOutcome(BaseModel):
+    """Expected-accepted published artifact result."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        revalidate_instances="always",
+    )
+
+    manifest: ArtifactManifest
+    logical_contract: ArtifactExpectedVerificationResult
+    telemetry: ArtifactBuildTelemetry
+
+    @model_validator(mode="after")
+    def require_one_published_generation(self) -> Self:
+        ArtifactCoreBuildOutcome(
+            manifest=self.manifest,
+            logical_contract=ArtifactCoreVerificationResult.model_validate(
+                self.logical_contract.model_dump(mode="python"),
+                strict=True,
+            ),
+            telemetry=self.telemetry,
+        )
+        return self
+
+
 @dataclass(frozen=True, slots=True)
 class _CoreTelemetryObservations:
     max_live_fund_group_rows: int
@@ -270,6 +298,92 @@ class _CoreTelemetryObservations:
     max_live_evidence_keys: int
     staging_mode: int
     verifier_workspace: ArtifactWorkspaceTelemetry
+
+
+@dataclass(frozen=True, init=False, slots=True)
+class _LiveArtifactBuildCandidate:
+    """One provenance-bound live candidate with mutually exclusive terminal use."""
+
+    _issuance: _LiveArtifactBuildCandidateIssuance
+
+    def __new__(cls) -> _LiveArtifactBuildCandidate:
+        raise TypeError("live candidate is builder-issued")
+
+    def __copy__(self) -> _LiveArtifactBuildCandidate:
+        raise TypeError("live candidate cannot be copied")
+
+    def __deepcopy__(self, memo: dict[int, object]) -> _LiveArtifactBuildCandidate:
+        del memo
+        raise TypeError("live candidate cannot be copied")
+
+    def __reduce__(self) -> str | tuple[object, ...]:
+        raise TypeError("live candidate cannot be copied")
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        del kwargs
+        raise TypeError("live candidate cannot be copied")
+
+
+class _LiveArtifactBuildCandidateIssuance:
+    __slots__ = ("candidate", "observations", "state", "value")
+
+    def __init__(
+        self,
+        value: _LiveArtifactBuildCandidate,
+        *,
+        candidate: CandidateArtifactSet,
+        observations: _CoreTelemetryObservations,
+    ) -> None:
+        self.value = value
+        self.candidate = candidate
+        self.observations = observations
+        self.state = "LIVE"
+
+
+def _issue_live_artifact_build_candidate(
+    *,
+    candidate: CandidateArtifactSet,
+    observations: _CoreTelemetryObservations,
+) -> _LiveArtifactBuildCandidate:
+    if (
+        type(candidate) is not CandidateArtifactSet
+        or type(observations) is not _CoreTelemetryObservations
+    ):
+        raise TypeError("live candidate requires exact finalization members")
+    candidate._require_issued()
+    value = object.__new__(_LiveArtifactBuildCandidate)
+    object.__setattr__(
+        value,
+        "_issuance",
+        _LiveArtifactBuildCandidateIssuance(
+            value,
+            candidate=candidate,
+            observations=observations,
+        ),
+    )
+    return value
+
+
+def _require_live_artifact_build_candidate(
+    value: object,
+) -> _LiveArtifactBuildCandidateIssuance:
+    if type(value) is not _LiveArtifactBuildCandidate:
+        raise TypeError("live candidate requires the exact runtime type")
+    try:
+        issuance = object.__getattribute__(value, "_issuance")
+    except AttributeError as exc:
+        raise ValueError("live candidate issuance changed") from exc
+    if (
+        type(issuance) is not _LiveArtifactBuildCandidateIssuance
+        or issuance.value is not value
+        or type(issuance.candidate) is not CandidateArtifactSet
+        or type(issuance.observations) is not _CoreTelemetryObservations
+    ):
+        raise ValueError("live candidate issuance changed")
+    if issuance.state != "LIVE":
+        raise ValueError("live candidate was already consumed")
+    issuance.candidate._require_issued()
+    return issuance
 
 
 class _CompleteArtifactBuildProvenance:
@@ -504,13 +618,21 @@ class CandidateArtifactSet:
         self,
         *,
         expected_acceptance_seal: object,
-        receiver: ExpectedAcceptedCustodyReceiver,
+        admission: _ExpectedAcceptedReceiverAdmission,
     ) -> None:
         self._require_issued()
         self._custody.transfer_expected_accepted(
             expected_acceptance_seal=expected_acceptance_seal,
-            receiver=receiver,
+            admission=admission,
         )
+
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: ExpectedAcceptedCustodyReceiver,
+    ) -> _ExpectedAcceptedReceiverAdmission:
+        self._require_issued()
+        return self._custody.issue_expected_accepted_receiver_admission(receiver=receiver)
 
     def _require_issued(self) -> None:
         if (
@@ -560,7 +682,7 @@ def _issue_candidate_artifact_set(
     ):
         raise TypeError("candidate artifact set requires exact issued inputs")
     custody.assert_live()
-    if custody._input_identity is not input_identity:  # type: ignore[attr-defined]
+    if cast(object, custody._input_identity) is not input_identity:
         raise ValueError("candidate build input identity changed")
     manifest.require_build_input_identity(input_identity)
     value = object.__new__(CandidateArtifactSet)
@@ -806,17 +928,17 @@ def build_verified_candidate_stage(
         raise
 
 
-def _build_private_core_outcome(
+def _build_private_live_candidate(
     settings: Settings,
     versions: VersionBundle,
     options: ArtifactBuildOptions,
-) -> ArtifactCoreBuildOutcome:
+) -> _LiveArtifactBuildCandidate:
     if (
         type(settings) is not Settings
         or type(versions) is not VersionBundle
         or type(options) is not ArtifactBuildOptions
     ):
-        raise TypeError("private core builder requires exact inputs")
+        raise TypeError("private live-candidate builder requires exact inputs")
     resolved = ResolvedBuildInputBundle.from_settings(settings)
     with verify_build_inputs(settings, resolved) as held:
         identity = BuildInputIdentity.from_verified(seal=held.issue_identity_seal())
@@ -842,18 +964,36 @@ def _build_private_core_outcome(
     except BaseException:
         identity.close()
         raise
+    return _issue_live_artifact_build_candidate(
+        candidate=candidate,
+        observations=observed,
+    )
+
+
+def _discard_live_candidate_to_core_outcome(
+    value: _LiveArtifactBuildCandidate,
+) -> ArtifactCoreBuildOutcome:
+    issuance = _require_live_artifact_build_candidate(value)
+    candidate = issuance.candidate
+    observed = issuance.observations
     manifest = candidate._manifest
     logical = candidate._core_result
     candidate._custody.discard_if_exact()
-    staging_workspace = ArtifactWorkspaceTelemetry(
-        mode=cast(Literal[0o700], observed.staging_mode),
-        marker_owned=True,
-        containment_verified=True,
-        cleanup_completed=True,
-        threads=1,
-        memory_limit="1GiB",
+    issuance.state = "DISCARDED"
+    telemetry = _artifact_build_telemetry(manifest=manifest, observed=observed)
+    return ArtifactCoreBuildOutcome(
+        manifest=manifest,
+        logical_contract=logical,
+        telemetry=telemetry,
     )
-    telemetry = ArtifactBuildTelemetry(
+
+
+def _artifact_build_telemetry(
+    *,
+    manifest: ArtifactManifest,
+    observed: _CoreTelemetryObservations,
+) -> ArtifactBuildTelemetry:
+    return ArtifactBuildTelemetry(
         persistence_timestamp=manifest.persistence_timestamp,
         max_live_fund_group_rows=observed.max_live_fund_group_rows,
         max_writer_batch_rows=observed.max_writer_batch_rows,
@@ -863,16 +1003,23 @@ def _build_private_core_outcome(
         linked_fund_record_json_parses=observed.linked_fund_record_json_parses,
         max_live_link_keys=observed.max_live_link_keys,
         max_live_evidence_keys=observed.max_live_evidence_keys,
-        staging_workspace=staging_workspace,
+        staging_workspace=ArtifactWorkspaceTelemetry(
+            mode=cast(Literal[0o700], observed.staging_mode),
+            marker_owned=True,
+            containment_verified=True,
+            cleanup_completed=True,
+            threads=1,
+            memory_limit="1GiB",
+        ),
         verifier_workspace=observed.verifier_workspace,
         physical_files=tuple(
             ArtifactPhysicalFileHash(
-                path=value.path,
-                kind=value.kind,
-                size_bytes=value.size_bytes,
-                sha256=value.sha256,
+                path=file.path,
+                kind=file.kind,
+                size_bytes=file.size_bytes,
+                sha256=file.sha256,
             )
-            for value in manifest.files
+            for file in manifest.files
         ),
         manifest_identity=ArtifactManifestIdentity(
             manifest_version=manifest.manifest_version,
@@ -882,11 +1029,6 @@ def _build_private_core_outcome(
             logical_hash=manifest.logical_hash,
         ),
     )
-    return ArtifactCoreBuildOutcome(
-        manifest=manifest,
-        logical_contract=logical,
-        telemetry=telemetry,
-    )
 
 
 def _build_evaluation_artifacts_with_outcome(
@@ -894,19 +1036,45 @@ def _build_evaluation_artifacts_with_outcome(
     versions: VersionBundle,
     *,
     options: ArtifactBuildOptions,
-) -> object:
-    del versions, options
-    reason = (
-        "expected_contract_comparator_unavailable"
-        if _expected_contract_resource_exists()
-        else "expected_contract_resource_absent"
+) -> ArtifactBuildOutcome:
+    from finproof.data.artifacts.publication import (
+        _PublishedArtifactFilesystem,
+        authorize_candidate_for_publication,
+        publish_verified_stage,
     )
-    raise ArtifactContractError(
-        ArtifactErrorCode.BASELINE_MISSING,
-        operation_id="build-artifacts",
-        target_basename=settings.artifact_dir.name,
-        internal_context={"reason": reason},
-    )
+
+    carrier = _build_private_live_candidate(settings, versions, options)
+    issuance = _require_live_artifact_build_candidate(carrier)
+    candidate = issuance.candidate
+    try:
+        with authorize_candidate_for_publication(candidate) as authorized:
+            logical = publish_verified_stage(
+                authorized,
+                settings=settings,
+                clean=options.clean,
+                filesystem=_PublishedArtifactFilesystem(
+                    settings=settings,
+                    expected=authorized.expected_result,
+                ),
+            )
+        issuance.state = "PUBLISHED"
+        return ArtifactBuildOutcome(
+            manifest=candidate._manifest,
+            logical_contract=logical,
+            telemetry=_artifact_build_telemetry(
+                manifest=candidate._manifest,
+                observed=issuance.observations,
+            ),
+        )
+    except BaseException:
+        try:
+            candidate._custody.assert_live()
+        except ArtifactContractError:
+            pass
+        else:
+            candidate._custody.discard_if_exact()
+        issuance.state = "DISCARDED"
+        raise
 
 
 def build_artifacts(

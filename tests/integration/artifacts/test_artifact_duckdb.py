@@ -1,6 +1,7 @@
 """CP7A self-contained DuckDB construction contracts."""
 
 import copy
+import hashlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
@@ -12,6 +13,7 @@ import pytest
 from tests.helpers.artifacts import (
     artifact_build_input_identity,
     artifact_staging_settings,
+    write_database_artifact_tree,
 )
 
 
@@ -162,6 +164,173 @@ def test_database_builder_materializes_exact_tables_through_cp4_managed_writer(
             f'SELECT count(*) FROM "{spec.table_name}"'  # noqa: S608 -- closed TABLE_SPECS identifier
         ).fetchone() == (0,)
     connection.close()
+
+
+def test_database_materializer_bounds_wide_arrow_batches_across_tables_under_low_memory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import duckdb
+    import pyarrow as pa  # type: ignore[import-untyped]
+
+    from finproof.data.artifacts import database
+
+    class Column:
+        nullable = False
+
+        def __init__(self, name: str, duckdb_type: str) -> None:
+            self.name = name
+            self.duckdb_type = duckdb_type
+
+    class Spec:
+        columns = (
+            Column("id", "BIGINT"),
+            *(Column(f"payload_{index}", "VARCHAR") for index in range(12)),
+        )
+        sort_key = ("id",)
+
+        def __init__(self, table_name: str) -> None:
+            self.table_name = table_name
+
+    specs = tuple(Spec(f"wide_{index}") for index in range(3))
+    monkeypatch.setattr(database, "TABLE_SPECS", specs)
+    observed_batch_sizes: list[int] = []
+
+    class Handle:
+        def __init__(self, table_index: int) -> None:
+            self._table_index = table_index
+
+        @contextmanager
+        def iter_batches(self, *, batch_size: int = 65_536) -> Iterator[Iterator[pa.RecordBatch]]:
+            observed_batch_sizes.append(batch_size)
+
+            def batches() -> Iterator[pa.RecordBatch]:
+                table_rows = 8_192
+                start = self._table_index * table_rows
+                for offset in range(0, table_rows, batch_size):
+                    row_count = min(batch_size, table_rows - offset)
+                    values = range(start + offset, start + offset + row_count)
+                    payload = [
+                        hashlib.sha256(str(value).encode()).hexdigest() * 4 for value in values
+                    ]
+                    yield pa.record_batch(
+                        [
+                            pa.array(values, type=pa.int64()),
+                            *(pa.array(payload) for _ in range(12)),
+                        ],
+                        names=("id", *(f"payload_{index}" for index in range(12))),
+                    )
+
+            yield batches()
+
+    class Verification:
+        def __init__(self, table_index: int) -> None:
+            self.handle = Handle(table_index)
+
+    class Tables:
+        def verification_for(self, table_name: str) -> Verification:
+            return Verification(int(table_name.rsplit("_", 1)[1]))
+
+    connection = duckdb.connect(str(tmp_path / "bounded.duckdb"))
+    try:
+        connection.execute("SET memory_limit = '32MiB'")
+        connection.execute("SET temp_directory = ?", [str(tmp_path / "spill")])
+        database._materialize_tables(connection, cast(Any, Tables()))
+        assert observed_batch_sizes == [256, 256, 256]
+        assert tuple(
+            connection.execute(
+                f'SELECT count(*) FROM "{spec.table_name}"'  # noqa: S608 -- closed test specs
+            ).fetchone()
+            for spec in specs
+        ) == ((8_192,), (8_192,), (8_192,))
+    finally:
+        connection.close()
+
+
+def test_database_verifier_streams_expected_batches_under_low_memory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import duckdb
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import ParquetArtifactTableVerifier
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    timestamp = datetime(2026, 8, 15, tzinfo=UTC)
+    snapshot = timestamp.date()
+
+    def payload(index: int) -> str:
+        return hashlib.sha256(str(index).encode()).hexdigest() * 128
+
+    rows_by_table = {
+        "bronze_source_column": tuple(
+            {
+                "catalog_version": "v1",
+                "source_snapshot_date": snapshot,
+                "source_table_order": 0,
+                "source_table": "PRBD01N001",
+                "source_column_number": index + 1,
+                "source_column_letter": f"C{index + 1}",
+                "source_column_name": f"field_{index:04d}",
+                "source_declared_type": "string",
+                "source_example": payload(index),
+                "source_key_marker": "",
+                "source_name_ko": "채권",
+                "schema_file": "schema.xlsx",
+                "schema_excel_row": index + 2,
+            }
+            for index in range(1_536)
+        ),
+    }
+    root = tmp_path / "artifacts"
+    manifest = write_database_artifact_tree(root, rows_by_table)
+    real_connect = duckdb.connect
+
+    class BoundedConnection:
+        def __init__(self, path: str, *, read_only: bool) -> None:
+            self._connection = real_connect(path, read_only=read_only)
+
+        def execute(self, query: str, parameters: object = None) -> Any:
+            if query == "SET memory_limit = '1GiB'":
+                return self._connection.execute("SET memory_limit = '40MiB'")
+            if query.startswith("SELECT current_setting('threads')"):
+                self._connection.execute(query)
+
+                class RuntimeSettings:
+                    @staticmethod
+                    def fetchone() -> tuple[int, str]:
+                        return (1, "1.0 GiB")
+
+                return RuntimeSettings()
+            if parameters is None:
+                return self._connection.execute(query)
+            return self._connection.execute(query, parameters)
+
+        def __getattr__(self, name: str) -> Any:
+            return getattr(self._connection, name)
+
+    runtime = tmp_path / "runtime"
+    runtime.mkdir(mode=0o700)
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+        monkeypatch.setattr(
+            cast(Any, database).duckdb,
+            "connect",
+            lambda path, *, read_only: BoundedConnection(path, read_only=read_only),
+        )
+        database.verify_database_against_parquet(
+            inventory=inventory,
+            database_entry=inventory.declared_entries[0],
+            tables=tables,
+            runtime_tmp_root=runtime,
+        )
+    assert tuple(runtime.iterdir()) == ()
 
 
 def test_database_builder_orchestrates_cp4_seal_then_cp7_verified_wrapper(

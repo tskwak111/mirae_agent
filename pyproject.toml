@@ -52,6 +52,7 @@ packages = ["src/finproof"]
 [tool.hatch.build.targets.wheel.force-include]
 "schemas/artifact_manifest.schema.json" = "finproof/resources/schemas/artifact_manifest.schema.json"
 "schemas/quality_issue.schema.json" = "finproof/resources/schemas/quality_issue.schema.json"
+"config/expected_phase1_artifacts.json" = "finproof/resources/contracts/expected_phase1_artifacts.json"
 
 [tool.ruff]
 target-version = "py312"

@@ -29,6 +29,52 @@ def _snapshot(root: Path) -> tuple[tuple[str, int, int, bytes | str | None], ...
     return tuple(sorted(rows))
 
 
+def test_normal_target_recognition_requires_reopened_expected_acceptance(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.data.artifacts.manifest import (
+        ArtifactExpectedVerificationResult,
+        ArtifactManifest,
+        VerifiedArtifactSet,
+    )
+    from finproof.data.artifacts.publication import _PublishedArtifactFilesystem
+    from finproof.data.artifacts.resources import expected_phase1_contract_bytes
+    from tests.helpers.artifacts import artifact_staging_settings, manifest_payload
+
+    settings = artifact_staging_settings(tmp_path / "repository")
+    settings.artifact_dir.mkdir()
+    manifest_path = settings.artifact_dir / "manifest.json"
+    manifest_path.write_bytes(b"reopen-me\n")
+    manifest = ArtifactManifest.model_validate(manifest_payload(), strict=True)
+    expected = VerifiedArtifactSet._from_expected(
+        ArtifactExpectedVerificationResult.model_validate_json(
+            expected_phase1_contract_bytes(),
+            strict=True,
+        )
+    )
+    reopened: list[Path] = []
+    verified: list[Path] = []
+
+    def load(path: Path) -> ArtifactManifest:
+        reopened.append(path)
+        return manifest
+
+    def verify(self: ArtifactManifest, root: Path) -> VerifiedArtifactSet:
+        assert self is manifest
+        verified.append(root)
+        return expected
+
+    monkeypatch.setattr(ArtifactManifest, "load", load)
+    monkeypatch.setattr(ArtifactManifest, "verify", verify)
+
+    filesystem = _PublishedArtifactFilesystem(settings=settings, expected=expected)
+    filesystem.recognize_target()
+
+    assert reopened == [manifest_path]
+    assert verified == [settings.artifact_dir]
+
+
 @pytest.mark.parametrize(
     "state",
     [

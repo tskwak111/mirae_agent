@@ -637,6 +637,7 @@ class SilverArtifactEmitter:
         else:
             classification = classify_public_fund_row(row)
             if classification.issue is not None:
+                self._excluded_counts["fund_attribute"] += 1
                 self._stage_quality_issues((classification.issue,))
                 return
             if type(classification.item_key) is not str:

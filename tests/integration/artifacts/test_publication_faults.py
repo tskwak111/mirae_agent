@@ -1,10 +1,184 @@
 """CP7B publication rollback fault boundaries."""
 
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
 
 from tests.helpers.artifact_filesystem import SyntheticPublicationAuthorization
+
+
+def test_expected_mismatch_blocks_before_first_rename(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime
+
+    from finproof.data.artifacts.builder import _build_evaluation_artifacts_with_outcome
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    with pytest.raises(ArtifactContractError) as caught:
+        _build_evaluation_artifacts_with_outcome(
+            settings,
+            versions,
+            options=ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        )
+
+    assert caught.value.code is ArtifactErrorCode.REPRODUCIBILITY_MISMATCH
+    assert not settings.artifact_dir.exists()
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+
+
+def test_expected_publication_transition_and_precommit_rollback_use_transferred_custody(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_private_live_candidate
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.publication import (
+        authorize_candidate_for_publication,
+        publish_verified_stage,
+    )
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+    carrier = _build_private_live_candidate(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+    )
+    candidate = object.__getattribute__(carrier, "_issuance").candidate
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+
+    class FailingTargetVerification:
+        observed_target = False
+
+        def target_exists(self) -> bool:
+            return False
+
+        def verify_target(self) -> None:
+            self.observed_target = settings.artifact_dir.is_dir()
+            assert (settings.artifact_dir / "manifest.json").is_file()
+            raise ArtifactContractError(
+                ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                operation_id="injected-target-verification",
+            )
+
+        def __getattr__(self, name: str) -> object:
+            raise AssertionError(f"unexpected filesystem operation: {name}")
+
+    filesystem = FailingTargetVerification()
+    with (
+        pytest.raises(ArtifactContractError),
+        authorize_candidate_for_publication(candidate) as authorized,
+    ):
+        publish_verified_stage(
+            authorized,
+            settings=settings,
+            clean=False,
+            filesystem=filesystem,  # type: ignore[arg-type]
+        )
+
+    assert filesystem.observed_target is True
+    assert not settings.artifact_dir.exists()
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+
+
+@pytest.mark.parametrize("case", ["receiver-fault", "early-close", "success"])
+def test_expected_publication_cleanup_closes_transferred_custody_exactly_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    import os
+    from datetime import UTC, datetime
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_private_live_candidate
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.publication import (
+        ExpectedAcceptedPublicationStage,
+        authorize_candidate_for_publication,
+        publish_verified_stage,
+    )
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+    carrier = _build_private_live_candidate(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+    )
+    candidate = object.__getattribute__(carrier, "_issuance").candidate
+    descriptors = tuple(
+        getattr(candidate._custody, name)
+        for name in ("_parent_fd", "_stage_fd", "_parquet_fd", "_lock_fd")
+    )
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    if case == "receiver-fault":
+
+        def fail_receiver(_self: object, **kwargs: object) -> None:
+            del kwargs
+            raise RuntimeError("injected receiver failure")
+
+        monkeypatch.setattr(
+            ExpectedAcceptedPublicationStage,
+            "preflight_expected_accepted_custody",
+            fail_receiver,
+        )
+
+    class SuccessfulFilesystem:
+        def target_exists(self) -> bool:
+            return False
+
+        def verify_target(self) -> None:
+            assert (settings.artifact_dir / "manifest.json").is_file()
+
+        def __getattr__(self, name: str) -> object:
+            raise AssertionError(f"unexpected filesystem operation: {name}")
+
+    authorized: ExpectedAcceptedPublicationStage | None = None
+    try:
+        if case == "receiver-fault":
+            with (
+                pytest.raises(RuntimeError, match="injected receiver failure"),
+                authorize_candidate_for_publication(candidate),
+            ):
+                pytest.fail("receiver fault yielded publication authority")
+        else:
+            with authorize_candidate_for_publication(candidate) as authorized:
+                if case == "early-close":
+                    authorized.close()
+                else:
+                    publish_verified_stage(
+                        authorized,
+                        settings=settings,
+                        clean=False,
+                        filesystem=SuccessfulFilesystem(),  # type: ignore[arg-type]
+                    )
+            authorized.close()
+        for descriptor in descriptors:
+            with pytest.raises(OSError, match="Bad file descriptor"):
+                os.fstat(descriptor)
+    finally:
+        with suppress(Exception):
+            candidate._custody.close()
 
 
 def _assert_first_publish_fault_rolls_back(

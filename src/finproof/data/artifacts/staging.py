@@ -42,6 +42,7 @@ from finproof.data.artifacts.input_identity import BuildInputIdentity
 from finproof.data.artifacts.manifest import (
     HeldArtifactRootAdoption,
     ManagedArtifactVerificationRoot,
+    _consume_expected_acceptance_seal,
     _issue_held_artifact_root_adoption,
     adopt_held_artifact_root,
 )
@@ -742,15 +743,74 @@ class CandidateStageCustody:
     def close(self) -> None:
         _discard_exact_candidate(self, reason="candidate_custody_cleanup_failed")
 
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: "ExpectedAcceptedCustodyReceiver",
+    ) -> "_ExpectedAcceptedReceiverAdmission":
+        self.assert_live()
+        admission = _issue_expected_accepted_receiver_admission(
+            source=self,
+            receiver=receiver,
+        )
+        try:
+            result = cast(Any, receiver).preflight_expected_accepted_custody(admission=admission)
+            issuance = object.__getattribute__(admission, "_issuance")
+            if (
+                result is not None
+                or type(issuance) is not _ExpectedAcceptedReceiverAdmissionIssuance
+                or issuance.value is not admission
+                or issuance.source is not self
+                or issuance.receiver is not receiver
+                or issuance.custody is not None
+                or issuance.state != "ADMITTED"
+            ):
+                raise ValueError("expected-accepted receiver preflight changed its admission")
+        except BaseException:
+            object.__getattribute__(admission, "_issuance").state = "INVALID"
+            raise
+        self.assert_live()
+        return admission
+
     def transfer_expected_accepted(
         self,
         *,
         expected_acceptance_seal: object,
-        receiver: "ExpectedAcceptedCustodyReceiver",
+        admission: "_ExpectedAcceptedReceiverAdmission",
     ) -> None:
-        del expected_acceptance_seal, receiver
         self.assert_live()
-        raise _staging_error("expected_accepted_transfer_unavailable")
+        try:
+            issuance = object.__getattribute__(admission, "_issuance")
+            if (
+                type(admission) is not _ExpectedAcceptedReceiverAdmission
+                or type(issuance) is not _ExpectedAcceptedReceiverAdmissionIssuance
+                or issuance.value is not admission
+                or issuance.source is not self
+                or issuance.custody is not None
+                or issuance.state != "ADMITTED"
+            ):
+                raise ValueError("expected-accepted admission changed")
+            _consume_expected_acceptance_seal(
+                expected_acceptance_seal,
+                stage_name=self._stage_name,
+                stage_identity=self._stage_identity,
+            )
+        except (ArtifactContractError, AttributeError, TypeError, ValueError) as exc:
+            raise _staging_error("expected_accepted_transfer_rejected") from exc
+        transferred = object.__new__(TransferredCandidateCustody)
+        for name in _TRANSFERRED_STAGE_SLOTS:
+            setattr(transferred, name, getattr(self, name))
+        transferred._closed = False
+        transferred._state = "LIVE"
+        issuance.custody = transferred
+        issuance.state = "TRANSFERRED"
+        self._parquet_fd = -1
+        self._stage_fd = -1
+        self._lock_fd = -1
+        self._parent_fd = -1
+        self._input_identity = None
+        self._closed = True
+        self._state = "CLOSED"
 
     def __copy__(self) -> "CandidateStageCustody":
         raise TypeError("CandidateStageCustody cannot be copied")
@@ -3011,16 +3071,180 @@ class _OwnedParquetLeaf:
 class TransferredCandidateCustody:
     """Opaque ownership moved into the future expected-accepted receiver."""
 
+    __slots__ = OwnedCandidateStage.__slots__
+
     def __new__(cls) -> "TransferredCandidateCustody":
         raise TypeError("TransferredCandidateCustody is transfer-owned")
 
+    def assert_live(self) -> None:
+        try:
+            if self._closed or self._state != "LIVE":
+                raise ValueError("transferred candidate custody is closed")
+            _require_session_generation(cast(Any, self))
+        except (AttributeError, OSError, TypeError, ValueError) as exc:
+            raise _staging_error("transferred_candidate_custody_not_live") from exc
+
+    def rename_stage_to_target(self) -> None:
+        self.assert_live()
+        try:
+            os.rename(
+                self._stage_name,
+                self._target_basename,
+                src_dir_fd=self._parent_fd,
+                dst_dir_fd=self._parent_fd,
+            )
+            self._state = "TARGET_RENAMED"
+        except OSError as exc:
+            raise _staging_error("stage_to_target_rename_failed") from exc
+
+    def rollback_target_to_stage(self) -> None:
+        try:
+            if self._closed or self._state != "TARGET_RENAMED":
+                raise ValueError("transferred candidate is not at target")
+            named = os.stat(
+                self._target_basename,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
+            if _directory_identity(named) != self._stage_identity:
+                raise ValueError("target generation changed before rollback")
+            os.rename(
+                self._target_basename,
+                self._stage_name,
+                src_dir_fd=self._parent_fd,
+                dst_dir_fd=self._parent_fd,
+            )
+            self._state = "LIVE"
+            self.assert_live()
+        except (ArtifactContractError, OSError, TypeError, ValueError) as exc:
+            raise _staging_error("target_to_stage_rollback_failed") from exc
+
+    def commit_after_stage_marker_removal(self) -> None:
+        try:
+            if self._closed or self._state != "TARGET_RENAMED":
+                raise ValueError("transferred candidate is not ready to commit")
+            named = os.stat(
+                self._target_basename,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
+            if _directory_identity(named) != self._stage_identity:
+                raise ValueError("target generation changed before commit")
+            marker_fd = os.open(
+                self._marker_name,
+                os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+                dir_fd=self._parent_fd,
+            )
+            try:
+                marker = os.fstat(marker_fd)
+                if (
+                    _leaf_identity(marker) != self._marker_identity
+                    or _read_bounded_descriptor(marker_fd) != self._marker_payload
+                ):
+                    raise ValueError("stage marker changed before commit")
+            finally:
+                os.close(marker_fd)
+            os.unlink(self._marker_name, dir_fd=self._parent_fd)
+        except (OSError, TypeError, ValueError) as exc:
+            raise _staging_error("stage_marker_commit_failed") from exc
+        self._finish_publication_transfer()
+
+    def _finish_publication_transfer(self) -> None:
+        for descriptor_name in ("_parquet_fd", "_stage_fd"):
+            descriptor = getattr(self, descriptor_name)
+            if descriptor >= 0:
+                os.close(descriptor)
+                setattr(self, descriptor_name, -1)
+        self._input_identity.close()
+        self._input_identity = None
+        fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+        os.close(self._lock_fd)
+        self._lock_fd = -1
+        os.close(self._parent_fd)
+        self._parent_fd = -1
+        self._state = "PUBLISHED"
+        self._closed = True
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        if self._state == "LIVE":
+            _discard_exact_candidate(
+                cast(Any, self),
+                reason="transferred_candidate_custody_cleanup_failed",
+            )
+            return
+        self._input_identity.close()
+        self._input_identity = None
+        with suppress(OSError):
+            fcntl.flock(self._lock_fd, fcntl.LOCK_UN)
+        for descriptor_name in ("_parquet_fd", "_stage_fd", "_lock_fd", "_parent_fd"):
+            descriptor = getattr(self, descriptor_name)
+            if descriptor >= 0:
+                with suppress(OSError):
+                    os.close(descriptor)
+                setattr(self, descriptor_name, -1)
+        self._closed = True
+
+
+class _ExpectedAcceptedReceiverAdmissionIssuance:
+    __slots__ = ("custody", "receiver", "source", "state", "value")
+
+    def __init__(
+        self,
+        value: "_ExpectedAcceptedReceiverAdmission",
+        *,
+        source: CandidateStageCustody,
+        receiver: "ExpectedAcceptedCustodyReceiver",
+    ) -> None:
+        self.value = value
+        self.source = source
+        self.receiver = receiver
+        self.custody: TransferredCandidateCustody | None = None
+        self.state = "ADMITTED"
+
+
+class _ExpectedAcceptedReceiverAdmission:
+    """One-use staging-owned empty slot admitted before custody transfer."""
+
+    __slots__ = ("_issuance",)
+
+    def __new__(cls) -> "_ExpectedAcceptedReceiverAdmission":
+        raise TypeError("expected-accepted receiver admission is issuer-owned")
+
+    def __copy__(self) -> "_ExpectedAcceptedReceiverAdmission":
+        raise TypeError("expected-accepted receiver admission cannot be copied")
+
+    def __deepcopy__(self, memo: dict[int, object]) -> "_ExpectedAcceptedReceiverAdmission":
+        del memo
+        raise TypeError("expected-accepted receiver admission cannot be copied")
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        raise TypeError("expected-accepted receiver admission cannot be copied")
+
+
+def _issue_expected_accepted_receiver_admission(
+    *,
+    source: CandidateStageCustody,
+    receiver: "ExpectedAcceptedCustodyReceiver",
+) -> _ExpectedAcceptedReceiverAdmission:
+    source.assert_live()
+    value = object.__new__(_ExpectedAcceptedReceiverAdmission)
+    value._issuance = _ExpectedAcceptedReceiverAdmissionIssuance(
+        value,
+        source=source,
+        receiver=receiver,
+    )
+    return value
+
 
 class ExpectedAcceptedCustodyReceiver(Protocol):
-    """Narrow non-fallible receiver slot for the CP8 ownership move."""
+    """Narrow preflight receiver for the CP8 ownership move."""
 
-    def accept_transferred_custody(
+    def preflight_expected_accepted_custody(
         self,
-        custody: TransferredCandidateCustody,
+        *,
+        admission: _ExpectedAcceptedReceiverAdmission,
     ) -> None: ...
 
 
@@ -3257,13 +3481,13 @@ def _initialize_session(
             or type(versions) is not VersionBundle
             or type(options) is not ArtifactBuildOptions
             or type(input_identity) is not BuildInputIdentity
-            or settings.artifact_dir.parent != settings.repository_root
+            or not settings.artifact_dir.parent.is_dir()
             or settings.artifact_dir.exists()
         ):
             raise ValueError("invalid session initialization contract")
         input_identity.assert_unchanged()
         directory_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
-        parent_fd = os.open(settings.repository_root, directory_flags)
+        parent_fd = os.open(settings.artifact_dir.parent, directory_flags)
         lock_fd = os.open(
             lock_name,
             os.O_RDWR | os.O_CREAT | os.O_CLOEXEC | os.O_NOFOLLOW,

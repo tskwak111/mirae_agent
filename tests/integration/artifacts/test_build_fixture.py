@@ -198,7 +198,8 @@ def test_private_transform_returns_verified_outcome_after_exact_candidate_cleanu
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.builder import (
         ArtifactCoreBuildOutcome,
-        _build_private_core_outcome,
+        _build_private_live_candidate,
+        _discard_live_candidate_to_core_outcome,
     )
     from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactBuildOptions
     from tests.helpers.xlsx import write_complete_bronze_repository
@@ -243,10 +244,12 @@ def test_private_transform_returns_verified_outcome_after_exact_candidate_cleanu
         "from_held_stream",
         classmethod(small_config),
     )
-    outcome = _build_private_core_outcome(
-        settings,
-        versions,
-        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, 1, 2, 3, tzinfo=UTC)),
+    outcome = _discard_live_candidate_to_core_outcome(
+        _build_private_live_candidate(
+            settings,
+            versions,
+            ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, 1, 2, 3, tzinfo=UTC)),
+        )
     )
     assert type(outcome) is ArtifactCoreBuildOutcome
     assert outcome.manifest.logical_hash == outcome.logical_contract.overall_manifest_logical_hash

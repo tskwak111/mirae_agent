@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from enum import StrEnum
 from typing import Protocol
 
+from finproof.core.settings import Settings
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+from finproof.data.artifacts.manifest import (
+    ArtifactExpectedVerificationResult,
+    ArtifactManifest,
+    VerifiedArtifactSet,
+)
+from finproof.data.artifacts.staging import (
+    TransferredCandidateCustody,
+    _ExpectedAcceptedReceiverAdmission,
+)
 
 
 class PublicationState(StrEnum):
@@ -63,6 +75,191 @@ class ArtifactFilesystem(Protocol):
     def unlink_backup_marker(self) -> None: ...
 
     def remnant_state(self) -> PublicationState: ...
+
+
+class _PublishedArtifactFilesystem:
+    """Closed filesystem verifier for one expected published generation."""
+
+    __slots__ = ("_expected", "_settings")
+
+    def __init__(
+        self,
+        *,
+        settings: Settings,
+        expected: VerifiedArtifactSet,
+    ) -> None:
+        if type(settings) is not Settings or type(expected) is not VerifiedArtifactSet:
+            raise TypeError("published artifact filesystem requires exact inputs")
+        self._settings = settings
+        self._expected = expected
+
+    def target_exists(self) -> bool:
+        try:
+            self._settings.artifact_dir.lstat()
+        except FileNotFoundError:
+            return False
+        return True
+
+    def verify_target(self) -> None:
+        manifest = ArtifactManifest.load(self._settings.artifact_dir / "manifest.json")
+        if manifest.verify(self._settings.artifact_dir) != self._expected:
+            raise ArtifactContractError(
+                ArtifactErrorCode.REPRODUCIBILITY_MISMATCH,
+                operation_id="verify-published-artifacts",
+                target_basename=self._settings.artifact_dir.name,
+            )
+
+    def _unsupported(self) -> None:
+        raise ArtifactContractError(
+            ArtifactErrorCode.UNRECOGNIZED_TARGET,
+            operation_id="publish-artifacts",
+            target_basename=self._settings.artifact_dir.name,
+        )
+
+    recognize_target = verify_target
+    rename_target_to_backup = _unsupported
+    verify_backup = _unsupported
+    restore_backup_to_target = _unsupported
+    prepare_tombstone_marker = _unsupported
+    rename_backup_to_tombstone = _unsupported
+    delete_tombstone = _unsupported
+    unlink_tombstone_marker = _unsupported
+    unlink_backup_marker = _unsupported
+
+    def remnant_state(self) -> PublicationState:
+        self._unsupported()
+        raise AssertionError("unreachable")
+
+
+class ExpectedAcceptedPublicationStage:
+    """Opaque publication authority issued only after expected acceptance."""
+
+    __slots__ = ("_admission", "_closed", "_result")
+
+    _admission: _ExpectedAcceptedReceiverAdmission | None
+    _closed: bool
+    _result: VerifiedArtifactSet
+
+    def __new__(cls) -> ExpectedAcceptedPublicationStage:
+        raise TypeError("expected-accepted publication stage is issuer-owned")
+
+    @classmethod
+    def _issue(
+        cls,
+        result: VerifiedArtifactSet,
+    ) -> ExpectedAcceptedPublicationStage:
+        if type(result) is not VerifiedArtifactSet:
+            raise TypeError("expected-accepted publication stage requires exact result")
+        value = object.__new__(cls)
+        value._result = result
+        value._admission = None
+        value._closed = False
+        return value
+
+    @property
+    def expected_result(self) -> VerifiedArtifactSet:
+        return self._result
+
+    def preflight_expected_accepted_custody(
+        self,
+        *,
+        admission: _ExpectedAcceptedReceiverAdmission,
+    ) -> None:
+        if self._closed or self._admission is not None:
+            raise ValueError("expected-accepted publication receiver is unavailable")
+        self._admission = admission
+
+    def assert_live(self) -> None:
+        self._custody().assert_live()
+
+    def rename_stage_to_target(self) -> None:
+        self._custody().rename_stage_to_target()
+
+    def rollback_target_to_stage(self) -> None:
+        self._custody().rollback_target_to_stage()
+
+    def commit_after_stage_marker_removal(self) -> None:
+        self._custody().commit_after_stage_marker_removal()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        if self._admission is None:
+            return
+        issuance = object.__getattribute__(self._admission, "_issuance")
+        custody = issuance.custody
+        if type(custody) is TransferredCandidateCustody:
+            custody.close()
+
+    def _custody(self) -> TransferredCandidateCustody:
+        if self._closed or self._admission is None:
+            raise ValueError("expected-accepted publication stage is closed")
+        issuance = object.__getattribute__(self._admission, "_issuance")
+        custody = issuance.custody
+        if (
+            issuance.receiver is not self
+            or issuance.state != "TRANSFERRED"
+            or type(custody) is not TransferredCandidateCustody
+        ):
+            raise ValueError("expected-accepted publication custody changed")
+        return custody
+
+
+@contextmanager
+def authorize_candidate_for_publication(
+    candidate: object,
+) -> Iterator[ExpectedAcceptedPublicationStage]:
+    """Consume expected verification into one publication receiver."""
+    from finproof.data.artifacts.builder import CandidateArtifactSet
+    from finproof.data.artifacts.database import artifact_verification_kernel
+
+    if type(candidate) is not CandidateArtifactSet:
+        raise TypeError("publication authorization requires exact candidate")
+    candidate._require_issued()
+    with candidate.open_verification_root() as root:
+        result = artifact_verification_kernel().verify_expected_from_root(
+            manifest=candidate._manifest,
+            root=root,
+        )
+        seal = root.take_expected_acceptance_seal()
+    authorized = ExpectedAcceptedPublicationStage._issue(VerifiedArtifactSet._from_expected(result))
+    try:
+        admission = candidate.issue_expected_accepted_receiver_admission(receiver=authorized)
+        candidate.transfer_expected_accepted_custody(
+            expected_acceptance_seal=seal,
+            admission=admission,
+        )
+    except BaseException:
+        authorized.close()
+        candidate._custody.discard_if_exact()
+        raise
+    try:
+        yield authorized
+    finally:
+        authorized.close()
+
+
+def publish_verified_stage(
+    authorized: ExpectedAcceptedPublicationStage,
+    *,
+    settings: Settings,
+    clean: bool,
+    filesystem: ArtifactFilesystem,
+) -> ArtifactExpectedVerificationResult:
+    """Publish only one exact expected-accepted stage capability."""
+    if type(authorized) is not ExpectedAcceptedPublicationStage:
+        raise TypeError("publisher requires expected-accepted publication stage")
+    if type(settings) is not Settings or type(clean) is not bool:
+        raise TypeError("publisher requires exact settings and clean flag")
+    machine = _PublicationStateMachine._from_test_ports(
+        transition=authorized,
+        filesystem=filesystem,
+        operation_id="publish-artifacts",
+        target_basename=settings.artifact_dir.name,
+    )
+    machine.publish(clean=clean)
+    return authorized.expected_result.logical_contract
 
 
 class _PublicationStateMachine:
