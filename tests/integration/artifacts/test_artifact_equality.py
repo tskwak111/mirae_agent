@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
+from types import TracebackType
 from typing import Any, Literal, cast
 
 import pytest
@@ -248,6 +249,48 @@ def test_database_port_requires_exact_manifest_inventory_tables_and_logical_resu
             )
 
 
+def test_database_verifier_records_real_workspace_facts_only_after_cleanup(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.database import (
+        _VerifierWorkspaceObservationSink,
+        verify_database_against_parquet,
+    )
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import ParquetArtifactTableVerifier
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    root = tmp_path / "artifacts"
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    runtime.chmod(0o700)
+    manifest = write_empty_database_artifact_tree(root)
+    observations = _VerifierWorkspaceObservationSink()
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+        verify_database_against_parquet(
+            inventory=inventory,
+            database_entry=inventory.declared_entries[0],
+            tables=tables,
+            runtime_tmp_root=runtime,
+            _observations=observations,
+        )
+    facts = observations.require()
+    assert (
+        facts.mode,
+        facts.marker_owned,
+        facts.containment_verified,
+        facts.cleanup_completed,
+        facts.threads,
+        facts.memory_limit,
+    ) == (0o700, True, True, True, 1, "1GiB")
+    assert not tuple(runtime.iterdir())
+
+
 def test_database_equality_rejects_same_count_cell_substitution(tmp_path: Path) -> None:
     import hashlib
 
@@ -320,6 +363,150 @@ def test_final_relation_verifier_accepts_only_exact_live_inventory_and_table_res
                 inventory=inventory,
                 tables=object(),  # type: ignore[arg-type]
             )
+
+
+@pytest.mark.parametrize("case", ["consumer", "context-exit"])
+def test_final_verified_batches_always_run_post_read_inventory_rescan(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: str,
+) -> None:
+    from finproof.data.artifacts.manifest import (
+        VerifiedPhysicalInventory,
+        verify_declared_inventory,
+    )
+    from finproof.data.artifacts.parquet_io import (
+        ParquetArtifactTableVerifier,
+        VerifiedParquetTable,
+        _open_final_verified_batches,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
+
+    root = tmp_path / "artifacts"
+    manifest = write_empty_database_artifact_tree(root)
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+        spec = TABLE_SPEC_BY_NAME["bronze_source_row"]
+        handle = cast(
+            VerifiedParquetTable,
+            next(
+                candidate for candidate in tables.handles if candidate.table_name == spec.table_name
+            ),
+        )
+        original_assert = VerifiedPhysicalInventory.assert_unchanged
+        original_open = VerifiedPhysicalInventory.open_verified
+        rescans = 0
+        handle_opens = 0
+
+        def tracked_assert(self: VerifiedPhysicalInventory) -> None:
+            nonlocal rescans
+            if self is inventory:
+                rescans += 1
+            original_assert(self)
+
+        monkeypatch.setattr(VerifiedPhysicalInventory, "assert_unchanged", tracked_assert)
+
+        if case == "context-exit":
+
+            class ExitFault:
+                def __init__(self, inner: AbstractContextManager[Any]) -> None:
+                    self._inner = inner
+
+                def __enter__(self) -> Any:
+                    return self._inner.__enter__()
+
+                def __exit__(
+                    self,
+                    exc_type: type[BaseException] | None,
+                    exc_value: BaseException | None,
+                    traceback: TracebackType | None,
+                ) -> None:
+                    self._inner.__exit__(exc_type, exc_value, traceback)
+                    raise OSError("injected final context exit failure")
+
+            def opened(
+                self: VerifiedPhysicalInventory, entry: object
+            ) -> AbstractContextManager[Any]:
+                nonlocal handle_opens
+                inner = original_open(self, entry)  # type: ignore[arg-type]
+                if self is inventory and entry is handle.entry:
+                    handle_opens += 1
+                    if handle_opens == 2:
+                        return ExitFault(inner)
+                return inner
+
+            monkeypatch.setattr(VerifiedPhysicalInventory, "open_verified", opened)
+
+        if case == "consumer":
+            from finproof.data.artifacts.errors import ArtifactContractError
+
+            unexpected = root / "unrelated-entry"
+
+            def consume_with_mutation() -> None:
+                with _open_final_verified_batches(
+                    inventory=inventory,
+                    tables=tables,
+                    spec=spec,
+                    handle=handle,
+                ):
+                    unexpected.write_bytes(b"not-owned")
+                    raise RuntimeError("consumer stopped")
+
+            try:
+                with pytest.raises(ArtifactContractError) as caught:
+                    consume_with_mutation()
+                assert isinstance(caught.value.__cause__, ValueError)
+                assert isinstance(caught.value.__cause__.__context__, RuntimeError)
+            finally:
+                if unexpected.exists():
+                    unexpected.unlink()
+        else:
+            with (
+                pytest.raises(OSError, match="injected final context exit failure"),
+                _open_final_verified_batches(
+                    inventory=inventory,
+                    tables=tables,
+                    spec=spec,
+                    handle=handle,
+                ) as batches,
+            ):
+                tuple(batches)
+        assert rescans == 2
+
+
+def test_report_verifier_records_actual_reopened_final_batch_maximum(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import ParquetArtifactTableVerifier
+    from finproof.data.artifacts.reports import (
+        StrictArtifactReportVerifier,
+        _FinalReportVerificationObservations,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+    from tests.helpers.artifacts import write_report_artifact_tree
+
+    root = tmp_path / "artifacts"
+    manifest = write_report_artifact_tree(root, _quality_rows())
+    observations = _FinalReportVerificationObservations()
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+        StrictArtifactReportVerifier(observations=observations).verify_reports(
+            manifest=manifest,
+            inventory=inventory,
+            tables=tables,
+        )
+    assert observations.require_max_batch_rows() == max(
+        handle.row_count for handle in tables.handles
+    )
 
 
 def _quality_rows() -> dict[str, tuple[dict[str, object], ...]]:

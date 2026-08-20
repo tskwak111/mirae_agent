@@ -1606,14 +1606,17 @@ def _open_final_verified_batches(
         raise ValueError("invalid final Parquet batch request")
     inventory.require_owned_verified_table_handle(handle)
     inventory.assert_unchanged()
-    with inventory.open_verified(handle.entry) as stream:
-        parquet = pq.ParquetFile(stream)
-        try:
+    try:
+        with inventory.open_verified(handle.entry) as stream:
+            parquet = pq.ParquetFile(stream)
             yield parquet.iter_batches(batch_size=batch_size, use_threads=False)
-        finally:
+    finally:
+        try:
             require_registered_table_spec(spec)
             tables.validate_against(inventory)
-    inventory.assert_unchanged()
+            inventory.require_owned_verified_table_handle(handle)
+        finally:
+            inventory.assert_unchanged()
 
 
 class ParquetArtifactTableVerifier:

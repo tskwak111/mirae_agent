@@ -17,6 +17,7 @@ from finproof.data.artifacts.config import (
     ArtifactInputKind,
 )
 from finproof.data.artifacts.database import (
+    _VerifierWorkspaceObservationSink,
     artifact_verification_kernel,
     build_self_contained_database,
 )
@@ -53,6 +54,7 @@ from finproof.data.artifacts.reports import (
     ExactEvidenceVerificationObservations,
     QualitySummaryReport,
     SourceAuditReport,
+    _FinalReportVerificationObservations,
     require_complete_source_audit_observations,
 )
 from finproof.data.artifacts.resources import _expected_contract_resource_exists
@@ -267,6 +269,7 @@ class _CoreTelemetryObservations:
     max_live_link_keys: int
     max_live_evidence_keys: int
     staging_mode: int
+    verifier_workspace: ArtifactWorkspaceTelemetry
 
 
 class _CompleteArtifactBuildProvenance:
@@ -713,8 +716,13 @@ def _finalize_complete_candidate(
     transferred = session.transfer_candidate_stage()
     custody = transferred.issue_candidate_custody()
     try:
+        report_observations = _FinalReportVerificationObservations()
+        workspace_observations = _VerifierWorkspaceObservationSink()
         with custody.open_verification_root() as root:
-            core = artifact_verification_kernel().verify_candidate_core_from_root(
+            core = artifact_verification_kernel(
+                report_observations=report_observations,
+                workspace_observations=workspace_observations,
+            ).verify_candidate_core_from_root(
                 manifest=manifest,
                 root=root,
             )
@@ -726,12 +734,14 @@ def _finalize_complete_candidate(
         )
         instrumentation = complete.silver_result.instrumentation
         exact = complete.exact_evidence_verification_observations
+        workspace_facts = workspace_observations.require()
         observations = _CoreTelemetryObservations(
             max_live_fund_group_rows=instrumentation.max_live_fund_group_rows,
             max_writer_batch_rows=instrumentation.max_writer_batch_rows,
             max_verifier_batch_rows=max(
                 instrumentation.max_relation_batch_rows,
                 exact.max_relation_batch_rows,
+                report_observations.require_max_batch_rows(),
             ),
             max_bronze_reconstruction_cells=max(
                 value.observed_columns for value in complete.observations.source_tables
@@ -741,6 +751,14 @@ def _finalize_complete_candidate(
             max_live_link_keys=len(complete.exact_link_build_result.links),
             max_live_evidence_keys=len(complete.exact_link_build_result.evidence),
             staging_mode=staging_mode,
+            verifier_workspace=ArtifactWorkspaceTelemetry(
+                mode=cast(Literal[0o700], workspace_facts.mode),
+                marker_owned=cast(Literal[True], workspace_facts.marker_owned),
+                containment_verified=cast(Literal[True], workspace_facts.containment_verified),
+                cleanup_completed=cast(Literal[True], workspace_facts.cleanup_completed),
+                threads=cast(Literal[1], workspace_facts.threads),
+                memory_limit=cast(Literal["1GiB"], workspace_facts.memory_limit),
+            ),
         )
         return candidate, observations
     except BaseException:
@@ -827,7 +845,7 @@ def _build_private_core_outcome(
     manifest = candidate._manifest
     logical = candidate._core_result
     candidate._custody.discard_if_exact()
-    workspace = ArtifactWorkspaceTelemetry(
+    staging_workspace = ArtifactWorkspaceTelemetry(
         mode=cast(Literal[0o700], observed.staging_mode),
         marker_owned=True,
         containment_verified=True,
@@ -845,8 +863,8 @@ def _build_private_core_outcome(
         linked_fund_record_json_parses=observed.linked_fund_record_json_parses,
         max_live_link_keys=observed.max_live_link_keys,
         max_live_evidence_keys=observed.max_live_evidence_keys,
-        staging_workspace=workspace,
-        verifier_workspace=workspace,
+        staging_workspace=staging_workspace,
+        verifier_workspace=observed.verifier_workspace,
         physical_files=tuple(
             ArtifactPhysicalFileHash(
                 path=value.path,
@@ -877,13 +895,18 @@ def _build_evaluation_artifacts_with_outcome(
     *,
     options: ArtifactBuildOptions,
 ) -> object:
-    if not _expected_contract_resource_exists():
-        raise ArtifactContractError(
-            ArtifactErrorCode.BASELINE_MISSING,
-            operation_id="build-artifacts",
-            target_basename=settings.artifact_dir.name,
-        )
-    return _build_private_core_outcome(settings, versions, options)
+    del versions, options
+    reason = (
+        "expected_contract_comparator_unavailable"
+        if _expected_contract_resource_exists()
+        else "expected_contract_resource_absent"
+    )
+    raise ArtifactContractError(
+        ArtifactErrorCode.BASELINE_MISSING,
+        operation_id="build-artifacts",
+        target_basename=settings.artifact_dir.name,
+        internal_context={"reason": reason},
+    )
 
 
 def build_artifacts(

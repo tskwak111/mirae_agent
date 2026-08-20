@@ -1358,8 +1358,45 @@ class QualitySummaryReport(BaseModel):
         return self.model_dump(mode="python", warnings="none")
 
 
+class _FinalReportVerificationObservations:
+    """One-shot path-free observations from successful final report verification."""
+
+    __slots__ = ("_max_batch_rows",)
+
+    def __init__(self) -> None:
+        self._max_batch_rows: int | None = None
+
+    def _record(self, *, max_batch_rows: int) -> None:
+        if (
+            self._max_batch_rows is not None
+            or type(max_batch_rows) is not int
+            or not 0 <= max_batch_rows <= 65_536
+        ):
+            raise ValueError("final report observations changed")
+        self._max_batch_rows = max_batch_rows
+
+    def require_max_batch_rows(self) -> int:
+        if self._max_batch_rows is None:
+            raise ValueError("final report observations are unavailable")
+        return self._max_batch_rows
+
+
 class StrictArtifactReportVerifier:
     """Rebuild both report semantics only from live final inventory handles."""
+
+    __slots__ = ("_observations",)
+
+    def __init__(
+        self,
+        *,
+        observations: _FinalReportVerificationObservations | None = None,
+    ) -> None:
+        if (
+            observations is not None
+            and type(observations) is not _FinalReportVerificationObservations
+        ):
+            raise TypeError("final report observations changed")
+        self._observations = observations
 
     @staticmethod
     def _read_report(
@@ -1483,6 +1520,8 @@ class StrictArtifactReportVerifier:
         links: list[ExactCrossSourceLinkRecord] = []
         try:
             for row in link_rows:
+                if len(links) == 47:
+                    raise ValueError("exact linked-record bound exceeded")
                 links.append(ExactCrossSourceLinkRecord.model_validate(row, strict=True))
         finally:
             link_rows.close()
@@ -1505,6 +1544,23 @@ class StrictArtifactReportVerifier:
             evidence=tuple(gold_evidence),
             bronze=evidence,
         )
+        if links:
+            linked_ids = (
+                (
+                    ExactLinkedSide.DOMESTIC,
+                    tuple(sorted({link.left_product_id for link in links})),
+                ),
+                (
+                    ExactLinkedSide.FUND,
+                    tuple(sorted({link.right_product_id for link in links})),
+                ),
+            )
+            for side, exact_ids in linked_ids:
+                for _batch in relation.iter_linked_record_json(
+                    side=side,
+                    exact_ids=exact_ids,
+                ):
+                    pass
         pair_hash = exact_link_pair_sha256(
             canonical_link_pair_tsv(links, expected_links=len(links))
         )
@@ -1604,6 +1660,8 @@ class StrictArtifactReportVerifier:
         if any(declared[item.report_id] != item.semantic_hash for item in semantic):
             raise ValueError("artifact report logical hash changed")
         tables.validate_against(inventory)
+        if self._observations is not None:
+            self._observations._record(max_batch_rows=relation.max_batch_rows)
         return ReportVerificationResult(
             reports=semantic,
             exact_link_pair_sha256=pair_hash,

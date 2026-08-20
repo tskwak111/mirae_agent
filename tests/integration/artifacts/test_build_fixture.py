@@ -256,5 +256,9 @@ def test_private_transform_returns_verified_outcome_after_exact_candidate_cleanu
     )
     assert outcome.telemetry.linked_domestic_record_json_parses == 0
     assert outcome.telemetry.linked_fund_record_json_parses == 0
+    assert outcome.telemetry.max_verifier_batch_rows == max(
+        table.row_count for table in outcome.logical_contract.tables
+    )
+    assert outcome.telemetry.staging_workspace is not outcome.telemetry.verifier_workspace
     assert not settings.artifact_dir.exists()
     assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))

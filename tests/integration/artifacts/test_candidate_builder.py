@@ -145,6 +145,38 @@ def test_evaluation_build_blocks_missing_expected_before_private_transform(
     assert not settings.artifact_dir.exists()
 
 
+def test_evaluation_build_blocks_present_resource_without_cp8_comparator_before_transform(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts import builder
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from tests.helpers.artifacts import artifact_staging_settings
+
+    settings = artifact_staging_settings(tmp_path / "repository")
+    calls = 0
+
+    def forbidden_transform(*args: object, **kwargs: object) -> None:
+        nonlocal calls
+        del args, kwargs
+        calls += 1
+
+    monkeypatch.setattr(builder, "_expected_contract_resource_exists", lambda: True)
+    monkeypatch.setattr(builder, "_build_private_core_outcome", forbidden_transform)
+    with pytest.raises(ArtifactContractError) as raised:
+        builder.build_artifacts(
+            settings,
+            VersionBundle(),
+            options=ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        )
+    assert raised.value.code is ArtifactErrorCode.BASELINE_MISSING
+    assert raised.value.internal_context == {"reason": "expected_contract_comparator_unavailable"}
+    assert calls == 0
+    assert not settings.artifact_dir.exists()
+
+
 @pytest.mark.parametrize(
     ("source", "resource"),
     [(True, False), (False, True), (True, True)],

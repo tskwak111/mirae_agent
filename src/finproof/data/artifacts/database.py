@@ -33,7 +33,10 @@ from finproof.data.artifacts.parquet_io import (
     VerifiedParquetTable,
     _open_final_verified_batches,
 )
-from finproof.data.artifacts.reports import StrictArtifactReportVerifier
+from finproof.data.artifacts.reports import (
+    StrictArtifactReportVerifier,
+    _FinalReportVerificationObservations,
+)
 from finproof.data.artifacts.resources import _expected_contract_resource_exists
 from finproof.data.artifacts.staging import (
     OwnedStageDatabaseLeaf,
@@ -445,13 +448,40 @@ class _OwnedRuntimeWorkspace:
         os.rmdir(tombstone, dir_fd=parent_fd)
 
 
+@dataclass(frozen=True, slots=True)
+class _VerifierWorkspaceObservations:
+    mode: int
+    marker_owned: bool
+    containment_verified: bool
+    cleanup_completed: bool
+    threads: int
+    memory_limit: str
+
+
+class _VerifierWorkspaceObservationSink:
+    __slots__ = ("_value",)
+
+    def __init__(self) -> None:
+        self._value: _VerifierWorkspaceObservations | None = None
+
+    def _record(self, value: _VerifierWorkspaceObservations) -> None:
+        if self._value is not None or type(value) is not _VerifierWorkspaceObservations:
+            raise ValueError("verifier workspace observations changed")
+        self._value = value
+
+    def require(self) -> _VerifierWorkspaceObservations:
+        if self._value is None:
+            raise ValueError("verifier workspace observations are unavailable")
+        return self._value
+
+
 def _verify_database_against_parquet(
     *,
     inventory: VerifiedPhysicalInventory,
     database_entry: VerifiedPhysicalEntry,
     tables: TableVerificationResult,
     runtime_tmp_root: Path | None = None,
-) -> None:
+) -> _VerifierWorkspaceObservations:
     """Compare one inventory-owned database with all final Parquet handles."""
     tables.validate_against(inventory)
     inventory.require_owned(database_entry)
@@ -485,6 +515,11 @@ def _verify_database_against_parquet(
             connection.execute("SET preserve_insertion_order = false")
             connection.execute("SET TimeZone = 'UTC'")
             connection.execute("SET temp_directory = ?", [str(spill)])
+            runtime_settings = connection.execute(
+                "SELECT current_setting('threads'), current_setting('memory_limit')"
+            ).fetchone()
+            if runtime_settings != (1, "1.0 GiB"):
+                raise ValueError("DuckDB verifier runtime settings changed")
             observed_tables = tuple(
                 row[0]
                 for row in connection.execute(
@@ -574,6 +609,15 @@ def _verify_database_against_parquet(
         ):
             raise _runtime_failure("runtime_database_copy_digest_changed")
         inventory.assert_unchanged()
+        workspace_mode = workspace._root_identity[3]
+    return _VerifierWorkspaceObservations(
+        mode=workspace_mode,
+        marker_owned=True,
+        containment_verified=True,
+        cleanup_completed=True,
+        threads=runtime_settings[0],
+        memory_limit="1GiB",
+    )
 
 
 def verify_database_against_parquet(
@@ -582,10 +626,11 @@ def verify_database_against_parquet(
     database_entry: VerifiedPhysicalEntry,
     tables: TableVerificationResult,
     runtime_tmp_root: Path | None = None,
+    _observations: _VerifierWorkspaceObservationSink | None = None,
 ) -> None:
     """Compare one inventory-owned database with all final Parquet handles."""
     try:
-        _verify_database_against_parquet(
+        observed = _verify_database_against_parquet(
             inventory=inventory,
             database_entry=database_entry,
             tables=tables,
@@ -595,10 +640,25 @@ def verify_database_against_parquet(
         raise
     except OSError as exc:
         raise _runtime_failure("runtime_io_failed") from exc
+    if _observations is not None:
+        if type(_observations) is not _VerifierWorkspaceObservationSink:
+            raise TypeError("verifier workspace observation sink changed")
+        _observations._record(observed)
 
 
 class DuckDBArtifactDatabaseVerifier:
     """Concrete CP2 database port bound to the final inventory and handles."""
+
+    __slots__ = ("_observations",)
+
+    def __init__(
+        self,
+        *,
+        observations: _VerifierWorkspaceObservationSink | None = None,
+    ) -> None:
+        if observations is not None and type(observations) is not _VerifierWorkspaceObservationSink:
+            raise TypeError("verifier workspace observation sink changed")
+        self._observations = observations
 
     def verify_database(
         self,
@@ -634,6 +694,7 @@ class DuckDBArtifactDatabaseVerifier:
             inventory=inventory,
             database_entry=database_entry,
             tables=tables,
+            _observations=self._observations,
         )
 
 
@@ -654,15 +715,19 @@ class PackagedArtifactExpectedComparator:
         )
 
 
-def artifact_verification_kernel() -> ArtifactVerificationKernel:
+def artifact_verification_kernel(
+    *,
+    report_observations: _FinalReportVerificationObservations | None = None,
+    workspace_observations: _VerifierWorkspaceObservationSink | None = None,
+) -> ArtifactVerificationKernel:
     """Assemble the closed CP7 core verifier and inactive expected route."""
     return ArtifactVerificationKernel(
         table_registry=ClosedTableSpecRegistry(TABLE_SPECS),
         table_verifier=cast(ArtifactTableVerifier, ParquetArtifactTableVerifier()),
-        report_verifier=StrictArtifactReportVerifier(),
+        report_verifier=StrictArtifactReportVerifier(observations=report_observations),
         database_verifier=cast(
             ArtifactDatabaseVerifier,
-            DuckDBArtifactDatabaseVerifier(),
+            DuckDBArtifactDatabaseVerifier(observations=workspace_observations),
         ),
         expected_comparator=PackagedArtifactExpectedComparator(),
     )

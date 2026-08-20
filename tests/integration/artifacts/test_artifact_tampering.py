@@ -351,7 +351,10 @@ def test_report_verifier_rebuilds_silver_and_quarantine_counts(
 
 
 def _exact_link_rows(
-    *, evidence_raw: str | None = None
+    *,
+    evidence_raw: str | None = None,
+    left_id: str = "L1",
+    right_id: str = "R1",
 ) -> dict[str, tuple[dict[str, object], ...]]:
     from finproof.data.artifacts.links import _evidence_from_candidate, _link_from_candidate
     from finproof.data.artifacts.serialization import (
@@ -362,7 +365,7 @@ def _exact_link_rows(
     from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
     from tests.unit.data.artifacts.test_exact_links import _candidate
 
-    candidate = _candidate()
+    candidate = _candidate(left_id=left_id, right_id=right_id)
     link = _link_from_candidate(candidate)
     evidence = _evidence_from_candidate(candidate, link)
     if evidence_raw is not None:
@@ -436,6 +439,85 @@ def test_report_verifier_rebuilds_exact_link_and_evidence_semantics(
                 inventory=inventory,
                 tables=tables,
             )
+
+
+@pytest.mark.parametrize("case", ["zero", "missing", "mutated", "extra"])
+def test_report_verifier_reopens_every_exact_linked_wide_record(
+    tmp_path: Path,
+    case: str,
+) -> None:
+    from finproof.data.artifacts.manifest import (
+        ReportVerificationResult,
+        verify_declared_inventory,
+    )
+    from finproof.data.artifacts.parquet_io import ParquetArtifactTableVerifier
+    from finproof.data.artifacts.reports import StrictArtifactReportVerifier
+    from finproof.data.artifacts.serialization import serialize_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
+    from tests.helpers.artifacts import write_report_artifact_tree
+    from tests.integration.artifacts.test_artifact_equality import (
+        _linked_rows,
+        _quality_rows,
+    )
+    from tests.unit.data.artifacts.test_serialization import _domestic_record
+
+    rows = _quality_rows()
+    if case != "zero":
+        wide, left_id, right_id = _linked_rows()
+        exact = (
+            _exact_link_rows()
+            if case == "mutated"
+            else _exact_link_rows(left_id=left_id, right_id=right_id)
+        )
+        rows["bronze_source_cell"] = (
+            *rows["bronze_source_cell"],
+            *exact["bronze_source_cell"],
+        )
+        rows.update({key: value for key, value in exact.items() if key != "bronze_source_cell"})
+        rows["silver_domestic_listed_product"] = wide["silver_domestic_listed_product"]
+        if case != "missing":
+            rows["silver_fund_item"] = wide["silver_fund_item"]
+        if case == "extra":
+            domestic = _domestic_record()
+            extra_product_id = domestic.product_id.model_copy(
+                update={"normalized_value": "ZZZ-UNLINKED"}
+            )
+            extra = domestic.model_copy(update={"product_id": extra_product_id})
+            extra_row = dict(
+                serialize_table_row(
+                    TABLE_SPEC_BY_NAME["silver_domestic_listed_product"],
+                    extra,
+                )
+            )
+            rows["silver_domestic_listed_product"] = tuple(
+                sorted(
+                    (*rows["silver_domestic_listed_product"], extra_row),
+                    key=lambda row: cast(str, row["product_id"]),
+                )
+            )
+    root = tmp_path / "artifacts"
+    manifest = write_report_artifact_tree(root, rows)
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+
+        def operation() -> ReportVerificationResult:
+            return StrictArtifactReportVerifier().verify_reports(
+                manifest=manifest,
+                inventory=inventory,
+                tables=tables,
+            )
+
+        if case == "zero":
+            assert operation().exact_link_evidence_count == 0
+        elif case == "extra":
+            assert operation().exact_link_evidence_count == 2
+        else:
+            with pytest.raises(ValueError, match="linked"):
+                operation()
 
 
 def test_report_verifier_rebuilds_quality_groups_and_aggregates(
