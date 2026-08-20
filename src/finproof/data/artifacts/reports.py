@@ -167,7 +167,12 @@ class _FinalInventoryRelationVerifier:
             raise ValueError("final inventory verifier changed")
         self._tables.validate_against(self._inventory)
 
-    def _iter_rows(self, table_name: str) -> Generator[dict[str, object], None, None]:
+    def _iter_rows(
+        self,
+        table_name: str,
+        *,
+        _batch_maximum: list[int] | None = None,
+    ) -> Generator[dict[str, object], None, None]:
         self._require_live()
         spec = TABLE_SPEC_BY_NAME[table_name]
         handle = next(
@@ -185,6 +190,8 @@ class _FinalInventoryRelationVerifier:
                 if batch.num_rows > 65_536:
                     raise ValueError("final relation batch is not bounded")
                 self._max_batch_rows = max(self._max_batch_rows, batch.num_rows)
+                if _batch_maximum is not None:
+                    _batch_maximum[0] = max(_batch_maximum[0], batch.num_rows)
                 for row in batch.to_pylist():
                     yield cast(dict[str, object], row)
 
@@ -347,6 +354,7 @@ class _FinalInventoryRelationVerifier:
 
     def verify_exact_evidence_to_bronze(self) -> ExactEvidenceBronzeJoinObservations:
         self._require_live()
+        batch_maximum = [0]
         cell_fields = (
             "source_table_order",
             "source_file",
@@ -354,7 +362,10 @@ class _FinalInventoryRelationVerifier:
             "source_row_number",
             "source_column_number",
         )
-        evidence_rows = self._iter_rows("gold_exact_cross_source_link_evidence")
+        evidence_rows = self._iter_rows(
+            "gold_exact_cross_source_link_evidence",
+            _batch_maximum=batch_maximum,
+        )
         previous: tuple[object, ...] | None = None
         evidence_by_cell: dict[tuple[object, ...], list[ExactCrossSourceLinkEvidenceRecord]] = {}
         try:
@@ -395,7 +406,10 @@ class _FinalInventoryRelationVerifier:
             evidence_rows.close()
 
         matched = 0
-        bronze_cells = self._iter_rows("bronze_source_cell")
+        bronze_cells = self._iter_rows(
+            "bronze_source_cell",
+            _batch_maximum=batch_maximum,
+        )
         try:
             for current_cell in bronze_cells:
                 bronze_key = tuple(current_cell[field] for field in cell_fields)
@@ -420,7 +434,7 @@ class _FinalInventoryRelationVerifier:
             raise ValueError("exact evidence does not match one Bronze cell")
         return ExactEvidenceBronzeJoinObservations(
             matched_bronze_cells=matched,
-            max_batch_rows=min(matched, 65_536),
+            max_batch_rows=batch_maximum[0],
         )
 
     def iter_linked_record_json(

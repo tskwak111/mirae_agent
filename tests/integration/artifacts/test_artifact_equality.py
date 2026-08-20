@@ -674,6 +674,42 @@ def test_final_relation_verifier_rebuilds_exact_evidence_join_from_reopened_fina
         assert 0 < observations.max_batch_rows <= 65_536
 
 
+def test_final_evidence_join_reports_physical_batch_max_not_matched_count(
+    tmp_path: Path,
+) -> None:
+    from finproof.data.artifacts.manifest import verify_declared_inventory
+    from finproof.data.artifacts.parquet_io import ParquetArtifactTableVerifier
+    from finproof.data.artifacts.reports import _FinalInventoryRelationVerifier
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
+
+    rows = _evidence_rows()
+    unrelated = rows["bronze_source_cell"][0] | {
+        "source_row_number": 999,
+        "raw_value": "unrelated",
+    }
+    sort_key = TABLE_SPEC_BY_NAME["bronze_source_cell"].sort_key
+    rows["bronze_source_cell"] = tuple(
+        sorted(
+            (*rows["bronze_source_cell"], unrelated),
+            key=lambda row: tuple(row[field] for field in sort_key),
+        )
+    )
+    root = tmp_path / "artifacts"
+    manifest = write_database_artifact_tree(root, rows)
+    with verify_declared_inventory(manifest, root) as inventory:
+        tables = ParquetArtifactTableVerifier().verify_tables(
+            manifest=manifest,
+            inventory=inventory,
+            specs=TABLE_SPECS,
+        )
+        observed = _FinalInventoryRelationVerifier._from_verified(
+            inventory=inventory,
+            tables=tables,
+        ).verify_exact_evidence_to_bronze()
+    assert observed.matched_bronze_cells == 2
+    assert observed.max_batch_rows == 3
+
+
 def test_final_evidence_join_handles_link_order_independent_of_bronze_locator_order(
     tmp_path: Path,
 ) -> None:
