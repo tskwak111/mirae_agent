@@ -1,5 +1,6 @@
 """CP7B publication rollback fault boundaries."""
 
+import shutil
 from contextlib import suppress
 from pathlib import Path
 
@@ -53,6 +54,87 @@ def test_real_expected_publication_cleanly_replaces_verified_target(
     assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
     assert not tuple(settings.repository_root.glob(".artifacts.finproof-backup-*"))
     assert not tuple(settings.repository_root.glob(".artifacts.finproof-cleanup-*"))
+
+
+def test_real_clean_blocks_tombstone_substitution_after_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_evaluation_artifacts_with_outcome
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.manifest import ArtifactManifest
+    from finproof.data.artifacts.publication import _PublishedArtifactFilesystem
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    timestamp = datetime(2026, 8, 15, tzinfo=UTC)
+    _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(persistence_timestamp=timestamp),
+    )
+    verify_named_artifact = _PublishedArtifactFilesystem._verify_named_artifact
+    delete_tombstone = _PublishedArtifactFilesystem.delete_tombstone
+    displaced = settings.repository_root / ".verified-tombstone"
+    victim: Path | None = None
+    deleting = False
+
+    def substitute_after_verification(
+        self: _PublishedArtifactFilesystem,
+        name: str,
+    ) -> ArtifactManifest:
+        nonlocal victim
+        verified = verify_named_artifact(self, name)
+        if deleting:
+            original = settings.repository_root / name
+            original.rename(displaced)
+            shutil.copytree(displaced, original)
+            victim = original
+        return verified
+
+    def delete_with_substitution(self: _PublishedArtifactFilesystem) -> None:
+        nonlocal deleting
+        deleting = True
+        try:
+            delete_tombstone(self)
+        finally:
+            deleting = False
+
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "_verify_named_artifact",
+        substitute_after_verification,
+    )
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "delete_tombstone",
+        delete_with_substitution,
+    )
+
+    with pytest.raises(ArtifactContractError) as caught:
+        _build_evaluation_artifacts_with_outcome(
+            settings,
+            versions,
+            options=ArtifactBuildOptions(
+                clean=True,
+                persistence_timestamp=timestamp + timedelta(seconds=1),
+            ),
+        )
+
+    assert caught.value.code is ArtifactErrorCode.BACKUP_CLEANUP_FAILED_AFTER_PUBLISH
+    assert settings.artifact_dir.is_dir()
+    assert displaced.is_dir()
+    assert victim is not None
+    assert victim.is_dir()
 
 
 def test_expected_mismatch_blocks_before_first_rename(

@@ -1,6 +1,7 @@
 """CP7B closed remnant recovery mechanics."""
 
 import os
+import shutil
 import stat
 from pathlib import Path
 
@@ -86,6 +87,107 @@ def test_next_real_build_recovers_exact_owned_postcommit_remnant(
         unrelated.stat().st_mode,
         unrelated.read_bytes(),
     ) == unrelated_before
+
+
+def test_real_recovery_blocks_tombstone_substitution_after_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_evaluation_artifacts_with_outcome
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.manifest import ArtifactManifest
+    from finproof.data.artifacts.publication import _PublishedArtifactFilesystem
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    timestamp = datetime(2026, 8, 15, tzinfo=UTC)
+    _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(persistence_timestamp=timestamp),
+    )
+    delete_tombstone = _PublishedArtifactFilesystem.delete_tombstone
+
+    def leave_tombstone(_self: _PublishedArtifactFilesystem) -> None:
+        raise ArtifactContractError(
+            ArtifactErrorCode.EXACT_TREE_MISMATCH,
+            operation_id="injected-tombstone-retention",
+            target_basename=settings.artifact_dir.name,
+        )
+
+    monkeypatch.setattr(_PublishedArtifactFilesystem, "delete_tombstone", leave_tombstone)
+    with pytest.raises(ArtifactContractError) as retained:
+        _build_evaluation_artifacts_with_outcome(
+            settings,
+            versions,
+            options=ArtifactBuildOptions(
+                clean=True,
+                persistence_timestamp=timestamp + timedelta(seconds=1),
+            ),
+        )
+    assert retained.value.code is ArtifactErrorCode.BACKUP_CLEANUP_FAILED_AFTER_PUBLISH
+    monkeypatch.setattr(_PublishedArtifactFilesystem, "delete_tombstone", delete_tombstone)
+    verify_named_artifact = _PublishedArtifactFilesystem._verify_named_artifact
+    displaced = settings.repository_root / ".verified-recovery-tombstone"
+    victim: Path | None = None
+    deleting = False
+
+    def substitute_after_verification(
+        self: _PublishedArtifactFilesystem,
+        name: str,
+    ) -> ArtifactManifest:
+        nonlocal victim
+        verified = verify_named_artifact(self, name)
+        if deleting:
+            original = settings.repository_root / name
+            original.rename(displaced)
+            shutil.copytree(displaced, original)
+            victim = original
+        return verified
+
+    def delete_with_substitution(self: _PublishedArtifactFilesystem) -> None:
+        nonlocal deleting
+        deleting = True
+        try:
+            delete_tombstone(self)
+        finally:
+            deleting = False
+
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "_verify_named_artifact",
+        substitute_after_verification,
+    )
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "delete_tombstone",
+        delete_with_substitution,
+    )
+
+    with pytest.raises(ArtifactContractError) as caught:
+        _build_evaluation_artifacts_with_outcome(
+            settings,
+            versions,
+            options=ArtifactBuildOptions(
+                clean=True,
+                persistence_timestamp=timestamp + timedelta(seconds=2),
+            ),
+        )
+
+    assert caught.value.code is ArtifactErrorCode.EXACT_TREE_MISMATCH
+    assert settings.artifact_dir.is_dir()
+    assert displaced.is_dir()
+    assert victim is not None
+    assert victim.is_dir()
 
 
 def _snapshot(root: Path) -> tuple[tuple[str, int, int, bytes | str | None], ...]:

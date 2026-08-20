@@ -405,33 +405,46 @@ class _PublishedArtifactFilesystem:
             )
 
     def delete_tombstone(self) -> None:
-        manifest = self._verify_named_artifact(self._tombstone_name)
-        self._verify_marker(self._backup_marker_name)
-        self._verify_marker(self._tombstone_marker_name)
-        nested: dict[str, set[str]] = {}
-        root_leaves = {"manifest.json"}
-        for entry in manifest.files:
-            parts = PurePosixPath(entry.path).parts
-            if len(parts) == 1:
-                root_leaves.add(parts[0])
-            elif len(parts) == 2:
-                nested.setdefault(parts[0], set()).add(parts[1])
-            else:
-                raise ArtifactContractError(
-                    ArtifactErrorCode.EXACT_TREE_MISMATCH,
-                    operation_id="publish-artifacts",
-                    target_basename=self._target_name,
-                    internal_context={"reason": "unsupported_tombstone_depth"},
-                )
         directory_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
         with self._open_parent() as parent_fd:
             tombstone_fd = os.open(self._tombstone_name, directory_flags, dir_fd=parent_fd)
+            held = os.fstat(tombstone_fd)
+            held_identity = (held.st_dev, held.st_ino)
+
+            def require_held_tombstone() -> None:
+                descriptor = os.fstat(tombstone_fd)
+                named = os.stat(
+                    self._tombstone_name,
+                    dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+                if (descriptor.st_dev, descriptor.st_ino) != held_identity or (
+                    named.st_dev,
+                    named.st_ino,
+                ) != held_identity:
+                    raise ValueError("tombstone identity changed")
+
             try:
+                manifest = self._verify_named_artifact(self._tombstone_name)
+                self._verify_marker(self._backup_marker_name)
+                self._verify_marker(self._tombstone_marker_name)
+                require_held_tombstone()
+                nested: dict[str, set[str]] = {}
+                root_leaves = {"manifest.json"}
+                for entry in manifest.files:
+                    parts = PurePosixPath(entry.path).parts
+                    if len(parts) == 1:
+                        root_leaves.add(parts[0])
+                    elif len(parts) == 2:
+                        nested.setdefault(parts[0], set()).add(parts[1])
+                    else:
+                        raise ValueError("unsupported tombstone depth")
                 with os.scandir(tombstone_fd) as entries:
                     observed = {entry.name for entry in entries}
                 if observed != root_leaves | set(nested):
                     raise ValueError("tombstone inventory changed")
                 for directory_name, leaves in sorted(nested.items()):
+                    require_held_tombstone()
                     directory_fd = os.open(directory_name, directory_flags, dir_fd=tombstone_fd)
                     try:
                         with os.scandir(directory_fd) as entries:
@@ -441,15 +454,20 @@ class _PublishedArtifactFilesystem:
                             metadata = os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
                             if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                                 raise ValueError("tombstone leaf changed")
+                            require_held_tombstone()
                             os.unlink(leaf, dir_fd=directory_fd)
                     finally:
                         os.close(directory_fd)
+                    require_held_tombstone()
                     os.rmdir(directory_name, dir_fd=tombstone_fd)
                 for leaf in sorted(root_leaves):
                     metadata = os.stat(leaf, dir_fd=tombstone_fd, follow_symlinks=False)
                     if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                         raise ValueError("tombstone root leaf changed")
+                    require_held_tombstone()
                     os.unlink(leaf, dir_fd=tombstone_fd)
+                require_held_tombstone()
+                os.rmdir(self._tombstone_name, dir_fd=parent_fd)
             except (OSError, TypeError, ValueError) as exc:
                 raise ArtifactContractError(
                     ArtifactErrorCode.EXACT_TREE_MISMATCH,
@@ -459,7 +477,6 @@ class _PublishedArtifactFilesystem:
                 ) from exc
             finally:
                 os.close(tombstone_fd)
-            os.rmdir(self._tombstone_name, dir_fd=parent_fd)
 
     def unlink_tombstone_marker(self) -> None:
         self._verify_marker(self._tombstone_marker_name)
