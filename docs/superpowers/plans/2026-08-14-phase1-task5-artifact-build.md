@@ -5753,7 +5753,7 @@ publication concrete type; publication imports only staging's narrow private
 capabilities; builder composes both; database supplies the kernel to builder and never
 imports builder.
 
-- [ ] **Step 1: Write the final resource/acceptance RED without creating or guessing baseline bytes**
+- [x] **Step 1: Write the final resource/acceptance RED without creating or guessing baseline bytes**
 
 Add a contract test that requires source `config/expected_phase1_artifacts.json`, packaged `finproof/resources/contracts/expected_phase1_artifacts.json`, runtime loader availability outside checkout CWD, byte/SHA equality, strict parse, and exact wheel inclusion. Add `test_active_standard_editable_expected_contract_loader_matches_source_outside_cwd`, which runs in the active uv editable from an unrelated CWD and compares the frozen metadata-fallback destination bytes/SHA to the repository expected-contract source. Add `test_standard_editable_expected_contract_loader_uses_distribution_fallback_when_src_shadows`, using a fresh real isolated normal editable install: the regular source package must shadow copied contract data while the exact metadata-located frozen destination supplies source-identical bytes/SHA, with no dev-mode-exact behavior. Add `test_built_wheel_expected_contract_loader_uses_importlib_resources_primary`: install the built wheel alone with dependencies, make metadata fallback fail if called, change to an unrelated CWD, assert exact three-resource inventory/no candidate module, copy the already session-verified official artifact generation (not a small synthetic contract-incompatible tree), and successfully call the public manifest verifier/expected loader without a repository root. In new `tests/source_contract/test_official_artifact_build.py`, declare `pytestmark = pytest.mark.source_contract`; its missing-contract fixture refuses to run without the expected contract and its first assertion loads/verifies the artifact before comparing expected.
 
@@ -5768,7 +5768,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected RED: the official expected source/resource is absent. Do not satisfy this RED yet, do not add placeholder JSON, and do not add a Hatch force-include for a nonexistent path.
 
-- [ ] **Step 2: Replace the discard-inside-transform path with one live carrier**
+- [x] **Step 2: Replace the discard-inside-transform path with one live carrier**
 
 Author and close these selectors serially before either official candidate process:
 
@@ -5806,7 +5806,7 @@ but its private transform now leaves exactly one live cleanup owner until the to
 chooses the discard branch. No expected resource, publication success path, public
 symbol, or official baseline byte is added.
 
-- [ ] **Step 3: Run two fresh-process official candidates at different UTC timestamps**
+- [x] **Step 3: Run two fresh-process official candidates at different UTC timestamps**
 
 Before each process, re-run handoff/source audit and both candidate-absence checks. Use repository-only tooling, never `finproof build-data`, and capture stdout contract JSON separately from stderr review telemetry:
 
@@ -5836,7 +5836,7 @@ Require exactly one compact JSON line on each candidate stderr and parse it thro
 
 `tests/helpers/official_artifact_subprocess.py` measures the child externally. Convert `resource.getrusage(...).ru_maxrss` to bytes as `value` on macOS and `value * 1024` on Linux; record `sys.platform`. Do not assert a machine-specific absolute RSS cap. Assert the architectural counters `max_live_fund_group_rows <= 16`, `max_writer_batch_rows <= 65_536`, and the strict workspace facts independently of RSS.
 
-- [ ] **Step 4: Compare both candidate contracts and obtain independent candidate approval**
+- [x] **Step 4: Compare both candidate contracts and obtain independent candidate approval**
 
 Run a separate independent comparison that parses both stdout files through `ExpectedPhase1ArtifactContract` and asserts byte-identical canonical JSON and equality of:
 
@@ -5851,7 +5851,7 @@ Independently inspect telemetry proving each generation's physical hashes verifi
 
 If contracts differ logically, stop under `REPRODUCIBILITY_MISMATCH`; do not select one, average values, regenerate tests, or create a baseline.
 
-- [ ] **Step 5: Create the reviewed contract, activate serial behavior, and run focused aggregates**
+- [x] **Step 5: Create the reviewed contract, activate serial behavior, and run focused aggregates**
 
 After Step 4 approval, use `apply_patch` to add the exact canonical candidate JSON plus one terminal newline as `config/expected_phase1_artifacts.json`. Add its exact Hatch force-include destination `finproof/resources/contracts/expected_phase1_artifacts.json` in the same change and complete `expected_phase1_contract_bytes()` through the already frozen dual loader. Do not add a repository path branch, caller path, parent discovery, or dev-mode-exact packaging exception.
 
@@ -6027,7 +6027,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Record exact durations, platform-normalized RSS, live-group/batch maxima, table/report/overall hashes, and all physical hashes. An unexplained count/hash/memory/regression difference is a hard stop, not a baseline update.
 
-- [ ] **Step 6: Run complete Phase 1 gates on the exact implementation tree**
+- [x] **Step 6: Run complete Phase 1 gates on the exact implementation tree**
 
 Run once after all implementation/test/resource changes are frozen:
 
@@ -6062,7 +6062,7 @@ changes after this gate, first run only the finding's focused RED/GREEN and affe
 Step-5 aggregate, then run this same full gate exactly once more on the new final code
 candidate. A documentation-only closure does not trigger another full gate.
 
-- [ ] **Step 7: Commit the reviewed baseline and acceptance evidence checkpoint**
+- [x] **Step 7: Commit the reviewed baseline and acceptance evidence checkpoint**
 
 Only after Steps 1-6:
 
@@ -6101,7 +6101,7 @@ contains every CP8 runtime activation and lifecycle test file listed above, no g
 or closure document, no runtime `artifacts/` file, and no candidate telemetry/output
 under `/private/tmp`.
 
-- [ ] **Step 8: Obtain whole-branch review before marking Task 5 or Phase 1 complete**
+- [x] **Step 8: Obtain whole-branch review before marking Task 5 or Phase 1 complete**
 
 Dispatch a fresh reviewer over the approved plan base through the Step 7 commit. It must inspect every Task 5 source/test/config/schema/resource change, all eight checkpoint review results, exact two-candidate contracts/telemetry, official published acceptance, dependency/package boundaries, and Git scope. It must independently rerun the focused artifact suite, official acceptance or verified session reuse, Ruff, mypy, source audit, handoff, catalog, wheel resource check, exact-tree/ignored/source-read-only checks.
 
@@ -6114,7 +6114,7 @@ closure. Do not update the official baseline unless the reviewed correction
 intentionally changes logical data under a higher-priority approved decision; an
 unexplained mismatch is a stop condition.
 
-- [ ] **Step 9: Record completion evidence and exact next task**
+- [x] **Step 9: Record completion evidence and exact next task**
 
 After whole-branch review is 0 Critical / 0 Important, update:
 
@@ -6144,7 +6144,39 @@ git diff --cached --name-only
 git commit -m "docs: record Phase 1 artifact verification"
 ```
 
-- [ ] **Step 10: Verify closure scope and leave a clean feature worktree**
+Checkpoint 8 closure evidence recorded on 2026-08-21:
+
+- approved candidates A/B used distinct injected timestamps and produced byte-identical
+  canonical logical contracts with SHA-256
+  `7281eae4f076985f00bea997469ed26b655229cfbfeecbb55de2006f081c155a`;
+  independent candidate review returned Critical 0 / Important 0 / Minor 0;
+- official logical inventory is exact 9 inputs, 11 tables, and 2 reports; Bronze rows
+  are 207 / 145,393 / 6,401,851, Silver rows are 42,394 / 1,733 / 5,646 / 11,138 /
+  95,618 with 6,032 quality issues, and Gold is 47 links / 371 evidence rows with zero
+  ETN links;
+- link-pair SHA-256 is
+  `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962` and overall
+  logical SHA-256 is
+  `a07abff8a0e4dd7e51288de24bc80a16fcf5ce3f9f3756e4ea1f62352faa4103`;
+- official expected-accepted publication passed in 9,080.34 seconds and the shared
+  current-generation source/performance acceptance passed in 3,430.87 seconds; observed
+  bounds were writer/verifier batches 65,536, fund group 16, Bronze reconstruction 73,
+  linked parses 47 / 47, live keys 47 / 371, one thread, and `1GiB` per workspace;
+- implementation/correction lineage is `7ac04d9`, `33f5579`, and `cf32d55`, with
+  compatibility commit `22f6242` and plan correction `69566b1`; the final constrained
+  re-review at `cf32d55` returned Critical 0 / Important 0 and reran the two production
+  substitution selectors (`2 passed in 16.85s`);
+- final repository gate: `2339 passed, 4 warnings in 5012.89s`; Ruff format/check,
+  mypy over 149 files, pre-commit, wheel, diff/ignore/read-only checks, source audit
+  145,393 at `2026-07-11`, handoff 61 / 9 / 41,384,928, and catalog 207 all passed;
+- ignored execution report SHA-256 is
+  `65421ae097dd873dc3ba9bc2355741268a628fc93faa797e1b05e155edae4059`.
+
+No unresolved Critical/Important finding or Phase 1 blocker remains. Exact next task is
+Phase 2 Task 1, deterministic domain contracts and registry loaders; this closure did
+not start Phase 2.
+
+- [x] **Step 10: Verify closure scope and leave a clean feature worktree**
 
 The Step-9 documentation-only closure does not rerun Step 6 or any source/performance
 suite. Confirm only closure scope and repository cleanliness:

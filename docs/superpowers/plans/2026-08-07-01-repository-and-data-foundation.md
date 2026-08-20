@@ -465,15 +465,15 @@ The dedicated plan must implement the approved specification under strict RED ->
   content verification, authorization-independent publication/rollback/recovery state
   mechanics, read-only access, guarded unpublished candidate, and safe absent-baseline
   CLI behavior**
-- [ ] **Checkpoint 8: two-build official logical reproduction, independently reviewed
+- [x] **Checkpoint 8: two-build official logical reproduction, independently reviewed
   official expected-contract creation plus wheel-byte test, activation of the sole
   public expected-accepted verifier/result, typed same-generation one-use instance
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
-Exact next checkpoint: Checkpoint 8, two independent official candidates, reviewed
-expected-contract creation, expected-accepted publication, and the final Task 5 and
-Phase 1 gates.
+All eight Task 5 checkpoints and the Phase 1 gate are complete. Exact next task:
+Phase 2 Task 1, deterministic domain contracts and registry loaders. No Phase 2 work
+was started by the Phase 1 closure.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

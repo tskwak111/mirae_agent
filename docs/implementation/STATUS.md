@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-20 — Phase 1 Task 5 Checkpoints 1–7 are implemented and
-independently approved at Critical 0 / Important 0. Task 5 and the Phase 1 gate remain
-incomplete; Checkpoint 8 is the exact next task.
+**Last updated:** 2026-08-21 — Phase 1 Task 5 Checkpoints 1–8 and the Phase 1 gate are
+complete. The final constrained review at `cf32d55` returned Critical 0 / Important 0.
+No Phase 2 work has started.
 
 ## Frozen baseline
 
@@ -21,8 +21,8 @@ Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 - [x] Task 2: implement source manifest and streaming workbook reader with row lineage
 - [x] Task 3: normalize domestic bonds and domestic listed products
 - [x] Task 4: normalize overseas listed products and public funds with quarantine
-- [ ] Task 5: build Parquet/DuckDB artifacts, exact links, quality report, and reproducibility check
-- [ ] Phase 1 gate passed
+- [x] Task 5: build Parquet/DuckDB artifacts, exact links, quality report, and reproducibility check
+- [x] Phase 1 gate passed
 
 ## Phase 2 — Deterministic query, policy, evidence, and answer engine
 
@@ -60,25 +60,19 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 8: run two independent official candidates, review and
-create the exact expected contract, activate expected-accepted publication, and run
-the final Task 5 and Phase 1 gates.** The
-approved detailed plan is
-`docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
-and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
-reproduction, official artifact acceptance, and independent whole-branch review
-exist.
+**Phase 2 Task 1: implement deterministic domain contracts and registry loaders from
+the approved Phase 2 plan.** Phase 1 closure is complete; this status records the next
+task but does not start Phase 2.
 
 ## Phase 1 Task 5 design and plan record
 
-The artifact-build contract is approved for implementation in
+The artifact-build contract was implemented from
 `docs/superpowers/specs/2026-08-14-phase1-task5-artifact-build-design.md`. D-022 and
 D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1–7 complete while Checkpoint 8 remains
-unchecked.
+body and dedicated plan now record all eight checkpoints complete.
 
 Observed design-gate evidence on 2026-08-14:
 
@@ -232,10 +226,113 @@ Checkpoint 7 implementation and review evidence on 2026-08-20:
 - both expected-contract paths and runtime `artifacts/` remained absent, official
   source files were read-only, and the final worktree was clean.
 
-The exact next step is Checkpoint 8 in the dedicated plan: produce two fresh-process
-official candidates, obtain independent candidate approval, create only the reviewed
-expected contract, activate expected-accepted verification/publication, and run the
-final Task 5 and Phase 1 gates.
+Checkpoint 8 implementation and review evidence on 2026-08-21:
+
+- approved plan/base corrections include `69566b1`; implementation lineage is
+  `7ac04d9` (`feat: activate reviewed Phase 1 artifact contract`), `33f5579`
+  (`fix: close Task 5 final review gaps`), and `cf32d55` (`fix: bind publication
+  cleanup identity`), with stale CP2 compatibility isolated in `22f6242`;
+- the fourteen mandatory lifecycle/public-surface observations were closed serially:
+  provenance-bound private carrier; candidate discard branch; public manifest verify;
+  substituted core rejection; exact receiver admission; copied/foreign/prefilled/
+  throwing receiver rejection; indivisible custody transfer/source invalidation;
+  expected-mismatch pre-rename cleanup; descriptor publication/precommit rollback;
+  exact-once custody cleanup; official expected-accepted publication; reopened target
+  recognition; typed postcommit CLI failure; and the closed public surface. The first
+  thirteen missing behaviors produced focused REDs before GREEN; the already-preserved
+  closed-surface selector was honestly first-run GREEN. The compact CLI success
+  selector was the planned derived first-GREEN acceptance; no RED was manufactured;
+- candidate A (`2026-08-14T00:00:00.000001Z`) and B
+  (`2026-08-14T00:00:01.999999Z`) each completed in about 47/48 minutes and produced
+  byte-identical canonical logical bytes, SHA-256
+  `7281eae4f076985f00bea997469ed26b655229cfbfeecbb55de2006f081c155a`;
+  independent candidate review returned Critical 0 / Important 0 / Minor 0;
+- exact logical table counts/hashes are: `bronze_source_column` 207 /
+  `d3df3c12fe0683d7e3615ff69ebe8be741b9d53115c992d305f20a921655b174`;
+  `bronze_source_row` 145,393 /
+  `cbb96cfcc7946fccf7b93b287afa6f5c0c1b74bafe4df000ae1453fe2e886949`;
+  `bronze_source_cell` 6,401,851 /
+  `91941c43ea590c4779968b5c9d0212b8c01a281a7e0f4ad112a8158d5f0760e5`;
+  `silver_bond_instrument` 42,394 /
+  `27af21fef2d39fdcc1373c7eb994b51e1aeca3b6bf664e2922bfd5863f0e774b`;
+  `silver_domestic_listed_product` 1,733 /
+  `ae453024c71c8b9535f4f41683b632778a1b8602296adae3d622d72ecca99e2c`;
+  `silver_overseas_listed_product` 5,646 /
+  `fc9114fbbca0ab5fa8217d77ad5c01f4cc780abdfb094b22c0b0dcb9abf24bc7`;
+  `silver_fund_item` 11,138 /
+  `36a643c6108aa8eda1550747dc7ce415d94631e837aef9f8beb9b5765dff6e37`;
+  `silver_fund_item_attribute` 95,618 /
+  `0f504ffd89067efcf3efc1f0df8d074aa8f345bead5eaeeb7a5594ddf3540afb`;
+  `silver_quality_issue` 6,032 /
+  `a65421c79c2c4528eb2dc637d19abf6825fb9988ef1f9ed8e3d4510d81548792`;
+  `gold_exact_cross_source_link` 47 /
+  `cbfde1f767a38352db2932868f801d15cbc2f0baff41a7151d25aa1c1be77aeb`;
+  and `gold_exact_cross_source_link_evidence` 371 /
+  `833ef0ff458cda3484a08288dcb73173fb2c9a8b8be708e368ee6fba8473fad1`;
+- report semantic hashes are source audit
+  `fea118bb59edc41bd3f51ab983f1837476809d2ff322de0de64d39f19788ccfe`
+  and quality summary
+  `3320305708ef24b868b60020ace9c37cf3d048a2fefa7a69a538145b778de975`;
+  exact-pair SHA-256 is
+  `8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962`,
+  and overall logical SHA-256 is
+  `a07abff8a0e4dd7e51288de24bc80a16fcf5ce3f9f3756e4ea1f62352faa4103`;
+- candidate A's reviewed physical path/size/hash inventory was:
+  `finproof.duckdb` 3,813,421,056 /
+  `fc7c2abbcbfad6becd28e7fa8d3a9507c70bac50a546ddcab49a644b01ab9fa5`;
+  Bronze cell 19,873,708 /
+  `cb4576d3d60c99c8cb6023359d6ca843c235ebcf9bfbf14dde5a9520a9893ddf`,
+  column 8,701 /
+  `9c213dec0057c4168f0e3ed0054c59bf59ba7176bf97b97318984b3ee2ebb551`,
+  row 20,759,935 /
+  `310ce05d5f16de4e9cebbb8364185fc9599d060a260d7a850fc17c0b44936168`;
+  Gold link 6,909 /
+  `369061f3f75c919c77dc8f31c9b970a9be0bd2ff156775580942a63067b8595f`,
+  evidence 9,933 /
+  `d8f08c713b52c68d5b0bdb9e98d1d2d5cdc63f153511f966457f27c3029a6021`;
+  Silver bond 9,400,752 /
+  `91c33a11b6fcd9314a3b1cc5e610b9698d7745722e84293ba5e6ef7a47c5819c`,
+  domestic 849,333 /
+  `577de2d13ce7c707bb92998c9bb5842981b05ff876685737efb6ce83a159407a`,
+  fund item 35,145,813 /
+  `6311501fdb3020e88ccf41bfd7f6bf27b1bf139d904090f8deb7711902c0366e`,
+  fund attribute 2,456,112 /
+  `ecfe1bb4fb6812d21fedde05ec8a658bc3fd6d0f32ffaf5d51340515da961949`,
+  overseas 4,853,077 /
+  `8edbbb8ca35e9556df07a6da1197346c40deb423edac4f7874b08ced89337144`,
+  quality 963,492 /
+  `115941e14a714134e690f3e0a7e40f417fed3d4e82d6dd3d0af47a97afb2011a`;
+  quality report 2,572 /
+  `4c7b2dc240a98d3d5483603c69941fc71ce9d02501a202b8829417e34255ea10`;
+  source report 2,216 /
+  `daa07137da99d89efa93198095bfe7e26b81031b6a7ff9120c48a33da74c797c`.
+  Timestamp-bearing DuckDB/Bronze-row/quality bytes
+  intentionally differ in candidate B while timestamp-free logical identity remains
+  exact;
+- official expected-accepted publication completed in 9,080.34 seconds; its child
+  build took 5,730.84 seconds and observed Darwin-normalized peak RSS
+  10,531,536,896 bytes. The reused official source/performance aggregate passed in
+  3,430.87 seconds with writer/verifier maxima 65,536, fund-group maximum 16, Bronze
+  reconstruction maximum 73, linked parses 47 / 47, live keys 47 / 371, and both
+  marker-owned workspaces at mode 0700, one thread, `1GiB`, cleanup complete;
+- whole-branch review first returned Critical 0 / Important 2. The reachability/
+  recovery correction at `33f5579` passed its full gate, then a narrow re-review found
+  the shared exact-owned deletion TOCTOU remainder. Clean/recovery substitution REDs
+  were closed at `cf32d55`; the final constrained review reran them (`2 passed in
+  16.85s`) and returned Critical 0 / Important 0;
+- final affected aggregate: 179 passed in 49.60 seconds. Final repository gate: Ruff
+  format/check and mypy over 149 files passed; pytest `2339 passed, 4 warnings in
+  5012.89s`; source audit 145,393 at `2026-07-11`; handoff 61 required files / 9
+  official inputs / 41,384,928 bytes; catalog 207; pre-commit, wheel, diff/ignore,
+  source-read-only, and clean-tree checks passed;
+- ignored execution ledger SHA-256 is
+  `65421ae097dd873dc3ba9bc2355741268a628fc93faa797e1b05e155edae4059`.
+
+Residual evidence note: the four known adversarial Pydantic serializer warnings remain
+expected test output, and absolute RSS is platform-observational rather than a frozen
+portable cap. No unresolved Critical/Important finding or official-source question
+blocks Phase 1 closure. Exact next task is Phase 2 Task 1; no Phase 2 implementation
+was started here.
 
 ## Handoff validation record — not production implementation
 
