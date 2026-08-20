@@ -460,7 +460,7 @@ The dedicated plan must implement the approved specification under strict RED ->
   bound six-field CP7 handoff result (37 mandatory serial RED/GREEN selectors plus two
   derived acceptances, including official 47/371, exact 16-file implementation scope, then fresh
   0/0 review before the separate three-doc closure)**
-- [ ] **Checkpoint 7: concrete report/database ports and packaged-comparator
+- [x] **Checkpoint 7: concrete report/database ports and packaged-comparator
   implementation, complete private core verification, self-contained DuckDB exact-
   content verification, authorization-independent publication/rollback/recovery state
   mechanics, read-only access, guarded unpublished candidate, and safe absent-baseline
@@ -471,9 +471,9 @@ The dedicated plan must implement the approved specification under strict RED ->
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
-Exact next checkpoint: Checkpoint 7, self-contained DuckDB construction, complete
-private core verification, guarded publication/rollback/recovery mechanics, an
-unpublished candidate wrapper, and safe absent-baseline CLI behavior.
+Exact next checkpoint: Checkpoint 8, two independent official candidates, reviewed
+expected-contract creation, expected-accepted publication, and the final Task 5 and
+Phase 1 gates.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under

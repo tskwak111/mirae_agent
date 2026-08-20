@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-20 — Phase 1 Task 5 Checkpoints 1–6 are implemented and
+**Last updated:** 2026-08-20 — Phase 1 Task 5 Checkpoints 1–7 are implemented and
 independently approved at Critical 0 / Important 0. Task 5 and the Phase 1 gate remain
-incomplete; Checkpoint 7 is the exact next task.
+incomplete; Checkpoint 8 is the exact next task.
 
 ## Frozen baseline
 
@@ -60,10 +60,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 1 Task 5 Checkpoint 7: build the self-contained DuckDB and complete private
-core verifier, exercise guarded publication/rollback/recovery mechanics, and add the
-unpublished candidate wrapper plus safe absent-baseline CLI under focused RED-GREEN
-TDD.** The
+**Phase 1 Task 5 Checkpoint 8: run two independent official candidates, review and
+create the exact expected contract, activate expected-accepted publication, and run
+the final Task 5 and Phase 1 gates.** The
 approved detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`. Keep Task 5
 and the Phase 1 gate unchecked until all eight checkpoints, two-candidate
@@ -78,7 +77,7 @@ D-023 freeze logical-versus-physical identity, exact artifact inventory, bounded
 external ordering, guarded publication, wide Silver scope, and the raw exact-link rule.
 The authoritative detailed plan is
 `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`; the legacy Task 5
-body points to it and records Checkpoints 1–6 complete while Checkpoints 7–8 remain
+body points to it and records Checkpoints 1–7 complete while Checkpoint 8 remains
 unchecked.
 
 Observed design-gate evidence on 2026-08-14:
@@ -211,11 +210,32 @@ Checkpoint 6 implementation and review evidence on 2026-08-20:
 - both expected-contract paths and runtime `artifacts/` remained absent, official
   source files were read-only, and the final worktree was clean.
 
-The exact next step is Checkpoint 7 in the dedicated plan: implement the
-self-contained DuckDB, complete private core verifier, guarded publication state
-mechanics, unpublished candidate wrapper, and safe absent-baseline CLI. Do not create
-the official expected logical
-baseline before Checkpoint 8's two independently verified candidate builds and review.
+Checkpoint 7 implementation and review evidence on 2026-08-20:
+
+- approved plan correction `79c5359`; implementation lineage `e1ca554` (`feat:
+  verify self-contained artifact databases`), `553573f` (`feat: guard artifact
+  publication and recovery`), and `f2a8726` (`feat: add verified artifact build
+  command`); review corrections `c48588d` and `f793611`;
+- final CP7A aggregate: 50 passed; CP7B aggregate: 43 passed; CP7C implementation
+  aggregate: 86 passed; final single-item focused verification: 1 passed in 0.51
+  seconds;
+- final network-enabled repository suite: 2,308 passed with four known adversarial
+  serialization warnings in 1,713.37 seconds; Ruff format/check and fresh plus
+  standard mypy passed over 145 files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 source bytes; schema catalog: 207 columns;
+- the independent whole-CP7 review returned Critical 0 / Important 4; its scoped
+  re-review left one original telemetry Important, and final single-item verification
+  at `f793611` returned Critical 0 / Important 0;
+- the ignored execution report SHA-256 is
+  `d1198fc3cbd8a0cb45fb41f7f75a1068db5129ddb7f4b06c8921d5f045a13b89`;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the final worktree was clean.
+
+The exact next step is Checkpoint 8 in the dedicated plan: produce two fresh-process
+official candidates, obtain independent candidate approval, create only the reviewed
+expected contract, activate expected-accepted verification/publication, and run the
+final Task 5 and Phase 1 gates.
 
 ## Handoff validation record — not production implementation
 

@@ -4922,7 +4922,7 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
   versions, options) -> CandidateArtifactSet`, which fully core-verifies but does not
   compare expected, publish, or expose its stage path publicly.
 
-- [ ] **Step 1: Write 7A REDs for exact self-contained DuckDB construction**
+- [x] **Step 1: Write 7A REDs for exact self-contained DuckDB construction**
 
 Author these database-construction selectors one at a time, running each exact node and
 reaching its intended RED before the smallest GREEN:
@@ -4982,7 +4982,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected RED: database builder/public reader/private equality verifier and full manifest verifier are missing.
 
-- [ ] **Step 2: Implement separate public-reader and private-verifier connections**
+- [x] **Step 2: Implement separate public-reader and private-verifier connections**
 
 The CP7 writer orchestrator uses `threads=1`, `preserve_insertion_order=true`, `TimeZone=UTC`, static allowlisted DDL, and trusted stage capabilities only. It first revalidates the complete one-owner `StagedParquetSet`, obtains each `verification_for(...)`, and inserts bounded batches with explicit frozen columns/order through CP4's already-verified pathless `ManagedStageDatabaseBuild.open_writer()`. It then invokes CP4's already-GREEN `checkpoint_close_and_seal(leaf=database_leaf)` and wraps the returned owner-registered `SealedStageDatabase` only through `StagedDatabaseVerification.from_sealed(owner=..., sealed=...)`; CP7 does not implement or duplicate scratch/leaf creation, WAL, copy, fsync, close, reopen, hash, or cleanup mechanics. The private equality verifier later uses only CP7's independently rebuilt final handles.
 
@@ -4998,7 +4998,7 @@ handles, buffers only the closed 47/371 keys, strict-parses only exact-ID-filter
 domestic plus 47 fund records, and never accepts caller SQL/table/path, materializes
 full Bronze/wide relations in Python, or writes in artifact root or its parent.
 
-- [ ] **Step 3: Write 7A REDs for read-only security and runtime-temp failures**
+- [x] **Step 3: Write 7A REDs for read-only security and runtime-temp failures**
 
 Through the public reader, require persistent `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, external `ATTACH`, and `COPY TO` to fail. Assert TEMP objects are explicitly not promised but no public FinProof API exposes raw SQL. Test missing/symlink/directory database paths.
 
@@ -5012,7 +5012,7 @@ cleanup when it was opened, and remove only an exact marker-owned temp directory
 
 Expected RED: public hardening or private temp ownership/settings/cleanup is incomplete.
 
-- [ ] **Step 4: Assemble the complete concrete core verifier and mutation matrix**
+- [x] **Step 4: Assemble the complete concrete core verifier and mutation matrix**
 
 Before report assembly, author and close these final-inventory relation behaviors in
 exact order, one selector RED/smallest-GREEN at a time:
@@ -5157,7 +5157,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
 
 Expected GREEN: the fixture database is self-contained/read-only; same-count substitution fails; complete verification returns only after every physical/logical/report/timestamp/link/database boundary; runtime temp is private/bounded/clean.
 
-- [ ] **Step 5: Commit 7A**
+- [x] **Step 5: Commit 7A**
 
 ```bash
 git add src/finproof/data/artifacts/database.py \
@@ -5231,7 +5231,7 @@ git commit -m "feat: verify self-contained artifact databases"
   create/read, same-filesystem rename, exact unlink, and marker-owned tombstone
   deletion; no stage-path, glob, or broad resolved-delete method exists.
 
-- [ ] **Step 6: Write 7B REDs for no-clean/clean recognition and both rename rollback boundaries**
+- [x] **Step 6: Write 7B REDs for no-clean/clean recognition and both rename rollback boundaries**
 
 Through only the test-helper sealed authorization and synthetic transition port, assert
 the absent-target transition requests a stage rename only after the synthetic
@@ -5251,7 +5251,7 @@ For a recognized old target, fault-inject old-target-to-backup rename, stage-to-
 
 Expected RED: no publication state machine exists.
 
-- [ ] **Step 7: Implement pre-commit recognition, rename, verification, and rollback**
+- [x] **Step 7: Implement pre-commit recognition, rename, verification, and rollback**
 
 Consume the already-held synthetic lock authority for each test state. CP7 tests the
 authorization-independent rename/rollback/tombstone state machine directly with sealed
@@ -5266,7 +5266,7 @@ verification plus stage-marker removal. Never recursively delete before it.
 
 Implement target-absent rollback without inventing a backup: after `stage -> target`, either target verification or stage-marker removal failure moves only that recognized target back to the exact marker-owned stage name and revalidates it, leaving target absent. If that move fails, preserve `TARGET_RENAMED_UNCOMMITTED` and raise the one typed rollback error without deleting target/marker or claiming a backup. Keep this branch distinct from existing-target rollback, which additionally restores its verified backup.
 
-- [ ] **Step 8: Write 7B REDs for every post-commit tombstone/remnant state**
+- [x] **Step 8: Write 7B REDs for every post-commit tombstone/remnant state**
 
 Exercise exactly:
 
@@ -5285,7 +5285,7 @@ For next-run recovery, start from every closed state and reach none when the new
 
 Expected RED: partial cleanup/recovery or marker unlink behavior is absent.
 
-- [ ] **Step 9: Implement atomic tombstoning and exact remnant recovery, then run GREEN**
+- [x] **Step 9: Implement atomic tombstoning and exact remnant recovery, then run GREEN**
 
 Rename the complete verified backup to its cleanup tombstone before recursive deletion. Deletion traverses only exact marker-owned children by descriptor/`lstat`, never `resolve()` plus glob/rmtree. Persist marker states in the required unlink order so recovery is idempotent. Close all DuckDB connections before rename/delete.
 
@@ -5308,7 +5308,7 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy \
 
 Expected GREEN: target-absent pre-commit faults recover a byte-identical marked stage with no invented backup/tombstone or preserve the exact typed uncommitted-target failure state; existing-target pre-commit faults restore old bytes; clean refuses unsafe content without mutation; committed targets survive all cleanup faults; each exact remnant state recovers without touching unrelated paths.
 
-- [ ] **Step 10: Commit 7B**
+- [x] **Step 10: Commit 7B**
 
 ```bash
 git add src/finproof/data/artifacts/publication.py src/finproof/data/artifacts/builder.py \
@@ -5352,7 +5352,7 @@ git commit -m "feat: guard artifact publication and recovery"
   separate baseline model; small core fixtures need not.
 - CLI adds only `finproof build-data [--clean]`.
 
-- [ ] **Step 11: Write 7C REDs for candidate non-publication and production expected comparison**
+- [x] **Step 11: Write 7C REDs for candidate non-publication and production expected comparison**
 
 Use a complete small fixture only through the private transform with an explicitly
 constructed strict hermetic test config/closed inputs; assert full core verification,
@@ -5379,13 +5379,13 @@ Reuse CP1's injected read-only `CandidateBaselineProbe`; its synthetic source/re
 
 Expected RED: exact candidate wrapper/production expected-before-publish boundary is incomplete.
 
-- [ ] **Step 12: Implement the two non-bypassable build modes**
+- [x] **Step 12: Implement the two non-bypassable build modes**
 
 Factor one private production transform that always creates and fully core-verifies a private stage and returns `ArtifactCoreBuildOutcome`. The repository candidate sequence is exact: initial probe guard; private transform; retain only strict outcome/contract data in memory; marker-owned candidate-root cleanup and verification; `probe.second_check()`; then and only then emit one canonical compact contract JSON line to stdout and one canonical compact bounded/path-free telemetry JSON line to stderr/return the core contract. Any transform, cleanup, or second-check failure emits no contract/telemetry and leaves no guessed cleanup. CP7's `_build_evaluation_artifacts_with_outcome` first requires packaged expected bytes and therefore blocks without transformation while they are absent. CP8 completes its expected comparison, private expected-accepted outcome, guarded publication, and public return. Neither mode accepts a public/private skip/update/accept/write-back flag, and no test seam can disable comparison in the public builder.
 
 Export only `ArtifactManifest`, `ArtifactBuildOptions`, `build_artifacts`, and `open_read_only_database` from `finproof.data.artifacts`; do not export the private transform, publication filesystem, candidate wrapper, or recovery paths.
 
-- [ ] **Step 13: Write 7C CLI REDs for arguments, time capture, output, and safe errors**
+- [x] **Step 13: Write 7C CLI REDs for arguments, time capture, output, and safe errors**
 
 Assert parser accepts only `build-data` and optional `--clean`; reject timestamp, source, output, SQL, table, version, and expected-path arguments with argparse exit 2. Inject a clock seam and assert it is called once, UTC, then the exact timestamp reaches `ArtifactBuildOptions`.
 
@@ -5396,7 +5396,7 @@ success stdout and post-commit cleanup wording after expected acceptance is avai
 
 Expected RED: CLI has no `build-data`, and current checkout-discovery bootstrap path is unsafe for this command.
 
-- [ ] **Step 14: Implement explicit-settings CLI dispatch and run the complete 7C fixture gate**
+- [x] **Step 14: Implement explicit-settings CLI dispatch and run the complete 7C fixture gate**
 
 `build-data` loads `Settings` directly, never calls `_load_repository_tool`, constructs `VersionBundle`, captures `datetime.now(timezone.utc)` once, and calls the builder. Use a narrow internal callable injection only for CLI unit tests; the production default is the real builder.
 
@@ -5422,7 +5422,7 @@ test ! -e config/expected_phase1_artifacts.json
 
 Expected GREEN: candidate is full-transform/full-core-verify but unpublished/unpackaged/no-write; evaluation build refuses the missing baseline before transform and cannot skip expected comparison; CP7 CLI arguments and bounded absent-baseline error are closed and safe; the existing installed `verify-handoff`/`audit-source` CLI contracts remain unchanged; official baseline is still absent.
 
-- [ ] **Step 15: Commit 7C, run aggregate Checkpoint 7 gates, and obtain a fresh review**
+- [x] **Step 15: Commit 7C, run aggregate Checkpoint 7 gates, and obtain a fresh review**
 
 Commit:
 
@@ -5503,6 +5503,30 @@ git diff --cached --name-only
 git commit -m "docs: close Task 5 checkpoint 7 review"
 git status --porcelain
 ```
+
+Observed Checkpoint 7 closure evidence on 2026-08-20:
+
+- approved plan correction `79c5359`; implementation commits `e1ca554` (7A),
+  `553573f` (7B), and `f2a8726` (7C); review corrections `c48588d` and the final
+  measured-batch correction `f793611`;
+- final CP7A aggregate: 50 passed; CP7B aggregate: 43 passed; CP7C implementation
+  aggregate: 86 passed; final single-item focused verification: 1 passed in 0.51
+  seconds;
+- the official exact-link acceptance remained GREEN with 47 links, zero ETN links,
+  371 evidence rows, 1,222 canonical TSV bytes, and the frozen SHA;
+- final network-enabled repository suite: 2,308 passed with four known adversarial
+  serialization warnings in 1,713.37 seconds; Ruff format/check and both fresh and
+  standard mypy passed over 145 files; pre-commit passed;
+- source audit: 145,393 rows at snapshot `2026-07-11`; handoff: 61 required files,
+  9 official inputs, and 41,384,928 bytes; schema catalog: 207 columns;
+- the independent whole-CP7 review returned Critical 0 / Important 4; the scoped
+  correction re-review left one original telemetry Important, closed by `f793611`;
+  final single-item verification returned Critical 0 / Important 0;
+- the ignored execution report SHA-256 is
+  `d1198fc3cbd8a0cb45fb41f7f75a1068db5129ddb7f4b06c8921d5f045a13b89`;
+- both expected-contract paths and runtime `artifacts/` remained absent, official
+  source files were read-only, and the reviewed worktree was clean. Checkpoint 8 is the
+  exact next task; Task 5 and the Phase 1 gate remain incomplete.
 
 ---
 
