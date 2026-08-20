@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import inspect
 import os
 import shutil
 import socket
@@ -1612,11 +1613,17 @@ def test_verification_kernel_candidate_core_skips_only_expected(
             _ = inventory.declared_entries
 
 
-def test_cp2_exports_no_public_manifest_verify_or_verified_artifact_set() -> None:
+def test_cp8_exposes_only_verification_issued_public_artifact_set() -> None:
     from finproof.data.artifacts import manifest as manifest_module
 
-    assert not hasattr(ArtifactManifest, "verify")
-    assert not hasattr(manifest_module, "VerifiedArtifactSet")
+    verified_artifact_set = manifest_module.VerifiedArtifactSet
+    signature = inspect.signature(ArtifactManifest.verify)
+
+    assert tuple(signature.parameters) == ("self", "root")
+    assert signature.parameters["root"].annotation is Path
+    assert signature.return_annotation == "VerifiedArtifactSet"
+    with pytest.raises(TypeError, match="verification-issued"):
+        verified_artifact_set()
 
 
 def test_verified_inventory_detects_physical_byte_mutation_without_mutating_tree(
