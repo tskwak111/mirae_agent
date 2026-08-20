@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import os
+import stat
 from collections.abc import Iterator
 from contextlib import contextmanager
 from enum import StrEnum
-from typing import Protocol
+from pathlib import PurePosixPath
+from typing import Never, Protocol, cast
 
 from finproof.core.settings import Settings
 from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
@@ -80,7 +84,9 @@ class ArtifactFilesystem(Protocol):
 class _PublishedArtifactFilesystem:
     """Closed filesystem verifier for one expected published generation."""
 
-    __slots__ = ("_expected", "_settings")
+    __slots__ = ("_closed", "_expected", "_marker_payload", "_operation_id", "_settings")
+
+    _expected: VerifiedArtifactSet | None
 
     def __init__(
         self,
@@ -92,22 +98,406 @@ class _PublishedArtifactFilesystem:
             raise TypeError("published artifact filesystem requires exact inputs")
         self._settings = settings
         self._expected = expected
+        self._closed = False
+        self._operation_id: str | None = None
+        self._marker_payload: bytes | None = None
+
+    @classmethod
+    def _for_recovery(cls, settings: Settings) -> _PublishedArtifactFilesystem:
+        if type(settings) is not Settings:
+            raise TypeError("published artifact recovery requires exact settings")
+        value = object.__new__(cls)
+        value._settings = settings
+        value._expected = None
+        value._closed = False
+        value._operation_id = value._remnant_operation_id()
+        value._marker_payload = (
+            value._publication_marker_payload() if value._operation_id is not None else None
+        )
+        return value
+
+    @property
+    def _target_name(self) -> str:
+        return self._settings.artifact_dir.name
+
+    @property
+    def _stage_name(self) -> str:
+        return f".{self._target_name}.finproof-stage-{self._require_operation_id()}"
+
+    @property
+    def _stage_marker_name(self) -> str:
+        return f"{self._stage_name}.marker"
+
+    @property
+    def _backup_name(self) -> str:
+        return f".{self._target_name}.finproof-backup-{self._require_operation_id()}"
+
+    @property
+    def _backup_marker_name(self) -> str:
+        return f"{self._backup_name}.marker"
+
+    @property
+    def _tombstone_name(self) -> str:
+        return f".{self._target_name}.finproof-cleanup-{self._require_operation_id()}"
+
+    @property
+    def _tombstone_marker_name(self) -> str:
+        return f"{self._tombstone_name}.marker"
+
+    @contextmanager
+    def _open_parent(self) -> Iterator[int]:
+        descriptor = os.open(
+            self._settings.artifact_dir.parent,
+            os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW,
+        )
+        try:
+            yield descriptor
+        finally:
+            os.close(descriptor)
+
+    def _active_operation_id(self) -> str:
+        prefix = f".{self._settings.artifact_dir.name}.finproof-stage-"
+        with self._open_parent() as parent_fd, os.scandir(parent_fd) as entries:
+            names = {entry.name for entry in entries}
+        operations = {
+            name.removeprefix(prefix).removesuffix(".marker")
+            for name in names
+            if name.startswith(prefix) and name.endswith(".marker")
+        }
+        valid = {
+            operation
+            for operation in operations
+            if len(operation) == 32
+            and all(character in "0123456789abcdef" for character in operation)
+            and f"{prefix}{operation}" in names
+        }
+        if len(valid) != 1 or valid != operations:
+            raise ArtifactContractError(
+                ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                operation_id="publish-artifacts",
+                target_basename=self._settings.artifact_dir.name,
+                internal_context={"reason": "active_stage_operation_is_ambiguous"},
+            )
+        return next(iter(valid))
+
+    def _remnant_operation_id(self) -> str | None:
+        prefixes = (
+            f".{self._settings.artifact_dir.name}.finproof-backup-",
+            f".{self._settings.artifact_dir.name}.finproof-cleanup-",
+        )
+        with self._open_parent() as parent_fd, os.scandir(parent_fd) as entries:
+            names = {entry.name for entry in entries}
+        matching = {name for name in names if any(name.startswith(prefix) for prefix in prefixes)}
+        operations: set[str] = set()
+        for name in matching:
+            prefix = next(prefix for prefix in prefixes if name.startswith(prefix))
+            operation = name.removeprefix(prefix).removesuffix(".marker")
+            if (
+                len(operation) != 32
+                or any(character not in "0123456789abcdef" for character in operation)
+                or name not in {f"{prefix}{operation}", f"{prefix}{operation}.marker"}
+            ):
+                self._remnant_error("foreign_publication_remnant")
+            operations.add(operation)
+        if not operations:
+            return None
+        if len(operations) != 1:
+            self._remnant_error("ambiguous_publication_remnant")
+        operation_id = next(iter(operations))
+        allowed = {
+            f"{prefix}{operation_id}{suffix}" for prefix in prefixes for suffix in ("", ".marker")
+        }
+        if not matching <= allowed:
+            self._remnant_error("foreign_publication_remnant")
+        return operation_id
+
+    def _require_operation_id(self) -> str:
+        if self._operation_id is None:
+            self._operation_id = self._active_operation_id()
+            self._marker_payload = self._publication_marker_payload()
+            self._verify_marker(self._stage_marker_name)
+        return self._operation_id
+
+    def _publication_marker_payload(self) -> bytes:
+        operation_id = self._operation_id
+        if operation_id is None:
+            raise TypeError("publication operation is unavailable")
+        return json.dumps(
+            {
+                "artifact_contract_version": "1.0.0",
+                "artifact_set_id": "finproof-data-artifacts/v1",
+                "operation_id": operation_id,
+                "target_basename": self._target_name,
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+
+    def _verify_marker(self, name: str) -> None:
+        marker_payload = self._marker_payload
+        if marker_payload is None:
+            raise TypeError("publication marker payload is unavailable")
+        descriptor = -1
+        try:
+            with self._open_parent() as parent_fd:
+                descriptor = os.open(
+                    name,
+                    os.O_RDONLY | os.O_CLOEXEC | os.O_NOFOLLOW,
+                    dir_fd=parent_fd,
+                )
+                metadata = os.fstat(descriptor)
+                if (
+                    not stat.S_ISREG(metadata.st_mode)
+                    or metadata.st_nlink != 1
+                    or stat.S_IMODE(metadata.st_mode) != 0o600
+                    or os.pread(descriptor, 4097, 0) != marker_payload
+                ):
+                    raise ValueError("publication marker changed")
+        except (OSError, TypeError, ValueError) as exc:
+            raise ArtifactContractError(
+                ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                operation_id="publish-artifacts",
+                target_basename=self._target_name,
+                internal_context={"reason": "publication_marker_changed"},
+            ) from exc
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+
+    def _create_marker(self, name: str) -> None:
+        marker_payload = self._marker_payload
+        if marker_payload is None:
+            raise TypeError("publication marker payload is unavailable")
+        descriptor = -1
+        created = False
+        try:
+            with self._open_parent() as parent_fd:
+                descriptor = os.open(
+                    name,
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+                    0o600,
+                    dir_fd=parent_fd,
+                )
+                created = True
+                remaining = marker_payload
+                while remaining:
+                    written = os.write(descriptor, remaining)
+                    if written <= 0:
+                        raise OSError("publication marker write made no progress")
+                    remaining = remaining[written:]
+                os.fsync(descriptor)
+        except (OSError, TypeError, ValueError) as exc:
+            if created:
+                try:
+                    with self._open_parent() as parent_fd:
+                        os.unlink(name, dir_fd=parent_fd)
+                except OSError:
+                    pass
+            raise ArtifactContractError(
+                ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                operation_id="publish-artifacts",
+                target_basename=self._target_name,
+                internal_context={"reason": "publication_marker_create_failed"},
+            ) from exc
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+
+    def _verify_named_artifact(self, name: str) -> ArtifactManifest:
+        root = self._settings.artifact_dir.parent / name
+        manifest = ArtifactManifest.load(root / "manifest.json")
+        verified = manifest.verify(root)
+        if self._expected is None:
+            self._expected = verified
+        elif verified != self._expected:
+            raise ArtifactContractError(
+                ArtifactErrorCode.REPRODUCIBILITY_MISMATCH,
+                operation_id="verify-published-artifacts",
+                target_basename=self._target_name,
+            )
+        return manifest
 
     def target_exists(self) -> bool:
         try:
-            self._settings.artifact_dir.lstat()
+            with self._open_parent() as parent_fd:
+                os.stat(self._target_name, dir_fd=parent_fd, follow_symlinks=False)
         except FileNotFoundError:
             return False
         return True
 
     def verify_target(self) -> None:
-        manifest = ArtifactManifest.load(self._settings.artifact_dir / "manifest.json")
-        if manifest.verify(self._settings.artifact_dir) != self._expected:
+        self._verify_named_artifact(self._target_name)
+
+    def recognize_target(self) -> None:
+        try:
+            self.verify_target()
+        except ArtifactContractError as exc:
             raise ArtifactContractError(
-                ArtifactErrorCode.REPRODUCIBILITY_MISMATCH,
-                operation_id="verify-published-artifacts",
-                target_basename=self._settings.artifact_dir.name,
+                ArtifactErrorCode.UNRECOGNIZED_TARGET,
+                operation_id="publish-artifacts",
+                target_basename=self._target_name,
+                internal_context={"reason": "existing_target_is_not_expected"},
+            ) from exc
+
+    def rename_target_to_backup(self) -> None:
+        self.recognize_target()
+        self._create_marker(self._backup_marker_name)
+        try:
+            with self._open_parent() as parent_fd:
+                os.rename(
+                    self._target_name,
+                    self._backup_name,
+                    src_dir_fd=parent_fd,
+                    dst_dir_fd=parent_fd,
+                )
+        except OSError as exc:
+            self._verify_marker(self._backup_marker_name)
+            with self._open_parent() as parent_fd:
+                os.unlink(self._backup_marker_name, dir_fd=parent_fd)
+            raise ArtifactContractError(
+                ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                operation_id="publish-artifacts",
+                target_basename=self._target_name,
+                internal_context={"reason": "target_to_backup_rename_failed"},
+            ) from exc
+
+    def verify_backup(self) -> None:
+        self._verify_marker(self._backup_marker_name)
+        self._verify_named_artifact(self._backup_name)
+
+    def restore_backup_to_target(self) -> None:
+        self.verify_backup()
+        with self._open_parent() as parent_fd:
+            try:
+                os.stat(self._target_name, dir_fd=parent_fd, follow_symlinks=False)
+            except FileNotFoundError:
+                pass
+            else:
+                raise ArtifactContractError(
+                    ArtifactErrorCode.PUBLICATION_ROLLBACK_FAILED,
+                    operation_id="publish-artifacts",
+                    target_basename=self._target_name,
+                    internal_context={"reason": "target_exists_before_backup_restore"},
+                )
+            os.rename(
+                self._backup_name,
+                self._target_name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
             )
+        self.verify_target()
+        self._verify_marker(self._backup_marker_name)
+        with self._open_parent() as parent_fd:
+            os.unlink(self._backup_marker_name, dir_fd=parent_fd)
+
+    def prepare_tombstone_marker(self) -> None:
+        self._create_marker(self._tombstone_marker_name)
+
+    def rename_backup_to_tombstone(self) -> None:
+        self.verify_backup()
+        self._verify_marker(self._tombstone_marker_name)
+        with self._open_parent() as parent_fd:
+            os.rename(
+                self._backup_name,
+                self._tombstone_name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+
+    def delete_tombstone(self) -> None:
+        manifest = self._verify_named_artifact(self._tombstone_name)
+        self._verify_marker(self._backup_marker_name)
+        self._verify_marker(self._tombstone_marker_name)
+        nested: dict[str, set[str]] = {}
+        root_leaves = {"manifest.json"}
+        for entry in manifest.files:
+            parts = PurePosixPath(entry.path).parts
+            if len(parts) == 1:
+                root_leaves.add(parts[0])
+            elif len(parts) == 2:
+                nested.setdefault(parts[0], set()).add(parts[1])
+            else:
+                raise ArtifactContractError(
+                    ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                    operation_id="publish-artifacts",
+                    target_basename=self._target_name,
+                    internal_context={"reason": "unsupported_tombstone_depth"},
+                )
+        directory_flags = os.O_RDONLY | os.O_CLOEXEC | os.O_DIRECTORY | os.O_NOFOLLOW
+        with self._open_parent() as parent_fd:
+            tombstone_fd = os.open(self._tombstone_name, directory_flags, dir_fd=parent_fd)
+            try:
+                with os.scandir(tombstone_fd) as entries:
+                    observed = {entry.name for entry in entries}
+                if observed != root_leaves | set(nested):
+                    raise ValueError("tombstone inventory changed")
+                for directory_name, leaves in sorted(nested.items()):
+                    directory_fd = os.open(directory_name, directory_flags, dir_fd=tombstone_fd)
+                    try:
+                        with os.scandir(directory_fd) as entries:
+                            if {entry.name for entry in entries} != leaves:
+                                raise ValueError("tombstone directory inventory changed")
+                        for leaf in sorted(leaves):
+                            metadata = os.stat(leaf, dir_fd=directory_fd, follow_symlinks=False)
+                            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                                raise ValueError("tombstone leaf changed")
+                            os.unlink(leaf, dir_fd=directory_fd)
+                    finally:
+                        os.close(directory_fd)
+                    os.rmdir(directory_name, dir_fd=tombstone_fd)
+                for leaf in sorted(root_leaves):
+                    metadata = os.stat(leaf, dir_fd=tombstone_fd, follow_symlinks=False)
+                    if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                        raise ValueError("tombstone root leaf changed")
+                    os.unlink(leaf, dir_fd=tombstone_fd)
+            except (OSError, TypeError, ValueError) as exc:
+                raise ArtifactContractError(
+                    ArtifactErrorCode.EXACT_TREE_MISMATCH,
+                    operation_id="publish-artifacts",
+                    target_basename=self._target_name,
+                    internal_context={"reason": "tombstone_delete_failed"},
+                ) from exc
+            finally:
+                os.close(tombstone_fd)
+            os.rmdir(self._tombstone_name, dir_fd=parent_fd)
+
+    def unlink_tombstone_marker(self) -> None:
+        self._verify_marker(self._tombstone_marker_name)
+        with self._open_parent() as parent_fd:
+            os.unlink(self._tombstone_marker_name, dir_fd=parent_fd)
+
+    def unlink_backup_marker(self) -> None:
+        self._verify_marker(self._backup_marker_name)
+        with self._open_parent() as parent_fd:
+            os.unlink(self._backup_marker_name, dir_fd=parent_fd)
+
+    def _named_exists(self, name: str) -> bool:
+        try:
+            with self._open_parent() as parent_fd:
+                os.stat(name, dir_fd=parent_fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return False
+        return True
+
+    def assert_live(self) -> None:
+        if self._closed:
+            raise ArtifactContractError(
+                ArtifactErrorCode.VERIFICATION_INCOMPLETE,
+                operation_id="recover-published-artifacts",
+                target_basename=self._target_name,
+                internal_context={"reason": "publication_recovery_is_closed"},
+            )
+
+    def close(self) -> None:
+        self._closed = True
+
+    def _remnant_error(self, reason: str) -> Never:
+        raise ArtifactContractError(
+            ArtifactErrorCode.EXACT_TREE_MISMATCH,
+            operation_id="recover-published-artifacts",
+            target_basename=self._target_name,
+            internal_context={"reason": reason},
+        )
 
     def _unsupported(self) -> None:
         raise ArtifactContractError(
@@ -116,19 +506,37 @@ class _PublishedArtifactFilesystem:
             target_basename=self._settings.artifact_dir.name,
         )
 
-    recognize_target = verify_target
-    rename_target_to_backup = _unsupported
-    verify_backup = _unsupported
-    restore_backup_to_target = _unsupported
-    prepare_tombstone_marker = _unsupported
-    rename_backup_to_tombstone = _unsupported
-    delete_tombstone = _unsupported
-    unlink_tombstone_marker = _unsupported
-    unlink_backup_marker = _unsupported
-
     def remnant_state(self) -> PublicationState:
-        self._unsupported()
-        raise AssertionError("unreachable")
+        if self._operation_id is None:
+            self._operation_id = self._remnant_operation_id()
+            if self._operation_id is None:
+                return PublicationState.NO_REMNANT
+            self._marker_payload = self._publication_marker_payload()
+        backup = self._named_exists(self._backup_name)
+        tombstone = self._named_exists(self._tombstone_name)
+        backup_marker = self._named_exists(self._backup_marker_name)
+        tombstone_marker = self._named_exists(self._tombstone_marker_name)
+        observed = (backup, tombstone, backup_marker, tombstone_marker)
+        states = {
+            (True, False, True, False): PublicationState.BACKUP_WITH_MARKER,
+            (True, False, True, True): (PublicationState.BACKUP_WITH_PREPARED_TOMBSTONE_MARKER),
+            (False, True, True, True): PublicationState.TOMBSTONE_WITH_BOTH_MARKERS,
+            (False, False, True, True): PublicationState.BOTH_MARKERS_ONLY,
+            (False, False, True, False): PublicationState.BACKUP_MARKER_ONLY,
+        }
+        try:
+            state = states[observed]
+        except KeyError:
+            self._remnant_error("ambiguous_publication_remnant")
+        if backup_marker:
+            self._verify_marker(self._backup_marker_name)
+        if tombstone_marker:
+            self._verify_marker(self._tombstone_marker_name)
+        if backup:
+            self._verify_named_artifact(self._backup_name)
+        if tombstone:
+            self._verify_named_artifact(self._tombstone_name)
+        return state
 
 
 class ExpectedAcceptedPublicationStage:
@@ -260,6 +668,27 @@ def publish_verified_stage(
     )
     machine.publish(clean=clean)
     return authorized.expected_result.logical_contract
+
+
+def recover_owned_remnants(
+    settings: Settings,
+    *,
+    filesystem: ArtifactFilesystem,
+) -> None:
+    """Resume only one exact marker-owned publication cleanup chain."""
+    if type(settings) is not Settings:
+        raise TypeError("publication recovery requires exact settings")
+    transition = cast(PublicationTransitionPort, filesystem)
+    if filesystem.remnant_state() is PublicationState.NO_REMNANT:
+        transition.close()
+        return
+    machine = _PublicationStateMachine._from_test_ports(
+        transition=transition,
+        filesystem=filesystem,
+        operation_id="recover-published-artifacts",
+        target_basename=settings.artifact_dir.name,
+    )
+    machine.recover()
 
 
 class _PublicationStateMachine:

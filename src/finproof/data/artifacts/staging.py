@@ -3482,7 +3482,7 @@ def _initialize_session(
             or type(options) is not ArtifactBuildOptions
             or type(input_identity) is not BuildInputIdentity
             or not settings.artifact_dir.parent.is_dir()
-            or settings.artifact_dir.exists()
+            or (settings.artifact_dir.exists() and not options.clean)
         ):
             raise ValueError("invalid session initialization contract")
         input_identity.assert_unchanged()

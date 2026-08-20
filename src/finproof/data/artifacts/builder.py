@@ -951,6 +951,15 @@ def _build_private_live_candidate(
             options,
             input_identity=identity,
         ) as session:
+            from finproof.data.artifacts.publication import (
+                _PublishedArtifactFilesystem,
+                recover_owned_remnants,
+            )
+
+            recover_owned_remnants(
+                settings,
+                filesystem=_PublishedArtifactFilesystem._for_recovery(settings),
+            )
             complete = build_complete_for_session(
                 session=session,
                 config=config,

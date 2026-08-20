@@ -8,6 +8,53 @@ import pytest
 from tests.helpers.artifact_filesystem import SyntheticPublicationAuthorization
 
 
+def test_real_expected_publication_cleanly_replaces_verified_target(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_evaluation_artifacts_with_outcome
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.manifest import ArtifactManifest
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    first_timestamp = datetime(2026, 8, 15, tzinfo=UTC)
+    second_timestamp = datetime(2026, 8, 15, 0, 0, 1, tzinfo=UTC)
+    _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(persistence_timestamp=first_timestamp),
+    )
+    first_manifest = ArtifactManifest.load(settings.artifact_dir / "manifest.json")
+
+    second = _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(
+            clean=True,
+            persistence_timestamp=second_timestamp,
+        ),
+    )
+
+    assert first_manifest.persistence_timestamp == first_timestamp
+    assert second.manifest.persistence_timestamp == second_timestamp
+    assert (
+        ArtifactManifest.load(settings.artifact_dir / "manifest.json").persistence_timestamp
+        == second_timestamp
+    )
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-stage-*"))
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-backup-*"))
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-cleanup-*"))
+
+
 def test_expected_mismatch_blocks_before_first_rename(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -9,6 +9,85 @@ import pytest
 from tests.helpers.artifact_filesystem import SyntheticPublicationAuthorization
 
 
+def test_next_real_build_recovers_exact_owned_postcommit_remnant(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from finproof.data.artifacts import database
+    from finproof.data.artifacts.builder import _build_evaluation_artifacts_with_outcome
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
+    from finproof.data.artifacts.publication import _PublishedArtifactFilesystem
+    from tests.integration.artifacts.test_candidate_builder import _install_small_fixture
+
+    settings, versions = _install_small_fixture(tmp_path, monkeypatch)
+
+    def accept_expected(_self: object, *, actual: object) -> None:
+        del actual
+
+    monkeypatch.setattr(database.PackagedArtifactExpectedComparator, "compare", accept_expected)
+    timestamp = datetime(2026, 8, 15, tzinfo=UTC)
+    _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(persistence_timestamp=timestamp),
+    )
+    unlink_backup_marker = _PublishedArtifactFilesystem.unlink_backup_marker
+
+    def fail_backup_marker_unlink(_self: _PublishedArtifactFilesystem) -> None:
+        raise ArtifactContractError(
+            ArtifactErrorCode.EXACT_TREE_MISMATCH,
+            operation_id="injected-backup-marker-unlink",
+            target_basename=settings.artifact_dir.name,
+        )
+
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "unlink_backup_marker",
+        fail_backup_marker_unlink,
+    )
+    with pytest.raises(ArtifactContractError) as caught:
+        _build_evaluation_artifacts_with_outcome(
+            settings,
+            versions,
+            options=ArtifactBuildOptions(
+                clean=True,
+                persistence_timestamp=timestamp + timedelta(seconds=1),
+            ),
+        )
+    assert caught.value.code is ArtifactErrorCode.BACKUP_CLEANUP_FAILED_AFTER_PUBLISH
+    old_marker = next(settings.repository_root.glob(".artifacts.finproof-backup-*.marker"))
+    unrelated = settings.repository_root / "unrelated"
+    unrelated.write_bytes(b"keep\n")
+    unrelated_before = (unrelated.stat().st_ino, unrelated.stat().st_mode, unrelated.read_bytes())
+    monkeypatch.setattr(
+        _PublishedArtifactFilesystem,
+        "unlink_backup_marker",
+        unlink_backup_marker,
+    )
+
+    outcome = _build_evaluation_artifacts_with_outcome(
+        settings,
+        versions,
+        options=ArtifactBuildOptions(
+            clean=True,
+            persistence_timestamp=timestamp + timedelta(seconds=2),
+        ),
+    )
+
+    assert outcome.manifest.persistence_timestamp == timestamp + timedelta(seconds=2)
+    assert not old_marker.exists()
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-backup-*"))
+    assert not tuple(settings.repository_root.glob(".artifacts.finproof-cleanup-*"))
+    assert (
+        unrelated.stat().st_ino,
+        unrelated.stat().st_mode,
+        unrelated.read_bytes(),
+    ) == unrelated_before
+
+
 def _snapshot(root: Path) -> tuple[tuple[str, int, int, bytes | str | None], ...]:
     rows: list[tuple[str, int, int, bytes | str | None]] = []
     pending = [root]
