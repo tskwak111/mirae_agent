@@ -2874,8 +2874,8 @@ acceptance evidence only, followed by a mandatory fresh rerun of the standard fu
   direct-init-disabled, noncopyable `CandidateStageCustody` and invalidates the bare
   stage object. CP7 `CandidateArtifactSet` retains that exact instance; no module-global
   candidate/stage/custody registry exists. `CandidateStageCustody` exposes only
-  `open_verification_root()`, typed one-use `transfer_expected_accepted(...)`,
-  `discard_if_exact()`, and `close()`; it
+  `open_verification_root()`, CP8's typed one-use receiver-admission and
+  `transfer_expected_accepted(...)` methods, `discard_if_exact()`, and `close()`; it
   exposes no path, descriptor, basename, rename, rollback, target, backup, or tombstone
   method. It also owns the held input descriptors until exact candidate discard or CP8
   publication completion. The managed root adapter is the only artifact-tree
@@ -2994,19 +2994,31 @@ class CandidateStageCustody:
     def open_verification_root(
         self,
     ) -> AbstractContextManager[ManagedArtifactVerificationRoot]: ...
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: "ExpectedAcceptedCustodyReceiver",
+    ) -> "_ExpectedAcceptedReceiverAdmission": ...
     def transfer_expected_accepted(
         self,
         *,
         expected_acceptance_seal: object,
-        receiver: "ExpectedAcceptedCustodyReceiver",
+        admission: "_ExpectedAcceptedReceiverAdmission",
     ) -> None: ...
     def discard_if_exact(self) -> None: ...
     def close(self) -> None: ...
 
 
+@dataclass(frozen=True, init=False)
+class _ExpectedAcceptedReceiverAdmission:
+    pass
+
+
 class ExpectedAcceptedCustodyReceiver(Protocol):
-    def accept_transferred_custody(
-        self, custody: "TransferredCandidateCustody"
+    def preflight_expected_accepted_custody(
+        self,
+        *,
+        admission: "_ExpectedAcceptedReceiverAdmission",
     ) -> None: ...
 ```
 
@@ -4912,12 +4924,13 @@ The global single-selector RED/smallest-GREEN loop applies independently to ever
   manifest/catalog hashes to entries zero/one. Candidate admission calls
   `manifest.require_build_input_identity(input_identity)`; no tuple or parallel hash
   arguments are accepted. It exposes only `open_verification_root() ->
-  AbstractContextManager[ManagedArtifactVerificationRoot]` and the package-private
-  `transfer_expected_accepted_custody(*, expected_acceptance_seal: object, receiver:
-  ExpectedAcceptedCustodyReceiver) -> None` bridge; both delegate to the retained exact
-  custody instance and neither reveals its private state. The bridge is the only caller
-  of `CandidateStageCustody.transfer_expected_accepted(...)`, and only CP8 publication
-  may call the bridge.
+  AbstractContextManager[ManagedArtifactVerificationRoot]` plus package-private
+  `issue_expected_accepted_receiver_admission(*, receiver) ->
+  _ExpectedAcceptedReceiverAdmission` and
+  `transfer_expected_accepted_custody(*, expected_acceptance_seal: object, admission:
+  _ExpectedAcceptedReceiverAdmission) -> None` bridges; all delegate to the retained
+  exact custody instance and reveal no private state. The bridges are the only callers
+  of staging's admission/transfer methods, and only CP8 publication may call them.
   Produces internal `build_verified_candidate_stage(settings,
   versions, options) -> CandidateArtifactSet`, which fully core-verifies but does not
   compare expected, publish, or expose its stage path publicly.
@@ -5209,17 +5222,20 @@ git commit -m "feat: verify self-contained artifact databases"
   -> ExpectedAcceptedPublicationStage`, which reruns expected verification while
   retaining and binding the exact CP4 custody. It takes CP2's expected-acceptance seal,
   closes the adopted-root context and all duplicate descriptors, then invokes only
-  the candidate bridge to its retained staging-owned
-  `CandidateStageCustody.transfer_expected_accepted(*, expected_acceptance_seal,
-  receiver: ExpectedAcceptedCustodyReceiver) -> None`. The typed receiver's non-
-  fallible `accept_transferred_custody(TransferredCandidateCustody) -> None` atomically
-  installs one opaque instance and invalidates the source custody; no raw descriptor,
-  private field, path, token, bundle, or global registry crosses modules. Only that CP8 capability implements
+  the candidate bridge to its retained staging-owned admission/transfer methods. The
+  first issues one exact one-use `_ExpectedAcceptedReceiverAdmission` and completes all
+  typed-receiver preflight while source custody remains unchanged. The second accepts
+  only that admission plus the expected seal, installs one opaque
+  `TransferredCandidateCustody` into the staging-owned slot, and invalidates the source
+  as a non-fallible transition without a receiver callback. No raw descriptor, private
+  field, path, token, bundle, or global registry crosses modules. Only that CP8 capability implements
   the production `PublicationTransitionPort`, owning one-use descriptor-relative
   stage-to-target, target-to-stage rollback, commit, and close operations; and
   `publish_verified_stage(authorized: ExpectedAcceptedPublicationStage, *, settings:
-  Settings, clean: bool, filesystem: ArtifactFilesystem) -> ArtifactManifest`. It never
-  accepts a separate result/stage pair. CP8 also adds
+  Settings, clean: bool, filesystem: ArtifactFilesystem) ->
+  ArtifactExpectedVerificationResult`. It returns that bound expected result only after
+  publication and required cleanup, and never accepts a separate result/stage pair.
+  CP8 also adds
   `recover_owned_remnants(settings: Settings, *, filesystem: ArtifactFilesystem) ->
   None`, with recognition obtained only from public expected verification.
 - `_PublicationStateMachine` invokes stage-to-target/target-to-stage only through its
@@ -5339,8 +5355,9 @@ git commit -m "feat: guard artifact publication and recovery"
 - Produces internal strict frozen `ArtifactCoreBuildOutcome(manifest:
   ArtifactManifest, logical_contract: ArtifactCoreVerificationResult, telemetry:
   ArtifactBuildTelemetry)`. The official baseline validators are not applied to this
-  core carrier, so complete small fixtures remain testable. CP8 adds the distinct
-  expected-accepted `ArtifactBuildOutcome` only after comparison.
+  detached core outcome, so complete small fixtures remain testable. CP8 adds the
+  distinct expected-accepted `ArtifactBuildOutcome` only after comparison, publication
+  transition/rollback, and required cleanup.
 - Defines public `build_artifacts(settings: Settings, versions: VersionBundle, *,
   options: ArtifactBuildOptions) -> ArtifactManifest`, but while CP8's official
   resource is absent it deterministically fails before transform/publication; its first
@@ -5364,8 +5381,8 @@ inputs/counts and is first executed by CP8's two official candidate processes.
 
 In a separate permanent hermetic test, inject a synthetic `CandidateBaselineProbe` that reports both absent at the initial guard, allows one instrumented private transform, then flips source or resource present in `second_check()`. Assert `BASELINE_ALREADY_EXISTS`, zero stdout/contract return, complete marker-owned candidate-stage cleanup, and no publication/write. This is the authoritative post-transform race test before and after baseline creation; do not attempt to reach the second boundary through the real default once the packaged resource exists.
 
-Separately test the private production transform directly and require a complete
-`ArtifactCoreBuildOutcome`: exact manifest/logical-contract identity agreement, the
+Separately retain these assertions on the exact private live-carrier discard branch and
+require a complete `ArtifactCoreBuildOutcome`: exact manifest/logical-contract identity agreement, the
 verified injected persistence timestamp, observed fund/writer/verifier/reconstruction/
 key/parse maxima, staging/verifier workspace mode `0o700`, true marker/containment/
 cleanup facts, actual `threads=1` and `memory_limit="1GiB"`, and exact ordered 14 path/
@@ -5381,7 +5398,21 @@ Expected RED: exact candidate wrapper/production expected-before-publish boundar
 
 - [x] **Step 12: Implement the two non-bypassable build modes**
 
-Factor one private production transform that always creates and fully core-verifies a private stage and returns `ArtifactCoreBuildOutcome`. The repository candidate sequence is exact: initial probe guard; private transform; retain only strict outcome/contract data in memory; marker-owned candidate-root cleanup and verification; `probe.second_check()`; then and only then emit one canonical compact contract JSON line to stdout and one canonical compact bounded/path-free telemetry JSON line to stderr/return the core contract. Any transform, cleanup, or second-check failure emits no contract/telemetry and leaves no guessed cleanup. CP7's `_build_evaluation_artifacts_with_outcome` first requires packaged expected bytes and therefore blocks without transformation while they are absent. CP8 completes its expected comparison, private expected-accepted outcome, guarded publication, and public return. Neither mode accepts a public/private skip/update/accept/write-back flag, and no test seam can disable comparison in the public builder.
+At CP7 closure the private transform created/core-verified/discarded the stage and
+returned `ArtifactCoreBuildOutcome`. CP8 Step 2 supersedes only that private lifecycle
+shape: the transform returns one live candidate/observation carrier, the repository
+sequence performs its second probe while that carrier is live, and only the exact
+discard helper cleans it and issues `ArtifactCoreBuildOutcome` before output. The
+external candidate contract/telemetry remains unchanged. CP8 evaluation consumes the
+same live-carrier type through the mutually exclusive expected-authorize/publication
+branch; it never starts from or reconstructs custody out of the detached core outcome.
+Any transform, cleanup, or second-check failure emits no contract/telemetry and leaves
+one exact cleanup owner. CP7's `_build_evaluation_artifacts_with_outcome` first requires
+packaged expected bytes and therefore blocks without transformation while they are
+absent. CP8 completes its expected comparison, private expected-accepted outcome,
+guarded publication, and public return. Neither mode accepts a public/private
+skip/update/accept/write-back flag, and no test seam can disable comparison in the
+public builder.
 
 Export only `ArtifactManifest`, `ArtifactBuildOptions`, `build_artifacts`, and `open_read_only_database` from `finproof.data.artifacts`; do not export the private transform, publication filesystem, candidate wrapper, or recovery paths.
 
@@ -5537,21 +5568,34 @@ Observed Checkpoint 7 closure evidence on 2026-08-20:
 - Create after candidate review only: `config/expected_phase1_artifacts.json`
 - Modify after candidate review only: `pyproject.toml`
 - Modify after candidate review only: `src/finproof/data/artifacts/manifest.py`
-- Modify after candidate review only: `src/finproof/data/artifacts/builder.py`
+- Modify after candidate review only: `src/finproof/data/artifacts/database.py`
+- Modify before candidates for the live-carrier branch, then extend after candidate
+  review for evaluation: `src/finproof/data/artifacts/builder.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/staging.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/publication.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/__init__.py`
 - Modify after candidate review only: `src/finproof/cli/main.py`
-- Modify: `src/finproof/data/artifacts/resources.py`
-- Modify: `tests/contract/test_artifact_resources.py`
-- Modify after baseline creation: `tests/integration/artifacts/test_candidate_builder.py`
-- Create: `tests/source_contract/test_official_artifact_build.py`
-- Create: `tests/performance/test_official_artifact_memory.py`
-- Create: `tests/helpers/official_artifact_subprocess.py`
-- Create: `tests/conftest.py`
-- Modify: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
-- Modify: `docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md`
-- Modify: `docs/implementation/STATUS.md`
+- Modify after candidate review only: `src/finproof/data/artifacts/resources.py`
+- Modify before candidates: `tools/build_candidate_artifacts.py`
+- Modify before candidates for the missing-resource RED, then extend after candidate
+  review: `tests/contract/test_artifact_resources.py`
+- Modify after candidate review only: `tests/unit/data/artifacts/test_staging.py`
+- Modify after candidate review only: `tests/unit/data/artifacts/test_publication.py`
+- Modify after candidate review only: `tests/unit/cli/test_build_data.py`
+- Modify after candidate review only: `tests/integration/artifacts/test_artifact_tampering.py`
+- Modify before candidates and after baseline creation:
+  `tests/integration/artifacts/test_candidate_builder.py`
+- Modify after candidate review only: `tests/integration/artifacts/test_publication_faults.py`
+- Modify after candidate review only: `tests/integration/artifacts/test_publication_recovery.py`
+- Create before candidates for the missing-resource RED, then extend after candidate
+  review: `tests/source_contract/test_official_artifact_build.py`
+- Create after candidate review: `tests/performance/test_official_artifact_memory.py`
+- Create before candidates and extend after candidate review:
+  `tests/helpers/official_artifact_subprocess.py`
+- Create after candidate review: `tests/conftest.py`
+- Closure only after 0 Critical / 0 Important:
+  `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`, this
+  dedicated plan, and `docs/implementation/STATUS.md`
 
 **Interfaces:**
 
@@ -5565,29 +5609,137 @@ Observed Checkpoint 7 closure evidence on 2026-08-20:
   distinct strict `ArtifactBuildOutcome(manifest: ArtifactManifest, logical_contract:
   ArtifactExpectedVerificationResult, telemetry: ArtifactBuildTelemetry)`; CP7's core
   outcome cannot be substituted.
+- Replaces CP7's discard-inside-transform entry with one private
+  `_build_private_live_candidate(settings, versions, options) ->
+  _LiveArtifactBuildCandidate`. The direct-init-disabled/noncopyable carrier's sole
+  issuance binds the exact live `CandidateArtifactSet` and same-finalization
+  `_CoreTelemetryObservations`; it stores no parallel path, custody, manifest facts, or
+  descriptor values. Repository tooling consumes that exact carrier only through
+  `_discard_live_candidate_to_core_outcome(...) -> ArtifactCoreBuildOutcome`, which
+  completes exact discard/cleanup before issuing the detached core outcome. Evaluation
+  consumes the alternative terminal branch of the same live carrier through expected
+  authorization, publication/rollback and cleanup before issuing
+  `ArtifactBuildOutcome`. Neither branch accepts an `ArtifactCoreBuildOutcome`, separate
+  candidate/observations, or resurrected discarded custody, and every failure retains
+  exactly one cleanup owner.
 - Produces the internal context-managed `ExpectedAcceptedPublicationStage` only through
-  `authorize_candidate_for_publication(candidate)`. It binds that candidate's exact
+  `authorize_candidate_for_publication(candidate)`, called only while consuming the
+  live carrier. It binds that candidate's exact
   CP4-owned held stage/parent descriptors, marker/registration identities, advisory
   lock, exact `BuildInputIdentity`, and expected result. Authorization enters only
   `candidate.open_verification_root()` and `verify_expected_from_root`; after the
   final rescan it takes CP2's one-use expected-acceptance seal, exits the managed-root
   context so all adopted duplicate descriptors close, then creates the direct-init-
-  disabled publication receiver implementing `ExpectedAcceptedCustodyReceiver`,
-  and calls `candidate.transfer_expected_accepted_custody(...)`, the sole no-private-
-  field bridge to the retained custody instance's typed one-use transfer method.
-  Its non-fallible `accept_transferred_custody(...)` installs one opaque
-  `TransferredCandidateCustody`, invalidates the old custody/candidate, and makes the
-  receiver the sole owner of the original descriptors, leaf identities, held-nine-input
-  carrier close responsibility, and advisory lock. The receiver implements the sole
+  disabled publication receiver implementing `ExpectedAcceptedCustodyReceiver`.
+  `candidate.issue_expected_accepted_receiver_admission(receiver=...)` delegates to
+  staging, which issues one direct-init-disabled one-use
+  `_ExpectedAcceptedReceiverAdmission` bound to the exact source generation and
+  receiver and runs all receiver preflight before a source slot can move. Copied,
+  foreign-to-admission, prefilled, or preflight-throwing receivers fail with the source
+  unchanged. The later
+  `candidate.transfer_expected_accepted_custody(expected_acceptance_seal=...,
+  admission=...)` validates the exact seal/admission/generation, installs one opaque
+  `TransferredCandidateCustody` into the staging-owned admission slot, and invalidates
+  the old custody/candidate in one non-fallible transition with no receiver callback or
+  I/O after admission. The admitted receiver already retains that slot and becomes sole
+  owner of the original descriptors, leaf identities, held-nine-input carrier close
+  responsibility, and advisory lock. The receiver implements the sole
   production `PublicationTransitionPort`; publisher accepts only this
   single capability and invokes only that port's descriptor-relative transition
   operations. Mixing verified stage A with candidate stage B, copying/forging a
   capability, closing it, or swapping its bound entry blocks before rename.
-  No candidate/stage/receiver/custody/token module-global registry exists; copied,
-  foreign, prefilled, or throwing receivers fail during preflight before the source
-  ownership slot moves.
+  `staging.py` imports no publication concrete type, and no candidate/stage/receiver/
+  custody/token module-global registry exists.
 - Produces a session-scoped official artifact fixture that launches one fresh child through the same closed `_build_evaluation_artifacts_with_outcome` called by public `build_artifacts`, first calls `ArtifactManifest.load(...).verify(root)`, then `compare_expected_artifact_contract`, and shares that verified generation plus child telemetry across all assertions in the process.
 - Consumes the frozen internal `ArtifactBuildOutcome`/`ArtifactBuildTelemetry` from the fresh child and adds only externally measured wall duration, platform-normalized peak RSS bytes, and `sys.platform`; it does not infer counters from logs or expose a public telemetry/skip flag.
+
+The new private signatures are exact and are not exported:
+
+```python
+@dataclass(frozen=True, init=False)
+class _LiveArtifactBuildCandidate:
+    pass
+
+
+def _build_private_live_candidate(
+    settings: Settings,
+    versions: VersionBundle,
+    options: ArtifactBuildOptions,
+) -> _LiveArtifactBuildCandidate: ...
+
+
+def _discard_live_candidate_to_core_outcome(
+    candidate: _LiveArtifactBuildCandidate,
+) -> ArtifactCoreBuildOutcome: ...
+
+
+@dataclass(frozen=True, init=False)
+class _ExpectedAcceptedReceiverAdmission:
+    pass
+
+
+class ExpectedAcceptedCustodyReceiver(Protocol):
+    def preflight_expected_accepted_custody(
+        self,
+        *,
+        admission: _ExpectedAcceptedReceiverAdmission,
+    ) -> None: ...
+
+
+class CandidateStageCustody:
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: ExpectedAcceptedCustodyReceiver,
+    ) -> _ExpectedAcceptedReceiverAdmission: ...
+
+    def transfer_expected_accepted(
+        self,
+        *,
+        expected_acceptance_seal: object,
+        admission: _ExpectedAcceptedReceiverAdmission,
+    ) -> None: ...
+
+
+class CandidateArtifactSet:
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: ExpectedAcceptedCustodyReceiver,
+    ) -> _ExpectedAcceptedReceiverAdmission: ...
+
+    def transfer_expected_accepted_custody(
+        self,
+        *,
+        expected_acceptance_seal: object,
+        admission: _ExpectedAcceptedReceiverAdmission,
+    ) -> None: ...
+
+
+def publish_verified_stage(
+    authorized: ExpectedAcceptedPublicationStage,
+    *,
+    settings: Settings,
+    clean: bool,
+    filesystem: ArtifactFilesystem,
+) -> ArtifactExpectedVerificationResult: ...
+
+
+def _build_evaluation_artifacts_with_outcome(
+    settings: Settings,
+    versions: VersionBundle,
+    *,
+    options: ArtifactBuildOptions,
+) -> ArtifactBuildOutcome: ...
+```
+
+`builder.py` owns the carrier/outcome orchestration, `staging.py` owns admission and
+the non-fallible ownership slot, `publication.py` owns the concrete preflight receiver
+and transition wrapper, `manifest.py` owns the expected seal/result, and `database.py`
+loads the packaged comparator. Imports remain acyclic: staging imports no builder or
+publication concrete type; publication imports only staging's narrow private
+capabilities; builder composes both; database supplies the kernel to builder and never
+imports builder.
 
 - [ ] **Step 1: Write the final resource/acceptance RED without creating or guessing baseline bytes**
 
@@ -5604,7 +5756,45 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
 
 Expected RED: the official expected source/resource is absent. Do not satisfy this RED yet, do not add placeholder JSON, and do not add a Hatch force-include for a nonexistent path.
 
-- [ ] **Step 2: Run two fresh-process official candidates at different UTC timestamps**
+- [ ] **Step 2: Replace the discard-inside-transform path with one live carrier**
+
+Author and close these selectors serially before either official candidate process:
+
+```text
+tests/integration/artifacts/test_candidate_builder.py::test_private_transform_returns_one_provenance_bound_live_candidate_carrier
+tests/integration/artifacts/test_candidate_builder.py::test_candidate_tool_discards_live_carrier_before_core_outcome
+```
+
+The first selector observes the absent `_LiveArtifactBuildCandidate` and
+`_build_private_live_candidate`, permits only a direct-init-disabled raising skeleton,
+then reruns to the narrower provenance behavior. Smallest GREEN replaces CP7's
+`_build_private_core_outcome` entry with `_build_private_live_candidate`; after the
+unchanged finalizer returns its exact pair, a builder-private issuer binds that live
+`CandidateArtifactSet` and its same-generation `_CoreTelemetryObservations` into one
+carrier. No caller factory accepts candidate/observations, parallel stage path/facts,
+copy, subclass, pickle, or second terminal use. It does not discard, authorize, or
+publish, and CP7's focused `build_verified_candidate_stage` remains a separate private
+fixture entry rather than an evaluation/candidate-tool input.
+
+The second selector changes repository tooling to accept only that carrier. On success,
+the second baseline-absence check runs while the carrier remains live, then
+`_discard_live_candidate_to_core_outcome` performs exact discard and complete cleanup
+before constructing `ArtifactCoreBuildOutcome` and emitting contract/telemetry. On a
+second-check race or any output-preparation failure it discards the still-live carrier,
+emits nothing, and cannot later authorize or reconstruct custody. Rerun the first
+selector and the existing second-check race selector after GREEN, then run only:
+
+```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/integration/artifacts/test_candidate_builder.py -q
+```
+
+Expected GREEN: the candidate tool still exposes only the review contract/telemetry,
+but its private transform now leaves exactly one live cleanup owner until the tool
+chooses the discard branch. No expected resource, publication success path, public
+symbol, or official baseline byte is added.
+
+- [ ] **Step 3: Run two fresh-process official candidates at different UTC timestamps**
 
 Before each process, re-run handoff/source audit and both candidate-absence checks. Use repository-only tooling, never `finproof build-data`, and capture stdout contract JSON separately from stderr review telemetry:
 
@@ -5622,13 +5812,19 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python -m tools.build_candida
   2> /private/tmp/finproof-task5-candidate-b-telemetry.json
 ```
 
-The module `main` is repository review tooling, not a `[project.scripts]` entry and not included in the wheel. Each subprocess must independently verify source, all 11 Parquets, two reports, complete manifest, timestamp consistency, exact links/evidence, self-contained DuckDB typed equality, and its own 14 physical file hashes; then remove its marker-owned temporary artifact root. Exit nonzero if cleanup is incomplete.
+The module `main` is repository review tooling, not a `[project.scripts]` entry and not
+included in the wheel. Each subprocess must use Step 2's
+`_build_private_live_candidate` and exact discard-to-core terminal branch, independently
+verify source, all 11 Parquets, two reports, complete manifest, timestamp consistency,
+exact links/evidence, self-contained DuckDB typed equality, and its own 14 physical
+file hashes; then remove its marker-owned temporary artifact root before emitting its
+outcome. Exit nonzero if cleanup is incomplete.
 
 Require exactly one compact JSON line on each candidate stderr and parse it through strict `ArtifactBuildTelemetry`. Assert candidate A reports exactly `2026-08-14T00:00:00.000001Z`, candidate B exactly `2026-08-14T00:00:01.999999Z`, and the two timestamps differ while the stdout logical contracts remain equal. For both staging and verifier records, require mode `0o700`, marker-owned/containment-verified/cleanup-completed true, one thread, and `1GiB`; reject any telemetry key or value exposing a temp/stage/spill absolute or relative path. Thus stderr itself provides bounded ownership/cleanup evidence without leaking workspace locations.
 
 `tests/helpers/official_artifact_subprocess.py` measures the child externally. Convert `resource.getrusage(...).ru_maxrss` to bytes as `value` on macOS and `value * 1024` on Linux; record `sys.platform`. Do not assert a machine-specific absolute RSS cap. Assert the architectural counters `max_live_fund_group_rows <= 16`, `max_writer_batch_rows <= 65_536`, and the strict workspace facts independently of RSS.
 
-- [ ] **Step 3: Compare both candidate contracts and obtain independent candidate approval**
+- [ ] **Step 4: Compare both candidate contracts and obtain independent candidate approval**
 
 Run a separate independent comparison that parses both stdout files through `ExpectedPhase1ArtifactContract` and asserts byte-identical canonical JSON and equality of:
 
@@ -5643,9 +5839,9 @@ Independently inspect telemetry proving each generation's physical hashes verifi
 
 If contracts differ logically, stop under `REPRODUCIBILITY_MISMATCH`; do not select one, average values, regenerate tests, or create a baseline.
 
-- [ ] **Step 4: Create only the reviewed expected contract and make the RED resource test GREEN**
+- [ ] **Step 5: Create the reviewed contract, activate serial behavior, and run focused aggregates**
 
-After Step 3 approval, use `apply_patch` to add the exact canonical candidate JSON plus one terminal newline as `config/expected_phase1_artifacts.json`. Add its exact Hatch force-include destination `finproof/resources/contracts/expected_phase1_artifacts.json` in the same change and complete `expected_phase1_contract_bytes()` through the already frozen dual loader. Do not add a repository path branch, caller path, parent discovery, or dev-mode-exact packaging exception.
+After Step 4 approval, use `apply_patch` to add the exact canonical candidate JSON plus one terminal newline as `config/expected_phase1_artifacts.json`. Add its exact Hatch force-include destination `finproof/resources/contracts/expected_phase1_artifacts.json` in the same change and complete `expected_phase1_contract_bytes()` through the already frozen dual loader. Do not add a repository path branch, caller path, parent discovery, or dev-mode-exact packaging exception.
 
 Before refreshing the active distribution, run:
 
@@ -5668,55 +5864,75 @@ Expected GREEN: outside the checkout CWD, the active metadata fallback now retur
 Only after that stale-resource RED/reinstall/GREEN is closed, activate the frozen
 production assembly: `ArtifactManifest.verify` uses only the packaged comparator and
 expected route; target recognition/publication accepts only the bound expected-accepted
-capability; `_build_evaluation_artifacts_with_outcome` converts the core outcome to
-`ArtifactBuildOutcome` only after expected comparison and reopened final rescan;
-`build_artifacts`/`finproof build-data` gain their first success path. Add serial
-selectors for public small-fixture refusal against the official baseline, official
-fixture success, core-result substitution rejection, exact-stage binding, expected
-mismatch before rename, normal target recognition, compact success stdout, and
-post-commit cleanup wording. Each selector observes its own pre-activation/missing-
-behavior RED and smallest GREEN; no expected comparator skip/injection seam enters a
-public or production assembly.
+capability; `_build_evaluation_artifacts_with_outcome` consumes the same private live
+carrier shape proven in Step 2 and issues `ArtifactBuildOutcome` only after expected
+comparison, publication/rollback, required cleanup, and reopened final rescan.
+`build_artifacts`/`finproof build-data` gain their first success path. Each selector
+below observes its own pre-activation/missing-behavior RED and smallest GREEN; no
+expected comparator skip/injection seam enters a public or production assembly.
 
-Use this exact order, running only
+Use this exact order for thirteen post-approval selectors (fifteen CP8 lifecycle/public-
+surface selectors including Step 2's two), running only
 `UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest <file>::<selector> -q` for
 each RED and its GREEN before authoring the next selector:
 
 ```text
 tests/integration/artifacts/test_artifact_tampering.py::test_public_manifest_verify_rejects_small_core_against_official_expected
 tests/unit/data/artifacts/test_publication.py::test_publisher_rejects_core_result_substitution_before_filesystem_work
-tests/unit/data/artifacts/test_publication.py::test_expected_authorization_atomically_transfers_real_descriptor_lock_and_input_custody_once
+tests/unit/data/artifacts/test_publication.py::test_expected_receiver_admission_issues_exact_one_use_slot_with_source_unchanged
+tests/unit/data/artifacts/test_publication.py::test_expected_receiver_admission_rejects_foreign_prefilled_copied_and_throwing_before_custody_move
+tests/unit/data/artifacts/test_staging.py::test_expected_custody_move_atomically_installs_receiver_slot_invalidates_source_and_leaves_no_duplicate_owner
 tests/integration/artifacts/test_publication_faults.py::test_expected_mismatch_blocks_before_first_rename
+tests/integration/artifacts/test_publication_faults.py::test_expected_publication_transition_and_precommit_rollback_use_transferred_custody
+tests/integration/artifacts/test_publication_faults.py::test_expected_publication_cleanup_closes_transferred_custody_exactly_once
 tests/source_contract/test_official_artifact_build.py::test_evaluation_build_accepts_official_expected_and_publishes
 tests/integration/artifacts/test_publication_recovery.py::test_normal_target_recognition_requires_reopened_expected_acceptance
 tests/unit/cli/test_build_data.py::test_build_data_success_emits_only_compact_verified_manifest_summary
 tests/unit/cli/test_build_data.py::test_build_data_postcommit_cleanup_error_states_published_verified_target
+tests/contract/test_artifact_resources.py::test_artifact_public_surface_exposes_no_core_candidate_or_expected_bypass
 ```
 
 The first selector's RED is the still-absent public method, not expected mismatch; add
 only the public expected-route wrapper and make the valid small core fail at the
 official comparator. The second freezes the nominal trusted-result gate before any
-rename. The next exact custody selector rejects result-A/stage-B mixing, structural
-copies/forgeries, closed capabilities, and parent/name/inode swaps, then uses actual
-parent/stage/parquet descriptors plus lock/input-close
-sentinels: candidate-core verification cannot take the acceptance seal; expected
-failure leaves all slots with the retained candidate custody; a copied, foreign,
-prefilled, or preflight-throwing typed receiver cannot move a slot; expected success
-performs the non-fallible `accept_transferred_custody` instance swap and moves the same numeric
-descriptor/lock generations once only after every CP2 adopted duplicate has closed,
-makes every old custody/candidate method fail, lets
-only the publication capability perform a real same-filesystem sibling stage-to-target
-rename plus an injected pre-commit target-to-stage rollback, and produces exactly one
-close attempt per
-descriptor/lock/input carrier on success, receiver fault, or early close. Forged/
-copied/reused acceptance, receiver, stage, or mixed generation fails before any slot
-move. Static/module-surface assertions prove the candidate retains the opaque custody
-instance directly and no candidate/stage/receiver/custody/token global registry exists;
-tests never read a private field or receive a raw descriptor from an API. The
-official success selector is the first behavior allowed to construct a
-`VerifiedArtifactSet`/`ArtifactBuildOutcome` and must use the reviewed official resource
-and exact source inputs; no small fixture is called official. The remaining selectors
-then close reopened recognition and CLI outcomes serially.
+rename and rejects a detached `ArtifactCoreBuildOutcome` or result-A/stage-B mix.
+
+The third selector owns successful receiver admission/preflight issuance only. It
+creates the direct-init-disabled staging-owned `_ExpectedAcceptedReceiverAdmission`,
+binds exact source-generation and receiver object identity, issues its exact one-use
+empty slot, and leaves every source slot unchanged. It must not create
+`TransferredCandidateCustody`. The fourth selector owns rejection only: copied,
+foreign-to-admission, prefilled, or preflight-throwing receivers fail before any
+custody move while every source slot remains unchanged and authorization invalidates
+the detached acceptance seal/draft admission. The fifth selector owns one indivisible
+non-fallible logical transition: it installs one `TransferredCandidateCustody` into
+the admitted staging-owned empty slot, moves the same numeric descriptor/lock/input
+generations, invalidates every old candidate/custody/admission source method, and
+proves no duplicate owner or rollback-to-live path exists. That transition has no I/O,
+receiver callback, or intervening failure point. `staging.py` imports no publication
+concrete type and neither module uses a global receiver/custody registry.
+
+The sixth selector proves expected mismatch blocks before receiver admission or rename,
+returns the still-live Step-2 carrier/custody to the sole evaluation cleanup handler,
+and then discards it exactly once. The seventh owns only the admitted
+publication transition plus injected pre-commit target-to-stage rollback on actual
+parent/stage/parquet descriptors. The eighth owns exact-once close/cleanup for every
+descriptor, lock, held-input carrier, receiver fault, early close, and successful
+transition. Thus successful admission, admission rejection, the indivisible atomic
+slot-move/source-invalidation transition, publication transition/rollback, and cleanup
+each has independent RED/GREEN ownership.
+
+The official success selector is the first behavior allowed to consume the evaluation
+branch of `_LiveArtifactBuildCandidate` and construct a
+`VerifiedArtifactSet`/`ArtifactBuildOutcome`; it must prove the authorizer receives the
+same exact carrier-owned candidate/observations generation, use the reviewed official
+resource and exact source inputs, publish/clean before outcome issuance, and never call
+the discard-to-core branch. No small fixture is called official. The following target
+recognition and two CLI selectors close their own boundaries. The final contract
+selector independently freezes the installed/package public surface: no live carrier,
+candidate/core builder, expected seal/admission, comparator injection, update, accept,
+or skip bypass is exported. After each GREEN rerun only its immediately affected
+predecessor before authoring the next selector.
 
 After the reinstall, add and run this real-default post-baseline acceptance selector:
 
@@ -5729,15 +5945,21 @@ Expected GREEN regression: CP1/CP7's already RED-driven initial production guard
 `BASELINE_ALREADY_EXISTS` with zero transform calls, no stdout/stage/publication, and no
 attempt to reach the now-unreachable second boundary. This is a new real-environment
 acceptance fixture, not new production RED evidence. Do not weaken or remove the permanent synthetic `CandidateBaselineProbe`
-post-transform flip/race tests or the private full-transform
-`ArtifactCoreBuildOutcome` tests; run both families and prove they still cover the
-second check, cleanup, all guard branches, complete transformation, telemetry, and
-logical-contract extraction without a public bypass.
+post-transform flip/race tests, the private live-carrier tests, or the discard-produced
+`ArtifactCoreBuildOutcome` tests; run all three families and prove they still cover the
+second check, cleanup, both terminal branches, all guard branches, complete
+transformation, telemetry, and logical-contract extraction without a public bypass.
 
 Run:
 
 ```bash
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_publication.py \
+  tests/integration/artifacts/test_artifact_tampering.py \
+  tests/integration/artifacts/test_publication_faults.py \
+  tests/integration/artifacts/test_publication_recovery.py \
+  tests/unit/cli/test_build_data.py \
   tests/contract/test_artifact_resources.py \
   tests/integration/artifacts/test_candidate_builder.py -q
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv build --wheel \
@@ -5748,9 +5970,17 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
   tests/contract/test_artifact_resources.py::test_built_wheel_expected_contract_loader_uses_importlib_resources_primary -q
 ```
 
-Expected GREEN: expected source/resource bytes and SHA match through the real standard-editable metadata fallback and installed-wheel resources primary outside the checkout CWD; exact wheel inventory contains three frozen resources and no candidate tooling; installed verification needs only caller artifact root plus package resources; the real candidate tool now permanently refuses at the initial guard with zero transform calls; the synthetic flip still proves the post-transform second check and cleanup; private transform/outcome coverage remains green; the normal builder has no skip/update/accept path.
+Expected GREEN: all serial lifecycle/public-surface selectors and affected aggregates are
+green; expected source/resource bytes and SHA match through the real standard-editable
+metadata fallback and installed-wheel resources primary outside the checkout CWD;
+exact wheel inventory contains three frozen resources and no candidate tooling;
+installed verification needs only caller artifact root plus package resources; the real
+candidate tool now permanently refuses at the initial guard with zero transform calls;
+the synthetic flip still proves the post-transform second check and cleanup; both live-
+carrier terminal branches remain one-use; and the normal builder has no
+skip/update/accept path.
 
-- [ ] **Step 5: Complete one published official build and reuse its verified session artifact**
+**Step 5 official aggregate: publish once and reuse the verified session artifact**
 
 Use a managed test artifact root under `/private/tmp`, not the repository `artifacts/`, for the official acceptance fixture. `tests/conftest.py` exposes one session fixture backed by `tests/helpers/official_artifact_subprocess.py`: it launches a fresh child with third explicit timestamp `2026-08-14T00:00:02.123456Z` through `_build_evaluation_artifacts_with_outcome`, the exact implementation wrapped by public `build_artifacts`, captures platform-correct wall/RSS/counter telemetry, and asserts `outcome.telemetry.persistence_timestamp` equals that exact value after timestamp consistency verification. The child compares the packaged expected contract before publication, then loads/verifies the published manifest and expected contract again in the parent. Both official source-contract and performance tests consume that same generation/telemetry. Cache only this exact fully verified generation by expected overall logical hash; later pytest processes may reuse it only after complete current-code verification, never trust path existence alone.
 
@@ -5792,13 +6022,6 @@ UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff format --check .
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run ruff check .
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run mypy src tests tools
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest -q
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/source_contract -q -m source_contract
-UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest \
-  tests/performance/test_artifact_external_staging.py \
-  tests/performance/test_artifact_fund_streaming.py \
-  tests/performance/test_artifact_verifier_bounds.py \
-  tests/performance/test_official_artifact_memory.py -q -m performance
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
 UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
@@ -5817,27 +6040,61 @@ find source_material -type f -perm -222 -print
 
 Expected: every command passes; source audit remains 145,393/`2026-07-11`; handoff remains 61/9/41,384,928; catalog remains 207; ignore probes match; source writable search prints nothing. Record exact observed test counts/times rather than predicting them.
 
+This is the sole mandatory full gate on the final code/test/resource candidate. Step 5
+already owns the focused source-contract/performance/resource and affected lifecycle
+aggregates; do not rerun them immediately after the full `pytest`. If any code or test
+changes after this gate, first run only the finding's focused RED/GREEN and affected
+Step-5 aggregate, then run this same full gate exactly once more on the new final code
+candidate. A documentation-only closure does not trigger another full gate.
+
 - [ ] **Step 7: Commit the reviewed baseline and acceptance evidence checkpoint**
 
 Only after Steps 1-6:
 
 ```bash
 git add config/expected_phase1_artifacts.json pyproject.toml \
-  src/finproof/data/artifacts/resources.py tests/contract/test_artifact_resources.py \
+  src/finproof/data/artifacts/manifest.py \
+  src/finproof/data/artifacts/database.py \
+  src/finproof/data/artifacts/builder.py \
+  src/finproof/data/artifacts/staging.py \
+  src/finproof/data/artifacts/publication.py \
+  src/finproof/data/artifacts/resources.py \
+  src/finproof/data/artifacts/__init__.py \
+  src/finproof/cli/main.py \
+  tools/build_candidate_artifacts.py \
+  tests/contract/test_artifact_resources.py \
+  tests/unit/data/artifacts/test_staging.py \
+  tests/unit/data/artifacts/test_publication.py \
+  tests/unit/cli/test_build_data.py \
+  tests/integration/artifacts/test_artifact_tampering.py \
   tests/integration/artifacts/test_candidate_builder.py \
+  tests/integration/artifacts/test_publication_faults.py \
+  tests/integration/artifacts/test_publication_recovery.py \
   tests/source_contract/test_official_artifact_build.py \
   tests/performance/test_official_artifact_memory.py \
   tests/helpers/official_artifact_subprocess.py tests/conftest.py
-git commit -m "test: freeze reviewed Phase 1 artifact contract"
+git diff --cached --check
+git diff --cached --name-only
+git commit -m "feat: activate reviewed Phase 1 artifact contract"
 ```
 
-The commit contains no runtime `artifacts/` file and no candidate telemetry/output under `/private/tmp`.
+The exact implementation/resource/test commit is created before independent review. It
+contains every CP8 runtime activation and lifecycle test file listed above, no governing
+or closure document, no runtime `artifacts/` file, and no candidate telemetry/output
+under `/private/tmp`.
 
 - [ ] **Step 8: Obtain whole-branch review before marking Task 5 or Phase 1 complete**
 
 Dispatch a fresh reviewer over the approved plan base through the Step 7 commit. It must inspect every Task 5 source/test/config/schema/resource change, all eight checkpoint review results, exact two-candidate contracts/telemetry, official published acceptance, dependency/package boundaries, and Git scope. It must independently rerun the focused artifact suite, official acceptance or verified session reuse, Ruff, mypy, source audit, handoff, catalog, wheel resource check, exact-tree/ignored/source-read-only checks.
 
-Any Critical/Important finding gets a focused RED, smallest correction, separate `fix: close Task 5 final review gaps` commit, complete relevant/mandatory gate rerun, and fresh re-review. Do not update the official baseline unless the reviewed correction intentionally changes logical data under a higher-priority approved decision; an unexplained mismatch is a stop condition.
+Any actual Critical/Important code/test finding gets one focused RED, smallest
+correction, its affected Step-5 aggregate, the Step-6 full gate exactly once on the new
+code candidate, a separate `fix: close Task 5 final review gaps` commit, and one fresh
+re-review. A documentation-only correction runs only the closure checks below and does
+not rerun the full suite. Minor or adjacent hardening is backlog and does not block
+closure. Do not update the official baseline unless the reviewed correction
+intentionally changes logical data under a higher-priority approved decision; an
+unexplained mismatch is a stop condition.
 
 - [ ] **Step 9: Record completion evidence and exact next task**
 
@@ -5845,22 +6102,33 @@ After whole-branch review is 0 Critical / 0 Important, update:
 
 - this plan's completed checkboxes with observed RED/GREEN/review references;
 - all eight legacy Task 5 checkpoint boxes;
-- `docs/implementation/STATUS.md` with scope, every focused RED reason, checkpoint/review commits, table/report/overall logical hashes, physical reviewed-generation hashes, durations/RSS/bounds, exact commands/results, residual risks, and source-read-only/clean-tree evidence;
+- `docs/implementation/STATUS.md` with scope, all fifteen serial lifecycle/public-surface
+  RED/GREEN observations, checkpoint/review commits, table/report/overall logical
+  hashes, physical reviewed-generation hashes, durations/RSS/bounds, exact commands/
+  results, residual risks, and source-read-only/clean-tree evidence;
 - Phase 1 Task 5 and Phase 1 gate checkboxes to complete;
 - exact next task: **Phase 2 Task 1: implement deterministic domain contracts and registry loaders from the approved Phase 2 plan**.
 
 Commit documentation separately:
 
 ```bash
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/audit_source_data.py --check
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/verify_handoff.py
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run python tools/extract_schema_catalog.py --check
+test -z "$(find source_material -type f -perm -222 -print)"
+git diff --check
 git add docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md \
   docs/superpowers/plans/2026-08-14-phase1-task5-artifact-build.md \
   docs/implementation/STATUS.md
+git diff --cached --check
+git diff --cached --name-only
 git commit -m "docs: record Phase 1 artifact verification"
 ```
 
-- [ ] **Step 10: Run the final reviewed-tree gate and leave a clean feature worktree**
+- [ ] **Step 10: Verify closure scope and leave a clean feature worktree**
 
-Run the complete Step 6 gate again on the exact documentation/review-evidence tree, including the full suite, wheel, source checks, pre-commit, diff checks, ignored paths, and zero writable official files. Also run:
+The Step-9 documentation-only closure does not rerun Step 6 or any source/performance
+suite. Confirm only closure scope and repository cleanliness:
 
 ```bash
 git status --short --branch
@@ -5870,7 +6138,11 @@ git ls-files artifacts .artifacts.finproof-build.lock \
   '.artifacts.finproof-cleanup-*'
 ```
 
-Expected: all gates pass; porcelain is empty; tracked runtime-artifact query prints nothing; only the timestamp-free expected contract is tracked; Phase 2 Task 1 is the first incomplete task. Use `superpowers:finishing-a-development-branch` for the already authorized local integration flow, then rerun the mandatory gate on the exact integrated main commit before reporting completion.
+Expected: porcelain is empty; tracked runtime-artifact query prints nothing; only the
+timestamp-free expected contract is tracked; Phase 2 Task 1 is the first incomplete
+task. Use `superpowers:finishing-a-development-branch` for the already authorized local
+integration flow. A docs-only integration/closure does not trigger another full gate;
+only a later code/test correction does, under Step 6.
 
 ## Plan self-review checklist
 
@@ -5917,6 +6189,17 @@ Expected: all gates pass; porcelain is empty; tracked runtime-artifact query pri
 - [x] CP7 has separate 7A database/verifier, 7B publisher/recovery, and 7C builder/candidate/CLI RED-GREEN commits before review.
 - [x] Every independent behavior uses a recorded named-selector RED/smallest-GREEN loop; grouped commands are aggregate gates only.
 - [x] CP1 owns the logical-contract and candidate-probe protocols; the real candidate succeeds only pre-baseline, synthetic flip covers its second guard permanently, and post-baseline real default refuses before transform.
+- [x] CP8's private transform issues one provenance-bound live candidate/observation
+  carrier: candidate tooling consumes only discard-to-core, evaluation consumes only
+  expected-authorize/publish/cleanup-to-outcome, and neither can resurrect or rebuild
+  the other's custody.
+- [x] CP8 stages receiver preflight in one exact one-use admission before ownership
+  moves; the later admission-slot install plus source invalidation has no fallible
+  callback, publication concrete imports stay out of staging, and no global registry is
+  introduced.
+- [x] CP8 records exactly fifteen serial lifecycle/public-surface selectors, Step 5
+  contains all focused/affected/source/performance aggregates, Step 6 runs one final
+  full gate, and documentation-only closure never repeats it.
 - [x] Strict path-free outcome telemetry proves verified timestamp, bounded counters, workspace ownership/settings/cleanup, exact 14 physical hashes, and manifest identity while the public builder still returns only a manifest.
 - [x] Official tests reuse one fully reverified session generation; candidate and memory measurements run in fresh processes with platform-correct RSS conversion.
 - [x] Every newly created source-contract/performance test module carries its explicit module-level `pytestmark`.

@@ -842,11 +842,13 @@ bytes must produce equal registries and identical errors.
 module-global registry and the candidate contains no raw descriptor, path, basename,
 or independently usable stage object. CP8's `ExpectedAcceptedPublicationStage`
 receives that custody only through the atomic transfer below.
-The candidate exposes only `open_verification_root()` and package-private
-`transfer_expected_accepted_custody(*, expected_acceptance_seal, receiver) -> None`;
-both delegate through the exact retained custody instance without exposing or reading
-its private state. The latter is the only bridge to staging's one-use transfer
-primitive, and only CP8 publication may call it.
+The candidate exposes only `open_verification_root()` plus package-private
+`issue_expected_accepted_receiver_admission(*, receiver) ->
+_ExpectedAcceptedReceiverAdmission` and
+`transfer_expected_accepted_custody(*, expected_acceptance_seal, admission) -> None`.
+All three delegate through the exact retained custody instance without exposing or
+reading its private state. The latter two form the sole preflight/transfer bridge to
+staging's one-use ownership primitive, and only CP8 publication may call them.
 CP4 custody supplies only liveness, managed verification-root access, exact staged
 discard, and close. CP8 alone wraps that custody in the production transition
 capability whose descriptor-relative operations perform active publication and
@@ -873,19 +875,31 @@ class CandidateStageCustody:
     def open_verification_root(
         self,
     ) -> AbstractContextManager[ManagedArtifactVerificationRoot]: ...
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: "ExpectedAcceptedCustodyReceiver",
+    ) -> "_ExpectedAcceptedReceiverAdmission": ...
     def transfer_expected_accepted(
         self,
         *,
         expected_acceptance_seal: object,
-        receiver: "ExpectedAcceptedCustodyReceiver",
+        admission: "_ExpectedAcceptedReceiverAdmission",
     ) -> None: ...
     def discard_if_exact(self) -> None: ...
     def close(self) -> None: ...
 
 
+@dataclass(frozen=True, init=False)
+class _ExpectedAcceptedReceiverAdmission:
+    pass
+
+
 class ExpectedAcceptedCustodyReceiver(Protocol):
-    def accept_transferred_custody(
-        self, custody: "TransferredCandidateCustody"
+    def preflight_expected_accepted_custody(
+        self,
+        *,
+        admission: "_ExpectedAcceptedReceiverAdmission",
     ) -> None: ...
 ```
 
@@ -936,8 +950,9 @@ CP8 capability receives the exact live custody only through the candidate's reta
 instance-owned custody and typed atomic acceptance and owns
 stage-to-target, optional pre-commit target-to-stage rollback, and commit/close
 transitions. `staging.py` never imports `publication.py`; `publication.py` imports only
-the narrow `CandidateStageCustody`/`ExpectedAcceptedCustodyReceiver` capability
-contracts, never `OwnedCandidateStage` or a custody private field.
+the narrow `CandidateStageCustody`/`ExpectedAcceptedCustodyReceiver`/
+`_ExpectedAcceptedReceiverAdmission` capability contracts, never
+`OwnedCandidateStage` or a custody private field.
 
 ```python
 class PublicationTransitionPort(Protocol):
@@ -959,14 +974,25 @@ generation. After the expected route's final rescan, the kernel marks the still-
 the candidate route never can. CP8's `authorize_candidate_for_publication` takes the
 opaque seal from that exact root, then exits `candidate.open_verification_root()` so
 all adopted duplicate descriptors close before any custody move. It then creates one
-direct-init-disabled `ExpectedAcceptedPublicationStage` receiver and calls
-`candidate.transfer_expected_accepted_custody(...)`, the sole no-private-field
-bridge to its exact retained `CandidateStageCustody.transfer_expected_accepted(...)`
-method. That staging-owned instance method validates the unconsumed acceptance seal
-against the stage/adoption generation and the exact typed receiver, then creates one
-opaque `TransferredCandidateCustody`, calls the receiver's non-fallible
-`accept_transferred_custody(...)` slot operation, and atomically clears/invalidates the
-source custody. The accepted instance is the sole owner of the original parent/stage/
+direct-init-disabled `ExpectedAcceptedPublicationStage` receiver. Before taking any
+source slot, the candidate delegates to
+`CandidateStageCustody.issue_expected_accepted_receiver_admission(...)`; staging creates
+one direct-init-disabled one-use `_ExpectedAcceptedReceiverAdmission`, binds it to the
+exact source generation and receiver object, and invokes only the receiver's preflight
+method. A receiver foreign to that admission, copied, prefilled, or throwing during
+preflight invalidates the draft admission and fails while every source ownership slot
+remains unchanged. Only the returned exact admission may enter
+`candidate.transfer_expected_accepted_custody(...)`, the sole no-private-field bridge
+to `CandidateStageCustody.transfer_expected_accepted(...)`.
+
+The transfer validates the unconsumed acceptance seal against the stage/adoption
+generation and admitted receiver identity, creates one opaque
+`TransferredCandidateCustody`, installs it directly into the staging-owned admission's
+empty slot, and clears/invalidates the source custody as one non-fallible ownership
+transition. It calls no receiver or other fallible callback after admission. The
+receiver already retains that exact admission from preflight and delegates through its
+filled slot; there is no second take or rollback-to-live operation. The transferred
+instance is the sole owner of the original parent/stage/
 parquet descriptors, leaf identities, advisory lock, and held-input close
 responsibility; neither side exchanges raw descriptors or a private field. No duplicate
 owner or rollback-to-live path exists. On any
@@ -982,47 +1008,55 @@ exit invalidates only an untaken seal. The detached opaque seal contains no fd/p
 survives only until this exact transfer call. If receiver creation/preflight fails,
 authorization explicitly invalidates it while the original stage remains sole owner.
 
-The sole cross-module transfer API is the instance method owned by `staging.py`:
+The cross-module transfer API consists of the two instance methods owned by `staging.py`:
 
 ```python
 class CandidateStageCustody:
+    def issue_expected_accepted_receiver_admission(
+        self,
+        *,
+        receiver: ExpectedAcceptedCustodyReceiver,
+    ) -> _ExpectedAcceptedReceiverAdmission: ...
+
     def transfer_expected_accepted(
         self,
         *,
         expected_acceptance_seal: object,
-        receiver: ExpectedAcceptedCustodyReceiver,
+        admission: _ExpectedAcceptedReceiverAdmission,
     ) -> None: ...
 
 
 class ExpectedAcceptedCustodyReceiver(Protocol):
-    def accept_transferred_custody(
+    def preflight_expected_accepted_custody(
         self,
-        custody: TransferredCandidateCustody,
+        *,
+        admission: _ExpectedAcceptedReceiverAdmission,
     ) -> None: ...
 ```
 
 `TransferredCandidateCustody` is direct-init-disabled, noncopyable, nonserializable,
 and exposes no raw descriptor/path/basename/token or caller constructor. It is created
-inside the source custody's preflight and can be retained only by one typed receiver;
-its exact instance supplies the receiver's internal descriptor-relative operations
-without disclosing their storage. Receiver acceptance performs no I/O and cannot raise
-after preflight; it swaps the one ownership slot, after which source invalidation is the
-same atomic state transition. A receiver that is copied, already filled, foreign,
-structurally similar, or raises during its preflight is rejected before the source slot
-moves.
+only after successful receiver admission and can occupy only that admission's one
+staging-owned empty slot; its exact instance supplies the receiver's internal
+descriptor-relative operations without disclosing their storage. Admission performs
+all receiver code and rejection before transfer. The later slot install plus source
+invalidation performs no I/O or receiver callback and cannot raise. A receiver that is
+copied, already filled, foreign to the admission, structurally similar, or raises
+during preflight is rejected before any source slot moves.
 
 The exact `CandidateArtifactSet` bridge is the only production caller of the retained
 custody method, and CP8 publication is the only production caller of that bridge. The
 candidate stores the custody object itself and delegates without a registry lookup;
-`ExpectedAcceptedPublicationStage` implements the typed receiver directly and retains
-the transferred instance. The method validates exact source-custody identity,
-receiver type/state, seal object identity, and generation before its non-fallible slot
-move. It returns no descriptor, path, bundle, token, or replacement custody object.
-CP4 freezes only this raising method/receiver protocol boundary and retains custody;
+`ExpectedAcceptedPublicationStage` implements the typed preflight receiver directly
+and retains the exact admission, whose slot becomes the sole transferred owner. The
+methods validate exact source-custody identity, admitted receiver identity/state, seal
+object identity, and generation before the non-fallible slot move. They return no
+descriptor, path, bundle, token, or replacement custody object.
+CP4 freezes only the raising admission/transfer protocol boundary and retains custody;
 CP7 can retain/open/clean an unpublished candidate but has no expected seal or transfer
-success. CP8 first implements the successful instance transfer and production receiver,
-driven by the real-descriptor selector below. No module-global candidate, stage,
-receiver, token, or custody registry exists.
+success. CP8 first implements successful admission, instance transfer, and the
+production receiver, driven by the serial real-descriptor selectors below. No
+module-global candidate, stage, receiver, token, or custody registry exists.
 
 `ExternalOrderStore` disables direct construction. Its only production entry is
 `ArtifactBuildSession.open_external_order_store(config=...)`, which accepts the live
@@ -1110,13 +1144,15 @@ model plus CP1 resolver types and owns held-nine verification plus
 protocols and
 owns the build advisory lock, build-stage/working markers, held descriptor custody,
 Parquet/database leaves, scratch stores, exact abort/discard, candidate custody, and the
-sole one-use custody-transfer primitive; it never owns a publication transition.
+sole one-use receiver-admission slot and custody-transfer primitive; it never imports a
+publication concrete type or owns a publication transition.
 `bronze.py` consumes staging and input identity; `builder.py` owns the
 `CandidateArtifactSet` bridge, which retains the exact instance-owned custody, and
-orchestrates without defining filesystem primitives.
+the private live candidate/observation carrier plus its mutually exclusive outcome
+orchestration; it defines no filesystem primitive.
 `publication.py` defines only a narrow candidate-method protocol and never imports
 builder; builder may import publication in CP8. `publication.py` may import only
-staging's narrow custody/typed-receiver contracts; it never imports
+staging's narrow custody/typed-receiver/admission contracts; it never imports
 `OwnedCandidateStage`, and `staging.py` never imports publication.
 Publication alone owns target/backup/tombstone markers, target recognition, authorization-bound
 transition objects, rename/rollback/commit, and recovery. Manifest/kernel code imports
@@ -3082,7 +3118,63 @@ def build_candidate_artifacts(
     *,
     options: ArtifactBuildOptions,
 ) -> ArtifactCoreVerificationResult: ...
+
+
+@dataclass(frozen=True, init=False)
+class _LiveArtifactBuildCandidate:
+    pass
+
+
+class ArtifactBuildOutcome(BaseModel):
+    manifest: ArtifactManifest
+    logical_contract: ArtifactExpectedVerificationResult
+    telemetry: ArtifactBuildTelemetry
+
+
+def _build_private_live_candidate(
+    settings: Settings,
+    versions: VersionBundle,
+    options: ArtifactBuildOptions,
+) -> _LiveArtifactBuildCandidate: ...
+
+
+def _discard_live_candidate_to_core_outcome(
+    candidate: _LiveArtifactBuildCandidate,
+) -> ArtifactCoreBuildOutcome: ...
+
+
+def _build_evaluation_artifacts_with_outcome(
+    settings: Settings,
+    versions: VersionBundle,
+    *,
+    options: ArtifactBuildOptions,
+) -> ArtifactBuildOutcome: ...
 ```
+
+The private transform returns exactly one direct-init-disabled, noncopyable,
+nonserializable `_LiveArtifactBuildCandidate`. Its issuance binds one exact live
+`CandidateArtifactSet` and the `_CoreTelemetryObservations` derived during that same
+finalization; it contains no parallel stage path, descriptor, custody, manifest facts,
+or reconstructable owner state. The candidate and observations cannot be supplied,
+copied, mixed, or extracted independently, and the carrier permits exactly one of its
+two terminal branches.
+
+Repository candidate tooling takes the review branch: after its second absence check,
+`_discard_live_candidate_to_core_outcome` revalidates the exact issuance, performs the
+exact candidate discard and complete marker/descriptor/lock/input cleanup, and only
+then constructs `ArtifactCoreBuildOutcome`. Failure of the second check discards the
+still-live carrier and emits no outcome. A discarded carrier/custody cannot be
+resurrected or passed to expected authorization.
+
+Evaluation takes the other branch on the same carrier returned by
+`_build_private_live_candidate`: it performs expected authorization against the exact
+retained candidate, transfers custody only through the admitted receiver boundary,
+publishes or rolls back through the bound transition, completes the required cleanup,
+and only then constructs `ArtifactBuildOutcome`. It never starts from
+`ArtifactCoreBuildOutcome`, recreates a candidate, or accepts separate stage/fact
+arguments. Any pre-transfer failure discards the still-live candidate; after transfer,
+the expected-accepted publication capability is the sole cleanup owner. Each terminal
+branch consumes and invalidates the carrier exactly once.
 
 This interface lives only in repository review tooling, is not exported by the package,
 has no console entry point, and is unavailable to runtime/readiness. It refuses to run
@@ -3182,6 +3274,13 @@ has no rename, rollback, target, backup, or tombstone operation. CP7 contains
 only the authorization-independent state-machine mechanics; neither capability has a
 CP7 production publication call site. CP8 moves that custody only through typed
 instance acceptance; no production registry or raw descriptor handoff exists.
+Production calls this authorization only while consuming the exact
+`_LiveArtifactBuildCandidate`; neither a detached `ArtifactCoreBuildOutcome` nor a
+separately supplied `CandidateArtifactSet`/observation pair is an evaluation input.
+The publisher returns the capability's bound `ArtifactExpectedVerificationResult` only
+after transition and required cleanup; the live carrier then uses that exact result and
+its issuance-bound manifest/observations to construct `ArtifactBuildOutcome` and
+invalidates itself. No pre-publication expected result or partial outcome escapes.
 
 1. Build and fully verify a private sibling staging directory on the same filesystem.
 2. If target is absent, rename stage to target.
@@ -3365,10 +3464,12 @@ reviewable checkpoints are required:
 8. **Official reproduction and Phase 1 gate:** two different-time logical builds, one
    generation-integrity verification per build, bounded-memory evidence, all
    counts/hashes, independent candidate review, creation/commit of the official expected
-   contract and wheel-byte identity test, activation of expected-accepted
-   `ArtifactManifest.verify`/`VerifiedArtifactSet` and normal publication recognition,
-   all mandatory repository/source gates, independent whole-branch review, status
-   evidence, and clean tree.
+   contract and wheel-byte identity test, one live candidate/observation carrier with
+   mutually exclusive discard-to-core and expected-authorize/publish-to-outcome terminal
+   branches, staging-owned receiver admission before the non-fallible ownership move,
+   activation of expected-accepted `ArtifactManifest.verify`/`VerifiedArtifactSet` and
+   normal publication recognition, all mandatory repository/source gates, independent
+   whole-branch review, status evidence, and clean tree.
 
 An official acceptance test may reuse a session-scoped artifact build, but no production
 behavior is introduced only through an acceptance test that is already green.
@@ -3411,6 +3512,14 @@ At minimum, tests prove:
 - initial candidate bootstrap performs full transform/verification without publication
   or write-back, refuses an existing expected file/resource, and is unavailable after
   the reviewed baseline is created;
+- the private transform issues one exact noncopyable live candidate/observation carrier;
+  candidate review can only discard it to a core outcome, evaluation can only expected-
+  authorize/publish/clean it to an expected outcome, and neither branch can resurrect,
+  mix, or separately supply custody/stage/facts;
+- receiver preflight issues one exact staging-owned admission while source custody is
+  unchanged; a foreign/prefilled/copied/throwing receiver or mismatched admission fails
+  before movement, while the admitted slot install plus source invalidation has no
+  callback/I/O/failure point and leaves only the publication owner live;
 - every table uses exact schema, type, column order, count, unique/sort key, and model
   round trip;
 - staged and final Parquet capabilities are nominally and runtime non-interchangeable:
