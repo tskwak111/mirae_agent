@@ -5573,16 +5573,23 @@ Observed Checkpoint 7 closure evidence on 2026-08-20:
   review for evaluation: `src/finproof/data/artifacts/builder.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/staging.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/publication.py`
-- Modify after candidate review only: `src/finproof/data/artifacts/__init__.py`
 - Modify after candidate review only: `src/finproof/cli/main.py`
 - Modify after candidate review only: `src/finproof/data/artifacts/resources.py`
+- Modify before candidates for the official malformed-fund exclusion correction:
+  `src/finproof/data/artifacts/silver.py`
 - Modify before candidates: `tools/build_candidate_artifacts.py`
 - Modify before candidates for the missing-resource RED, then extend after candidate
   review: `tests/contract/test_artifact_resources.py`
 - Modify after candidate review only: `tests/unit/data/artifacts/test_staging.py`
 - Modify after candidate review only: `tests/unit/data/artifacts/test_publication.py`
+- Modify before candidates for the malformed-fund exclusion regression:
+  `tests/unit/data/artifacts/test_silver.py`
 - Modify after candidate review only: `tests/unit/cli/test_build_data.py`
+- Modify before candidates for bounded official database materialization/verification:
+  `tests/integration/artifacts/test_artifact_duckdb.py`
 - Modify after candidate review only: `tests/integration/artifacts/test_artifact_tampering.py`
+- Modify before candidates for the official build/report corrections:
+  `tests/integration/artifacts/test_build_fixture.py`
 - Modify before candidates and after baseline creation:
   `tests/integration/artifacts/test_candidate_builder.py`
 - Modify after candidate review only: `tests/integration/artifacts/test_publication_faults.py`
@@ -5596,6 +5603,11 @@ Observed Checkpoint 7 closure evidence on 2026-08-20:
 - Closure only after 0 Critical / 0 Important:
   `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`, this
   dedicated plan, and `docs/implementation/STATUS.md`
+
+The implementation/resource/test inventory above is exactly 26 paths. Do not create a
+no-op `artifacts/__init__.py` diff; the four official-scale correction files are part of
+the same CP8 candidate because their focused RED/GREEN behavior is required for the two
+reviewed candidates and final official acceptance.
 
 **Interfaces:**
 
@@ -5867,9 +5879,12 @@ expected route; target recognition/publication accepts only the bound expected-a
 capability; `_build_evaluation_artifacts_with_outcome` consumes the same private live
 carrier shape proven in Step 2 and issues `ArtifactBuildOutcome` only after expected
 comparison, publication/rollback, required cleanup, and reopened final rescan.
-`build_artifacts`/`finproof build-data` gain their first success path. Each selector
-below observes its own pre-activation/missing-behavior RED and smallest GREEN; no
-expected comparator skip/injection seam enters a public or production assembly.
+`build_artifacts`/`finproof build-data` gain their first success path. Fourteen of the
+fifteen lifecycle/public-surface selectors observe their own pre-activation/missing-
+behavior RED and smallest GREEN. The compact CLI success selector is a derived first-
+GREEN acceptance because CP7 already froze its rendering and the preceding official
+success selector activates that exact production path; do not manufacture a failure.
+No expected comparator skip/injection seam enters a public or production assembly.
 
 Use this exact order for thirteen post-approval selectors (fifteen CP8 lifecycle/public-
 surface selectors including Step 2's two), running only
@@ -5887,7 +5902,7 @@ tests/integration/artifacts/test_publication_faults.py::test_expected_publicatio
 tests/integration/artifacts/test_publication_faults.py::test_expected_publication_cleanup_closes_transferred_custody_exactly_once
 tests/source_contract/test_official_artifact_build.py::test_evaluation_build_accepts_official_expected_and_publishes
 tests/integration/artifacts/test_publication_recovery.py::test_normal_target_recognition_requires_reopened_expected_acceptance
-tests/unit/cli/test_build_data.py::test_build_data_success_emits_only_compact_verified_manifest_summary
+tests/unit/cli/test_build_data.py::test_build_data_success_emits_only_compact_verified_manifest_summary  # derived first-GREEN acceptance
 tests/unit/cli/test_build_data.py::test_build_data_postcommit_cleanup_error_states_published_verified_target
 tests/contract/test_artifact_resources.py::test_artifact_public_surface_exposes_no_core_candidate_or_expected_bypass
 ```
@@ -6059,14 +6074,17 @@ git add config/expected_phase1_artifacts.json pyproject.toml \
   src/finproof/data/artifacts/staging.py \
   src/finproof/data/artifacts/publication.py \
   src/finproof/data/artifacts/resources.py \
-  src/finproof/data/artifacts/__init__.py \
+  src/finproof/data/artifacts/silver.py \
   src/finproof/cli/main.py \
   tools/build_candidate_artifacts.py \
   tests/contract/test_artifact_resources.py \
   tests/unit/data/artifacts/test_staging.py \
   tests/unit/data/artifacts/test_publication.py \
+  tests/unit/data/artifacts/test_silver.py \
   tests/unit/cli/test_build_data.py \
+  tests/integration/artifacts/test_artifact_duckdb.py \
   tests/integration/artifacts/test_artifact_tampering.py \
+  tests/integration/artifacts/test_build_fixture.py \
   tests/integration/artifacts/test_candidate_builder.py \
   tests/integration/artifacts/test_publication_faults.py \
   tests/integration/artifacts/test_publication_recovery.py \
@@ -6102,8 +6120,9 @@ After whole-branch review is 0 Critical / 0 Important, update:
 
 - this plan's completed checkboxes with observed RED/GREEN/review references;
 - all eight legacy Task 5 checkpoint boxes;
-- `docs/implementation/STATUS.md` with scope, all fifteen serial lifecycle/public-surface
-  RED/GREEN observations, checkpoint/review commits, table/report/overall logical
+- `docs/implementation/STATUS.md` with scope, fourteen serial lifecycle/public-surface
+  RED/GREEN observations plus the compact CLI derived first-GREEN acceptance,
+  checkpoint/review commits, table/report/overall logical
   hashes, physical reviewed-generation hashes, durations/RSS/bounds, exact commands/
   results, residual risks, and source-read-only/clean-tree evidence;
 - Phase 1 Task 5 and Phase 1 gate checkboxes to complete;
@@ -6197,7 +6216,8 @@ only a later code/test correction does, under Step 6.
   moves; the later admission-slot install plus source invalidation has no fallible
   callback, publication concrete imports stay out of staging, and no global registry is
   introduced.
-- [x] CP8 records exactly fifteen serial lifecycle/public-surface selectors, Step 5
+- [x] CP8 records exactly fourteen mandatory RED/GREEN lifecycle/public-surface
+  selectors plus one derived first-GREEN acceptance, Step 5
   contains all focused/affected/source/performance aggregates, Step 6 runs one final
   full gate, and documentation-only closure never repeats it.
 - [x] Strict path-free outcome telemetry proves verified timestamp, bounded counters, workspace ownership/settings/cleanup, exact 14 physical hashes, and manifest identity while the public builder still returns only a manifest.
