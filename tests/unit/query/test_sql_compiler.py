@@ -38,6 +38,8 @@ def test_query_ast_accepts_one_native_segment_and_rejects_product_envelope() -> 
     assert tuple(item.field_id for item in ast.projections) == (
         "product_id",
         "buy_yield",
+        "buyable_quantity",
+        "maturity_date",
     )
 
     with pytest.raises(ValueError, match="native"):
@@ -45,6 +47,36 @@ def test_query_ast_accepts_one_native_segment_and_rejects_product_envelope() -> 
             segment.model_copy(update={"native_result_grain": ResultGrain.PRODUCT}),
             fields=fields,
         )
+
+
+@pytest.mark.parametrize(
+    ("product_type", "expected_discriminator"),
+    [
+        (ProductType.DOMESTIC_ETF, "ETF"),
+        (ProductType.DOMESTIC_ETN, "ETN"),
+        (ProductType.OVERSEAS_ETF, "ETF"),
+        (ProductType.OVERSEAS_ETN, "ETN"),
+    ],
+)
+def test_shared_listed_compiler_uses_frozen_physical_product_discriminator(
+    product_type: ProductType,
+    expected_discriminator: str,
+) -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    segment = ExecutionSegment(
+        product_type=product_type,
+        native_result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+    )
+
+    compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
+
+    assert compiled.parameters == (expected_discriminator,)
+    assert '"product_type" = ?' in compiled.sql
 
 
 def test_sql_compiler_parameterizes_every_value_and_uses_closed_identifiers() -> None:
@@ -132,7 +164,13 @@ def test_compiler_projects_aggregate_inputs_without_prepolicy_aggregation_or_top
 
     compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
 
-    assert compiled.projected_fields == ("product_id", "currency", "buy_yield")
+    assert compiled.projected_fields == (
+        "product_id",
+        "currency",
+        "buy_yield",
+        "buyable_quantity",
+        "maturity_date",
+    )
     assert '"currency"' in compiled.sql
     assert '"buy_yield"' in compiled.sql
     assert "AVG(" not in compiled.sql

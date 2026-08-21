@@ -41,16 +41,49 @@ class QueryAst(_FrozenModel):
                 ),
             )
         )
-        projections = tuple(
-            fields.projection(field_id, segment.product_type) for field_id in field_ids
-        )
+        if segment.product_type is ProductType.DOMESTIC_BOND:
+            field_ids.setdefault("buyable_quantity", None)
+            field_ids.setdefault("maturity_date", None)
+        if "aum" in field_ids:
+            field_ids.setdefault("currency", None)
+        projections = [fields.projection(field_id, segment.product_type) for field_id in field_ids]
+        if segment.product_type in {
+            ProductType.DOMESTIC_ETF,
+            ProductType.DOMESTIC_ETN,
+        }:
+            saleable = fields.projection("saleable", segment.product_type)
+            if "saleable" not in field_ids:
+                projections.append(saleable)
+            projections.append(
+                FieldProjection(
+                    field_id="suspension_flag",
+                    product_type=segment.product_type,
+                    table_name=saleable.table_name,
+                    column_name="suspension_flag",
+                    quality_column_name="suspension_flag__quality_status",
+                    value_type="boolean",
+                    metric_id=None,
+                )
+            )
+            projections.extend(
+                FieldProjection(
+                    field_id=field_id,
+                    product_type=segment.product_type,
+                    table_name=saleable.table_name,
+                    column_name=field_id,
+                    quality_column_name=f"{field_id}__quality_status",
+                    value_type="date",
+                    metric_id=None,
+                )
+                for field_id in ("listing_date", "listing_end_date")
+            )
         table_names = {projection.table_name for projection in projections}
         if len(table_names) != 1:
             raise ValueError("query AST projections require one native table")
         return cls(
             segment=segment,
             table_name=next(iter(table_names)),
-            projections=projections,
+            projections=tuple(projections),
         )
 
 

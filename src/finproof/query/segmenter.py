@@ -73,6 +73,10 @@ class ExecutionBundleBuilder:
     ) -> tuple[ComparisonPartition, ...]:
         groups: dict[str, list[ProductType]] = {}
         for segment in segments:
+            if segment.aggregation is not None and segment.aggregation.field is None:
+                groups[
+                    f"count:{segment.native_result_grain.value}:{segment.product_type.value}"
+                ] = [segment.product_type]
             field_ids = set(segment.metrics)
             field_ids.update(sort.field for sort in segment.sort)
             if segment.aggregation is not None and segment.aggregation.field is not None:

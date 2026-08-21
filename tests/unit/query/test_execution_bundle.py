@@ -6,6 +6,8 @@ import pytest
 from tests.unit.query.test_semantic_validator import _context, _plan
 
 from finproof.domain.query_plan import (
+    AggregationFunction,
+    AggregationSpec,
     FilterClause,
     FilterOperator,
     Intent,
@@ -136,6 +138,31 @@ def test_global_scope_requires_one_compatible_partition_for_rank_and_aggregate()
     )
     with pytest.raises(ValueError, match="global"):
         ExecutionBundleBuilder(fields).build(invalid, context=_context())
+
+
+def test_global_targetless_count_has_one_native_grain_partition() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT,
+                field=None,
+                group_by=(),
+            ),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert len(bundle.comparison_partitions) == 1
+    assert bundle.comparison_partitions[0].product_types == (ProductType.DOMESTIC_BOND,)
 
 
 def test_per_product_type_scope_records_each_required_compatibility_split() -> None:

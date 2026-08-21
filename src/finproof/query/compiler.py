@@ -40,7 +40,7 @@ class SqlCompiler:
             if "product_type" not in columns:
                 raise ValueError("listed product discriminator is not registered")
             predicates.append('"product_type" = ?')
-            parameters.append(ast.segment.product_type.value)
+            parameters.append(_LISTED_DISCRIMINATOR[ast.segment.product_type])
         for clause in ast.segment.filters:
             projection = by_field[clause.field]
             predicate, values = _predicate(projection.column_name, clause.operator, clause.value)
@@ -73,6 +73,13 @@ _SHARED_LISTED_TYPES = {
     ProductType.DOMESTIC_ETN,
     ProductType.OVERSEAS_ETF,
     ProductType.OVERSEAS_ETN,
+}
+
+_LISTED_DISCRIMINATOR = {
+    ProductType.DOMESTIC_ETF: "ETF",
+    ProductType.DOMESTIC_ETN: "ETN",
+    ProductType.OVERSEAS_ETF: "ETF",
+    ProductType.OVERSEAS_ETN: "ETN",
 }
 
 
