@@ -145,13 +145,15 @@ The default is the official `2026-07-11` snapshot. Derived maturity and state pr
 
 State is product-specific and versioned. For domestic listed products, `pd_tr_yn = 0` means not suspended under the supplied schema interpretation. For bonds, “source buyable” and “validated buyable at as-of” are distinct.
 
+Phase 2 validated eligibility is limited to domestic bonds and domestic listed ETF/ETN. Overseas-listed and public-fund raw sale/state values remain displayable with their source labels, but they do not become validated eligibility until a later frozen rule exists.
+
 ### Metric & Comparability
 
 Metrics are operation aware. A raw recorded zero can be displayed literally while being flagged or separated in ranking/aggregation. Periods, units, currencies, and definitions must align before cross-product comparison.
 
 ### Evidence
 
-Every material claim maps to source rows/columns and transformation rules. Counts and exclusions require evidence summaries, not only product values.
+Every material claim maps to source rows/columns and transformation rules. Phase 2 reuses the exact Phase 1 `SourceCellLocator` and normalized/derived value models rather than introducing a parallel locator DTO. Counts, exclusions, ranks, ties, partitions, and aggregates require bounded evidence summaries bound to the validated plan, policy IDs, version bundle, and expected artifact logical hash, not only product values.
 
 ## 5. Query planning
 
@@ -172,9 +174,9 @@ needs_clarification
 clarification_reason
 ```
 
-The application injects versions and source policy. Semantic validation prevents invalid product/grain/field/operator/period/currency/state combinations before compilation. `top_k_scope` is either `global` or `per_product_type`.
+The application injects versions and source policy. Semantic validation prevents invalid product/grain/field/operator/period/currency/state combinations before compilation. `top_k_scope` is either `global` or `per_product_type`. An aggregate plan contains exactly one closed `AggregationSpec`: `count` of the native result grain, or `min`/`max`/`sum`/`avg` of one registry-approved field, optionally grouped by at most two canonical fields.
 
-A validated multi-product plan becomes an immutable `ExecutionBundle`. One `ExecutionSegment` is created per selected product type with its native grain and only the clauses registered for that type. The comparability engine may further partition by currency or metric semantics. A compiler consumes one segment at a time; only compatible partitions may receive one global rank. Heterogeneous results are assembled under the `product` envelope without erasing native identity or evidence.
+A validated multi-product plan becomes an immutable `ExecutionBundle`. One `ExecutionSegment` is created per selected product type with its native grain and only the clauses registered for that type. The fixed order is entity resolution and literal filtering, product-specific state and metric eligibility, compatibility partitioning, aggregate or rank/tie calculation, then `top_k`. A compiler consumes one segment at a time; `global` requires exactly one final compatibility partition, while `per_product_type` applies `top_k` independently to every final partition within each product type and traces every split. Heterogeneous results are assembled under the `product` envelope without erasing native identity or evidence.
 
 ## 6. Entity resolution
 
@@ -220,6 +222,8 @@ A “recommend” request becomes “conditions-matching candidates,” not a su
 
 - official data only
 - fixed artifact/version bundle
+- one application-owned `RuntimeArtifactSession` that expected-verifies the published manifest before opening its declared read-only DuckDB
+- packaged runtime registries that are byte-identical to their repository sources
 - no live external data
 - deterministic renderer by default
 - strict five-field response

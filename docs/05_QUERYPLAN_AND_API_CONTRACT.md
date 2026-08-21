@@ -56,12 +56,12 @@ Every plan declares how `top_k` applies:
 
 ```text
 global             # one compatible comparison partition
-per_product_type   # top_k is applied independently to each selected product type
+per_product_type   # top_k is applied independently to each final partition within each product type
 ```
 
 `global` is valid only when the requested metric, unit, period, currency, state semantics, and ranking policy form one compatible partition. If they do not, the validator either creates declared side-by-side partitions, changes no user literal, or returns clarification.
 
-`per_product_type` always creates one native execution segment per selected product type. The comparability engine may further partition a segment by currency or another registered compatibility key; it may not silently combine incompatible values.
+`per_product_type` always creates one native execution segment per selected product type. The comparability engine may further partition a segment by currency or another registered compatibility key. Each resulting final partition receives its own `top_k`, carries a stable partition key, and is labeled in the trace and answer; incompatible partitions are never merged merely to enforce one product-type-wide limit.
 
 ## 6. Model-facing plan
 
@@ -79,6 +79,7 @@ per_product_type   # top_k is applied independently to each selected product typ
   ],
   "metrics": ["buy_yield", "maturity_date", "credit_rating"],
   "sort": [{"field": "buy_yield", "direction": "desc"}],
+  "aggregation": null,
   "top_k": 5,
   "top_k_scope": "global",
   "needs_clarification": false,
@@ -91,6 +92,24 @@ Canonical local schema: `schemas/query_plan.schema.json`.
 Provider-facing HCX Structured Outputs schema: `schemas/hcx_query_plan.schema.json`.
 
 The provider schema deliberately uses only the supported HCX JSON-Schema subset. It does not contain local-only strictness keywords such as `additionalProperties`, `uniqueItems`, `pattern`, `minLength`, or `maxLength`. Every provider response must still pass the strict canonical Pydantic/schema model and semantic validator before execution.
+
+### Aggregate shape
+
+`intent=aggregate` requires exactly one object:
+
+```json
+{
+  "function": "avg",
+  "field": "total_fee",
+  "group_by": ["currency"]
+}
+```
+
+The function is exactly `count`, `min`, `max`, `sum`, or `avg`. `count` requires `field=null` and counts the native result grain after filtering and policy eligibility. The other functions require one canonical field whose registry entry authorizes that operation. `group_by` is an ordered unique tuple of zero, one, or two canonical fields. Nested expressions, arbitrary formulas, multiple aggregations, caller SQL, and caller-selected output aliases are prohibited.
+
+Aggregate output is an ordered tuple of immutable groups. Each group contains its typed group-key values, typed aggregate value, included and excluded counts, policy IDs, and bounded evidence-summary IDs. Count values are exact integers; decimal operations use `Decimal`; dates and strings are accepted only for registry-authorized `min`/`max`.
+
+The canonical local schema always includes `aggregation`, using JSON `null` for non-aggregate plans. Executable intents require at least one product type, `needs_clarification=false`, an empty `clarification_reason`, and the clauses allowed by that intent. `clarify` requires `needs_clarification=true`, a nonempty reason, no filters/metrics/sort/aggregation, and may leave product types empty. `unsupported` requires `needs_clarification=false`, a nonempty reason, no filters/metrics/sort/aggregation, and may leave product types empty. Clarify/unsupported `top_k` values are validated for shape but never executed.
 
 ## 7. Cross-product decomposition
 
@@ -138,6 +157,8 @@ The model cannot choose:
 ```text
 dataset_version
 artifact_manifest_hash
+dataset_registry_version
+field_registry_version
 metric_registry_version
 state_rule_version
 quality_rule_version
@@ -146,6 +167,8 @@ answer_policy_version
 planner_version
 execution_mode
 ```
+
+The application issues this bundle only from one expected-verified artifact and one exact immutable runtime registry bundle. It has no behavior-bearing defaults. `artifact_manifest_hash` is the verified overall manifest logical hash; registry versions come from parsed package resources that are byte-identical to their repository sources.
 
 ## 9. Operator allowlist
 
@@ -166,6 +189,8 @@ is_not_missing
 ```
 
 Each field registration states product types, operators, value type, SQL expression factory, sortable/aggregatable status, and evidence mapping. A model string never becomes an SQL identifier.
+
+`eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, and `starts_with` require one scalar value. `in` and `not_in` require a bounded nonempty scalar tuple. `between` requires exactly two ordered values. `is_missing` and `is_not_missing` prohibit a `value` member. The strict local schema and Pydantic model use the same operator-discriminated variants. `contains` and `starts_with` treat `%`, `_`, backslash, control characters, and Unicode as literal parameter data rather than SQL wildcard or identifier syntax.
 
 ## 10. Defaults and ambiguity
 
@@ -197,17 +222,17 @@ Apply a safe default if it preserves the user’s intent and state it. Split res
 ## 11. Validation pipeline
 
 1. HCX-provider schema validation when Structured Outputs is used
-2. strict local JSON/Pydantic canonical validation
+2. strict local JSON/Pydantic canonical validation, including intent/aggregation and operator/value variants
 3. product type and result-grain compatibility
-4. `top_k_scope` compatibility
-5. entity-resolution status
-6. field/operator/value validation
-7. metric availability
-8. cross-product segment distribution
-9. date/period/unit/currency compatibility and partitioning
-10. state-rule applicability
-11. operation-specific zero/missing/tie policy
-12. top-k and complexity limits per segment and request
+4. exact entity resolution or fail-closed candidate/ambiguity result
+5. field/operator/value and aggregate-function validation
+6. metric availability and product-specific state-policy support
+7. cross-product segment distribution
+8. literal filtering and bounded candidate-count capture
+9. state and operation-specific metric eligibility
+10. date/period/unit/currency compatibility partitioning
+11. aggregate calculation or rank/tie calculation within final partitions
+12. `top_k_scope`, top-k, and complexity limits per final partition and request
 13. supportability and recommendation safety
 
 A failed plan never reaches the SQL compiler.
@@ -225,6 +250,7 @@ ValidatedQueryPlan
 - typed filters
 - requested metrics
 - typed sort
+- optional typed aggregation
 - top_k
 - top_k_scope
 - assumptions
@@ -236,13 +262,27 @@ ExecutionBundle
 - validated plan
 - ordered native ExecutionSegment values
 - comparison partitions
-- aggregate candidate-count plan
+- optional closed aggregate specification
+- bounded candidate/included/excluded count plan
 - response-envelope grain
 ```
 
-A compiler consumes one `ExecutionSegment`, not an unsplit heterogeneous plan. The executor runs the bundle and returns segment results plus an assembled response projection. Native identity and evidence are never erased by the common `product` envelope.
+A compiler consumes one `ExecutionSegment`, not an unsplit heterogeneous plan. The executor returns bounded pre-policy segment rows and candidate counts. The policy pipeline then applies eligibility/metric rules, partitions, aggregate or rank/tie calculation, and final `top_k` before assembling the response projection. Native identity and evidence are never erased by the common `product` envelope.
 
-## 13. Evaluation API
+## 13. Runtime artifact and registry session
+
+The application composition root creates one `RuntimeArtifactSession` before constructing a resolver, repository, executor, evidence builder, or answer service. Session creation:
+
+1. loads `artifacts/manifest.json` through `ArtifactManifest.load`;
+2. expected-verifies the exact published artifact root;
+3. loads the exact packaged runtime registry inventory whose build/contract tests prove source/resource byte identity;
+4. issues the immutable `VersionBundle` from the verified artifact and registries;
+5. opens only the manifest-declared `finproof.duckdb` through the locked read-only database API;
+6. owns and closes the connection.
+
+Repositories accept this live session, never a caller `Path`, DuckDB connection, cursor, SQL string, or arbitrary registry bundle. Tests may use a private small verified-session factory; production code has no bypass constructor.
+
+## 14. Evaluation API
 
 ### Request
 
@@ -304,7 +344,7 @@ For a cross-product request, include segment and compatibility-partition counts.
 
 Concise Korean output containing result, relevant basis/date, evidence source, and material limitation. It must remain correct if the optional verbalizer is disabled. Heterogeneous results are labeled by product type and compatibility partition.
 
-## 14. Error behavior
+## 15. Error behavior
 
 For syntactically valid evaluation requests, prefer a valid five-field response with a safe answer rather than leaking an internal error.
 
@@ -315,7 +355,7 @@ For syntactically valid evaluation requests, prefer a valid five-field response 
 - deterministic failure -> internal correlation ID in logs and generic safe answer
 - request contract violation -> standard validation response, subject to organizer confirmation
 
-## 15. Operational endpoints
+## 16. Operational endpoints
 
 ```text
 GET /health/live

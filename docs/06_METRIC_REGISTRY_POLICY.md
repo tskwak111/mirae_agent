@@ -32,7 +32,10 @@ cross_product_policy
 quality_rules
 evidence_rule
 version
+queryable or explicit non_queryable_reason
 ```
+
+Every metric intended for Phase 2 execution is reachable through exactly one canonical field entry for each supported product type. A metric that is deliberately not executable declares `queryable: false` and one stable reason code; omission is not an implicit policy. Every planner field alias resolves to one canonical field or fails closed. The field registry maps canonical fields to the frozen `silver_*` table projections and their canonical `record_json` lineage, never directly from a caller-provided source-table or column string.
 
 ## 3. Operation-specific policies
 
@@ -146,3 +149,5 @@ Examples:
 ## 6. Versioning
 
 A metric policy change that changes results increments `metric_registry_version`, invalidates affected caches, updates golden expectations, and requires a decision-log entry. Do not edit registry meaning after submission freeze.
+
+Phase 2 packages the exact registry source files into the wheel through build mappings rather than maintaining copied YAML files. Tests require repository/resource byte identity, bounded duplicate-key-safe parsing, deep immutability, complete field/metric/alias cross references, and application-issued versions bound to the expected artifact logical hash.

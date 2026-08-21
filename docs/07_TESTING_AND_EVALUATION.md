@@ -103,7 +103,7 @@ expected evidence locators or coverage rules
 expected answer semantics
 ```
 
-`tests/golden/seed_cases.jsonl` starts critical cases; expand it only with reviewed expectations.
+`tests/golden/seed_cases.jsonl` starts critical semantic examples; its current `AI-handoff-seed` `expected_plan` objects are not canonical QueryPlans. Phase 2 may test their required/forbidden answer semantics, but strict plan tests use independently complete canonical fixtures. Expand or promote seed plans only with human-reviewed expectations.
 
 ## 4. Differential tests
 

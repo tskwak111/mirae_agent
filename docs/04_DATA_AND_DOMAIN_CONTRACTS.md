@@ -56,7 +56,9 @@ heterogeneous cross-product response    -> product
 
 `product` is a response envelope, not a normalized physical product table and not permission to union incomparable columns. A validated multi-product request becomes an `ExecutionBundle` with one native `ExecutionSegment` per product type. Each segment retains product type, native grain, typed clauses, top-k, compatibility partition, and evidence requirements.
 
-`top_k_scope=global` is permitted only for one compatibility partition. `top_k_scope=per_product_type` applies the limit independently to each product type; currency or metric policy may split a type further. Clauses are distributed through the field/metric registry. A clause that maps to no selected type, or whose meaning is materially ambiguous, requires clarification or an unsupported result rather than a guessed union.
+`top_k_scope=global` is permitted only for one final compatibility partition. `top_k_scope=per_product_type` applies the limit independently to each final compatibility partition within each product type; currency or metric policy may split a type further and every split is traced. The fixed order is entity resolution and literal filtering, product-specific state and metric eligibility, compatibility partitioning, aggregate or rank/tie calculation, then `top_k`. Clauses are distributed through the field/metric registry. A clause that maps to no selected type, or whose meaning is materially ambiguous, requires clarification or an unsupported result rather than a guessed union.
+
+An aggregate request contains one `AggregationSpec`. `count` counts the native result grain and has no target field. `min`, `max`, `sum`, and `avg` require one field whose registry entry authorizes that operation. At most two canonical fields may form the group key. Aggregate output preserves typed group keys, the typed aggregate value, included/excluded counts, policy IDs, and bounded evidence-summary identity.
 
 ## 4. Domestic bond contract
 
@@ -223,6 +225,7 @@ risk_name             <- zrin_fd_ivst_risk_grd_nm
 sale_status           <- sale_yn
 mirae_sale_flag       <- thco_sale_yn
 ksd_id                <- ksd_itm_no
+standard_item_id      <- std_itm_no
 family_candidate_key  <- rptt_ksd_itm_no
 returns               <- fd_wk1_ern_r, fd_mm1_ern_r, fd_mm3_ern_r,
                          fd_mm6_ern_r, fd_mm18_ern_r, fd_yr1_ern_r,

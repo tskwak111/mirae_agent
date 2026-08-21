@@ -78,18 +78,24 @@ generation's physical hashes in implementation status.
 All must pass:
 
 - QueryPlan schema and semantic validation
+- exact one-aggregation contract (`count` or one registry-approved `min`/`max`/`sum`/`avg`, with at most two group fields)
 - product/native-grain/heterogeneous-envelope/field/operator/value/top-k/top-k-scope safety
 - cross-product ExecutionBundle segmentation and compatibility partitioning
+- fixed filter/policy/partition/aggregate-or-rank/top-k order
 - exact/alias resolution and no fuzzy auto-merge
+- expected-verified `RuntimeArtifactSession`; no production bare-path or bare-connection query path
+- repository/package registry byte identity, complete field/metric/alias reachability, and artifact-derived versions
 - parameterized allowlisted SQL tests including injection attempts
 - lookup/screen/rank/compare/aggregate paths
 - pure-Python vs DuckDB differential equality
 - critical state/zero/tie/currency/period/rating regressions
-- evidence coverage 100% for seeded material claims
+- complete Source Fidelity plus bounded count/exclusion/rank/tie/partition/aggregate evidence coverage 100% for seeded material claims
 - claim verifier fail-closed
 - stable deterministic Korean answers
 - unsupported/clarify/recommendation-safety cases
-- full quality commands
+- AI handoff seeds exercised for semantics only, never accepted as canonical QueryPlans
+- one final full `pytest -q`, format, Ruff, mypy, source audit, and handoff gate on the unchanged candidate
+- one independent Critical/Important review followed by one documentation closure
 
 ## Phase 3 gate — Planner and API reliability
 
