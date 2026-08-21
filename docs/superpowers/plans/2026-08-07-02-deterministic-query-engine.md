@@ -370,6 +370,9 @@ uv run mypy src/finproof/storage src/finproof/query/__init__.py src/finproof/que
 
 **Files:**
 
+- Modify: `src/finproof/query/ast.py`
+- Modify: `src/finproof/query/compiler.py`
+- Modify: `src/finproof/query/segmenter.py`
 - Create: `src/finproof/quality/__init__.py`
 - Create: `src/finproof/quality/state.py`
 - Create: `src/finproof/quality/metric_policy.py`
@@ -383,6 +386,8 @@ uv run mypy src/finproof/storage src/finproof/query/__init__.py src/finproof/que
 - Create: `tests/unit/quality/test_ties.py`
 - Create: `tests/unit/quality/test_pipeline_order.py`
 - Create: `tests/integration/quality/test_official_quality_cases.py`
+- Modify: `tests/unit/query/test_execution_bundle.py`
+- Modify: `tests/unit/query/test_sql_compiler.py`
 
 **Interfaces:**
 
@@ -429,13 +434,21 @@ class PolicyEngine:
 17. `test_dual_lens_labels_appear_only_when_policy_difference_is_material`
 18. `test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts`
 
+Sixteen additional focused correction selectors are recorded separately from these
+18 planned nodes. They close only direct frozen-contract prerequisites discovered on
+the real query path: policy-input projection, physical ETF/ETN discrimination,
+targetless-count partitioning, state date boundaries, metric eligibility and dual
+lens retention, per-product partition limits, typed aggregate groups and aggregate
+top-k, and nonnumeric canonical-field sorting. They do not change the Phase 1
+artifact contract or registry bytes.
+
 **Task gate:**
 
 ```bash
-uv run pytest -q tests/unit/quality tests/integration/quality/test_official_quality_cases.py
-uv run ruff format --check src/finproof/quality tests/unit/quality tests/integration/quality/test_official_quality_cases.py
-uv run ruff check src/finproof/quality tests/unit/quality tests/integration/quality/test_official_quality_cases.py
-uv run mypy src/finproof/quality tests/unit/quality tests/integration/quality/test_official_quality_cases.py
+uv run pytest -q tests/unit/quality tests/integration/quality/test_official_quality_cases.py tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py
+uv run ruff format --check src/finproof/quality src/finproof/query/ast.py src/finproof/query/compiler.py src/finproof/query/segmenter.py tests/unit/quality tests/integration/quality/test_official_quality_cases.py tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py
+uv run ruff check src/finproof/quality src/finproof/query/ast.py src/finproof/query/compiler.py src/finproof/query/segmenter.py tests/unit/quality tests/integration/quality/test_official_quality_cases.py tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py
+uv run mypy src/finproof/quality src/finproof/query/ast.py src/finproof/query/compiler.py src/finproof/query/segmenter.py tests/unit/quality tests/integration/quality/test_official_quality_cases.py tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py
 ```
 
 **Commit:** stage exactly the Task 5 file map and commit `feat: enforce deterministic financial policy`.
