@@ -221,6 +221,7 @@ uv run mypy src/finproof/entity tests/unit/entity tests/integration/entity
 
 **Files:**
 
+- Modify: `src/finproof/domain/execution.py`
 - Create: `src/finproof/query/__init__.py`
 - Create: `src/finproof/query/fields.py`
 - Create: `src/finproof/query/semantic_validator.py`
@@ -264,7 +265,7 @@ class SqlCompiler:
 
 The compiler returns bounded pre-policy projections only. Aggregate functions, final ranking, ties, compatibility partitioning, and final top-k are not compiled here; Task 5 owns them after policy eligibility. Aggregate plans compile the raw target/group/policy/evidence fields required by the later pipeline.
 
-**Selectors — 18 mandatory nodes:**
+**Selectors — 12 mandatory RED→GREEN nodes plus 6 derived first-GREEN acceptances:**
 
 1. `test_query_module_skeleton_exposes_exact_interfaces`
 2. `test_field_registry_maps_every_canonical_field_to_closed_table_spec_projection`
@@ -285,13 +286,15 @@ The compiler returns bounded pre-policy projections only. Aggregate functions, f
 17. `test_query_injection_family_never_reaches_identifier_expression_or_statement_surface`
 18. `test_official_registry_validates_supported_plan_and_fail_closed_eligibility_plan`
 
+Selectors 8, 10, 14, 15, 17, and 18 are derived first-GREEN acceptances when the preceding generic guard already entails them. Do not weaken that guard or manufacture a failure. The other twelve selectors require focused RED→GREEN evidence.
+
 **Task gate:**
 
 ```bash
 uv run pytest -q tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
-uv run ruff format --check src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
-uv run ruff check src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
-uv run mypy src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
+uv run ruff format --check src/finproof/domain/execution.py src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
+uv run ruff check src/finproof/domain/execution.py src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
+uv run mypy src/finproof/domain/execution.py src/finproof/query tests/unit/query tests/security/test_query_injection.py tests/integration/query/test_official_semantic_validation.py
 ```
 
 **Commit:** stage exactly the Task 3 file map and commit `feat: validate and compile native query segments`.
