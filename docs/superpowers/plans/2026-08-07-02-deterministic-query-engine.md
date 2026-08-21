@@ -305,6 +305,7 @@ uv run mypy src/finproof/domain/execution.py src/finproof/query tests/unit/query
 
 **Files:**
 
+- Modify: `src/finproof/query/__init__.py`
 - Create: `src/finproof/storage/__init__.py`
 - Create: `src/finproof/storage/repositories/__init__.py`
 - Create: `src/finproof/storage/repositories/products.py`
@@ -335,7 +336,7 @@ class ReferenceExecutor:
 
 Raw results retain product type, native grain, product identity, requested/policy values and quality states, compatibility dimensions, evidence lookup keys, and candidate counts. They do not claim final rank, aggregate, tie, partition, or top-k.
 
-**Selectors — 12 mandatory nodes:**
+**Selectors — 5 mandatory RED→GREEN nodes plus 7 derived first-GREEN acceptances:**
 
 1. `test_repository_and_executor_skeleton_exposes_exact_interfaces`
 2. `test_repository_accepts_live_runtime_session_only`
@@ -350,13 +351,15 @@ Raw results retain product type, native grain, product identity, requested/polic
 11. `test_more_restrictive_literal_filter_cannot_increase_raw_candidate_count`
 12. `test_official_runtime_session_executes_one_read_only_supported_query`
 
+Selectors 4–6, 8, and 10–12 are derived first-GREEN acceptances when the preceding generic raw-result, ordered-executor, or independent-reference behavior already entails them. Do not manufacture a failure. The other five selectors require focused RED→GREEN evidence.
+
 **Task gate:**
 
 ```bash
 uv run pytest -q tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
-uv run ruff format --check src/finproof/storage src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
-uv run ruff check src/finproof/storage src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
-uv run mypy src/finproof/storage src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
+uv run ruff format --check src/finproof/storage src/finproof/query/__init__.py src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
+uv run ruff check src/finproof/storage src/finproof/query/__init__.py src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
+uv run mypy src/finproof/storage src/finproof/query/__init__.py src/finproof/query/executor.py src/finproof/query/reference.py tests/integration/query/test_executor.py tests/integration/runtime/test_official_runtime_session.py tests/differential tests/property/test_query_metamorphic.py
 ```
 
 **Commit:** stage exactly the Task 4 file map and commit `feat: execute bounded raw query segments`.
