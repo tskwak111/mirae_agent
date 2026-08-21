@@ -53,6 +53,14 @@ packages = ["src/finproof"]
 "schemas/artifact_manifest.schema.json" = "finproof/resources/schemas/artifact_manifest.schema.json"
 "schemas/quality_issue.schema.json" = "finproof/resources/schemas/quality_issue.schema.json"
 "config/expected_phase1_artifacts.json" = "finproof/resources/contracts/expected_phase1_artifacts.json"
+"config/datasets.yaml" = "finproof/resources/registries/datasets.yaml"
+"config/metric_registry.yaml" = "finproof/resources/registries/metric_registry.yaml"
+"config/field_registry.yaml" = "finproof/resources/registries/field_registry.yaml"
+"config/state_rules.yaml" = "finproof/resources/registries/state_rules.yaml"
+"config/quality_rules.yaml" = "finproof/resources/registries/quality_rules.yaml"
+"config/rating_scale.yaml" = "finproof/resources/registries/rating_scale.yaml"
+"config/answer_policy.yaml" = "finproof/resources/registries/answer_policy.yaml"
+"config/planner_catalog.yaml" = "finproof/resources/registries/planner_catalog.yaml"
 
 [tool.ruff]
 target-version = "py312"

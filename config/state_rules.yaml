@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 rules:
   bond.source_buyable:
     version: "1.0.0"
@@ -34,31 +34,3 @@ rules:
       - field: "pd_lste_dt"
         operator: "open_ended_or_gte_as_of"
         open_ended_tokens: ["99991231", ""]
-  overseas_listed.active_at_as_of:
-    version: "1.0.0"
-    product_types: ["overseas_etf", "overseas_etn"]
-    description_ko: "판매/정지/상장정보를 제공 범위에서 검증"
-    conditions:
-      - field: "pd_sale_yn"
-        operator: "truthy_when_defined"
-      - field: "pd_tr_yn"
-        operator: "not_suspended_when_defined"
-      - field: "pd_lstg_dt"
-        operator: "valid_or_lte_as_of"
-  public_fund.saleable:
-    version: "1.0.0"
-    product_types: ["public_fund"]
-    description_ko: "공모펀드 판매중"
-    conditions:
-      - field: "sale_yn"
-        operator: "eq"
-        value: "판매중"
-  public_fund.mirae_saleable:
-    version: "1.0.0"
-    product_types: ["public_fund"]
-    description_ko: "판매중이며 당사 판매대상"
-    all_of:
-      - rule: "public_fund.saleable"
-      - field: "thco_sale_yn"
-        operator: "eq"
-        value: "Y"

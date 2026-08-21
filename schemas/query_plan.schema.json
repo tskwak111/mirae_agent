@@ -13,208 +13,228 @@
     "filters",
     "metrics",
     "sort",
+    "aggregation",
     "top_k",
     "top_k_scope",
     "needs_clarification",
     "clarification_reason"
   ],
-  "properties": {
-    "intent": {
-      "enum": [
-        "lookup",
-        "screen",
-        "screen_rank",
-        "compare",
-        "aggregate",
-        "explain",
-        "clarify",
-        "unsupported"
+  "$defs": {
+    "scalar": {"type": ["string", "number", "boolean"]},
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1, "maxLength": 300},
+        "identifier_type": {
+          "enum": ["unknown", "product_id", "market_identifier", "isin", "ticker", "name"]
+        }
+      }
+    },
+    "scalar_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 100},
+        "operator": {"enum": ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "starts_with"]},
+        "value": {"$ref": "#/$defs/scalar"}
+      }
+    },
+    "set_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 100},
+        "operator": {"enum": ["in", "not_in"]},
+        "value": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {"$ref": "#/$defs/scalar"}
+        }
+      }
+    },
+    "range_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator", "value"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 100},
+        "operator": {"const": "between"},
+        "value": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {"$ref": "#/$defs/scalar"}
+        }
+      }
+    },
+    "missing_filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "operator"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 100},
+        "operator": {"enum": ["is_missing", "is_not_missing"]}
+      }
+    },
+    "filter": {
+      "oneOf": [
+        {"$ref": "#/$defs/scalar_filter"},
+        {"$ref": "#/$defs/set_filter"},
+        {"$ref": "#/$defs/range_filter"},
+        {"$ref": "#/$defs/missing_filter"}
       ]
     },
+    "sort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "direction"],
+      "properties": {
+        "field": {"type": "string", "minLength": 1, "maxLength": 100},
+        "direction": {"enum": ["asc", "desc"]}
+      }
+    },
+    "aggregation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["function", "field", "group_by"],
+          "properties": {
+            "function": {"const": "count"},
+            "field": {"type": "null"},
+            "group_by": {
+              "type": "array",
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1, "maxLength": 100}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["function", "field", "group_by"],
+          "properties": {
+            "function": {"enum": ["min", "max", "sum", "avg"]},
+            "field": {"type": "string", "minLength": 1, "maxLength": 100},
+            "group_by": {
+              "type": "array",
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {"type": "string", "minLength": 1, "maxLength": 100}
+            }
+          }
+        }
+      ]
+    }
+  },
+  "properties": {
+    "intent": {"enum": ["lookup", "screen", "screen_rank", "compare", "aggregate", "explain", "clarify", "unsupported"]},
     "product_types": {
       "type": "array",
-      "minItems": 1,
       "maxItems": 6,
       "uniqueItems": true,
-      "items": {
-        "enum": [
-          "domestic_bond",
-          "domestic_etf",
-          "domestic_etn",
-          "overseas_etf",
-          "overseas_etn",
-          "public_fund"
-        ]
-      }
+      "items": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]}
     },
-    "entities": {
-      "type": "array",
-      "maxItems": 10,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "text"
-        ],
-        "properties": {
-          "text": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 300
-          },
-          "identifier_type": {
-            "enum": [
-              "unknown",
-              "product_id",
-              "market_identifier",
-              "isin",
-              "ticker",
-              "name"
-            ]
-          }
-        }
-      }
-    },
-    "as_of_date": {
-      "type": "string",
-      "format": "date"
-    },
-    "result_grain": {
-      "enum": [
-        "product",
-        "instrument",
-        "listed_product",
-        "fund_item",
-        "fund_attribute",
-        "fund_family_candidate"
-      ]
-    },
-    "filters": {
-      "type": "array",
-      "maxItems": 20,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "field",
-          "operator",
-          "value"
-        ],
-        "properties": {
-          "field": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "operator": {
-            "enum": [
-              "eq",
-              "ne",
-              "gt",
-              "gte",
-              "lt",
-              "lte",
-              "in",
-              "not_in",
-              "between",
-              "contains",
-              "starts_with",
-              "is_missing",
-              "is_not_missing"
-            ]
-          },
-          "value": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 50,
-                "items": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "integer"
-                    },
-                    {
-                      "type": "boolean"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        }
-      }
-    },
+    "entities": {"type": "array", "maxItems": 10, "items": {"$ref": "#/$defs/entity"}},
+    "as_of_date": {"type": "string", "format": "date"},
+    "result_grain": {"enum": ["product", "instrument", "listed_product", "fund_item", "fund_attribute", "fund_family_candidate"]},
+    "filters": {"type": "array", "maxItems": 20, "items": {"$ref": "#/$defs/filter"}},
     "metrics": {
       "type": "array",
       "maxItems": 20,
       "uniqueItems": true,
-      "items": {
-        "type": "string",
-        "minLength": 1,
-        "maxLength": 100
-      }
+      "items": {"type": "string", "minLength": 1, "maxLength": 100}
     },
-    "sort": {
-      "type": "array",
-      "maxItems": 5,
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "field",
-          "direction"
-        ],
+    "sort": {"type": "array", "maxItems": 5, "items": {"$ref": "#/$defs/sort"}},
+    "aggregation": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/aggregation"}]},
+    "top_k": {"type": "integer", "minimum": 1, "maximum": 50},
+    "top_k_scope": {"enum": ["global", "per_product_type"]},
+    "needs_clarification": {"type": "boolean"},
+    "clarification_reason": {"type": "string", "maxLength": 1000}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"intent": {"const": "aggregate"}}, "required": ["intent"]},
+      "then": {"properties": {"aggregation": {"$ref": "#/$defs/aggregation"}}},
+      "else": {"properties": {"aggregation": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"intent": {"const": "clarify"}}, "required": ["intent"]},
+      "then": {
         "properties": {
-          "field": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "direction": {
-            "enum": [
-              "asc",
-              "desc"
-            ]
-          }
+          "filters": {"maxItems": 0},
+          "metrics": {"maxItems": 0},
+          "sort": {"maxItems": 0},
+          "needs_clarification": {"const": true},
+          "clarification_reason": {"minLength": 1}
         }
       }
     },
-    "top_k": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 50
+    {
+      "if": {"properties": {"intent": {"const": "unsupported"}}, "required": ["intent"]},
+      "then": {
+        "properties": {
+          "filters": {"maxItems": 0},
+          "metrics": {"maxItems": 0},
+          "sort": {"maxItems": 0},
+          "needs_clarification": {"const": false},
+          "clarification_reason": {"minLength": 1}
+        }
+      }
     },
-    "top_k_scope": {
-      "enum": [
-        "global",
-        "per_product_type"
-      ]
+    {
+      "if": {"properties": {"intent": {"not": {"enum": ["clarify", "unsupported"]}}}, "required": ["intent"]},
+      "then": {
+        "properties": {
+          "product_types": {"minItems": 1},
+          "needs_clarification": {"const": false},
+          "clarification_reason": {"maxLength": 0}
+        }
+      }
     },
-    "needs_clarification": {
-      "type": "boolean"
+    {
+      "if": {
+        "properties": {
+          "intent": {"not": {"enum": ["clarify", "unsupported"]}},
+          "result_grain": {"const": "product"}
+        },
+        "required": ["intent", "result_grain"]
+      },
+      "then": {"properties": {"product_types": {"minItems": 2}}}
     },
-    "clarification_reason": {
-      "type": "string",
-      "maxLength": 1000
+    {
+      "if": {
+        "properties": {
+          "product_types": {
+            "allOf": [
+              {"contains": {"const": "domestic_bond"}},
+              {"contains": {"enum": ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]}}
+            ]
+          }
+        },
+        "required": ["product_types"]
+      },
+      "then": {"properties": {"result_grain": {"const": "product"}}}
+    },
+    {
+      "if": {
+        "properties": {
+          "product_types": {
+            "allOf": [
+              {"contains": {"const": "public_fund"}},
+              {"contains": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn"]}}
+            ]
+          }
+        },
+        "required": ["product_types"]
+      },
+      "then": {"properties": {"result_grain": {"const": "product"}}}
     }
-  }
+  ]
 }

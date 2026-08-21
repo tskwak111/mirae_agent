@@ -1,91 +1,152 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "EvidenceRecord",
-  "type": "object",
-  "additionalProperties": false,
-  "required": [
-    "evidence_id",
-    "claim_id",
-    "product_id",
-    "source",
-    "raw_value",
-    "normalized_value",
-    "quality_status",
-    "transformation_rule"
-  ],
-  "properties": {
-    "evidence_id": {
-      "type": "string"
-    },
-    "claim_id": {
-      "type": "string"
-    },
-    "product_id": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "metric_id": {
-      "type": [
-        "string",
-        "null"
+  "$id": "https://finproof.local/schemas/evidence_record.schema.json",
+  "title": "FinProof Evidence",
+  "$defs": {
+    "value": {"type": ["string", "number", "boolean", "null"]},
+    "quality_status": {
+      "enum": [
+        "valid",
+        "missing_blank",
+        "missing_literal_null",
+        "sentinel_zero",
+        "sentinel_max_date",
+        "recorded_zero",
+        "recorded_zero_unverified",
+        "invalid_format",
+        "out_of_domain",
+        "constant_metric",
+        "stale",
+        "mixed_source_values",
+        "malformed_source_row"
       ]
     },
     "source": {
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "table_id",
-        "file_name",
-        "sheet_name",
-        "excel_row_number",
-        "column_name"
+        "source_table",
+        "source_file",
+        "source_sheet",
+        "source_row_number",
+        "source_column_name",
+        "source_column_number",
+        "source_column_letter",
+        "source_checksum",
+        "source_snapshot_date",
+        "source_applicable_date"
       ],
       "properties": {
-        "table_id": {
-          "type": "string"
-        },
-        "file_name": {
-          "type": "string"
-        },
-        "sheet_name": {
-          "type": "string"
-        },
-        "excel_row_number": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "column_name": {
-          "type": "string"
+        "source_table": {"type": "string", "minLength": 1},
+        "source_file": {"type": "string", "minLength": 1},
+        "source_sheet": {"type": "string", "minLength": 1},
+        "source_row_number": {"type": "integer", "minimum": 1},
+        "source_column_name": {"type": "string", "minLength": 1},
+        "source_column_number": {"type": "integer", "minimum": 1},
+        "source_column_letter": {"type": "string", "pattern": "^[A-Z]+$"},
+        "source_checksum": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_snapshot_date": {"type": "string", "format": "date"},
+        "source_applicable_date": {
+          "anyOf": [{"type": "null"}, {"type": "string", "format": "date"}]
         }
       }
     },
-    "raw_value": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "normalized_value": {},
-    "unit": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "as_of_date": {
-      "type": [
-        "string",
-        "null"
+    "normalized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_value",
+        "normalized_value",
+        "quality_status",
+        "rule_id",
+        "rule_version",
+        "source"
       ],
-      "format": "date"
+      "properties": {
+        "raw_value": {"type": "string"},
+        "normalized_value": {"$ref": "#/$defs/value"},
+        "quality_status": {"$ref": "#/$defs/quality_status"},
+        "rule_id": {"type": "string", "minLength": 1},
+        "rule_version": {"type": "string", "minLength": 1},
+        "source": {"$ref": "#/$defs/source"}
+      }
     },
-    "quality_status": {
-      "type": "string"
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "quality_status", "rule_id", "rule_version", "as_of_date", "inputs"],
+      "properties": {
+        "value": {"$ref": "#/$defs/value"},
+        "quality_status": {"$ref": "#/$defs/quality_status"},
+        "rule_id": {"type": "string", "minLength": 1},
+        "rule_version": {"type": "string", "minLength": 1},
+        "as_of_date": {"type": "string", "format": "date"},
+        "inputs": {"type": "array", "items": {"$ref": "#/$defs/source"}}
+      }
     },
-    "transformation_rule": {
-      "type": "string"
+    "direct_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "product_id", "field_id", "value"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "product_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
+        "field_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "value": {"$ref": "#/$defs/normalized"}
+      }
+    },
+    "derived_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_id", "product_id", "field_id", "value"],
+      "properties": {
+        "evidence_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "product_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
+        "field_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "value": {"$ref": "#/$defs/derived"}
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_id",
+        "kind",
+        "included_count",
+        "excluded_count",
+        "evidence_ids",
+        "policy_versions",
+        "validated_plan_sha256",
+        "version_bundle_sha256",
+        "artifact_manifest_hash"
+      ],
+      "properties": {
+        "summary_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "kind": {"enum": ["count", "exclusion", "rank", "tie", "partition", "aggregate"]},
+        "included_count": {"type": "integer", "minimum": 0},
+        "excluded_count": {"type": "integer", "minimum": 0},
+        "evidence_ids": {
+          "type": "array",
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "policy_versions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"type": "string"}
+        },
+        "validated_plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "version_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "artifact_manifest_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
     }
-  }
+  },
+  "oneOf": [
+    {"$ref": "#/$defs/direct_evidence"},
+    {"$ref": "#/$defs/derived_evidence"},
+    {"$ref": "#/$defs/summary"}
+  ]
 }
