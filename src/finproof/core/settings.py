@@ -5,7 +5,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 EVALUATION_SNAPSHOT_DATE = date(2026, 7, 11)
@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     expected_artifact_contract_path: Path = Path("config/expected_phase1_artifacts.json")
     default_top_k: int = Field(default=5, ge=1)
     max_top_k: int = Field(default=50, ge=1, le=100)
+    hcx_enabled: bool = False
+    hcx_api_key: SecretStr | None = None
+    hcx_model_name: str = "HCX-007"
 
     @model_validator(mode="before")
     @classmethod
@@ -83,6 +86,12 @@ class Settings(BaseSettings):
             raise ValueError("evaluation dataset_snapshot_date must be 2026-07-11")
         if self.default_top_k > self.max_top_k:
             raise ValueError("default_top_k must not exceed max_top_k")
+        if not self.hcx_model_name.startswith("HCX-"):
+            raise ValueError("hcx_model_name must start with HCX-")
+        if self.hcx_enabled and (
+            self.hcx_api_key is None or not self.hcx_api_key.get_secret_value().strip()
+        ):
+            raise ValueError("HCX API key is required when HCX is enabled")
         if not self.source_root.is_relative_to(self.repository_root):
             raise ValueError("source_root must be inside repository_root")
         if self.data_dir != self.source_root / "data":

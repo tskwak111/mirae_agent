@@ -1,0 +1,6 @@
+{
+  "status": {
+    "code": "42900",
+    "message": "Too many requests"
+  }
+}

@@ -1,0 +1,1 @@
+"""HyperCLOVA X planning boundary."""

@@ -1,0 +1,20 @@
+{
+  "status": {
+    "code": "20000",
+    "message": "OK"
+  },
+  "result": {
+    "created": 1791043155000,
+    "usage": {
+      "completionTokens": 80,
+      "promptTokens": 843,
+      "totalTokens": 923
+    },
+    "message": {
+      "role": "assistant",
+      "content": "{\"intent\":\"lookup\"}"
+    },
+    "finishReason": "stop",
+    "seed": 17
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "status": {
+    "code": "20000",
+    "message": "OK"
+  },
+  "result": {
+    "usage": {
+      "completionTokens": 0,
+      "promptTokens": 10,
+      "totalTokens": 10
+    },
+    "message": {
+      "role": "assistant"
+    }
+  }
+}
