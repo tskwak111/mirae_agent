@@ -1,12 +1,15 @@
 """Official artifact entity-resolution and exact-link profile."""
 
+from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
-def test_official_resolution_and_exact_link_profile_is_47() -> None:
+
+def test_official_resolution_and_exact_link_profile_is_47(
+    official_artifact_session: OfficialArtifactSession,
+) -> None:
     from finproof.entity import ExactCrossSourceLinkRepository
 
     assert hasattr(ExactCrossSourceLinkRepository, "all_links")
 
-    from tests.helpers.official_artifact_subprocess import official_artifact_session
     from tests.helpers.query_runtime import verified_artifacts
 
     from finproof.core.settings import ExecutionMode
@@ -17,7 +20,7 @@ def test_official_resolution_and_exact_link_profile_is_47() -> None:
     from finproof.registry.loader import RegistryBundle
     from finproof.runtime.session import RuntimeArtifactSession
 
-    official = official_artifact_session()
+    official = official_artifact_session
     verified = verified_artifacts()
     registries = RegistryBundle.from_package()
     versions = VersionBundle.from_runtime(

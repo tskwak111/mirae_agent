@@ -4,9 +4,12 @@ from collections import Counter
 from datetime import date
 from decimal import Decimal
 
+from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
-def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts() -> None:
-    from tests.helpers.official_artifact_subprocess import official_artifact_session
+
+def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
+    official_artifact_session: OfficialArtifactSession,
+) -> None:
     from tests.helpers.query_runtime import verified_artifacts
 
     from finproof.core.settings import ExecutionMode
@@ -37,7 +40,7 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts() -
     from finproof.registry.loader import RegistryBundle
     from finproof.runtime.session import RuntimeArtifactSession
 
-    official = official_artifact_session()
+    official = official_artifact_session
     verified = verified_artifacts()
     registries = RegistryBundle.from_package()
     session = RuntimeArtifactSession._issue(

@@ -6,7 +6,7 @@ registry_versions:
   dataset: 1.0.0
   quality: 1.0.0
   rating: 1.0.0
-  state: 1.0.0
+  state: 1.1.0
 sources:
   - table: PRBD01N001
     rows: 42394

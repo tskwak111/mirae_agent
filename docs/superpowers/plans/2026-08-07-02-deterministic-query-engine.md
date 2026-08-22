@@ -65,11 +65,22 @@ Task aggregates may reuse the session-scoped official artifact cache. They must 
 - Create: `tests/contract/test_phase2_schemas.py`
 - Create: `tests/contract/test_runtime_registry_resources.py`
 - Modify: `src/finproof/core/versions.py`
+- Modify: `src/finproof/data/artifacts/config.py`
+- Modify: `src/finproof/data/artifacts/manifest.py`
 - Modify: `src/finproof/resources/__init__.py`
+- Modify: `config/artifact_build.yaml`
+- Modify: `config/expected_phase1_artifacts.json`
 - Modify: `config/field_registry.yaml`
 - Modify: `config/state_rules.yaml`
+- Modify: `schemas/artifact_manifest.schema.json`
 - Modify: `schemas/query_plan.schema.json`
 - Modify: `schemas/evidence_record.schema.json`
+- Modify: `tests/contract/test_artifact_resources.py`
+- Modify: `tests/helpers/artifacts.py`
+- Modify: `tests/integration/artifacts/test_bronze_fixture_build.py`
+- Modify: `tests/unit/core/test_versions.py`
+- Modify: `tests/unit/data/artifacts/test_foundations.py`
+- Modify: `tools/verify_handoff.py`
 - Modify: `pyproject.toml`
 
 **Interfaces:**
@@ -470,6 +481,9 @@ uv run mypy src/finproof/quality src/finproof/query/ast.py src/finproof/query/co
 - Create: `src/finproof/answer/safety.py`
 - Create: `src/finproof/service/__init__.py`
 - Create: `src/finproof/service/answer_service.py`
+- Modify: `src/finproof/domain/answers.py`
+- Modify: `src/finproof/domain/evidence.py`
+- Modify: `src/finproof/domain/execution.py`
 - Create: `tests/unit/evidence/test_builder.py`
 - Create: `tests/unit/evidence/test_claim_verifier.py`
 - Create: `tests/unit/answer/test_renderer.py`

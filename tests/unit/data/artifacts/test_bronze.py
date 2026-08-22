@@ -255,7 +255,7 @@ def test_bronze_uses_consumer_retained_rating_registry_without_reopening_input(
         ArtifactInputKind.ARTIFACT_BUILD_CONFIG: b"{}",
         ArtifactInputKind.DATASET_REGISTRY: (b'version: "1.0.0"\nsnapshot_date: "2026-07-11"\n'),
         ArtifactInputKind.QUALITY_RULE_REGISTRY: b'version: "1.0.0"\n',
-        ArtifactInputKind.STATE_RULE_REGISTRY: b'version: "1.0.0"\n',
+        ArtifactInputKind.STATE_RULE_REGISTRY: b'version: "1.1.0"\n',
     }
 
     class Identity:

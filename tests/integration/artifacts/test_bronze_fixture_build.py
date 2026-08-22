@@ -125,7 +125,7 @@ def test_bronze_ingestion_accepts_none_consumer_without_rescan(
         ("datasets.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
         ("quality_rules.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
         ("rating_scale.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
-        ("state_rules.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+        ("state_rules.yaml", b'version: "1.1.0"', b'version: "9.9.9"'),
     ],
 )
 def test_bronze_ingestion_rejects_invalid_held_config_before_workbook_iteration(

@@ -172,7 +172,21 @@ def test_native_segments_execute_once_in_frozen_product_type_order() -> None:
         context=_context(),
     )
     bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
-    connection = QueueConnection(batches=((("B1", "valid"),), (("F1", "valid"),)))
+    connection = QueueConnection(
+        batches=(
+            (
+                (
+                    "B1",
+                    "valid",
+                    Decimal("10"),
+                    "valid",
+                    date(2027, 7, 11),
+                    "valid",
+                ),
+            ),
+            (("F1", "valid"),),
+        )
+    )
     session = _session(connection)
 
     raw = QueryExecutor(session).execute(bundle)
@@ -212,7 +226,40 @@ def test_same_grain_multi_type_rows_preserve_product_type_and_native_identity() 
         context=_context(),
     )
     bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
-    session = _session(QueueConnection(batches=((("ETF1", "valid"),), (("ETN1", "valid"),))))
+    session = _session(
+        QueueConnection(
+            batches=(
+                (
+                    (
+                        "ETF1",
+                        "valid",
+                        True,
+                        "valid",
+                        False,
+                        "valid",
+                        date(2020, 1, 1),
+                        "valid",
+                        None,
+                        "missing",
+                    ),
+                ),
+                (
+                    (
+                        "ETN1",
+                        "valid",
+                        True,
+                        "valid",
+                        False,
+                        "valid",
+                        date(2020, 1, 1),
+                        "valid",
+                        None,
+                        "missing",
+                    ),
+                ),
+            )
+        )
+    )
 
     raw = QueryExecutor(session).execute(bundle)
 

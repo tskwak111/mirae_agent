@@ -1,5 +1,6 @@
 """Independent reference versus DuckDB raw projections."""
 
+from datetime import date
 from decimal import Decimal
 
 import duckdb
@@ -109,6 +110,16 @@ def test_duckdb_and_reference_raw_projections_are_equal() -> None:
             values=(
                 RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
                 RawFieldValue(field_id="buy_yield", value=value, quality_status="valid"),
+                RawFieldValue(
+                    field_id="buyable_quantity",
+                    value=Decimal("10"),
+                    quality_status="valid",
+                ),
+                RawFieldValue(
+                    field_id="maturity_date",
+                    value=date(2027, 7, 11),
+                    quality_status="valid",
+                ),
             ),
         )
         for product_id, value in (("B1", Decimal("3")), ("B2", Decimal("1")))
@@ -117,15 +128,21 @@ def test_duckdb_and_reference_raw_projections_are_equal() -> None:
     connection.execute(
         "CREATE TABLE silver_bond_instrument ("
         "product_id VARCHAR, product_id__quality_status VARCHAR, "
-        "buy_yield DECIMAL(38, 18), buy_yield__quality_status VARCHAR)"
+        "buy_yield DECIMAL(38, 18), buy_yield__quality_status VARCHAR, "
+        "buyable_quantity DECIMAL(38, 18), buyable_quantity__quality_status VARCHAR, "
+        "maturity_date DATE, maturity_date__quality_status VARCHAR)"
     )
     connection.executemany(
-        "INSERT INTO silver_bond_instrument VALUES (?, ?, ?, ?)",
+        "INSERT INTO silver_bond_instrument VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         tuple(
             (
                 row.product_id,
                 "valid",
                 next(value.value for value in row.values if value.field_id == "buy_yield"),
+                "valid",
+                Decimal("10"),
+                "valid",
+                date(2027, 7, 11),
                 "valid",
             )
             for row in fixture_rows

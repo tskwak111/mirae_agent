@@ -16,7 +16,7 @@ def test_version_bundle_defaults_match_checked_in_contracts() -> None:
         "planner_version": "1.0.0",
         "quality_rule_version": "1.0.0",
         "rating_rule_version": "1.0.0",
-        "state_rule_version": "1.0.0",
+        "state_rule_version": "1.1.0",
     }
 
 

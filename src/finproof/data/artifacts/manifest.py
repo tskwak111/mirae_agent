@@ -506,7 +506,7 @@ class ArtifactVersions(BaseModel):
 
     dataset_version: date
     metric_registry_version: Literal["1.0.0"]
-    state_rule_version: Literal["1.0.0"]
+    state_rule_version: Literal["1.1.0"]
     quality_rule_version: Literal["1.0.0"]
     rating_rule_version: Literal["1.0.0"]
     answer_policy_version: Literal["1.0.0"]

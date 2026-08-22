@@ -63,7 +63,8 @@ def artifact_staging_settings(repository_root: Path) -> Any:
         "rating_scale.yaml",
         "state_rules.yaml",
     ):
-        (config_root / name).write_text("version: 1.0.0\n", encoding="utf-8")
+        version = "1.1.0" if name == "state_rules.yaml" else "1.0.0"
+        (config_root / name).write_text(f"version: {version}\n", encoding="utf-8")
     schema_root = repository_root / "schemas"
     schema_root.mkdir()
     for name in ("artifact_manifest.schema.json", "quality_issue.schema.json"):
@@ -227,7 +228,7 @@ def manifest_payload() -> dict[str, Any]:
         "versions": {
             "dataset_version": date(2026, 7, 11),
             "metric_registry_version": "1.0.0",
-            "state_rule_version": "1.0.0",
+            "state_rule_version": "1.1.0",
             "quality_rule_version": "1.0.0",
             "rating_rule_version": "1.0.0",
             "answer_policy_version": "1.0.0",

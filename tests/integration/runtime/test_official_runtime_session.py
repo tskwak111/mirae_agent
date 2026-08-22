@@ -2,9 +2,12 @@
 
 from decimal import Decimal
 
+from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
-def test_official_runtime_session_executes_one_read_only_supported_query() -> None:
-    from tests.helpers.official_artifact_subprocess import official_artifact_session
+
+def test_official_runtime_session_executes_one_read_only_supported_query(
+    official_artifact_session: OfficialArtifactSession,
+) -> None:
     from tests.helpers.query_runtime import verified_artifacts
     from tests.unit.query.test_semantic_validator import _context, _plan
 
@@ -22,7 +25,7 @@ def test_official_runtime_session_executes_one_read_only_supported_query() -> No
     from finproof.registry.loader import RegistryBundle
     from finproof.runtime.session import RuntimeArtifactSession
 
-    official = official_artifact_session()
+    official = official_artifact_session
     verified = verified_artifacts()
     registries = RegistryBundle.from_package()
     session = RuntimeArtifactSession._issue(

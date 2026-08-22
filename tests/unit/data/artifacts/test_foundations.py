@@ -94,7 +94,7 @@ registry_versions:
   dataset: 1.0.0
   quality: 1.0.0
   rating: 1.0.0
-  state: 1.0.0
+  state: 1.1.0
 sources:
   - table: PRBD01N001
     rows: 42394
@@ -193,7 +193,7 @@ def _synthetic_build_settings(repository_root: Path) -> object:
         "rating_scale.yaml",
         "state_rules.yaml",
     ):
-        content = "version: 1.0.0\n"
+        content = "version: 1.1.0\n" if name == "state_rules.yaml" else "version: 1.0.0\n"
         if name == "datasets.yaml":
             content += 'snapshot_date: "2026-07-11"\n'
         (config_dir / name).write_text(content, encoding="utf-8")
@@ -1633,8 +1633,9 @@ def test_build_registry_versions_reject_every_mismatch(
     }.get(case)
     if config_file is not None:
         path = config_dir / config_file
+        expected_version = "1.1.0" if case == "state-version" else "1.0.0"
         path.write_text(
-            path.read_text(encoding="utf-8").replace("1.0.0", "9.9.9", 1),
+            path.read_text(encoding="utf-8").replace(expected_version, "9.9.9", 1),
             encoding="utf-8",
         )
     elif case == "snapshot":

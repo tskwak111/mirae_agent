@@ -222,7 +222,7 @@
       "properties": {
         "dataset_version": {"const": "2026-07-11", "format": "date"},
         "metric_registry_version": {"const": "1.0.0"},
-        "state_rule_version": {"const": "1.0.0"},
+        "state_rule_version": {"const": "1.1.0"},
         "quality_rule_version": {"const": "1.0.0"},
         "rating_rule_version": {"const": "1.0.0"},
         "answer_policy_version": {"const": "1.0.0"},

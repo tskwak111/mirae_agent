@@ -244,7 +244,7 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
 
     query_path = ROOT / "schemas/query_plan.schema.json"
     provider_path = ROOT / "schemas/hcx_query_plan.schema.json"
-    required = {
+    provider_required = {
         "intent",
         "product_types",
         "entities",
@@ -258,9 +258,10 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
         "needs_clarification",
         "clarification_reason",
     }
+    query_required = provider_required | {"aggregation"}
     if query_path.is_file():
         query = load_json(query_path)
-        if set(query.get("required", [])) != required:
+        if set(query.get("required", [])) != query_required:
             errors.append("query_plan schema required fields differ from frozen contract")
         grains = set(query.get("properties", {}).get("result_grain", {}).get("enum", []))
         if "product" not in grains:
@@ -275,7 +276,7 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
             errors.append(
                 f"HCX provider schema contains unsupported keywords: {sorted(unsupported)!r}"
             )
-        if set(provider.get("required", [])) != required:
+        if set(provider.get("required", [])) != provider_required:
             errors.append("HCX provider schema required fields differ from canonical contract")
         if provider.get("type") != "object":
             errors.append("HCX provider schema root type must be object")

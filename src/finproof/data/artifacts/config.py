@@ -244,7 +244,7 @@ _EXPECTED_ARTIFACT_CONFIG: dict[str, Any] = {
         "dataset": "1.0.0",
         "quality": "1.0.0",
         "rating": "1.0.0",
-        "state": "1.0.0",
+        "state": "1.1.0",
     },
     "sources": (
         {
@@ -475,7 +475,7 @@ def validate_build_registry_versions(
             or versions.dataset_version != date(2026, 7, 11)
             or versions.quality_rule_version != "1.0.0"
             or versions.rating_rule_version != "1.0.0"
-            or versions.state_rule_version != "1.0.0"
+            or versions.state_rule_version != "1.1.0"
         ):
             raise ValueError("build registry version mismatch")
     except (OSError, SafeFileReadError, TypeError, ValueError, yaml.YAMLError) as exc:
@@ -539,7 +539,7 @@ def _validate_registry_payloads(
         or versions.dataset_version != date(2026, 7, 11)
         or versions.quality_rule_version != "1.0.0"
         or versions.rating_rule_version != "1.0.0"
-        or versions.state_rule_version != "1.0.0"
+        or versions.state_rule_version != "1.1.0"
     ):
         raise ValueError("build registry version mismatch")
 
@@ -550,7 +550,7 @@ def _require_config_versions(versions: VersionBundle) -> None:
         or versions.dataset_version != date(2026, 7, 11)
         or versions.quality_rule_version != "1.0.0"
         or versions.rating_rule_version != "1.0.0"
-        or versions.state_rule_version != "1.0.0"
+        or versions.state_rule_version != "1.1.0"
     ):
         raise ValueError("artifact config version bundle mismatch")
 
