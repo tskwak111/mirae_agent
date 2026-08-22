@@ -143,16 +143,14 @@ def inspect_held_regular_file(
                     follow_symlinks=False,
                 )
             except FileNotFoundError:
-                if is_leaf:
-                    _validate_open_chain(
-                        descriptors,
-                        root_identity,
-                        child_records,
-                        expected_directory_seen=expected_directory_seen,
-                    )
-                    result = SafeFileReadResult(SafeFileReadState.MISSING)
-                    break
-                raise
+                _validate_open_chain(
+                    descriptors,
+                    root_identity,
+                    child_records,
+                    expected_directory_seen=expected_directory_seen,
+                )
+                result = SafeFileReadResult(SafeFileReadState.MISSING)
+                break
             expected_type = stat.S_IFREG if is_leaf else stat.S_IFDIR
             if stat.S_IFMT(before.st_mode) != expected_type:
                 raise SafeFileReadError("path component has an unsafe type")

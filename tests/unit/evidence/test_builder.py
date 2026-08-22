@@ -311,6 +311,10 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
     direct_records = tuple(
         dict(zip(payload["direct_fields"], item, strict=True)) for item in payload["direct"]
     )
+    expected_values = {
+        "buy_yield": ("2.25", "2.25", "BUY_YIELD"),
+        "buyable_quantity": ("10", "10", "BUYABLE_QUANTITY"),
+    }
     assert {item["evidence_id"] for item in direct_records} == {item.evidence_id for item in direct}
     assert all(
         payload["sources"][item["source"]]["source_table"] == "PRBD01N001"
@@ -318,13 +322,12 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
         and payload["sources"][item["source"]]["source_sheet"]
         and payload["sources"][item["source"]]["source_checksum"]
         and payload["sources"][item["source"]]["source_snapshot_date"] == "2026-07-11"
-        and item["raw_value"] == "2.25"
-        and item["normalized_value"] == "2.25"
+        and (item["raw_value"], item["normalized_value"], item["source_column_name"])
+        == expected_values[item["field_id"]]
         and item["quality_status"] == "valid"
         and item["rule_id"]
         and item["rule_version"]
         and item["source_row_number"] == 77
-        and item["source_column_name"] in {"BUY_YIELD", "BUYABLE_QUANTITY"}
         and item["source_column_number"]
         and item["source_column_letter"]
         and item["source_applicable_date"] is None
