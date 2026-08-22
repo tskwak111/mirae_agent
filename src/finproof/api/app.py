@@ -3,6 +3,7 @@
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -54,7 +55,7 @@ def create_app(
     async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
         correlation_id = getattr(request.state, "correlation_id", None)
         if type(correlation_id) is not str:
-            correlation_id = None
+            correlation_id = uuid4().hex
         _LOGGER.error(
             "unexpected evaluation failure",
             extra={

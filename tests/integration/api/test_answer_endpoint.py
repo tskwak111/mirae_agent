@@ -223,6 +223,30 @@ def test_answer_internal_error_reuses_route_correlation_and_logs_redacted_event(
     assert question not in caplog.text
 
 
+def test_pre_orchestrator_failure_logs_the_safe_response_correlation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    @contextmanager
+    def open_session(_: Settings) -> Generator[object, None, None]:
+        yield object()
+
+    app = create_app(
+        Settings(),
+        dependencies=ApiDependencies(
+            open_session=open_session,
+            create_orchestrator=lambda _: cast(AnswerOrchestrator, object()),
+        ),
+    )
+    caplog.set_level(logging.ERROR, logger="finproof.api")
+    with TestClient(app, raise_server_exceptions=False) as client:
+        response = client.get("/answer", params={"question_id": "Q", "question": "질문"})
+
+    correlation_id = json.loads(response.json()["think_trace"])["correlation_id"]
+    assert isinstance(correlation_id, str)
+    assert correlation_id
+    assert cast(dict[str, object], caplog.records[0].__dict__)["correlation_id"] == correlation_id
+
+
 def test_lifespan_opens_before_orchestrator_and_closes_after_client_shutdown() -> None:
     events: list[str] = []
 
