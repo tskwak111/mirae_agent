@@ -1,6 +1,7 @@
 """Deterministic answer-service composition."""
 
 from hashlib import sha256
+from time import monotonic
 
 from finproof.answer import AnswerRenderer
 from finproof.domain.answers import AnswerRequest, AnswerResult
@@ -58,6 +59,7 @@ class AnswerService:
                 plan=plan,
                 evidence=evidence,
                 trace=self._trace(request=request, plan=plan),
+                latency_ms={"database": 0, "evidence": 0},
             )
         if self._resolver is None:
             self._resolver = EntityResolver(EntityIndex.from_session(self._session))
@@ -80,8 +82,11 @@ class AnswerService:
             context=context,
         )
         bundle = self._segmenter.build(validated, context=context)
+        database_started = monotonic()
         raw = self._executor.execute(bundle)
+        database_latency = _elapsed_ms(database_started)
         policy_result = self._policy.apply(raw, bundle=bundle)
+        evidence_started = monotonic()
         evidence = self._evidence_builder.build(
             plan=validated,
             policy_result=policy_result,
@@ -99,6 +104,10 @@ class AnswerService:
                 policy_result=policy_result,
                 evidence=evidence,
             ),
+            latency_ms={
+                "database": database_latency,
+                "evidence": _elapsed_ms(evidence_started),
+            },
         )
 
     def _result(
@@ -108,12 +117,16 @@ class AnswerService:
         plan: QueryPlan,
         evidence: EvidenceBundle,
         trace: ExecutionTrace,
+        latency_ms: dict[str, int],
     ) -> AnswerResult:
+        render_started = monotonic()
         draft = self._renderer.render(request=request, plan=plan, evidence=evidence)
         return AnswerResult(
             answer=self._verifier.verify(draft, evidence),
             retrieved_context=serialize_evidence_context(evidence),
-            trace=trace,
+            trace=trace.model_copy(
+                update={"latency_ms": {**latency_ms, "render": _elapsed_ms(render_started)}}
+            ),
         )
 
     def _trace(
@@ -267,3 +280,7 @@ def _matches_currency(values: tuple[RawFieldValue, ...], currency: str | None) -
     return currency is None or any(
         item.field_id == "currency" and item.value == currency for item in values
     )
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, int((monotonic() - started) * 1000))

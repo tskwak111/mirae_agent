@@ -5,7 +5,7 @@ from contextlib import AbstractContextManager
 from typing import Protocol, runtime_checkable
 
 from finproof.core.settings import Settings
-from finproof.domain.answers import AnswerResult
+from finproof.domain.answers import AnswerRequest, AnswerResult
 from finproof.runtime import open_runtime_artifact_session
 
 
@@ -13,9 +13,7 @@ from finproof.runtime import open_runtime_artifact_session
 class AnswerOrchestrator(Protocol):
     """The one application operation exposed by the evaluation transport."""
 
-    def answer(
-        self, *, question_id: str, question: str, correlation_id: str
-    ) -> Awaitable[AnswerResult]: ...
+    def answer(self, request: AnswerRequest) -> Awaitable[AnswerResult]: ...
 
 
 class ApiDependencies:

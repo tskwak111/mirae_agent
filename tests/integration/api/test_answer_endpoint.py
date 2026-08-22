@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from finproof.api.app import create_app
 from finproof.api.dependencies import AnswerOrchestrator, ApiDependencies
 from finproof.core.settings import ExecutionMode, Settings
-from finproof.domain.answers import AnswerResult, VerifiedAnswer
+from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import Intent, ResultGrain, TopKScope
 
@@ -22,10 +22,10 @@ from finproof.domain.query_plan import Intent, ResultGrain, TopKScope
 class StubOrchestrator:
     def __init__(self, *, failure: bool = False) -> None:
         self.failure = failure
-        self.calls: list[tuple[str, str, str]] = []
+        self.calls: list[AnswerRequest] = []
 
-    async def answer(self, *, question_id: str, question: str, correlation_id: str) -> AnswerResult:
-        self.calls.append((question_id, question, correlation_id))
+    async def answer(self, request: AnswerRequest) -> AnswerResult:
+        self.calls.append(request)
         if self.failure:
             raise RuntimeError("/Users/example/secret-path")
         return AnswerResult(
@@ -53,8 +53,7 @@ class InvalidResultOrchestrator:
     def __init__(self, result: object) -> None:
         self._result = result
 
-    async def answer(self, *, question_id: str, question: str, correlation_id: str) -> AnswerResult:
-        del question_id, question, correlation_id
+    async def answer(self, _: AnswerRequest) -> AnswerResult:
         return cast(AnswerResult, self._result)
 
 
@@ -135,7 +134,9 @@ def test_answer_echoes_raw_request_and_returns_exact_schema(
         "think_trace",
         "answer",
     }
-    assert stub_orchestrator.calls[0][:2] == ("Q-001", "미국 ETF 총보수 알려줘")
+    assert stub_orchestrator.calls[0] == AnswerRequest(
+        question_id="Q-001", question="미국 ETF 총보수 알려줘"
+    )
     trace = json.loads(response.json()["think_trace"])
     assert set(trace) == set(ExecutionTrace.model_fields)
     assert trace["correlation_id"] != "service-correlation"
@@ -213,7 +214,6 @@ def test_answer_internal_error_reuses_route_correlation_and_logs_redacted_event(
         "answer",
     }
     correlation_id = json.loads(response.json()["think_trace"])["correlation_id"]
-    assert orchestrator.calls[0][2] == correlation_id
     assert len(caplog.records) == 1
     record = cast(dict[str, object], caplog.records[0].__dict__)
     assert record["correlation_id"] == correlation_id

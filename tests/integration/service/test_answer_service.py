@@ -50,6 +50,7 @@ def test_clarify_and_unsupported_answers_execute_no_repository_query(
 
     assert connection.calls == 0
     assert result.answer.text
+    assert set(result.trace.latency_ms) == {"database", "evidence", "render"}
     session._close()
 
 

@@ -1,13 +1,14 @@
 """The sole public evaluation route."""
 
 from typing import Annotated
-from uuid import uuid4
 
 from fastapi import APIRouter, Query, Request
 
 from finproof.api.dependencies import AnswerOrchestrator
 from finproof.api.models import EvaluationResponse
+from finproof.core.correlation import bind_correlation_id
 from finproof.data.artifacts.hashing import canonical_json_bytes
+from finproof.domain.answers import AnswerRequest
 
 router = APIRouter()
 
@@ -22,11 +23,11 @@ async def answer(
     orchestrator = request.app.state.answer_orchestrator
     if not isinstance(orchestrator, AnswerOrchestrator):
         raise RuntimeError("evaluation orchestrator differs")
-    correlation_id = uuid4().hex
-    request.state.correlation_id = correlation_id
-    result = await orchestrator.answer(
-        question_id=question_id, question=question, correlation_id=correlation_id
-    )
+    with bind_correlation_id() as correlation_id:
+        request.state.correlation_id = correlation_id
+        result = await orchestrator.answer(
+            AnswerRequest(question_id=question_id, question=question)
+        )
     trace = result.trace.model_copy(update={"correlation_id": correlation_id})
     return EvaluationResponse(
         question_id=question_id,
