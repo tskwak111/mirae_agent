@@ -163,4 +163,5 @@ documentation were not touched.
 
 ## Commit
 
-PENDING.
+- Implementation checkpoint: `f5140c6` (`feat: complete phase 3 runtime delivery gate`).
+- Evidence/report follow-up: this report-only commit; its final hash is included in the handoff.
