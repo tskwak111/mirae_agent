@@ -1,8 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-21 — Phase 1 Task 5 Checkpoints 1–8 and the Phase 1 gate are
-complete. The final constrained review at `cf32d55` returned Critical 0 / Important 0.
-No Phase 2 work has started.
+**Last updated:** 2026-08-22 — Phase 2 Tasks 1–6 and the Phase 2 gate are complete.
+The final scoped review at `08cab98` returned Critical 0 / Important 0.
 
 ## Frozen baseline
 
@@ -28,13 +27,13 @@ Plan: `docs/superpowers/plans/2026-08-07-01-repository-and-data-foundation.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md`
 
-- [ ] Task 1: domain contracts and registry loaders
-- [ ] Task 2: entity resolution and exact cross-source links
-- [ ] Task 3: QueryPlan semantic validator and allowlisted SQL compiler
-- [ ] Task 4: repositories/executor and differential reference
-- [ ] Task 5: state, metric, comparability, and conditional dual-lens policy
-- [ ] Task 6: evidence, claim verifier, deterministic Korean renderer, and core service
-- [ ] Phase 2 gate passed
+- [x] Task 1: domain contracts and registry loaders
+- [x] Task 2: entity resolution and exact cross-source links
+- [x] Task 3: QueryPlan semantic validator and allowlisted SQL compiler
+- [x] Task 4: repositories/executor and differential reference
+- [x] Task 5: state, metric, comparability, and conditional dual-lens policy
+- [x] Task 6: evidence, claim verifier, deterministic Korean renderer, and core service
+- [x] Phase 2 gate passed
 
 ## Phase 3 — HyperCLOVA X planner and evaluation API
 
@@ -60,9 +59,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 2 Task 1: implement deterministic domain contracts and registry loaders from
-the approved Phase 2 plan.** Phase 1 closure is complete; this status records the next
-task but does not start Phase 2.
+**Phase 3 Task 1: implement the typed CLOVA Studio transport and recorded HCX
+contract fixtures from the approved Phase 3 plan.** Phase 2 closure is complete; no
+Phase 3 implementation has started.
 
 ## Phase 1 Task 5 design and plan record
 
@@ -986,3 +985,58 @@ Exact next development task:
 staging, ordering, spill, and cleanup behavior from the approved dedicated plan.** Do
 not mark Task 5 or the Phase 1 gate complete before official reproduction and review
 evidence exists.
+
+## Phase 2 closure — deterministic query engine
+
+Phase 2 was implemented and reviewed on 2026-08-22. The implementation lineage is
+`fb9796a`, `d9b1219`, `2fd5bbd`, `ae1f13c`, `a00937b`, `b84b0f2`, `2c0d8b0`,
+`438c04c`, `3f5266f`, `c1e1a7e`, `61a9feb`, `b11c19a`, and `08cab98`.
+
+Required-versus-derived selector accounting from the RED/GREEN ledger:
+
+- Task 1: 19 focused RED selectors and 2 derived first-GREEN acceptances; aggregate
+  40 passed.
+- Task 2: 10 focused RED selectors and 2 derived first-GREEN acceptances; aggregate
+  12 passed.
+- Task 3: 12 focused RED selectors and 6 derived first-GREEN acceptances; aggregate
+  18 passed.
+- Task 4: 5 focused RED selectors and 7 derived first-GREEN acceptances; aggregate
+  15 passed.
+- Task 5: 16 planned focused RED selectors, 2 derived first-GREEN acceptances, and
+  16 direct-contract correction REDs; local aggregate 35 passed, expanded aggregate
+  55 passed before the final focused field-sort correction, whose three-selector
+  predecessor family passed.
+- Task 6: all 17 mandatory plan selectors closed with recorded focused RED/GREEN or
+  aggregate acceptance; its task aggregate was 41 passed. Review corrections each
+  retained separate focused RED evidence; the final affected aggregate was 64 passed
+  in 3.31 seconds.
+
+Final unchanged-candidate gate after the last direct D-029 correction:
+
+- `uv run ruff format --check .` — PASS: 229 files already formatted.
+- `uv run ruff check .` — PASS.
+- fresh non-incremental and standard `uv run mypy src tests tools` — PASS: no issues
+  in 229 source files.
+- `uv run pytest -q` — PASS: 2,495 tests and 4 expected serialization warnings in
+  7,092.78 seconds (1:58:12).
+- source audit — PASS: 145,393 rows at snapshot `2026-07-11`.
+- handoff verification — PASS: 61 required files, 9 official inputs, and 41,384,928
+  source bytes.
+
+Independent review of `438c04c..c1e1a7e` began at Critical 0 / Important 4. Bounded
+focused corrections closed rank/aggregate projection, native/partition identity,
+candidate identity, and the valid `top_k=50` boundary. The final scope-only review of
+`08cab98` verified wrong and omitted aggregate scope rejection plus normal renderer
+claims (`3 passed in 0.24 s`) and returned Critical 0 / Important 0.
+
+No official question was guessed. Q-001–Q-010 retain their recorded safe defaults;
+Phase 3 is directly constrained by Q-004–Q-007 and Q-010. Open internal items A-004,
+A-007, A-012, and A-014 remain fail-closed/deferred exactly as recorded in
+`docs/10_DECISION_LOG.md`. Adjacent hardening ideas from review—stricter execution
+trace version-map shape and deeper immutability of frozen mapping fields—remain
+backlog and did not block Phase 2.
+
+Exact next development task:
+
+**Phase 3 Task 1: implement the typed CLOVA Studio transport and recorded HCX
+contract fixtures.** Stop here; Phase 3 has not started.

@@ -592,3 +592,32 @@ After 0 Critical / 0 Important:
 - Record exact implementation/review commit lineage, mandatory/derived selector counts, full gate outputs, unresolved official questions, and the exact next Phase 3 task.
 - Commit once as `docs: close Phase 2 deterministic engine`.
 - Verify `git diff --check`, expected tracked-file inventory, and empty porcelain status.
+
+## Phase 2 closure evidence — 2026-08-22
+
+- [x] Task 1 — runtime contracts and registries (`fb9796a`): 19 focused RED, 2
+  derived first-GREEN; 40-test aggregate.
+- [x] Task 2 — controlled resolution (`d9b1219`): 10 focused RED, 2 derived
+  first-GREEN; 12-test aggregate.
+- [x] Task 3 — semantic validation and native compilation (`ae1f13c`): 12 focused
+  RED, 6 derived first-GREEN; 18-test aggregate.
+- [x] Task 4 — bounded execution (`b84b0f2`): 5 focused RED, 7 derived first-GREEN;
+  15-test aggregate.
+- [x] Task 5 — deterministic financial policy (`438c04c`): 16 planned focused RED,
+  2 derived first-GREEN, and 16 direct-contract correction REDs; 35-test local and
+  55-test expanded aggregates plus the final three-selector correction family.
+- [x] Task 6 — evidence and verified answers (`c1e1a7e`): 17 mandatory selectors;
+  41-test task aggregate.
+- [x] Frozen-contract alignment and bounded review corrections (`3f5266f`, `61a9feb`,
+  `b11c19a`, `08cab98`): final affected aggregate 64 passed in 3.31 seconds.
+- [x] Final gate: Ruff format/check and fresh/standard mypy over 229 files passed;
+  pytest 2,495 passed with 4 expected warnings in 7,092.78 seconds; source audit
+  145,393 rows at `2026-07-11`; handoff 61 files / 9 inputs / 41,384,928 bytes.
+- [x] Independent review: final exact-scope check at `08cab98` passed 3 focused tests
+  and returned Critical 0 / Important 0.
+
+Open official questions Q-001–Q-010 keep the safe defaults in
+`docs/10_DECISION_LOG.md`; Phase 3 must resolve or preserve the fail-closed boundaries
+for Q-004–Q-007, Q-010, A-004, A-007, A-012, and A-014. Exact next task is Phase 3
+Task 1, typed CLOVA Studio transport and recorded HCX fixtures. No Phase 3 work is
+included in this closure.

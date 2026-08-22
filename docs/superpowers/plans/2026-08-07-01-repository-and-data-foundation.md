@@ -471,9 +471,9 @@ The dedicated plan must implement the approved specification under strict RED ->
   custody transfer into the sole production publication owner, and publication recognition, acceptance,
   bounded-memory evidence, all Phase 1 gates, status, review, and clean tree**
 
-All eight Task 5 checkpoints and the Phase 1 gate are complete. Exact next task:
-Phase 2 Task 1, deterministic domain contracts and registry loaders. No Phase 2 work
-was started by the Phase 1 closure.
+All eight Task 5 checkpoints, the Phase 1 gate, and Phase 2 are complete. Exact next
+task: Phase 3 Task 1, typed CLOVA Studio transport and recorded HCX contract fixtures.
+No Phase 3 work was started by the Phase 2 closure.
 
 The dedicated plan is the sole Task 5 execution authority after independent plan
 review. No Task 5 production code starts before that review passes. Runtime files under
