@@ -188,6 +188,14 @@ documentation were not touched.
 ## Commit
 
 - Implementation checkpoint: `f5140c6` (`feat: complete phase 3 runtime delivery gate`).
-- Evidence/report follow-up: this report-only commit; its final hash is included in the handoff.
-- Independent-review portability correction: this correction/report commit; its final
-  hash is included in the handoff.
+- Evidence/report follow-up: `550ec3d` (`docs: record phase 3 task 5 evidence`).
+- Independent-review portability correction: `1fbc596` (`fix: make official artifact
+  cache portable`).
+
+## Independent review closure
+
+- Initial review: Critical 0 / Important 1 — the hard-coded `/private/tmp` cache parent
+  would fail on a fresh Ubuntu CI host.
+- One focused correction wave: closed by `1fbc596`; no runtime/image code changed.
+- Scoped re-review: original finding closed, Critical 0 / Important 0, approval yes.
+- Task 5 stops here. Task 6 owns the single full Phase 3 candidate gate and closure docs.
