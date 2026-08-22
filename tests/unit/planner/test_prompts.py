@@ -1,7 +1,9 @@
+import json
 from datetime import date
 from hashlib import sha256
 
 from finproof.planner.prompts import PROMPT_VERSION, build_system_prompt
+from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
 
@@ -38,6 +40,13 @@ def test_system_prompt_contains_the_closed_planning_contract_and_compact_catalog
         '"return_1y"',
     )
     assert all(rule in prompt for rule in required_rules)
+    compact_schema = json.dumps(
+        build_hcx_query_plan_schema(),
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    assert f"provider_schema={compact_schema}" in prompt
     assert len(prompt.encode("utf-8")) < 24_000
 
 

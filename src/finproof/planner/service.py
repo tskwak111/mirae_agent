@@ -146,6 +146,8 @@ class PlannerService:
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
         clock: Callable[[], float] = monotonic,
     ) -> None:
+        if not callable(getattr(strict_json_planner, "repair", None)):
+            raise TypeError("strict_json_planner must support strict JSON repair")
         self._strict = strict_json_planner
         self._fallback = rule_fallback
         self._sleep = sleep
@@ -208,7 +210,12 @@ class PlannerService:
             HcxRateLimitError,
         ) as error:
             transport_failures += 1
-            if await self._may_retry(error, request):
+            try:
+                may_retry = await self._may_retry(error, request)
+            except TimeoutError:
+                transport_failures += 1
+                may_retry = False
+            if may_retry:
                 path.append("retry")
                 hcx_calls = 2
                 try:

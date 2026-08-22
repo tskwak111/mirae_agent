@@ -118,6 +118,27 @@ async def test_rule_fallback_unknown_field_never_becomes_executable() -> None:
     assert "field" in result.plan.clarification_reason
 
 
+@pytest.mark.asyncio
+async def test_rule_fallback_rejects_unknown_rank_clause_mixed_with_known_filter() -> None:
+    result = await _planner().plan(_request("미국 ETF 중 총보수 0.2% 이하이고 샤프지수가 높은 5개"))
+
+    assert result.plan.intent is Intent.CLARIFY
+    assert result.plan.filters == ()
+    assert result.plan.metrics == ()
+    assert result.plan.sort == ()
+    assert "field" in result.plan.clarification_reason
+
+
+@pytest.mark.asyncio
+async def test_rule_fallback_unresolved_ticker_returns_clarification() -> None:
+    result = await _planner().plan(_request("ZZZZ 총보수 알려줘"))
+
+    assert result.plan.intent is Intent.CLARIFY
+    assert result.plan.entities == ()
+    assert result.plan.needs_clarification is True
+    assert "entity" in result.plan.clarification_reason
+
+
 @pytest.mark.parametrize(
     "question",
     [

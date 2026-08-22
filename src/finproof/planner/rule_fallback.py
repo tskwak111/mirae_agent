@@ -41,6 +41,20 @@ _NATIVE_GRAIN = {
     ProductType.OVERSEAS_ETN: ResultGrain.LISTED_PRODUCT,
     ProductType.PUBLIC_FUND: ResultGrain.FUND_ITEM,
 }
+_METRIC_ALIASES = (
+    ("tracking_error", ("추적오차",)),
+    ("total_fee", ("총보수", "운용보수")),
+    ("return_1d", ("1일 수익률",)),
+    ("return_1y", ("1년 수익률",)),
+    ("aum", ("AUM", "운용규모", "순자산")),
+    ("risk_grade", ("위험등급",)),
+    ("credit_rating", ("신용등급",)),
+    ("product_name", ("상품명",)),
+)
+_RANK_FIELD_PATTERN = re.compile(
+    r"([A-Za-z가-힣0-9_]+?)(?:이|가|을|를)?\s*"
+    r"(?:가장\s*)?(?:높은|낮은|큰|작은|많은|상위|하위)"
+)
 
 
 class RuleFallbackPlanner:
@@ -52,7 +66,23 @@ class RuleFallbackPlanner:
     async def plan(self, request: PlanningRequest) -> PlannedQuery:
         started = monotonic()
         plan = _parse(request.question, request.as_of_date)
-        validated = self._validator.validate(plan, request)
+        try:
+            validated = self._validator.validate(plan, request)
+        except (TypeError, ValueError):
+            reason = (
+                "entity could not be resolved exactly"
+                if plan.entities
+                else "fallback semantics could not be validated"
+            )
+            plan = _terminal(
+                Intent.CLARIFY,
+                plan.product_types,
+                request.as_of_date,
+                reason,
+                plan.top_k,
+                plan.top_k_scope,
+            )
+            validated = self._validator.validate(plan, request)
         return PlannedQuery(
             plan=plan,
             validated_plan=validated,
@@ -126,16 +156,17 @@ def _parse(question: str, as_of_date: date) -> QueryPlan:
             top_k,
             top_k_scope,
         )
-    if metric is None and any(
-        term in normalized for term in ("높은", "낮은", "상위", "하위", "가장")
+    if _has_unknown_rank_field(normalized) or (
+        metric is None
+        and any(term in normalized for term in ("높은", "낮은", "상위", "하위", "가장"))
     ):
         return _terminal(
             Intent.CLARIFY,
-            products,
+            products or _ALL_REVIEWED_PRODUCTS,
             as_of_date,
             "requested field is not registered",
             top_k,
-            top_k_scope,
+            top_k_scope if products else TopKScope.PER_PRODUCT_TYPE,
         )
     if not products:
         return _terminal(
@@ -221,20 +252,15 @@ def _products(question: str) -> tuple[ProductType, ...]:
 
 
 def _metric(question: str) -> str | None:
-    aliases = (
-        ("tracking_error", ("추적오차",)),
-        ("total_fee", ("총보수", "운용보수")),
-        ("return_1d", ("1일 수익률",)),
-        ("return_1y", ("1년 수익률",)),
-        ("aum", ("AUM", "운용규모", "순자산")),
-        ("risk_grade", ("위험등급",)),
-        ("credit_rating", ("신용등급",)),
-        ("product_name", ("상품명",)),
-    )
     return next(
-        (field for field, names in aliases if any(name in question for name in names)),
+        (field for field, names in _METRIC_ALIASES if any(name in question for name in names)),
         None,
     )
+
+
+def _has_unknown_rank_field(question: str) -> bool:
+    known = {alias.split()[-1] for _, aliases in _METRIC_ALIASES for alias in aliases}
+    return any(match.group(1) not in known for match in _RANK_FIELD_PATTERN.finditer(question))
 
 
 def _filters(question: str, metric: str | None, as_of_date: date) -> tuple[FilterClause, ...]:

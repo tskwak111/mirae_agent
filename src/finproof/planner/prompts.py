@@ -7,6 +7,7 @@ from hashlib import sha256
 from pydantic import BaseModel, ConfigDict
 
 from finproof.domain.query_plan import ProductType
+from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
 PROMPT_VERSION = "phase3-planner-v1"
@@ -55,6 +56,13 @@ def build_system_prompt(registries: RegistryBundle, *, snapshot_date: date) -> P
         _RULES.format(snapshot_date=snapshot_date.isoformat())
         + "\ncompact_catalog="
         + json.dumps(catalog, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        + "\nprovider_schema="
+        + json.dumps(
+            build_hcx_query_plan_schema(),
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
     )
     return PlannerPrompt(
         version=PROMPT_VERSION,

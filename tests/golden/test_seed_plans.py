@@ -14,6 +14,11 @@ from finproof.planner.service import LocalPlanValidator, PlanningRequest
 from finproof.query import FieldRegistry, SemanticValidator
 from finproof.registry.loader import RegistryBundle
 
+_D030_STALE_GRAINS = {
+    "SEED-POLICY-008": "listed_product",
+    "SEED-POLICY-012": "listed_product",
+}
+
 
 def _planner() -> RuleFallbackPlanner:
     registries = RegistryBundle.from_package()
@@ -34,7 +39,7 @@ def _cases() -> tuple[dict[str, Any], ...]:
 
 
 @pytest.mark.asyncio
-async def test_seed_partial_plan_semantics_survive_local_validation() -> None:
+async def test_seed_partial_plan_semantics_follow_canonical_d030_contract() -> None:
     planner = _planner()
 
     for case in _cases():
@@ -55,12 +60,14 @@ async def test_seed_partial_plan_semantics_survive_local_validation() -> None:
             "case_id"
         ]
         assert plan.as_of_date.isoformat() == expected["as_of_date"], case["case_id"]
-        # D-030: seed objects are partial semantics; canonical multi-product plans
-        # must still enter the frozen product envelope before execution.
-        expected_grain = (
-            "product" if len(expected["product_types"]) > 1 else expected["result_grain"]
-        )
-        assert plan.result_grain.value == expected_grain, case["case_id"]
+        case_id = cast(str, case["case_id"])
+        if case_id in _D030_STALE_GRAINS:
+            # D-030 records these AI-handoff partials as non-canonical. Preserve
+            # the mismatch visibly while enforcing the frozen product envelope.
+            assert expected["result_grain"] == _D030_STALE_GRAINS[case_id]
+            assert plan.result_grain.value == "product", case_id
+        else:
+            assert plan.result_grain.value == expected["result_grain"], case_id
         assert plan.top_k == expected["top_k"], case["case_id"]
         assert plan.top_k_scope.value == expected["top_k_scope"], case["case_id"]
         assert plan.needs_clarification is expected["needs_clarification"], case["case_id"]

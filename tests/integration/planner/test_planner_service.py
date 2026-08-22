@@ -1,3 +1,4 @@
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from datetime import date
@@ -176,13 +177,18 @@ def test_invalid_provider_aggregation_shape_fails_before_queryplan(
 
 def test_phase3_service_has_no_structured_planner_injection_path() -> None:
     client = ScriptedHcx([])
-    strict, fallback, _ = _planners(client)
+    _, fallback, _ = _planners(client)
+    structured = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
 
-    with pytest.raises(TypeError, match="structured"):
+    with pytest.raises(TypeError, match="strict JSON"):
         PlannerService(
-            strict_json_planner=strict,
+            strict_json_planner=structured,  # type: ignore[arg-type]
             rule_fallback=fallback,
-            structured_planner=object(),  # type: ignore[call-arg]
         )
 
 
@@ -269,3 +275,19 @@ async def test_rate_limit_zero_delay_can_retry_once_within_shared_deadline() -> 
     assert result.attempts.hcx_calls == 2
     assert result.fallback_path == ("strict_json", "retry")
     assert monotonic() <= result.request_deadline_at + 0.1
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_backoff_timeout_falls_back() -> None:
+    async def stalled_sleep(_: float) -> None:
+        await asyncio.Event().wait()
+
+    client = ScriptedHcx(
+        [HcxRateLimitError("42900", HcxRateLimitSnapshot(reset_requests_seconds=0.001))]
+    )
+    _, _, service = _planners(client, sleep=stalled_sleep)
+
+    result = await service.plan(_request("국내 ETF만 보여줘", seconds=0.01))
+
+    assert result.attempts.hcx_calls == 1
+    assert result.fallback_path == ("strict_json", "rule_fallback")
