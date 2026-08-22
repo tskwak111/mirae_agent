@@ -1,5 +1,6 @@
 """Focused evidence construction contracts."""
 
+import json
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -237,7 +238,15 @@ def test_context_serialization_is_stable_json_safe_size_bounded_and_contains_no_
     second = serialize_evidence_context(bundle)
 
     assert first == second
-    assert json.loads(first)["direct"][0]["value"]["normalized_value"] == "2.25"
+    payload = json.loads(first)
+    direct = dict(zip(payload["direct_fields"], payload["direct"][0], strict=True))
+    assert direct["normalized_value"] == "2.25"
+    derived = dict(zip(payload["derived_fields"], payload["derived"][0], strict=True))
+    source = payload["sources"][derived["inputs"][0][0]]
+    assert derived["as_of_date"] == "2026-07-11"
+    assert source["source_file"]
+    assert source["source_sheet"]
+    assert source["source_checksum"]
     assert len(first.encode()) <= 24_000
     assert "/Users/example/runtime/artifacts.duckdb" not in first
     with pytest.raises(ValueError, match="local path"):
@@ -297,7 +306,30 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
         evidence=evidence,
     )
 
-    assert 24_000 < len(context.encode()) <= 128_000
+    payload = json.loads(context)
+    assert len(context.encode()) <= 24_000
+    direct_records = tuple(
+        dict(zip(payload["direct_fields"], item, strict=True)) for item in payload["direct"]
+    )
+    assert {item["evidence_id"] for item in direct_records} == {item.evidence_id for item in direct}
+    assert all(
+        payload["sources"][item["source"]]["source_table"] == "PRBD01N001"
+        and payload["sources"][item["source"]]["source_file"]
+        and payload["sources"][item["source"]]["source_sheet"]
+        and payload["sources"][item["source"]]["source_checksum"]
+        and payload["sources"][item["source"]]["source_snapshot_date"] == "2026-07-11"
+        and item["raw_value"] == "2.25"
+        and item["normalized_value"] == "2.25"
+        and item["quality_status"] == "valid"
+        and item["rule_id"]
+        and item["rule_version"]
+        and item["source_row_number"] == 77
+        and item["source_column_name"] in {"BUY_YIELD", "BUYABLE_QUANTITY"}
+        and item["source_column_number"]
+        and item["source_column_letter"]
+        and item["source_applicable_date"] is None
+        for item in direct_records
+    )
     assert len(draft.claims) == 151
     session._close()
 
