@@ -761,7 +761,7 @@ def _check_opened_parquet(
             for batch in parquet.iter_batches(batch_size=limits.batch_rows, use_threads=False):
                 spec_guard()
                 keys: list[bytes] = []
-                for row in batch.to_pylist():
+                for row in _iter_bounded_python_rows(batch):
                     validate_physical_row(spec, row)
                     sort_key = tuple(row[name] for name in spec.sort_key)
                     if previous_sort is not None and sort_key < previous_sort:
@@ -792,6 +792,12 @@ def _check_opened_parquet(
         physical_sha256=after_physical[1],
         leaf_identity=after_identity,
     )
+
+
+def _iter_bounded_python_rows(batch: pa.RecordBatch) -> Iterator[dict[str, object]]:
+    for offset in range(0, batch.num_rows, 256):
+        length = min(256, batch.num_rows - offset)
+        yield from batch.slice(offset, length).to_pylist()
 
 
 def verify_staged_parquet_table(
@@ -896,11 +902,11 @@ _DescriptorIdentity = tuple[int, int, int, int, int]
 
 
 def _descriptor_path(descriptor: int) -> str:
-    if not hasattr(fcntl, "F_GETPATH"):
-        raise OSError("descriptor path lookup is unavailable")
-    value = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
-    raw = bytes(value).split(b"\0", 1)[0]
-    return os.fsdecode(raw)
+    if hasattr(fcntl, "F_GETPATH"):
+        value = fcntl.fcntl(descriptor, fcntl.F_GETPATH, b"\0" * 1024)
+        raw = bytes(value).split(b"\0", 1)[0]
+        return os.fsdecode(raw)
+    return os.readlink(f"/proc/self/fd/{descriptor}")
 
 
 def _descriptor_identity(descriptor: int, *, directory: bool) -> _DescriptorIdentity:

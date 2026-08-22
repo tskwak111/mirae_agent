@@ -1,0 +1,16 @@
+.git
+.venv
+.env
+.env.*
+artifacts
+source_material
+*.pdf
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.superpowers
+.github
+docs
+tests
+tools

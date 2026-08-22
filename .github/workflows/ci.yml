@@ -53,3 +53,90 @@ jobs:
 
       - name: Verify schema catalog
         run: uv run python tools/extract_schema_catalog.py --check
+
+  container-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+      - name: Synchronize locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Check container contract
+        run: uv run pytest tests/contract/test_container_contract.py -q
+
+  container:
+    needs: container-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+      - name: Synchronize locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Build production image
+        run: docker build -t finproof:phase3 .
+      - name: Smoke production image
+        run: FINPROOF_RUN_DOCKER_SMOKE=1 FINPROOF_IMAGE=finproof:phase3 uv run pytest tests/e2e/test_container_smoke.py -q -m slow
+
+  api-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+      - name: Synchronize locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Run bounded API load
+        run: FINPROOF_RUN_API_LOAD=1 uv run pytest tests/performance/test_api_load.py -q -m performance
+
+  short-soak:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.3"
+      - name: Synchronize locked dependencies
+        run: uv sync --frozen --all-groups
+      - name: Run 30-second short soak
+        run: FINPROOF_SOAK_SECONDS=30 uv run pytest tests/resilience/test_api_soak.py -q -m slow

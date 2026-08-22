@@ -175,6 +175,12 @@ def test_reopened_rows_enforce_every_exact_physical_type(
     original = parquet_io.pq.ParquetFile
 
     class FakeBatch:
+        num_rows = 1
+
+        def slice(self, offset: int, length: int):
+            assert (offset, length) == (0, 1)
+            return self
+
         def to_pylist(self):
             return [forged]
 
@@ -559,6 +565,55 @@ def test_final_unique_workspace_uses_exact_held_spill_path_for_darwin_child_crea
         assert connections == 0
         assert received_paths == []
     assert sentinel.read_bytes() == b"foreign-bytes"
+
+
+def test_descriptor_path_uses_linux_proc_fd_when_f_getpath_is_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from finproof.data.artifacts import parquet_io
+
+    descriptor = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    observed: list[str] = []
+
+    def readlink(path: str) -> str:
+        observed.append(path)
+        return os.fspath(tmp_path)
+
+    try:
+        monkeypatch.delattr(parquet_io.fcntl, "F_GETPATH")
+        monkeypatch.setattr(parquet_io.os, "readlink", readlink)
+        assert parquet_io._descriptor_path(descriptor) == os.fspath(tmp_path)
+    finally:
+        os.close(descriptor)
+
+    assert observed == [f"/proc/self/fd/{descriptor}"]
+
+
+def test_final_verifier_materializes_python_rows_in_bounded_chunks() -> None:
+    from finproof.data.artifacts import parquet_io
+
+    observed: list[tuple[int, int]] = []
+
+    class Slice:
+        def __init__(self, offset: int, length: int) -> None:
+            self._offset = offset
+            self._length = length
+
+        def to_pylist(self) -> list[dict[str, int]]:
+            return [{"row": row} for row in range(self._offset, self._offset + self._length)]
+
+    class Batch:
+        num_rows = 513
+
+        def slice(self, offset: int, length: int) -> Slice:
+            observed.append((offset, length))
+            return Slice(offset, length)
+
+    assert [
+        row["row"]
+        for row in parquet_io._iter_bounded_python_rows(Batch())  # type: ignore[arg-type]
+    ] == list(range(513))
+    assert observed == [(0, 256), (256, 256), (512, 1)]
 
 
 @pytest.mark.parametrize(

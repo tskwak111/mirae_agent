@@ -1,6 +1,7 @@
 """Deterministic answer-service composition."""
 
 from hashlib import sha256
+from threading import Lock
 from time import monotonic
 
 from finproof.answer import AnswerRenderer
@@ -45,10 +46,16 @@ class AnswerService:
         self._evidence_builder = EvidenceBuilder()
         self._renderer = AnswerRenderer()
         self._verifier = ClaimVerifier()
+        # ponytail: one session lock; use owner-managed per-worker cursors if DB throughput matters.
+        self._request_lock = Lock()
 
     def answer_plan(self, request: AnswerRequest, plan: QueryPlan) -> AnswerResult:
         if type(request) is not AnswerRequest or type(plan) is not QueryPlan:
             raise TypeError("answer service inputs differ")
+        with self._request_lock:
+            return self._answer_plan(request, plan)
+
+    def _answer_plan(self, request: AnswerRequest, plan: QueryPlan) -> AnswerResult:
         self._session.assert_live()
         if plan.intent in {Intent.CLARIFY, Intent.UNSUPPORTED}:
             evidence = EvidenceBundle(

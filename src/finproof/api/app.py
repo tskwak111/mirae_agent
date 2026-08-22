@@ -27,8 +27,11 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         with runtime_dependencies.open_session(runtime_settings) as session:
-            app.state.answer_orchestrator = runtime_dependencies.create_orchestrator(session)
-            yield
+            async with runtime_dependencies.open_orchestrator(
+                session, runtime_settings
+            ) as orchestrator:
+                app.state.answer_orchestrator = orchestrator
+                yield
 
     app = FastAPI(
         docs_url=None,

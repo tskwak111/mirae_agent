@@ -1,12 +1,23 @@
-"""Minimal composition seam for the HTTP adapter."""
+"""Minimal production composition seam for the HTTP adapter."""
 
-from collections.abc import Awaitable, Callable
-from contextlib import AbstractContextManager
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import AbstractContextManager, asynccontextmanager
 from typing import Protocol, runtime_checkable
+
+import httpx
 
 from finproof.core.settings import Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult
+from finproof.entity import EntityIndex, EntityResolver
+from finproof.planner.hcx_client import HcxClient
+from finproof.planner.json_planner import StrictJsonPlanner
+from finproof.planner.rule_fallback import RuleFallbackPlanner
+from finproof.planner.service import LocalPlanValidator, PlannerProtocol, PlannerService
+from finproof.query import FieldRegistry, SemanticValidator
 from finproof.runtime import open_runtime_artifact_session
+from finproof.runtime.session import RuntimeArtifactSession
+from finproof.service import AnswerService
+from finproof.service.orchestrator import EvaluationOrchestrator
 
 
 @runtime_checkable
@@ -17,7 +28,7 @@ class AnswerOrchestrator(Protocol):
 
 
 class ApiDependencies:
-    """Small injectable runtime boundary; orchestration remains a later task."""
+    """Small injectable boundary around the production dependency graph."""
 
     def __init__(
         self,
@@ -26,10 +37,53 @@ class ApiDependencies:
             [Settings], AbstractContextManager[object]
         ] = open_runtime_artifact_session,
         create_orchestrator: Callable[[object], AnswerOrchestrator] | None = None,
+        http_client_factory: Callable[[], httpx.AsyncClient] = httpx.AsyncClient,
     ) -> None:
         self.open_session = open_session
-        self.create_orchestrator = create_orchestrator or _unconfigured_orchestrator
+        self.create_orchestrator = create_orchestrator
+        self._http_client_factory = http_client_factory
+
+    @asynccontextmanager
+    async def open_orchestrator(
+        self, session: object, settings: Settings
+    ) -> AsyncIterator[AnswerOrchestrator]:
+        if self.create_orchestrator is not None:
+            yield self.create_orchestrator(session)
+            return
+        if type(session) is not RuntimeArtifactSession:
+            raise TypeError("production graph requires exact runtime session")
+        runtime_session = session
+        fields = FieldRegistry.from_bundle(runtime_session.registries)
+        validator = LocalPlanValidator(
+            SemanticValidator(fields),
+            entity_resolver=EntityResolver(EntityIndex.from_session(runtime_session)),
+        )
+        fallback = RuleFallbackPlanner(validator=validator)
+        if not settings.hcx_enabled:
+            yield _orchestrator(runtime_session, fallback, settings)
+            return
+        if settings.hcx_api_key is None:
+            raise RuntimeError("validated HCX settings lost the API key")
+        async with self._http_client_factory() as http_client:
+            strict = StrictJsonPlanner(
+                generator=HcxClient(http_client=http_client, api_key=settings.hcx_api_key),
+                validator=validator,
+                registries=runtime_session.registries,
+                model_name=settings.hcx_model_name,
+            )
+            yield _orchestrator(
+                runtime_session,
+                PlannerService(strict_json_planner=strict, rule_fallback=fallback),
+                settings,
+            )
 
 
-def _unconfigured_orchestrator(_: object) -> AnswerOrchestrator:
-    raise RuntimeError("evaluation orchestrator is not configured")
+def _orchestrator(
+    session: RuntimeArtifactSession, planner: PlannerProtocol, settings: Settings
+) -> EvaluationOrchestrator:
+    return EvaluationOrchestrator(
+        planner=planner,
+        answer_service=AnswerService(session),
+        execution_mode=settings.execution_mode,
+        snapshot_date=settings.dataset_snapshot_date,
+    )
