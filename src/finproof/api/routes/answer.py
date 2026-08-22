@@ -23,6 +23,7 @@ async def answer(
     if not isinstance(orchestrator, AnswerOrchestrator):
         raise RuntimeError("evaluation orchestrator differs")
     correlation_id = uuid4().hex
+    request.state.correlation_id = correlation_id
     result = await orchestrator.answer(
         question_id=question_id, question=question, correlation_id=correlation_id
     )

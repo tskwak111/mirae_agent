@@ -1,5 +1,6 @@
 """FastAPI composition for the organizer evaluation contract."""
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -11,6 +12,8 @@ from finproof.api.dependencies import ApiDependencies
 from finproof.api.errors import safe_failure
 from finproof.api.routes.answer import router as answer_router
 from finproof.core.settings import Settings
+
+_LOGGER = logging.getLogger("finproof.api")
 
 
 def create_app(
@@ -48,10 +51,21 @@ def create_app(
         )
 
     @app.exception_handler(Exception)
-    async def unexpected_error(request: Request, _: Exception) -> JSONResponse:
+    async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+        correlation_id = getattr(request.state, "correlation_id", None)
+        if type(correlation_id) is not str:
+            correlation_id = None
+        _LOGGER.error(
+            "unexpected evaluation failure",
+            extra={
+                "correlation_id": correlation_id,
+                "exception_type": type(error).__name__,
+            },
+        )
         response = safe_failure(
             question_id=request.query_params.get("question_id", ""),
             question=request.query_params.get("question", ""),
+            correlation_id=correlation_id,
         )
         return JSONResponse(status_code=500, content=response.model_dump(mode="json"))
 
