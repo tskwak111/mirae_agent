@@ -244,12 +244,50 @@ def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
         evidence=evidence,
     )
 
-    assert "domestic_bond KR0000000001 buy_yield: 2.25 (1위)" in draft.text
-    assert "currency=KRW buy_yield 평균: 2.10" in draft.text
+    assert "domestic_bond/instrument [yield:KRW] KR0000000001 buy_yield: 2.25 (1위)" in draft.text
+    assert "domestic_bond/instrument [yield:KRW] currency=KRW buy_yield 평균: 2.10" in draft.text
     assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (
         Decimal("2.25"),
         Decimal("2.10"),
     )
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+
+
+def test_renderer_projects_actual_compatibility_partition_identity() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.evidence import ClaimVerifier
+
+    summary = EvidenceSummary(
+        summary_id="summary:partition:0",
+        kind=EvidenceSummaryKind.PARTITION,
+        included_count=2,
+        excluded_count=1,
+        evidence_ids=(),
+        policy_versions=("metric:1.0.0",),
+        validated_plan_sha256="a" * 64,
+        version_bundle_sha256="b" * 64,
+        artifact_manifest_hash="c" * 64,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        native_result_grains=(ResultGrain.INSTRUMENT,),
+        partition_key="yield:KRW",
+        value=2,
+    )
+    evidence = EvidenceBundle(
+        direct=(), derived=(), summaries=(summary,), material_policy_limitations=()
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-partition", question="수익률 비교"),
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+    assert "분할 domestic_bond/instrument [yield:KRW]: 2건" in draft.text
+    partition_claim = next(claim for claim in draft.claims if claim.kind is ClaimKind.NUMERIC)
+    assert partition_claim.partition_key == "yield:KRW"
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
 
 

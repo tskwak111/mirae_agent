@@ -166,6 +166,60 @@ def test_claim_verifier_rejects_candidate_with_false_native_identity() -> None:
     session._close()
 
 
+def test_claim_verifier_rejects_false_aggregate_group_partition_and_native_identity() -> None:
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import (
+        EvidenceBundle,
+        EvidenceSummary,
+        EvidenceSummaryKind,
+        EvidenceSummaryValue,
+    )
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.evidence import ClaimVerifier
+
+    summary = EvidenceSummary(
+        summary_id="summary:aggregate:0",
+        kind=EvidenceSummaryKind.AGGREGATE,
+        included_count=2,
+        excluded_count=0,
+        evidence_ids=(),
+        policy_versions=("buy_yield:avg",),
+        validated_plan_sha256="a" * 64,
+        version_bundle_sha256="b" * 64,
+        artifact_manifest_hash="c" * 64,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        native_result_grains=(ResultGrain.INSTRUMENT,),
+        partition_key="yield:KRW",
+        metric_id="buy_yield",
+        value=Decimal("2.10"),
+        group_values=(EvidenceSummaryValue(field_id="currency", value="KRW"),),
+    )
+    false_text = "domestic_bond/instrument [yield:USD] currency=USD buy_yield 평균: 2.10"
+    false_claim = AnswerClaim(
+        claim_id="claim:false-aggregate",
+        kind=ClaimKind.NUMERIC,
+        text=false_text,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        native_result_grains=(ResultGrain.INSTRUMENT,),
+        partition_key="yield:USD",
+        field_id="buy_yield",
+        value=Decimal("2.10"),
+        group_values=(EvidenceSummaryValue(field_id="currency", value="USD"),),
+        evidence_ids=(summary.summary_id,),
+    )
+
+    with pytest.raises(ValueError, match="claim differs from evidence"):
+        ClaimVerifier().verify(
+            AnswerDraft(text=false_text, claims=(false_claim,)),
+            EvidenceBundle(
+                direct=(),
+                derived=(),
+                summaries=(summary,),
+                material_policy_limitations=(),
+            ),
+        )
+
+
 def test_claim_verifier_rejects_claim_not_projected_in_answer_text() -> None:
     from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
     from finproof.domain.evidence import EvidenceBundle

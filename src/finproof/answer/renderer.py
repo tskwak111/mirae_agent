@@ -13,7 +13,7 @@ from finproof.domain.answers import (
     ClaimKind,
     ValueSign,
 )
-from finproof.domain.evidence import EvidenceBundle, EvidenceSummaryKind
+from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
 from finproof.domain.query_plan import Intent, ProductType, QueryPlan
 from finproof.registry.loader import RegistryBundle
 
@@ -69,9 +69,25 @@ class AnswerRenderer:
         if recommendation_request:
             lines.append(wording_text(self._wording, "matched_candidates"))
         for summary in evidence.summaries:
-            if summary.kind is EvidenceSummaryKind.RANK and summary.value is not None:
+            if summary.kind is EvidenceSummaryKind.PARTITION and summary.value is not None:
+                partition_text = f"분할 {_summary_scope(summary)}: {summary.value}건"
+                lines.append(partition_text)
+                claims.append(
+                    AnswerClaim(
+                        claim_id=f"claim:summary:{summary.summary_id}",
+                        kind=ClaimKind.NUMERIC,
+                        text=partition_text,
+                        product_types=summary.product_types,
+                        native_result_grains=summary.native_result_grains,
+                        partition_key=summary.partition_key,
+                        value=summary.value,
+                        evidence_ids=(summary.summary_id,),
+                        sign=_sign(summary.value),
+                    )
+                )
+            elif summary.kind is EvidenceSummaryKind.RANK and summary.value is not None:
                 rank_text = (
-                    f"{summary.product_types[0].value} {summary.product_id} "
+                    f"{_summary_scope(summary)} {summary.product_id} "
                     f"{summary.metric_id}: {summary.value} ({summary.rank}위)"
                 )
                 lines.append(rank_text)
@@ -81,6 +97,9 @@ class AnswerRenderer:
                         kind=ClaimKind.NUMERIC,
                         text=rank_text,
                         product_type=summary.product_types[0],
+                        product_types=summary.product_types,
+                        native_result_grains=summary.native_result_grains,
+                        partition_key=summary.partition_key,
                         product_id=summary.product_id,
                         field_id=summary.metric_id,
                         value=summary.value,
@@ -98,7 +117,8 @@ class AnswerRenderer:
                     "count": "개수",
                 }.get(summary.policy_versions[0].rsplit(":", 1)[-1], "집계")
                 aggregate_text = (
-                    f"{groups + ' ' if groups else ''}{summary.metric_id or '상품'} "
+                    f"{_summary_scope(summary)} {groups + ' ' if groups else ''}"
+                    f"{summary.metric_id or '상품'} "
                     f"{operation}: {summary.value}"
                 )
                 lines.append(aggregate_text)
@@ -108,8 +128,12 @@ class AnswerRenderer:
                         kind=ClaimKind.NUMERIC,
                         text=aggregate_text,
                         product_type=summary.product_types[0],
+                        product_types=summary.product_types,
+                        native_result_grains=summary.native_result_grains,
+                        partition_key=summary.partition_key,
                         field_id=summary.metric_id,
                         value=summary.value,
+                        group_values=summary.group_values,
                         evidence_ids=(summary.summary_id,),
                         sign=_sign(summary.value),
                     )
@@ -259,6 +283,12 @@ def _append_value(
             sign=_sign(scalar),
         )
     )
+
+
+def _summary_scope(summary: EvidenceSummary) -> str:
+    product_types = ",".join(item.value for item in summary.product_types)
+    grains = ",".join(item.value for item in summary.native_result_grains)
+    return f"{product_types}/{grains} [{summary.partition_key}]"
 
 
 def _answer_scalar(value: object) -> Decimal | int | str | date | bool | None:

@@ -148,6 +148,7 @@ class EvidenceBuilder:
                     product_types=product_types,
                     native_result_grains=tuple(native_grains[item] for item in product_types),
                     partition_key=partition.compatibility_key,
+                    value=len(partition.selected_values),
                 )
             )
         for index, rank in enumerate(policy_result.ranks):

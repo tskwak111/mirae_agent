@@ -7,8 +7,9 @@ from typing import Annotated
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from finproof.domain.evidence import EvidenceSummaryValue
 from finproof.domain.execution import ExecutionTrace
-from finproof.domain.query_plan import ProductType
+from finproof.domain.query_plan import ProductType, ResultGrain
 
 
 class _FrozenModel(BaseModel):
@@ -39,9 +40,13 @@ class AnswerClaim(_FrozenModel):
     kind: ClaimKind
     text: Annotated[str, Field(min_length=1, max_length=2_000)]
     product_type: ProductType | None = None
+    product_types: Annotated[tuple[ProductType, ...], Field(max_length=6)] = ()
+    native_result_grains: Annotated[tuple[ResultGrain, ...], Field(max_length=3)] = ()
+    partition_key: Annotated[str, Field(min_length=1, max_length=300)] | None = None
     product_id: Annotated[str, Field(min_length=1, max_length=300)] | None = None
     field_id: Annotated[str, Field(min_length=1, max_length=100)] | None = None
     value: Decimal | int | str | date | bool | None = None
+    group_values: Annotated[tuple[EvidenceSummaryValue, ...], Field(max_length=2)] = ()
     evidence_ids: Annotated[tuple[str, ...], Field(max_length=100)] = ()
     sign: ValueSign | None = None
 

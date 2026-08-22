@@ -185,14 +185,15 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
         bundle=bundle,
     )
 
-    summary = next(
-        item
-        for item in EvidenceBuilder()
+    summaries = (
+        EvidenceBuilder()
         .build(plan=validated, policy_result=policy, repository=EvidenceRepository(session))
         .summaries
-        if item.kind.value == "rank"
     )
+    summary = next(item for item in summaries if item.kind.value == "rank")
+    partition_summary = next(item for item in summaries if item.kind.value == "partition")
 
+    assert partition_summary.value == len(policy.partitions[0].selected_values)
     assert summary.product_types == (ProductType.DOMESTIC_BOND,)
     assert summary.native_result_grains == (ResultGrain.INSTRUMENT,)
     assert summary.partition_key == policy.ranks[0].partition_key
