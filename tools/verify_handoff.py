@@ -253,6 +253,7 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
         "filters",
         "metrics",
         "sort",
+        "aggregation",
         "top_k",
         "top_k_scope",
         "needs_clarification",

@@ -80,6 +80,15 @@ def test_hcx_provider_schema_uses_only_supported_subset() -> None:
     assert "product" in schema["properties"]["result_grain"]["enum"]
 
 
+def test_handoff_schema_verifier_accepts_checked_in_contract() -> None:
+    from tools.verify_handoff import verify_json_and_schema_contracts
+
+    errors: list[str] = []
+    verify_json_and_schema_contracts(errors)
+
+    assert errors == []
+
+
 def test_official_input_manifest_contains_pdf_and_eight_workbooks() -> None:
     manifest = json.loads(
         (ROOT / "source_material/input_manifest.json").read_text(encoding="utf-8")
