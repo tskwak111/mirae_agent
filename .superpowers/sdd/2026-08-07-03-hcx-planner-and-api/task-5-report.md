@@ -118,6 +118,27 @@ documentation were not touched.
 - Minimal CI correction: only the container job timeout changed to 240 minutes. Focused
   GREEN — `3 passed in 0.07s`; its scoped format/Ruff/mypy checks also passed.
 
+### Independent-review portability correction
+
+- Review finding: the shared official-artifact helper fixed all three cache paths under
+  `/private/tmp`, but a fresh Ubuntu runner normally exposes `/tmp` without creating
+  `/private/tmp`; artifact initialization requires the selected parent to exist.
+- RED: `uv --cache-dir /private/tmp/finproof-uv-cache run pytest -q
+  tests/unit/test_official_artifact_subprocess.py` — expected/observed failure:
+  `_official_cache_parent` was absent (`1 failed in 0.25s`).
+- Minimal correction: one shared helper retains the existing `/private/tmp` parent when
+  it is a directory and otherwise uses stdlib `tempfile.gettempdir()`; artifact,
+  outcome, and measurement paths all derive from that selected parent. No new config or
+  dependency was added.
+- GREEN: the same focused command — `1 passed in 0.07s`. Affected helper, container
+  contract, and non-dynamic smoke selection — `4 passed, 3 expected skips in 0.08s`.
+- Docker smoke was not repeated: the correction changes only the host-side test helper,
+  not the image or runtime code, and the deterministic test does not build official
+  artifacts.
+- Scoped checks after formatting the new test: `ruff format --check` — `2 files already
+  formatted`; Ruff — `All checks passed!`; mypy — `Success: no issues found in 2 source
+  files`.
+
 ## Aggregate and scoped verification
 
 - Task 5 aggregate: `uv run pytest tests/contract/test_container_contract.py
@@ -141,7 +162,8 @@ documentation were not touched.
   `tests/e2e/test_evaluation_api.py`, `tests/e2e/test_container_smoke.py`,
   `tests/integration/artifacts/test_parquet_verification.py`,
   `tests/performance/test_api_load.py`, `tests/resilience/__init__.py`,
-  `tests/resilience/test_api_soak.py`.
+  `tests/resilience/test_api_soak.py`, `tests/unit/test_official_artifact_subprocess.py`.
+- Shared test helper: `tests/helpers/official_artifact_subprocess.py`.
 - Evidence: this report only. `docs/implementation/STATUS.md`, frozen docs, README,
   API spec, source material, artifacts, and the two untracked PDFs were not changed.
 
@@ -160,8 +182,12 @@ documentation were not touched.
   final diff. No Task 5 containers remain and official-cache modes are restored.
 - The deliberate session-wide DB serialization ceiling is marked with a `ponytail:`
   comment; per-worker cursors are deferred until measured DB throughput requires them.
+- Review backlog only: the load check exercises exactly eight permits, and `tracemalloc`
+  excludes native allocations. Neither item was implemented in this correction wave.
 
 ## Commit
 
 - Implementation checkpoint: `f5140c6` (`feat: complete phase 3 runtime delivery gate`).
 - Evidence/report follow-up: this report-only commit; its final hash is included in the handoff.
+- Independent-review portability correction: this correction/report commit; its final
+  hash is included in the handoff.

@@ -7,6 +7,7 @@ import json
 import resource
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,9 +22,16 @@ from finproof.data.artifacts.config import ArtifactBuildOptions
 from finproof.data.artifacts.manifest import ArtifactManifest
 
 ROOT = Path(__file__).resolve().parents[2]
-OFFICIAL_ROOT = Path("/private/tmp/finproof-task5-official-published")
-OUTCOME_PATH = Path("/private/tmp/finproof-task5-official-outcome.json")
-MEASUREMENTS_PATH = Path("/private/tmp/finproof-task5-official-measurements.json")
+
+
+def _official_cache_parent(preferred: Path = Path("/private/tmp")) -> Path:
+    return preferred if preferred.is_dir() else Path(tempfile.gettempdir())
+
+
+_CACHE_PARENT = _official_cache_parent()
+OFFICIAL_ROOT = _CACHE_PARENT / "finproof-task5-official-published"
+OUTCOME_PATH = _CACHE_PARENT / "finproof-task5-official-outcome.json"
+MEASUREMENTS_PATH = _CACHE_PARENT / "finproof-task5-official-measurements.json"
 TIMESTAMP = "2026-08-14T00:00:02.123456Z"
 
 
