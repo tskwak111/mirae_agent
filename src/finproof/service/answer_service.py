@@ -25,7 +25,7 @@ from finproof.query import (
 )
 from finproof.runtime.session import RuntimeArtifactSession
 from finproof.storage.repositories.evidence import EvidenceRepository
-from finproof.storage.repositories.products import RawExecutionResult
+from finproof.storage.repositories.products import RawExecutionResult, RawFieldValue
 
 
 class AnswerService:
@@ -139,37 +139,76 @@ class AnswerService:
             assert isinstance(policy_result, PolicyExecutionResult)
             assert evidence is not None
             returned = {
-                (item.product_id, item.field_id)
+                (item.product_type, item.product_id, item.field_id)
                 for item in evidence.direct
                 if item.product_id is not None
             } | {
-                (item.product_id, item.field_id)
+                (item.product_type, item.product_id, item.field_id)
                 for item in evidence.derived
                 if item.product_id is not None
             }
-            returned_products = {product_id for product_id, _ in returned}
+            returned_products = {
+                (product_type, product_id) for product_type, product_id, _ in returned
+            }
+            segment_by_type = {segment.product_type: segment for segment in bundle.segments}
+            raw_by_type = {segment.product_type: segment for segment in raw.segments}
+            partition_specs = tuple(
+                (
+                    product_type,
+                    partition.compatibility_key,
+                    partition.currency,
+                    {
+                        value.product_id
+                        for value in partition.selected_values
+                        if value.product_type is product_type
+                    },
+                )
+                for partition in policy_result.partitions
+                for product_type in dict.fromkeys(value.product_type for value in partition.values)
+            ) or tuple(
+                (product_type, partition_key, None, set())
+                for product_type, partition_key, _ in dict.fromkeys(
+                    (
+                        item.product_type,
+                        item.partition_key,
+                        item.native_result_grain,
+                    )
+                    for item in policy_result.aggregates
+                )
+            )
+            if not partition_specs:
+                partition_specs = tuple(
+                    (
+                        segment.product_type,
+                        segment.product_type.value,
+                        None,
+                        {
+                            product_id
+                            for product_type, product_id in returned_products
+                            if product_type is segment.product_type
+                        },
+                    )
+                    for segment in bundle.segments
+                )
             segments = tuple(
                 ExecutionTraceSegment(
-                    product_type=segment.product_type,
-                    native_result_grain=segment.native_result_grain,
-                    partition_key=segment.product_type.value,
+                    product_type=product_type,
+                    native_result_grain=segment_by_type[product_type].native_result_grain,
+                    partition_key=partition_key,
                     candidate_counts={
-                        "raw": raw_segment.candidate_count,
+                        "raw": raw_by_type[product_type].candidate_count,
                         "eligible": sum(
-                            row.raw.product_type is segment.product_type
+                            row.raw.product_type is product_type
+                            and _matches_currency(row.raw.values, currency)
                             for row in policy_result.included_rows
                         ),
                     },
                     returned=sum(
-                        product_id in returned_products
-                        for product_id in {
-                            row.raw.product_id
-                            for row in policy_result.included_rows
-                            if row.raw.product_type is segment.product_type
-                        }
+                        (product_type, product_id) in returned_products
+                        for product_id in selected_product_ids
                     ),
                 )
-                for segment, raw_segment in zip(bundle.segments, raw.segments, strict=True)
+                for product_type, partition_key, currency, selected_product_ids in partition_specs
             )
             candidate_counts = {
                 "raw": raw.candidate_count,
@@ -222,3 +261,9 @@ class AnswerService:
             versions=self._session.versions.runtime_facts(),
             latency_ms={},
         )
+
+
+def _matches_currency(values: tuple[RawFieldValue, ...], currency: str | None) -> bool:
+    return currency is None or any(
+        item.field_id == "currency" and item.value == currency for item in values
+    )

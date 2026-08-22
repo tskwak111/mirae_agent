@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from finproof.domain.locators import SourceCellLocator
 from finproof.domain.quality import QualityStatus
+from finproof.domain.query_plan import ProductType
 from finproof.domain.values import DerivedValue, NormalizedValue
 
 
@@ -42,6 +43,7 @@ def test_direct_evidence_reuses_complete_source_cell_locator_and_normalized_valu
     )
     evidence = DirectEvidence[Decimal](
         evidence_id="direct-1",
+        product_type=ProductType.DOMESTIC_BOND,
         product_id="bond-1",
         field_id="buy_yield",
         value=normalized,
@@ -68,6 +70,7 @@ def test_derived_evidence_binds_inputs_rule_version_and_derived_as_of() -> None:
     )
     evidence = DerivedEvidence[int](
         evidence_id="derived-1",
+        product_type=ProductType.DOMESTIC_BOND,
         product_id=None,
         field_id="not_matured_count",
         value=derived,

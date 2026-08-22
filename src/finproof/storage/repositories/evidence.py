@@ -106,6 +106,7 @@ class EvidenceRepository:
                         direct.append(
                             DirectEvidence[object](
                                 evidence_id=evidence_id,
+                                product_type=request.product_type,
                                 product_id=product_id,
                                 field_id=field_id,
                                 value=wrapped,
@@ -115,6 +116,7 @@ class EvidenceRepository:
                         derived.append(
                             DerivedEvidence[object](
                                 evidence_id=evidence_id,
+                                product_type=request.product_type,
                                 product_id=product_id,
                                 field_id=field_id,
                                 value=wrapped,

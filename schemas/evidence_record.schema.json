@@ -87,9 +87,10 @@
     "direct_evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["evidence_id", "product_id", "field_id", "value"],
+      "required": ["evidence_id", "product_type", "product_id", "field_id", "value"],
       "properties": {
         "evidence_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "product_type": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]},
         "product_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
         "field_id": {"type": "string", "minLength": 1, "maxLength": 100},
         "value": {"$ref": "#/$defs/normalized"}
@@ -98,9 +99,10 @@
     "derived_evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["evidence_id", "product_id", "field_id", "value"],
+      "required": ["evidence_id", "product_type", "product_id", "field_id", "value"],
       "properties": {
         "evidence_id": {"type": "string", "minLength": 1, "maxLength": 200},
+        "product_type": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]},
         "product_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
         "field_id": {"type": "string", "minLength": 1, "maxLength": 100},
         "value": {"$ref": "#/$defs/derived"}
@@ -141,6 +143,35 @@
         "validated_plan_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "version_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
         "artifact_manifest_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        ,"product_types": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]}
+        },
+        "native_result_grains": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {"enum": ["instrument", "listed_product", "fund_item", "fund_attribute", "fund_family_candidate", "product"]}
+        },
+        "partition_key": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
+        "product_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 300},
+        "metric_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 100},
+        "rank": {"type": ["integer", "null"], "minimum": 1},
+        "tie_count": {"type": ["integer", "null"], "minimum": 1},
+        "value": {"$ref": "#/$defs/value"},
+        "group_values": {
+          "type": "array",
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["field_id", "value"],
+            "properties": {
+              "field_id": {"type": "string", "minLength": 1, "maxLength": 100},
+              "value": {"$ref": "#/$defs/value"}
+            }
+          }
+        }
       }
     }
   },

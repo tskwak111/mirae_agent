@@ -115,6 +115,57 @@ def test_claim_verifier_rejects_unsupported_recommendation_claim() -> None:
         )
 
 
+def test_claim_verifier_rejects_candidate_with_false_native_identity() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import ProductType
+    from finproof.evidence import ClaimVerifier
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("buy_yield",),
+                ),
+            )
+        )[0]
+        .direct
+    )
+    text = "조건에 부합하는 후보: domestic_etf KR9999999999"
+    draft = AnswerDraft(
+        text=text,
+        claims=(
+            AnswerClaim(
+                claim_id="claim:false-candidate",
+                kind=ClaimKind.CANDIDATE,
+                text=text,
+                product_type=ProductType.DOMESTIC_ETF,
+                product_id="KR9999999999",
+                evidence_ids=(direct[0].evidence_id,),
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="claim differs from evidence"):
+        ClaimVerifier().verify(
+            draft,
+            EvidenceBundle(
+                direct=direct,
+                derived=(),
+                summaries=(),
+                material_policy_limitations=(),
+            ),
+        )
+    session._close()
+
+
 def test_claim_verifier_rejects_claim_not_projected_in_answer_text() -> None:
     from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
     from finproof.domain.evidence import EvidenceBundle

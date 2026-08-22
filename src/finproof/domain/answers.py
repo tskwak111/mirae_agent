@@ -8,6 +8,7 @@ from typing import Annotated
 from pydantic import BaseModel, ConfigDict, Field
 
 from finproof.domain.execution import ExecutionTrace
+from finproof.domain.query_plan import ProductType
 
 
 class _FrozenModel(BaseModel):
@@ -37,6 +38,7 @@ class AnswerClaim(_FrozenModel):
     claim_id: Annotated[str, Field(min_length=1, max_length=200)]
     kind: ClaimKind
     text: Annotated[str, Field(min_length=1, max_length=2_000)]
+    product_type: ProductType | None = None
     product_id: Annotated[str, Field(min_length=1, max_length=300)] | None = None
     field_id: Annotated[str, Field(min_length=1, max_length=100)] | None = None
     value: Decimal | int | str | date | bool | None = None
@@ -46,12 +48,12 @@ class AnswerClaim(_FrozenModel):
 
 class AnswerDraft(_FrozenModel):
     text: Annotated[str, Field(min_length=1, max_length=12_000)]
-    claims: Annotated[tuple[AnswerClaim, ...], Field(max_length=100)]
+    claims: Annotated[tuple[AnswerClaim, ...], Field(max_length=300)]
 
 
 class VerifiedAnswer(_FrozenModel):
     text: Annotated[str, Field(min_length=1, max_length=12_000)]
-    claims: Annotated[tuple[AnswerClaim, ...], Field(max_length=100)]
+    claims: Annotated[tuple[AnswerClaim, ...], Field(max_length=300)]
 
 
 class AnswerResult(_FrozenModel):

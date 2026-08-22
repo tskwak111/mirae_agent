@@ -1,11 +1,18 @@
 """Bounded evidence assembly."""
 
+from datetime import date
+from decimal import Decimal
 from hashlib import sha256
 
 from finproof.data.artifacts.hashing import canonical_json_bytes
-from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+from finproof.domain.evidence import (
+    EvidenceBundle,
+    EvidenceSummary,
+    EvidenceSummaryKind,
+    EvidenceSummaryValue,
+)
 from finproof.domain.execution import ValidatedQueryPlan
-from finproof.domain.query_plan import ProductType
+from finproof.domain.query_plan import ProductType, ResultGrain
 from finproof.quality import PolicyExecutionResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
@@ -95,6 +102,9 @@ class EvidenceBuilder:
             + policy_result.excluded_state_count
             + policy_result.excluded_metric_count
         )
+        native_grains = {
+            row.raw.product_type: row.raw.native_result_grain for row in policy_result.included_rows
+        }
         summaries = [
             _summary(
                 summary_id="summary:count",
@@ -123,6 +133,7 @@ class EvidenceBuilder:
                 )
             )
         for index, partition in enumerate(policy_result.partitions):
+            product_types = tuple(dict.fromkeys(value.product_type for value in partition.values))
             summaries.append(
                 _summary(
                     summary_id=f"summary:partition:{index}",
@@ -134,20 +145,43 @@ class EvidenceBuilder:
                     plan_hash=plan_hash,
                     version_hash=version_hash,
                     artifact_hash=artifact_hash,
+                    product_types=product_types,
+                    native_result_grains=tuple(native_grains[item] for item in product_types),
+                    partition_key=partition.compatibility_key,
                 )
             )
         for index, rank in enumerate(policy_result.ranks):
+            rank_evidence_ids = (
+                *(
+                    item.evidence_id
+                    for item in direct
+                    if item.product_id == rank.value.product_id and item.field_id == rank.field_id
+                ),
+                *(
+                    item.evidence_id
+                    for item in derived
+                    if item.product_id == rank.value.product_id and item.field_id == rank.field_id
+                ),
+            )
             summaries.append(
                 _summary(
                     summary_id=f"summary:rank:{index}",
                     kind=EvidenceSummaryKind.RANK,
                     included_count=1,
                     excluded_count=0,
-                    evidence_ids=evidence_ids,
+                    evidence_ids=rank_evidence_ids,
                     policy_versions=(rank.policy_id,),
                     plan_hash=plan_hash,
                     version_hash=version_hash,
                     artifact_hash=artifact_hash,
+                    product_types=(rank.value.product_type,),
+                    native_result_grains=(rank.native_result_grain,),
+                    partition_key=rank.partition_key,
+                    product_id=rank.value.product_id,
+                    metric_id=rank.field_id,
+                    rank=rank.rank,
+                    tie_count=rank.tie_count,
+                    value=rank.value.value,
                 )
             )
             if rank.tie_count > 1:
@@ -162,6 +196,14 @@ class EvidenceBuilder:
                         plan_hash=plan_hash,
                         version_hash=version_hash,
                         artifact_hash=artifact_hash,
+                        product_types=(rank.value.product_type,),
+                        native_result_grains=(rank.native_result_grain,),
+                        partition_key=rank.partition_key,
+                        product_id=rank.value.product_id,
+                        metric_id=rank.field_id,
+                        rank=rank.rank,
+                        tie_count=rank.tie_count,
+                        value=rank.value.value,
                     )
                 )
         for index, aggregate in enumerate(policy_result.aggregates):
@@ -176,9 +218,21 @@ class EvidenceBuilder:
                     plan_hash=plan_hash,
                     version_hash=version_hash,
                     artifact_hash=artifact_hash,
+                    product_types=(aggregate.product_type,),
+                    native_result_grains=(aggregate.native_result_grain,),
+                    partition_key=aggregate.partition_key,
+                    metric_id=aggregate.field_id,
+                    value=aggregate.value,
+                    group_values=tuple(
+                        EvidenceSummaryValue(
+                            field_id=item.field_id,
+                            value=item.value,
+                        )
+                        for item in aggregate.group_values
+                    ),
                 )
             )
-        if len(summaries) > 100:
+        if len(summaries) > 200:
             raise ValueError("evidence summary bound exceeded")
         currencies = {partition.currency for partition in policy_result.partitions}
         limitations = tuple(
@@ -210,6 +264,15 @@ def _summary(
     plan_hash: str,
     version_hash: str,
     artifact_hash: str,
+    product_types: tuple[ProductType, ...] = (),
+    native_result_grains: tuple[ResultGrain, ...] = (),
+    partition_key: str | None = None,
+    product_id: str | None = None,
+    metric_id: str | None = None,
+    rank: int | None = None,
+    tie_count: int | None = None,
+    value: Decimal | int | str | date | bool | None = None,
+    group_values: tuple[EvidenceSummaryValue, ...] = (),
 ) -> EvidenceSummary:
     return EvidenceSummary(
         summary_id=summary_id,
@@ -221,6 +284,15 @@ def _summary(
         validated_plan_sha256=plan_hash,
         version_bundle_sha256=version_hash,
         artifact_manifest_hash=artifact_hash,
+        product_types=product_types,
+        native_result_grains=native_result_grains,
+        partition_key=partition_key,
+        product_id=product_id,
+        metric_id=metric_id,
+        rank=rank,
+        tie_count=tie_count,
+        value=value,
+        group_values=group_values,
     )
 
 

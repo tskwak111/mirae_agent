@@ -12,6 +12,7 @@ from finproof.domain.query_plan import (
     FilterOperator,
     Intent,
     ProductType,
+    ResultGrain,
     SortDirection,
     SortSpec,
     TopKScope,
@@ -41,6 +42,10 @@ class PolicyRow(BaseModel):
 class AggregatePolicyResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
+    product_type: ProductType
+    native_result_grain: ResultGrain
+    partition_key: str
+    field_id: str | None
     group_values: tuple[RawFieldValue, ...]
     value: Decimal | int | None
     included_count: int
@@ -53,6 +58,9 @@ class RankPolicyResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     value: MetricValue
+    native_result_grain: ResultGrain
+    partition_key: str
+    field_id: str
     rank: int
     tie_count: int
     policy_id: str
@@ -216,6 +224,20 @@ class PolicyEngine:
                 rank_results.extend(
                     RankPolicyResult(
                         value=item.value,
+                        native_result_grain=next(
+                            segment.native_result_grain
+                            for segment in bundle.segments
+                            if segment.product_type is item.value.product_type
+                        ),
+                        partition_key=partition.compatibility_key,
+                        field_id=next(
+                            field_id
+                            for segment in bundle.segments
+                            if segment.product_type is item.value.product_type
+                            for field_id in segment.metrics
+                            if self._fields.projection(field_id, segment.product_type).metric_id
+                            == item.value.metric_id
+                        ),
                         rank=item.rank,
                         tie_count=item.tie_count,
                         policy_id=f"{item.value.metric_id}:rank",
@@ -270,63 +292,110 @@ class PolicyEngine:
             segment_rows = tuple(
                 row for row in included if row.raw.product_type is segment.product_type
             )
-            segment_aggregates: list[AggregatePolicyResult] = []
-            grouped: dict[
-                tuple[object, ...], tuple[tuple[RawFieldValue, ...], list[PolicyRow]]
-            ] = {}
-            for policy_row in segment_rows:
-                by_field = {item.field_id: item for item in policy_row.raw.values}
-                group_values = tuple(by_field[field] for field in aggregation.group_by)
-                key = tuple(item.value for item in group_values)
-                grouped.setdefault(key, (group_values, []))[1].append(policy_row)
-            if not grouped and not aggregation.group_by:
-                grouped[()] = ((), [])
-            for _, (group_values, group_rows) in sorted(
-                grouped.items(), key=lambda item: tuple(str(value) for value in item[0])
-            ):
-                if aggregation.field is None:
-                    value: Decimal | int | None = len(group_rows)
-                    included_count = len(group_rows)
-                    metric_excluded = 0
-                    policy_id = f"count:{aggregation.function.value}"
-                else:
-                    projection = self._fields.projection(aggregation.field, segment.product_type)
-                    product_ids = {row.raw.product_id for row in group_rows}
-                    numbers = tuple(
-                        item.value
-                        for item in policy_values
-                        if item.metric_id == projection.metric_id
-                        and item.product_type is segment.product_type
-                        and item.product_id in product_ids
-                        and type(item.value) is Decimal
+            applicable_partitions = (
+                tuple(
+                    partition
+                    for partition in selected_partitions
+                    if any(
+                        value.product_type is segment.product_type
+                        and value.metric_id
+                        == self._fields.projection(
+                            aggregation.field, segment.product_type
+                        ).metric_id
+                        for value in partition.values
                     )
-                    value = _aggregate(aggregation.function, numbers)
-                    included_count = len(numbers)
-                    metric_excluded = len(group_rows) - included_count
-                    policy_id = f"{projection.metric_id}:{aggregation.function.value}"
-                segment_aggregates.append(
-                    AggregatePolicyResult(
-                        group_values=group_values,
-                        value=value,
-                        included_count=included_count,
-                        excluded_count=(
-                            metric_excluded
-                            + (excluded_filter + excluded_state if not aggregation.group_by else 0)
+                )
+                if aggregation.field is not None
+                else ()
+            )
+            partition_rows = (
+                tuple(
+                    (
+                        partition.compatibility_key,
+                        tuple(
+                            row
+                            for row in segment_rows
+                            if _row_matches_partition(row, partition.currency)
                         ),
-                        policy_id=policy_id,
-                        evidence_requirements=("value", "quality", "count"),
                     )
+                    for partition in applicable_partitions
                 )
-            if segment.sort and segment.sort[0].field == aggregation.field:
-                valued = [item for item in segment_aggregates if item.value is not None]
-                valued.sort(
-                    key=lambda item: cast(Decimal | int, item.value),
-                    reverse=segment.sort[0].direction is SortDirection.DESC,
+                if applicable_partitions
+                else (
+                    (
+                        f"count:{segment.native_result_grain.value}:{segment.product_type.value}",
+                        segment_rows,
+                    ),
                 )
-                segment_aggregates = valued + [
-                    item for item in segment_aggregates if item.value is None
-                ]
-            aggregates.extend(segment_aggregates[: segment.top_k])
+            )
+            for partition_key, rows in partition_rows:
+                segment_aggregates: list[AggregatePolicyResult] = []
+                grouped: dict[
+                    tuple[object, ...], tuple[tuple[RawFieldValue, ...], list[PolicyRow]]
+                ] = {}
+                for policy_row in rows:
+                    by_field = {item.field_id: item for item in policy_row.raw.values}
+                    group_values = tuple(by_field[field] for field in aggregation.group_by)
+                    key = tuple(item.value for item in group_values)
+                    grouped.setdefault(key, (group_values, []))[1].append(policy_row)
+                if not grouped and not aggregation.group_by:
+                    grouped[()] = ((), [])
+                for _, (group_values, group_rows) in sorted(
+                    grouped.items(), key=lambda item: tuple(str(value) for value in item[0])
+                ):
+                    if aggregation.field is None:
+                        value: Decimal | int | None = len(group_rows)
+                        included_count = len(group_rows)
+                        metric_excluded = 0
+                        policy_id = f"count:{aggregation.function.value}"
+                    else:
+                        projection = self._fields.projection(
+                            aggregation.field, segment.product_type
+                        )
+                        product_ids = {row.raw.product_id for row in group_rows}
+                        numbers = tuple(
+                            item.value
+                            for item in policy_values
+                            if item.metric_id == projection.metric_id
+                            and item.product_type is segment.product_type
+                            and item.product_id in product_ids
+                            and type(item.value) is Decimal
+                        )
+                        value = _aggregate(aggregation.function, numbers)
+                        included_count = len(numbers)
+                        metric_excluded = len(group_rows) - included_count
+                        policy_id = f"{projection.metric_id}:{aggregation.function.value}"
+                    segment_aggregates.append(
+                        AggregatePolicyResult(
+                            product_type=segment.product_type,
+                            native_result_grain=segment.native_result_grain,
+                            partition_key=partition_key,
+                            field_id=aggregation.field,
+                            group_values=group_values,
+                            value=value,
+                            included_count=included_count,
+                            excluded_count=(
+                                metric_excluded
+                                + (
+                                    excluded_filter + excluded_state
+                                    if not aggregation.group_by
+                                    else 0
+                                )
+                            ),
+                            policy_id=policy_id,
+                            evidence_requirements=("value", "quality", "count"),
+                        )
+                    )
+                if segment.sort and segment.sort[0].field == aggregation.field:
+                    valued = [item for item in segment_aggregates if item.value is not None]
+                    valued.sort(
+                        key=lambda item: cast(Decimal | int, item.value),
+                        reverse=segment.sort[0].direction is SortDirection.DESC,
+                    )
+                    segment_aggregates = valued + [
+                        item for item in segment_aggregates if item.value is None
+                    ]
+                aggregates.extend(segment_aggregates[: segment.top_k])
         return PolicyExecutionResult(
             included_rows=tuple(included),
             excluded_filter_count=excluded_filter,
@@ -356,6 +425,13 @@ def _aggregate(function: AggregationFunction, values: tuple[Decimal, ...]) -> De
     if function is AggregationFunction.COUNT:
         return len(values)
     raise ValueError("aggregation function differs")
+
+
+def _row_matches_partition(row: PolicyRow, currency: str | None) -> bool:
+    row_currency = next(
+        (item.value for item in row.raw.values if item.field_id == "currency"), None
+    )
+    return currency is None or row_currency == currency
 
 
 def _matches(row: RawProductRow, clause: FilterClause) -> bool:

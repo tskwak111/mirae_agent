@@ -614,6 +614,12 @@ def test_aggregate_functions_return_typed_value_counts_policy_and_evidence_requi
     aggregate = PolicyEngine().apply(raw, bundle=bundle).aggregates[0]
 
     assert aggregate.value == Decimal("3")
+    assert aggregate.product_type is ProductType.DOMESTIC_BOND
+    assert aggregate.native_result_grain is ResultGrain.INSTRUMENT
+    assert aggregate.partition_key == (
+        "bond_buy_yield:None:yield_to_maturity_like_source_field:"
+        "not_equal_to_historical_period_return"
+    )
     assert (aggregate.included_count, aggregate.excluded_count) == (2, 0)
     assert aggregate.policy_id == "bond.buy_yield:avg"
     assert aggregate.evidence_requirements == ("value", "quality", "count")
@@ -683,6 +689,11 @@ def test_rank_output_retains_tie_counts_policy_and_evidence_requirements() -> No
         (1, 3),
         (1, 3),
         (1, 3),
+    )
+    assert all(rank.native_result_grain is ResultGrain.LISTED_PRODUCT for rank in result.ranks)
+    assert all(
+        rank.partition_key == "tracking_error:KRW:source_convention:same_metric_only"
+        for rank in result.ranks
     )
     assert all(rank.policy_id == "domestic_etf.tracking_error:rank" for rank in result.ranks)
     assert result.ranks[0].evidence_requirements == ("value", "quality", "tie")
@@ -1014,7 +1025,11 @@ def test_aggregate_group_by_preserves_typed_keys_values_and_group_counts() -> No
             aggregate.excluded_count,
         )
         for aggregate in aggregates
-    ) == (("KRW", Decimal("30"), 2, 1),)
+    ) == (
+        ("KRW", Decimal("30"), 2, 1),
+        ("USD", Decimal("5"), 1, 0),
+    )
+    assert len({aggregate.partition_key for aggregate in aggregates}) == 2
 
 
 def _bond(

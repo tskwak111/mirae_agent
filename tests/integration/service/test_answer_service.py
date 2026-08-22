@@ -273,6 +273,10 @@ def test_official_runtime_returns_one_verified_evidence_backed_answer_and_trace(
     assert numeric[0].evidence_ids
     assert context["direct"]
     assert result.trace.validation is TraceValidation.PASSED
+    assert tuple(segment.partition_key for segment in result.trace.segments) == (
+        "bond_buy_yield:None:yield_to_maturity_like_source_field:"
+        "not_equal_to_historical_period_return",
+    )
     assert result.trace.candidate_counts == {"raw": 1, "eligible": 1, "returned": 1}
     assert (
         result.trace.versions["artifact_manifest_hash"] == session.versions.artifact_manifest_hash

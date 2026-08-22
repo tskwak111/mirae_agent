@@ -158,6 +158,7 @@ def test_evidence_record_schema_matches_exact_domain_model_family() -> None:
     )
     from finproof.domain.locators import SourceCellLocator
     from finproof.domain.quality import QualityStatus
+    from finproof.domain.query_plan import ProductType
     from finproof.domain.values import DerivedValue, NormalizedValue
 
     source = SourceCellLocator(
@@ -174,6 +175,7 @@ def test_evidence_record_schema_matches_exact_domain_model_family() -> None:
     )
     direct = DirectEvidence[str](
         evidence_id="direct-1",
+        product_type=ProductType.DOMESTIC_ETF,
         product_id="KR1",
         field_id="product_id",
         value=NormalizedValue[str](
@@ -187,6 +189,7 @@ def test_evidence_record_schema_matches_exact_domain_model_family() -> None:
     )
     derived = DerivedEvidence[int](
         evidence_id="derived-1",
+        product_type=ProductType.DOMESTIC_ETF,
         product_id=None,
         field_id="eligible_count",
         value=DerivedValue[int](

@@ -5,7 +5,7 @@ from pathlib import PurePosixPath, PureWindowsPath
 from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.domain.evidence import EvidenceBundle
 
-_MAX_CONTEXT_BYTES = 24_000
+_MAX_CONTEXT_BYTES = 128_000
 
 
 def serialize_evidence_context(evidence: EvidenceBundle) -> str:

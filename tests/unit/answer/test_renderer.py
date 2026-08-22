@@ -1,7 +1,8 @@
 """Focused deterministic Korean rendering contracts."""
 
 from datetime import date
-from typing import TYPE_CHECKING
+from decimal import Decimal
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from finproof.domain.query_plan import QueryPlan
@@ -58,9 +59,63 @@ def test_recommendation_request_renders_conditions_matching_candidates() -> None
         ),
     )
 
-    assert "조건에 부합하는 후보: KR0000000001" in draft.text
+    assert "조건에 부합하는 후보: domestic_bond KR0000000001" in draft.text
     assert "추천" not in draft.text
     assert any(claim.kind is ClaimKind.CANDIDATE for claim in draft.claims)
+    session._close()
+
+
+def test_renderer_keeps_same_product_id_separate_across_product_types() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import ProductType
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("buy_yield",),
+                ),
+            )
+        )[0]
+        .direct[0]
+    )
+    evidence = EvidenceBundle(
+        direct=(
+            direct,
+            direct.model_copy(
+                update={
+                    "evidence_id": "domestic_etf:KR0000000001:buy_yield",
+                    "product_type": ProductType.DOMESTIC_ETF,
+                }
+            ),
+        ),
+        derived=(),
+        summaries=(),
+        material_policy_limitations=(),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-native", question="조건에 맞는 상품 추천"),
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+    candidates = tuple(claim for claim in draft.claims if claim.kind is ClaimKind.CANDIDATE)
+    assert tuple((claim.product_type, claim.product_id) for claim in candidates) == (
+        (ProductType.DOMESTIC_BOND, "KR0000000001"),
+        (ProductType.DOMESTIC_ETF, "KR0000000001"),
+    )
+    assert "domestic_bond KR0000000001" in draft.text
+    assert "domestic_etf KR0000000001" in draft.text
     session._close()
 
 
@@ -127,6 +182,75 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
     assert "비교 가능 기준" in text
     assert "통화별로 결과를 분리했습니다." in text
     assert "지정한 조건을 충족하는 상품을 찾지 못했습니다." in no_result
+
+
+def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.evidence import (
+        EvidenceBundle,
+        EvidenceSummary,
+        EvidenceSummaryKind,
+        EvidenceSummaryValue,
+    )
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.evidence import ClaimVerifier
+
+    common: dict[str, Any] = {
+        "included_count": 2,
+        "excluded_count": 1,
+        "evidence_ids": (),
+        "validated_plan_sha256": "a" * 64,
+        "version_bundle_sha256": "b" * 64,
+        "artifact_manifest_hash": "c" * 64,
+    }
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:rank:0",
+                kind=EvidenceSummaryKind.RANK,
+                policy_versions=("buy_yield:rank",),
+                product_types=(ProductType.DOMESTIC_BOND,),
+                native_result_grains=(ResultGrain.INSTRUMENT,),
+                partition_key="yield:KRW",
+                product_id="KR0000000001",
+                metric_id="buy_yield",
+                rank=1,
+                tie_count=1,
+                value=Decimal("2.25"),
+                **common,
+            ),
+            EvidenceSummary(
+                summary_id="summary:aggregate:0",
+                kind=EvidenceSummaryKind.AGGREGATE,
+                policy_versions=("buy_yield:avg",),
+                product_types=(ProductType.DOMESTIC_BOND,),
+                native_result_grains=(ResultGrain.INSTRUMENT,),
+                partition_key="yield:KRW",
+                metric_id="buy_yield",
+                value=Decimal("2.10"),
+                group_values=(EvidenceSummaryValue(field_id="currency", value="KRW"),),
+                **common,
+            ),
+        ),
+        material_policy_limitations=(),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-summary", question="수익률 순위와 평균은?"),
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+    assert "domestic_bond KR0000000001 buy_yield: 2.25 (1위)" in draft.text
+    assert "currency=KRW buy_yield 평균: 2.10" in draft.text
+    assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (
+        Decimal("2.25"),
+        Decimal("2.10"),
+    )
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
 
 
 def _plan() -> "QueryPlan":
