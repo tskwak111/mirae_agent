@@ -1,0 +1,173 @@
+"""Focused structured-claim verification contracts."""
+
+from decimal import Decimal
+
+import pytest
+
+
+def test_claim_verifier_rejects_numeric_claim_without_evidence() -> None:
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.evidence import ClaimVerifier
+
+    draft = AnswerDraft(
+        text="매수수익률은 2.25%입니다.",
+        claims=(
+            AnswerClaim(
+                claim_id="claim:yield",
+                kind=ClaimKind.NUMERIC,
+                text="매수수익률은 2.25%입니다.",
+                product_id="KR0000000001",
+                field_id="buy_yield",
+                value=Decimal("2.25"),
+                evidence_ids=(),
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="numeric claim requires evidence"):
+        ClaimVerifier().verify(
+            draft,
+            EvidenceBundle(direct=(), derived=(), summaries=(), material_policy_limitations=()),
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"product_id": "KR9999999999"},
+        {"value": Decimal("2.26")},
+        {"sign": "negative"},
+        {"kind": "text", "value": "2.25"},
+        {"kind": "text", "evidence_ids": ("evidence:missing",)},
+    ],
+)
+def test_claim_verifier_rejects_wrong_product_changed_decimal_and_false_sign_family(
+    change: dict[str, object],
+) -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind, ValueSign
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import ProductType
+    from finproof.evidence import ClaimVerifier
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    record = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("buy_yield",),
+            ),
+        )
+    )[0]
+    evidence = EvidenceBundle(
+        direct=record.direct,
+        derived=(),
+        summaries=(),
+        material_policy_limitations=(),
+    )
+    valid = AnswerClaim(
+        claim_id="claim:yield",
+        kind=ClaimKind.NUMERIC,
+        text="매수수익률은 2.25%입니다.",
+        product_id="KR0000000001",
+        field_id="buy_yield",
+        value=Decimal("2.25"),
+        evidence_ids=("domestic_bond:KR0000000001:buy_yield",),
+        sign=ValueSign.POSITIVE,
+    )
+
+    with pytest.raises(ValueError, match="claim differs from evidence"):
+        ClaimVerifier().verify(
+            AnswerDraft(
+                text=valid.text,
+                claims=(valid.model_copy(update=change),),
+            ),
+            evidence,
+        )
+    session._close()
+
+
+def test_claim_verifier_rejects_unsupported_recommendation_claim() -> None:
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.evidence import ClaimVerifier
+
+    draft = AnswerDraft(
+        text="이 상품을 반드시 매수하세요.",
+        claims=(
+            AnswerClaim(
+                claim_id="claim:recommendation",
+                kind=ClaimKind.RECOMMENDATION,
+                text="이 상품을 반드시 매수하세요.",
+                product_id="KR0000000001",
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="recommendation claim is unsupported"):
+        ClaimVerifier().verify(
+            draft,
+            EvidenceBundle(direct=(), derived=(), summaries=(), material_policy_limitations=()),
+        )
+
+
+def test_claim_verifier_rejects_claim_not_projected_in_answer_text() -> None:
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.evidence import ClaimVerifier
+
+    draft = AnswerDraft(
+        text="표시된 본문",
+        claims=(
+            AnswerClaim(
+                claim_id="claim:hidden",
+                kind=ClaimKind.LIMITATION,
+                text="숨은 주장",
+                value="숨은 주장",
+            ),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="claim text differs from answer projection"):
+        ClaimVerifier().verify(
+            draft,
+            EvidenceBundle(direct=(), derived=(), summaries=(), material_policy_limitations=()),
+        )
+
+
+def test_claim_verifier_requires_every_material_policy_limitation() -> None:
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.evidence import ClaimVerifier
+
+    limitations = (
+        "2026-07-11 제공 스냅샷 기준",
+        "통화별로 결과를 분리했습니다.",
+    )
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(),
+        material_policy_limitations=limitations,
+    )
+    claims = tuple(
+        AnswerClaim(
+            claim_id=f"claim:limitation:{index}",
+            kind=ClaimKind.LIMITATION,
+            text=limitation,
+            value=limitation,
+        )
+        for index, limitation in enumerate(limitations)
+    )
+
+    with pytest.raises(ValueError, match="material policy limitation is missing"):
+        ClaimVerifier().verify(AnswerDraft(text=limitations[0], claims=claims[:1]), evidence)
+
+    verified = ClaimVerifier().verify(
+        AnswerDraft(text=" ".join(limitations), claims=claims), evidence
+    )
+    assert verified.claims == claims

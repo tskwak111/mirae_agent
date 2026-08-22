@@ -1,10 +1,15 @@
 """Validated execution contracts for the deterministic engine."""
 
-from pydantic import BaseModel, ConfigDict, PrivateAttr
+from datetime import date
+from enum import StrEnum
+from typing import Annotated
+
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 
 from finproof.domain.query_plan import (
     AggregationSpec,
     FilterClause,
+    Intent,
     ProductType,
     QueryPlan,
     ResultGrain,
@@ -69,5 +74,32 @@ class ExecutionBundle(_FrozenModel):
     response_grain: ResultGrain
 
 
+class TraceValidation(StrEnum):
+    PASSED = "passed"
+    CLARIFY = "clarify"
+    UNSUPPORTED = "unsupported"
+    SAFE_FAILURE = "safe_failure"
+
+
+class ExecutionTraceSegment(_FrozenModel):
+    product_type: ProductType
+    native_result_grain: ResultGrain
+    partition_key: Annotated[str, Field(min_length=1, max_length=300)]
+    candidate_counts: dict[str, Annotated[int, Field(ge=0)]]
+    returned: Annotated[int, Field(ge=0)]
+
+
 class ExecutionTrace(_FrozenModel):
-    pass
+    correlation_id: Annotated[str, Field(min_length=1, max_length=200)]
+    intent: Intent
+    product_types: Annotated[tuple[ProductType, ...], Field(max_length=6)]
+    as_of_date: date
+    result_grain: ResultGrain
+    top_k_scope: TopKScope
+    segments: Annotated[tuple[ExecutionTraceSegment, ...], Field(max_length=6)]
+    candidate_counts: dict[str, Annotated[int, Field(ge=0)]]
+    tools: Annotated[tuple[str, ...], Field(max_length=20)]
+    policy_ids: Annotated[tuple[str, ...], Field(max_length=32)]
+    validation: TraceValidation
+    versions: dict[str, str]
+    latency_ms: dict[str, Annotated[int, Field(ge=0)]]

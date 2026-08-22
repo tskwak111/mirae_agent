@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://finproof.local/schemas/execution_trace.schema.json",
   "title": "ExecutionTrace",
   "type": "object",
   "additionalProperties": false,
@@ -15,106 +16,54 @@
     "tools",
     "policy_ids",
     "validation",
-    "versions"
+    "versions",
+    "latency_ms"
   ],
   "properties": {
-    "correlation_id": {
-      "type": "string"
-    },
+    "correlation_id": {"type": "string", "minLength": 1, "maxLength": 200},
     "intent": {
-      "type": "string"
+      "enum": ["lookup", "screen", "screen_rank", "compare", "aggregate", "explain", "clarify", "unsupported"]
     },
     "product_types": {
       "type": "array",
-      "items": {
-        "type": "string"
-      }
+      "maxItems": 6,
+      "items": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]}
     },
-    "as_of_date": {
-      "type": "string",
-      "format": "date"
-    },
+    "as_of_date": {"type": "string", "format": "date"},
     "result_grain": {
-      "type": "string"
+      "enum": ["product", "instrument", "listed_product", "fund_item", "fund_attribute", "fund_family_candidate"]
     },
-    "top_k_scope": {
-      "enum": [
-        "global",
-        "per_product_type"
-      ]
-    },
+    "top_k_scope": {"enum": ["global", "per_product_type"]},
     "segments": {
       "type": "array",
+      "maxItems": 6,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": [
-          "product_type",
-          "native_result_grain",
-          "partition_key",
-          "candidate_counts",
-          "returned"
-        ],
+        "required": ["product_type", "native_result_grain", "partition_key", "candidate_counts", "returned"],
         "properties": {
-          "product_type": {
-            "type": "string"
-          },
-          "native_result_grain": {
-            "type": "string"
-          },
-          "partition_key": {
-            "type": "string"
-          },
+          "product_type": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]},
+          "native_result_grain": {"enum": ["instrument", "listed_product", "fund_item"]},
+          "partition_key": {"type": "string", "minLength": 1, "maxLength": 300},
           "candidate_counts": {
             "type": "object",
-            "additionalProperties": {
-              "type": "integer",
-              "minimum": 0
-            }
+            "additionalProperties": {"type": "integer", "minimum": 0}
           },
-          "returned": {
-            "type": "integer",
-            "minimum": 0
-          }
+          "returned": {"type": "integer", "minimum": 0}
         }
       }
     },
     "candidate_counts": {
       "type": "object",
-      "additionalProperties": {
-        "type": "integer",
-        "minimum": 0
-      }
+      "additionalProperties": {"type": "integer", "minimum": 0}
     },
-    "tools": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "policy_ids": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "validation": {
-      "enum": [
-        "passed",
-        "clarify",
-        "unsupported",
-        "safe_failure"
-      ]
-    },
-    "versions": {
-      "type": "object"
-    },
+    "tools": {"type": "array", "maxItems": 20, "items": {"type": "string"}},
+    "policy_ids": {"type": "array", "maxItems": 32, "items": {"type": "string"}},
+    "validation": {"enum": ["passed", "clarify", "unsupported", "safe_failure"]},
+    "versions": {"type": "object", "additionalProperties": {"type": "string"}},
     "latency_ms": {
       "type": "object",
-      "additionalProperties": {
-        "type": "number",
-        "minimum": 0
-      }
+      "additionalProperties": {"type": "integer", "minimum": 0}
     }
   }
 }

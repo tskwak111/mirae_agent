@@ -218,3 +218,52 @@ def test_evidence_record_schema_matches_exact_domain_model_family() -> None:
     malformed = dict(payloads[0])
     malformed["value"] = dict(malformed["value"]) | {"parallel_locator": {}}
     assert tuple(validator.iter_errors(malformed))
+
+
+def test_execution_trace_schema_matches_exact_domain_model() -> None:
+    from finproof.domain.execution import (
+        ExecutionTrace,
+        ExecutionTraceSegment,
+        TraceValidation,
+    )
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        ResultGrain,
+        TopKScope,
+    )
+
+    trace = ExecutionTrace(
+        correlation_id="trace-q1",
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.INSTRUMENT,
+        top_k_scope=TopKScope.GLOBAL,
+        segments=(
+            ExecutionTraceSegment(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                partition_key="domestic_bond",
+                candidate_counts={"raw": 1, "eligible": 1},
+                returned=1,
+            ),
+        ),
+        candidate_counts={"raw": 1, "eligible": 1, "returned": 1},
+        tools=("entity_resolver", "query_executor", "claim_verifier"),
+        policy_ids=("state:1.0.0", "metric:1.0.0"),
+        validation=TraceValidation.PASSED,
+        versions={"dataset_version": "2026-07-11"},
+        latency_ms={},
+    )
+    schema = json.loads((ROOT / "schemas/execution_trace.schema.json").read_text("utf-8"))
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    payload = trace.model_dump(mode="json")
+
+    assert not tuple(validator.iter_errors(payload))
+    assert set(schema["properties"]) == set(ExecutionTrace.model_fields)
+    malformed = payload | {"sql": "SELECT *"}
+    assert tuple(validator.iter_errors(malformed))
+    with pytest.raises(ValidationError):
+        ExecutionTrace.model_validate(malformed)

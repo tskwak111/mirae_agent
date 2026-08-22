@@ -53,3 +53,10 @@ class EvidenceSummary(_FrozenModel):
         if len(set(self.policy_versions)) != len(self.policy_versions):
             raise ValueError("policy versions must be unique")
         return self
+
+
+class EvidenceBundle(_FrozenModel):
+    direct: Annotated[tuple[DirectEvidence[object], ...], Field(max_length=100)]
+    derived: Annotated[tuple[DerivedEvidence[object], ...], Field(max_length=100)]
+    summaries: Annotated[tuple[EvidenceSummary, ...], Field(max_length=100)]
+    material_policy_limitations: Annotated[tuple[str, ...], Field(max_length=100)]
