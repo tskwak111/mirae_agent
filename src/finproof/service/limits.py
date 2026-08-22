@@ -5,15 +5,32 @@ from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from time import monotonic
+from typing import Any
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(slots=True)
 class RequestContext:
     """The one absolute monotonic deadline carried through a request."""
 
     correlation_id: str
     deadline_at: float
     _clock: Callable[[], float] = monotonic
+    _retained: bool = False
+
+    def retain_permit_until_done(self, worker: asyncio.Future[Any]) -> None:
+        """Keep the acquired permit until detached synchronous work has actually ended."""
+        if self._retained:
+            return
+        self._retained = True
+
+        def release(completed: asyncio.Future[Any]) -> None:
+            if not completed.cancelled():
+                completed.exception()
+            self._release()
+
+        worker.add_done_callback(release)
+
+    _release: Callable[[], None] = lambda: None
 
     def remaining_seconds(self) -> float:
         return max(0.0, self.deadline_at - self._clock())
@@ -44,6 +61,7 @@ class RequestLimiter:
             correlation_id=correlation_id,
             deadline_at=self._clock() + self._deadline_seconds,
             _clock=self._clock,
+            _release=self._semaphore.release,
         )
         remaining = context.remaining_seconds()
         if remaining <= 0:
@@ -52,4 +70,5 @@ class RequestLimiter:
         try:
             yield context
         finally:
-            self._semaphore.release()
+            if not context._retained:
+                self._semaphore.release()

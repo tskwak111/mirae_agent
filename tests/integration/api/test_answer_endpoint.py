@@ -10,13 +10,16 @@ from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
+from tests.integration.planner.test_planner_service import _validator
 
 from finproof.api.app import create_app
 from finproof.api.dependencies import AnswerOrchestrator, ApiDependencies
 from finproof.core.settings import ExecutionMode, Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
-from finproof.domain.query_plan import Intent, ResultGrain, TopKScope
+from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
+from finproof.planner.rule_fallback import RuleFallbackPlanner
+from finproof.service.orchestrator import EvaluationOrchestrator
 
 
 class StubOrchestrator:
@@ -55,6 +58,15 @@ class InvalidResultOrchestrator:
 
     async def answer(self, _: AnswerRequest) -> AnswerResult:
         return cast(AnswerResult, self._result)
+
+
+class DeterministicAnswerService:
+    def answer_plan(self, _: AnswerRequest, __: QueryPlan) -> AnswerResult:
+        return AnswerResult(
+            answer=VerifiedAnswer(text="결정적 답변", claims=()),
+            retrieved_context="{}",
+            trace=_trace(),
+        )
 
 
 def _trace(*, versions: dict[str, str] | None = None) -> ExecutionTrace:
@@ -142,6 +154,27 @@ def test_answer_echoes_raw_request_and_returns_exact_schema(
     assert trace["correlation_id"] != "service-correlation"
     assert "prompt" not in trace
     assert "reasoning" not in trace
+
+
+def test_api_orchestrator_trace_and_structured_log_share_one_correlation_id(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="finproof")
+    orchestrator = EvaluationOrchestrator(
+        planner=RuleFallbackPlanner(validator=_validator()),
+        answer_service=DeterministicAnswerService(),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    with _client_for(orchestrator) as client:
+        response = client.get(
+            "/answer", params={"question_id": "Q-001", "question": "미국 ETF 총보수 알려줘"}
+        )
+
+    trace = json.loads(response.json()["think_trace"])
+    event = cast(dict[str, object], caplog.records[-1].__dict__)
+    assert response.status_code == 200
+    assert trace["correlation_id"] == event["correlation_id"]
 
 
 @pytest.mark.parametrize(
