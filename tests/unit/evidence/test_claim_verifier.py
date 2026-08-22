@@ -219,6 +219,27 @@ def test_claim_verifier_rejects_false_aggregate_group_partition_and_native_ident
             ),
         )
 
+    omitted_text = "buy_yield 평균: 2.10"
+    omitted_claim = false_claim.model_copy(
+        update={
+            "text": omitted_text,
+            "product_types": (),
+            "native_result_grains": (),
+            "partition_key": None,
+            "group_values": (),
+        }
+    )
+    with pytest.raises(ValueError, match="claim differs from evidence"):
+        ClaimVerifier().verify(
+            AnswerDraft(text=omitted_text, claims=(omitted_claim,)),
+            EvidenceBundle(
+                direct=(),
+                derived=(),
+                summaries=(summary,),
+                material_policy_limitations=(),
+            ),
+        )
+
 
 def test_claim_verifier_rejects_claim_not_projected_in_answer_text() -> None:
     from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind

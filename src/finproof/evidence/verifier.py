@@ -106,14 +106,18 @@ def _matches_value_claim(
             for item in referenced
             if item is not None
             and (not claim.product_types or item[0] == claim.product_types)
+            and (not item[1] or item[0] == claim.product_types)
             and (not claim.native_result_grains or item[1] == claim.native_result_grains)
+            and (not item[1] or item[1] == claim.native_result_grains)
             and (claim.partition_key is None or item[2] == claim.partition_key)
+            and (item[2] is None or item[2] == claim.partition_key)
             and (claim.product_type is None or item[0] == (claim.product_type,))
             and item[3] == claim.product_id
             and item[4] == claim.field_id
             and type(item[5]) is type(claim.value)
             and item[5] == claim.value
             and (not claim.group_values or item[6] == claim.group_values)
+            and (not item[6] or item[6] == claim.group_values)
         ),
         None,
     )
