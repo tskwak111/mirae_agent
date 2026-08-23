@@ -1,57 +1,89 @@
 # FinProof
 
-**FinProof** is an evidence-first financial-product analysis agent for the 2026 Mirae Asset Securities AI Festival.
+FinProof is an evidence-first financial-product analysis agent for the 2026 Mirae
+Asset Securities AI Festival.
 
 > HyperCLOVA X plans. Deterministic code executes. Evidence proves. Verification blocks unsupported claims.
 
-This repository is an implementation handoff package. It contains the official task PDF and eight source workbooks, frozen architecture and data policies, machine-readable registries and JSON Schemas, source-audit tools, TDD implementation plans, and Codex kickoff/review prompts.
+## Prerequisites
 
-## Start
+- Python 3.12
+- `uv` 0.12.3 or compatible
+- Docker for the container checks and deployment
+- The official files under `source_material/`
+
+## Clean setup and verified artifacts
 
 ```bash
-cat START_HERE.md
-cat AGENTS.md
-cat CODEX_MASTER_PROMPT.md
-python tools/verify_handoff.py
-python tools/audit_source_data.py --check
+git clone <repository-url> finproof
+cd finproof
+uv sync --frozen --all-groups
+uv run python tools/verify_handoff.py
+uv run python tools/audit_source_data.py --check
+uv run finproof build-data --clean
 ```
 
-Then give `CODEX_MASTER_PROMPT.md` to Codex and execute the first incomplete phase in `docs/implementation/STATUS.md`.
+The build creates the expected-verified runtime tree under `artifacts/`. Official
+source files are read-only inputs and are never copied into the container image.
+
+## Run the evaluation API
+
+The safe default disables live HCX and uses the validated deterministic rule fallback:
+
+```bash
+FINPROOF_HCX_ENABLED=false uv run uvicorn finproof.api.app:create_app \
+  --factory --host 127.0.0.1 --port 8000
+```
+
+To enable the strict-JSON HCX planner, operators supply `FINPROOF_HCX_ENABLED`,
+`FINPROOF_HCX_API_KEY`, and optionally `FINPROOF_HCX_MODEL_NAME` through the runtime
+environment. Do not commit their values. Structured Outputs is not active in the Phase
+3 runtime.
+
+The sole public route is documented in [docs/API_SPEC.md](docs/API_SPEC.md). Current
+implementation and release status is in
+[docs/implementation/STATUS.md](docs/implementation/STATUS.md).
+
+## Run with Docker
+
+```bash
+docker build -t finproof:phase3 .
+docker run --rm --publish 127.0.0.1:8000:8000 \
+  -e FINPROOF_HCX_ENABLED=false \
+  --mount "type=bind,src=$(pwd)/artifacts,dst=/app/artifacts,readonly" \
+  finproof:phase3
+```
+
+For HCX-enabled operation, pass the same HCX environment-variable names to
+`docker run` without embedding secret values in the image or command history.
+
+## Checks
+
+Use focused tests while changing one behavior, for example:
+
+```bash
+uv run pytest tests/unit/planner/test_rule_fallback.py -q
+uv run pytest tests/integration/api/test_answer_endpoint.py -q
+```
+
+The mandatory full repository gate is:
+
+```bash
+uv run ruff format --check .
+uv run ruff check .
+uv run mypy src tests tools
+uv run pytest -q
+uv run python tools/audit_source_data.py --check
+uv run python tools/verify_handoff.py
+```
 
 ## Core constraints
 
-- HyperCLOVA X is the only generative LLM in evaluation/runtime code.
-- Official source data remains immutable and has priority over external data.
-- Search, filters, ranking, aggregation, calculations, evidence, and verification are deterministic.
-- Public-fund default grain is `itm_no`.
-- ETF queries exclude ETNs unless explicitly included.
-- “Current” means the `2026-07-11` snapshot.
-- No direct cross-currency AUM ranking without a fixed FX snapshot.
-- Heterogeneous product queries use a `product` envelope, explicit `top_k_scope`, and native execution segments.
-- No free-form Text-to-SQL and no fuzzy automatic product merge.
-- The evaluation API returns exactly the organizer’s five string fields unless officially changed.
-
-## Repository map
-
-```text
-AGENTS.md                       repository-wide engineering contract
-CODEX_MASTER_PROMPT.md          first Codex session prompt
-CODEX_RESUME_PROMPT.md          later-session continuation prompt
-CODEX_REVIEW_PROMPT.md          independent review prompt
-docs/                           design, contracts, plans, risks, validation, definition of done
-config/                         versioned dataset/metric/state/quality/answer policies
-schemas/                        JSON contracts for plans, evidence, trace, API
-source_material/                official PDF, workbooks, checksums, schema catalog
-tools/                          handoff/source audit and schema extraction utilities
-tests/contracts/                immutable source baseline
-tests/golden/                   seed evaluation cases and authoring rules
-src/finproof/                   production package scaffold
-```
-
-## Delivery philosophy
-
-Do not build the whole system in a single uncontrolled run. Complete one phase, run its gate, review the diff, commit, and update status. The phase plans are written so a new agent can resume without relying on chat memory.
-
-## Handoff verification status
-
-See `docs/13_HANDOFF_VALIDATION_REPORT.md` for the exact commands that passed and the implementation/release checks that remain pending. A dependency lock must be generated and committed in the first network-enabled bootstrap.
+- HyperCLOVA X is the only generative model allowed in evaluation/runtime code.
+- Official data and the `2026-07-11` snapshot are the source of truth.
+- Retrieval, filtering, ranking, calculations, evidence, and claim verification are
+  deterministic.
+- Plain ETF excludes ETN; public-fund default grain is `itm_no`.
+- No free-form Text-to-SQL, fuzzy automatic merge, or unsupported investment forecast.
+- The evaluation API returns exactly five string fields unless an official override is
+  recorded.

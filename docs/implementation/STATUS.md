@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-22 — Phase 2 Tasks 1–6 and the Phase 2 gate are complete.
-The final scoped review at `08cab98` returned Critical 0 / Important 0.
+**Last updated:** 2026-08-24 — Phase 3 Tasks 1–5 and the corrected Phase 3 gate are
+complete. The scoped re-review at `46c9001` returned Critical 0 / Important 0.
 
 ## Frozen baseline
 
@@ -39,12 +39,12 @@ Plan: `docs/superpowers/plans/2026-08-07-02-deterministic-query-engine.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
-- [ ] Task 1: HCX client and recorded contract fixtures
-- [ ] Task 2: structured/strict JSON planner, repair, and rule fallback
-- [ ] Task 3: API application, exact `/answer`, health/readiness/version, and safe errors
-- [ ] Task 4: bounded timeout/retry/concurrency/cache and structured observability
-- [ ] Task 5: Docker/reproduction and end-to-end API tests
-- [ ] Phase 3 gate passed
+- [x] Task 1: HCX client and recorded contract fixtures
+- [x] Task 2: structured/strict JSON planner, repair, and rule fallback
+- [x] Task 3: API application, exact `/answer`, and safe errors
+- [x] Task 4: bounded timeout/retry/concurrency and structured observability
+- [x] Task 5: Docker/reproduction and end-to-end API tests
+- [x] Phase 3 gate passed
 
 ## Phase 4 — Evaluation, hardening, proposal evidence, and release
 
@@ -59,9 +59,10 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 3 Task 1: implement the typed CLOVA Studio transport and recorded HCX
-contract fixtures from the approved Phase 3 plan.** Phase 2 closure is complete; no
-Phase 3 implementation has started.
+**Phase 4 Task 1: build the canonical golden dataset schema, authoring checks, scorer,
+runner, and reviewed canonical set from the approved Phase 4 plan.** Begin with the
+failing `GoldenCase` schema tests; do not treat the 13 AI-handoff seeds as reviewed
+ground truth.
 
 ## Phase 1 Task 5 design and plan record
 
@@ -1040,3 +1041,105 @@ Exact next development task:
 
 **Phase 3 Task 1: implement the typed CLOVA Studio transport and recorded HCX
 contract fixtures.** Stop here; Phase 3 has not started.
+
+## Phase 3 closure — HCX planner and evaluation API
+
+Phase 3 was implemented, gated, and reviewed on 2026-08-24. The Phase 2 closure base
+was `f7ff0b8`. Phase 3 lineage through the final correction is:
+
+- plan and Tasks 1–2: `b220f81`, `5f94366`, `a8894ee`, `683a880`, `902e45c`,
+  `8c386a1`;
+- Task 3: `d1ad1d2`, `ac6a2b9`, `af77675`, `4066eff`;
+- Task 4: `40088f3`, `8c236fa`;
+- Task 5 and its candidate closure: `f5140c6`, `550ec3d`, `1fbc596`, `c159421`;
+- final-gate/provider-boundary correction `0dd238b` and whole-Phase review correction
+  `46c9001` (`fix: close phase 3 final review findings`).
+
+Required-versus-derived accounting is recorded without inferring missing counts:
+
+- Task 1 has no standalone task report with numerical selector accounting. The ledger
+  records implementation commit `5f94366` and an independently closed review.
+- Task 2 has no standalone task report with numerical selector accounting. The ledger
+  records `a8894ee..683a880` and Critical 0 / Important 0.
+- Task 3's report records required response-model RED → 13 passed, evidence-limit RED
+  plus a 10,433-byte derived compaction check, endpoint RED → 14 passed, and a
+  trailing-slash RED → 9 passed. Subsequent direct corrections record resource fallback
+  2 RED → 2 passed, failure-correlation 1 RED → 1 passed, pre-orchestrator correlation
+  1 RED → 2 passed, and coverage-only endpoint selectors as first-run GREEN. The final
+  Task 3 aggregate was 44 passed with one upstream warning.
+- Task 4's report records the required orchestration collection RED, two AnswerService
+  timing failures, and logging collection RED; initial GREEN groups were 4 and 1
+  passed. Review corrections record permit ownership 2 RED → 2 passed and truthful
+  timing/categories 4 RED → 4 passed. Five existing real-planner integrations and one
+  API-correlation integration were explicitly first-GREEN. The final Task 4 aggregate
+  was 16 passed and the API regression was 24 passed with one upstream warning.
+- Task 5's report records separate application-graph, container inventory/CI, load,
+  short-soak, Docker permission/Linux/readiness/bounded-row, CI-timeout, and portable
+  temporary-directory groups. Load and soak began as plan-authorized acceptances but
+  retained focused RED evidence for defects they exposed. The final task aggregate was
+  4 passed with 3 expected dynamic-Docker skips; the portability correction was 1 RED
+  → 1 passed.
+- Task 6's provider-boundary correction was 1 RED → 1 passed. Whole-Phase review
+  corrections were: Q-005 byte boundary 1 RED → 1 passed; fallback partial-condition
+  handling 3 RED → 3 passed; fallback metric misbinding 1 RED → 1 passed; and detached
+  worker drain 1 RED → 1 passed. Recorded affected aggregates were planner 63 passed /
+  1 live-HCX skip, fallback 17 passed, service/API 55 passed, and Task 5 file/API 4
+  passed / 3 explicit Docker skips.
+
+The corrected final gate on the exact tree committed as `46c9001` produced:
+
+- `uv run ruff format --check .` — 274 files already formatted;
+- `uv run ruff check .` — all checks passed;
+- `uv run mypy src tests tools` — no issues in 274 source files;
+- `uv run pytest -q` — 2,630 passed, 6 skipped, 5 warnings in 7,391.67 seconds
+  (`2:03:11`);
+- source audit — 145,393 rows at snapshot `2026-07-11`;
+- handoff verification — 61 required files, 9 official inputs, 41,384,928 source
+  bytes;
+- API/E2E aggregate — 25 passed and 1 warning in 1.37 seconds;
+- eight-request load — 1 passed in 4.07 seconds;
+- 300-second short soak — 1 passed in 313.88 seconds;
+- Docker build — manifest-list digest
+  `sha256:d2ee40a0bc92a13221d898863c70aae15230e159c717d4e110155e7d5a17add5`;
+- outside-container success plus missing/tampered fail-closed smoke — 3 passed in
+  3,236.26 seconds (`0:53:56`).
+
+The first whole-Phase review of `f7ff0b8..0dd238b` returned Critical 0 / Important 3:
+the Q-005 byte constant, fallback partial interpretation, and detached worker shutdown.
+The single correction wave closed all three, including the related metric-misbinding
+case. The scoped re-review at `46c9001` returned Critical 0 / Important 0, so review
+stopped and closure documentation was authorized.
+
+Operational evidence: an earlier corrected full-suite process lost its agent transport
+and exited 143 at 30%. A later cold official-cache process was SIGKILLed and left one
+`.artifacts.finproof-stage-*` fixture directory and marker. Those paths were moved,
+not deleted, to `/private/tmp/finproof-phase3-orphan.PaDZkC`; the exact official
+resolution selector then passed and the later complete gate above was green. This was
+an interrupted-run fixture remnant, not a repository-code defect.
+
+The optional live-HCX selector was skipped because `FINPROOF_HCX_API_KEY` credentials
+were unavailable. No secret was printed. Q-005, Q-006, and Q-010 remain
+`OPEN_OFFICIAL`: temporary API bounds remain fail-closed; Structured Outputs remains
+hard-disabled in runtime; and request-validation failures retain bounded standard 422
+behavior. Relevant internal items remain open: A-004 (no result cache), A-005 (release
+manifest ordering), A-007 (no public operational routes), A-009 (AI seeds are not
+reviewed goldens), A-012 (HCX-only provider compliance), and A-014 (strict TDD ordering
+in remaining plan steps).
+
+Phase 4 backlog and release prerequisites:
+
+- prove admission independently beyond exactly eight permit requests;
+- supplement `tracemalloc`, which excludes native DuckDB/Arrow allocations;
+- retain the measured fresh-container estimate of about 176 minutes and the CI
+  container timeout of 240 minutes;
+- run the required 24-hour soak before release;
+- measure whether provider retry needs a minimum remaining-time reserve;
+- consider `httpx` `trust_env=False` transport hardening without changing the fixed
+  HCX origin.
+
+Exact next development task:
+
+**Phase 4 Task 1: build the canonical golden dataset schema, authoring checks, scorer,
+runner, and reviewed canonical set.** Start with the failing `GoldenCase` schema tests
+from `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`; do not promote
+the 13 `AI-handoff-seed` cases without human review.
