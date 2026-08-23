@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from enum import StrEnum
 from typing import Any, NoReturn
 from urllib.parse import quote
@@ -13,6 +15,13 @@ from pydantic import SecretStr
 from finproof.core.errors import FinProofError
 from finproof.planner.models import HcxRequest, HcxResponse, HcxUsage
 from finproof.planner.rate_limits import HcxRateLimitSnapshot
+
+type HcxHttpClientFactory = Callable[[], AbstractAsyncContextManager[httpx.AsyncClient]]
+
+
+def create_hcx_http_client() -> httpx.AsyncClient:
+    """Create the owner-managed HTTP client used by runtime composition."""
+    return httpx.AsyncClient()
 
 
 class HcxClientError(FinProofError):
