@@ -38,6 +38,11 @@ class _OversizedChunkedStream(httpx.AsyncByteStream):
         yield b"{" + b"x" * HcxClient.MAX_RESPONSE_BYTES
 
 
+class _Q005BoundaryStream(httpx.AsyncByteStream):
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        yield b"x" * 256_001
+
+
 def _fixture(name: str) -> dict[str, object]:
     return cast(
         dict[str, object],
@@ -146,6 +151,18 @@ async def test_oversized_stream_stops_before_json_parse(
 
     with pytest.raises(HcxResponseTooLargeError):
         await hcx_client.generate(_valid_request(), request_id="req-1")
+
+
+@pytest.mark.asyncio
+async def test_q005_response_cap_rejects_byte_256001(
+    hcx_client: HcxClient, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.post(_URL).mock(httpx.Response(200, stream=_Q005BoundaryStream()))
+
+    with pytest.raises(HcxResponseTooLargeError) as caught:
+        await hcx_client.generate(_valid_request(), request_id="req-1")
+
+    assert caught.value.maximum_bytes == 256_000
 
 
 @pytest.mark.parametrize("api_status", ["42900", "42901", "42902"])

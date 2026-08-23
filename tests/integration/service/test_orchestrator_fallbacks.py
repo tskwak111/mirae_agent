@@ -233,6 +233,30 @@ async def test_cancelled_worker_keeps_permit_until_sync_work_finishes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_close_waits_for_timed_out_database_worker() -> None:
+    answer_service = BlockingAnswerService()
+    orchestrator = EvaluationOrchestrator(
+        planner=ImmediatePlanner(),
+        answer_service=answer_service,
+        limiter=RequestLimiter(max_in_flight=1, deadline_seconds=0.01),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    request = asyncio.create_task(orchestrator.answer(_request()))
+    await asyncio.to_thread(answer_service.started.wait)
+    assert (await request).trace.validation is TraceValidation.SAFE_FAILURE
+
+    try:
+        closing = asyncio.create_task(orchestrator.aclose())
+        await asyncio.sleep(0.01)
+        assert not closing.done()
+    finally:
+        answer_service.release.set()
+        await asyncio.to_thread(answer_service.finished.wait)
+    await closing
+
+
+@pytest.mark.asyncio
 async def test_planner_timeout_records_elapsed_stage_and_category(caplog: object) -> None:
     capture = cast(Any, caplog)
     capture.set_level(logging.INFO, logger="finproof")

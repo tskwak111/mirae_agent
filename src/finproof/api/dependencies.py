@@ -58,7 +58,11 @@ class ApiDependencies:
         )
         fallback = RuleFallbackPlanner(validator=validator)
         if not settings.hcx_enabled:
-            yield _orchestrator(runtime_session, fallback, settings)
+            orchestrator = _orchestrator(runtime_session, fallback, settings)
+            try:
+                yield orchestrator
+            finally:
+                await orchestrator.aclose()
             return
         if settings.hcx_api_key is None:
             raise RuntimeError("validated HCX settings lost the API key")
@@ -69,11 +73,15 @@ class ApiDependencies:
                 registries=runtime_session.registries,
                 model_name=settings.hcx_model_name,
             )
-            yield _orchestrator(
+            orchestrator = _orchestrator(
                 runtime_session,
                 PlannerService(strict_json_planner=strict, rule_fallback=fallback),
                 settings,
             )
+            try:
+                yield orchestrator
+            finally:
+                await orchestrator.aclose()
 
 
 def _orchestrator(

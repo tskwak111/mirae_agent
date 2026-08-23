@@ -55,6 +55,13 @@ _RANK_FIELD_PATTERN = re.compile(
     r"([A-Za-z가-힣0-9_]+?)(?:이|가|을|를)?\s*"
     r"(?:가장\s*)?(?:높은|낮은|큰|작은|많은|상위|하위)"
 )
+_PERCENT_FILTER_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*%\s*(이하|미만|이상|초과)")
+_NUMERIC_COMPARISON_PATTERN = re.compile(
+    r"\d+(?:\.\d+)?\s*(?:%|원|달러|억원|만)?\s*(?:이하|미만|이상|초과)"
+)
+_EXPLICIT_DATE_PATTERN = re.compile(
+    r"(?<!\d)(?:19|20)\d{2}(?:[./-]\d{1,2}(?:[./-]\d{1,2})?|년(?:\s*\d{1,2}월(?:\s*\d{1,2}일)?)?)"
+)
 
 
 class RuleFallbackPlanner:
@@ -130,6 +137,16 @@ def _parse(question: str, as_of_date: date) -> QueryPlan:
         )
 
     metric = _metric(normalized)
+    filter_metric = _bound_percentage_filter_metric(normalized)
+    if _has_unreviewed_comparison_or_date(normalized, metric, filter_metric):
+        return _terminal(
+            Intent.CLARIFY,
+            products or _ALL_REVIEWED_PRODUCTS,
+            as_of_date,
+            "comparison or as-of syntax is outside the reviewed fallback grammar",
+            top_k,
+            top_k_scope if products else TopKScope.PER_PRODUCT_TYPE,
+        )
     if "수익률" in normalized and metric is None:
         return _terminal(
             Intent.CLARIFY,
@@ -178,7 +195,7 @@ def _parse(question: str, as_of_date: date) -> QueryPlan:
             TopKScope.PER_PRODUCT_TYPE,
         )
 
-    filters = _filters(normalized, metric, as_of_date)
+    filters = _filters(normalized, filter_metric or metric, as_of_date)
     ticker = _ticker(normalized)
     entities = (
         (
@@ -263,6 +280,40 @@ def _has_unknown_rank_field(question: str) -> bool:
     return any(match.group(1) not in known for match in _RANK_FIELD_PATTERN.finditer(question))
 
 
+def _bound_percentage_filter_metric(question: str) -> str | None:
+    matches = [
+        field
+        for field, aliases in _METRIC_ALIASES
+        for alias in aliases
+        if re.search(
+            rf"{re.escape(alias)}(?:이|가|은|는|도|을|를)?\s*{_PERCENT_FILTER_PATTERN.pattern}",
+            question,
+        )
+        is not None
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _has_unreviewed_comparison_or_date(
+    question: str,
+    metric: str | None,
+    filter_metric: str | None,
+) -> bool:
+    if _EXPLICIT_DATE_PATTERN.search(question) is not None:
+        return True
+    comparisons = tuple(_NUMERIC_COMPARISON_PATTERN.finditer(question))
+    if not comparisons:
+        return False
+    reviewed = tuple(_PERCENT_FILTER_PATTERN.finditer(question))
+    return (
+        metric is None
+        or filter_metric != metric
+        or len(comparisons) != 1
+        or len(reviewed) != 1
+        or comparisons[0].span() != reviewed[0].span()
+    )
+
+
 def _filters(question: str, metric: str | None, as_of_date: date) -> tuple[FilterClause, ...]:
     filters: list[FilterClause] = []
     if "매수 가능" in question or "매수가능" in question:
@@ -289,7 +340,7 @@ def _filters(question: str, metric: str | None, as_of_date: date) -> tuple[Filte
         )
     if metric == "risk_grade" and "없는" in question:
         filters.append(FilterClause(field="risk_grade", operator=FilterOperator.IS_MISSING))
-    numeric = re.search(r"(\d+(?:\.\d+)?)\s*%\s*(이하|미만|이상|초과)", question)
+    numeric = _PERCENT_FILTER_PATTERN.search(question)
     if metric is not None and numeric is not None:
         operator = {
             "이하": FilterOperator.LTE,

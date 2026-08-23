@@ -52,6 +52,12 @@ class EvaluationOrchestrator:
         self._limiter = limiter or RequestLimiter()
         self._execution_mode = execution_mode
         self._snapshot_date = snapshot_date
+        self._database_workers: set[asyncio.Task[AnswerResult]] = set()
+
+    async def aclose(self) -> None:
+        """Drain detached database workers before their runtime session closes."""
+        while self._database_workers:
+            await asyncio.gather(*tuple(self._database_workers), return_exceptions=True)
 
     async def answer(self, request: AnswerRequest) -> AnswerResult:
         """Return a deterministic verified result or a safe, bounded failure."""
@@ -116,6 +122,8 @@ class EvaluationOrchestrator:
         worker = asyncio.create_task(
             asyncio.to_thread(self._answer_service.answer_plan, request, planned.plan)
         )
+        self._database_workers.add(worker)
+        worker.add_done_callback(self._database_workers.discard)
         try:
             result = await _within_deadline(
                 asyncio.shield(worker),

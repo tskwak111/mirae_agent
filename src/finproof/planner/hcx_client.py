@@ -94,7 +94,7 @@ class HcxClient:
     """Low-level, non-retrying HCX client over an owner-managed HTTP client."""
 
     API_ORIGIN = "https://clovastudio.stream.ntruss.com"
-    MAX_RESPONSE_BYTES = 256 * 1024
+    MAX_RESPONSE_BYTES = 256_000
     _TIMEOUT = httpx.Timeout(connect=5.0, read=15.0, write=5.0, pool=5.0)
 
     def __init__(self, *, http_client: httpx.AsyncClient, api_key: SecretStr) -> None:

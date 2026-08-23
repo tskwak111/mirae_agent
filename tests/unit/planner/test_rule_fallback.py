@@ -64,9 +64,17 @@ async def test_rule_fallback_resolves_exact_ticker_lookup() -> None:
     assert result.validated_plan.resolutions is not None
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "미국 ETF 중 총보수 0.2% 이하 5개",
+        "미국 ETF 중 총보수가 0.2% 이하 5개",
+        "미국 ETF 중 총보수는 0.2% 이하 5개",
+    ],
+)
 @pytest.mark.asyncio
-async def test_rule_fallback_parses_simple_numeric_filter() -> None:
-    result = await _planner().plan(_request("미국 ETF 중 총보수 0.2% 이하 5개"))
+async def test_rule_fallback_parses_simple_numeric_filter(question: str) -> None:
+    result = await _planner().plan(_request(question))
 
     assert result.plan.intent is Intent.SCREEN
     assert result.plan.product_types == (ProductType.OVERSEAS_ETF,)
@@ -127,6 +135,38 @@ async def test_rule_fallback_rejects_unknown_rank_clause_mixed_with_known_filter
     assert result.plan.metrics == ()
     assert result.plan.sort == ()
     assert "field" in result.plan.clarification_reason
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "미국 ETF 중 배당률 5% 이상 5개",
+        "2025-12-31 기준 미국 ETF 총보수 알려줘",
+        "미국 ETF 중 총보수 0.2% 이하이고 배당률 5% 이상 5개",
+    ],
+)
+@pytest.mark.asyncio
+async def test_rule_fallback_rejects_unreviewed_comparison_or_date_syntax(
+    question: str,
+) -> None:
+    result = await _planner().plan(_request(question))
+
+    assert result.plan.intent is Intent.CLARIFY
+    assert result.plan.needs_clarification is True
+    assert result.plan.filters == ()
+    assert result.plan.metrics == ()
+    assert result.plan.sort == ()
+
+
+@pytest.mark.asyncio
+async def test_rule_fallback_does_not_bind_unknown_comparison_to_other_known_metric() -> None:
+    result = await _planner().plan(_request("미국 ETF 중 총보수도 보여주고 배당률 5% 이상 5개"))
+
+    assert result.plan.intent is Intent.CLARIFY
+    assert result.plan.needs_clarification is True
+    assert result.plan.filters == ()
+    assert result.plan.metrics == ()
+    assert result.plan.sort == ()
 
 
 @pytest.mark.asyncio
