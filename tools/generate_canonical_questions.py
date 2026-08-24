@@ -12,6 +12,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Protocol
 
+import httpx
 from pydantic import SecretStr
 
 from finproof.planner.hcx_client import HcxClient, create_hcx_http_client
@@ -21,7 +22,7 @@ BATCH_ID = "001"
 PROVIDER = "naver-hyperclova-x"
 DEFAULT_MODEL = "HCX-007"
 SEED = 17
-PROMPT_VERSION = "canonical-question-candidates-v1"
+PROMPT_VERSION = "canonical-question-candidates-v4"
 MAX_COMPLETION_TOKENS = 12_000
 MAX_RESPONSE_BYTES = 128_000
 TARGET_DISTRIBUTION = {
@@ -56,12 +57,63 @@ _PROMPT = """당신은 FinProof 평가 질문 후보 작성자입니다.
 일반적인 ETF 질문은 ETN을 제외합니다.
 미래 수익률 예측이나 단정적인 투자 추천을 요구하지 마십시오.
 명확화 필요성과 데이터 품질 한계를 의도적으로 시험하는 질문은 해당 범주에 포함할 수 있습니다.
-expected plan, expected answer/result, 상품 ID, 수치, 개수 또는 정답을 사실로 출력하지 마십시오.
+허용 필드는 아래 목록으로 닫혀 있습니다:
+- domestic_bond: product_name, product_id, currency, buyable_quantity, maturity_date,
+  remaining_days_at_as_of, credit_rating, buy_yield
+- domestic_etf/domestic_etn: product_name, product_id, asset_type, region, currency,
+  total_fee, aum, tracking_error, return_1m, return_3m, return_6m, return_1y,
+  return_ytd, saleable
+- overseas_etf/overseas_etn: product_name, product_id, asset_type, region, currency,
+  total_fee, aum, return_1d, saleable
+- public_fund: product_name, product_id, region, currency, aum, return_1w, return_1m,
+  return_3m, return_6m, return_18m, return_1y, return_2y, return_3y, return_5y,
+  risk_grade, saleable, mirae_saleable
+거래량, 표면금리, 분배금, 레버리지, 가격, 상관계수, 자산배분, 설정일, 상장일은 지원하지 않습니다.
+집계는 count 또는 허용 필드의 min/max/avg만 사용하고, sum은 aum과 buyable_quantity에만 사용하십시오.
+lookup은 정확한 단일 상품 조회입니다. 공식 데이터에서 검증하지 않은 이름을 만들지 말고
+[검증된 상품명 또는 ID] 자리표시자를 사용하십시오.
+screen은 조건 필터, rank는 정렬/top-k, compare는 두 상품이나 비교 가능한 집단 비교,
+aggregate는 허용 집계, cross_product는 둘 이상의 상품 유형을 분리 실행하는 질문입니다.
+clarification은 날짜, 기준값, 우선순위 또는 지표가 실제로 모호한 질문이어야 합니다.
+quality는 다음 frozen 사례를 우선 사용하십시오: 국내 추적오차 전부 0 공동순위,
+해외 ETF/ETN 1일 수익률 전부 0 공동순위, 해외 총보수 0 미검증 경고,
+공모펀드 NULL 위험등급, 채권 미평가/복수 신용등급, 스냅샷 기준일과 상태 제한.
+아래 24개 슬롯을 각각 자연스러운 한국어 질문 하나로만 표현하십시오.
+슬롯별 의미, 식별자, 필드, 조건, 순서와 category를 바꾸지 마십시오:
+1 lookup: 국내채권 KR101501DA16의 매수수익률과 만기일 조회
+2 lookup: 국내 ETF KR7305080004의 총보수와 AUM 조회
+3 lookup: 해외 ETF EES의 총보수와 거래통화 조회
+4 lookup: 공모펀드 KR5114420158의 위험등급과 AUM 조회
+5 screen: 총보수 0.2% 이하 해외 ETF만 조회
+6 screen: 신용등급 AA- 이상이고 현재 매수 가능한 국내채권 조회
+7 screen: 위험등급이 없는 공모펀드 조회
+8 screen: 3개월 수익률 5% 이상 국내 ETF 조회
+9 screen: 판매 가능한 국내 ETF만 조회하며 ETN 제외
+10 rank: 국내 ETF 연초이후 수익률 상위 3개
+11 rank: 공모펀드 1년 수익률 상위 5개
+12 rank: 국내채권 잔존일수 짧은 순 상위 5개
+13 rank: 해외 ETF 총보수 낮은 순 상위 5개
+14 compare: 국내 ETF KR7305080004와 KR7371160003의 1년 수익률 비교
+15 compare: 해외 ETF EES와 CHGX.O의 총보수 비교
+16 compare: 공모펀드 KR5114420158와 KR5138490078의 3개월 수익률 비교
+17 aggregate: 국내 ETF 수를 ETN 제외하고 집계
+18 aggregate: 공모펀드 1년 수익률 평균 집계
+19 cross_product: 국내 ETF와 공모펀드의 1개월 수익률 상위 3개를 유형별로 분리
+20 cross_product: 국내 ETF와 해외 ETF의 AUM 상위 3개를 통화별·유형별로 분리
+21 clarification: 상품 유형과 수익률 기간이 없는 성과 우수 금융상품 요청
+22 quality: 국내 ETF 추적오차 낮은 5개 요청으로 전부 0 공동순위 확인
+23 quality: 해외 ETF 1일 수익률 높은 5개 요청으로 전부 0 공동순위 확인
+24 quality: 위험등급이 없는 공모펀드 수 집계
+슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
+상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
 응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
 루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
 정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
 lookup 4, screen 5, rank 4, compare 3, aggregate 2, cross_product 2,
 clarification 1, quality 3.
+배열 슬롯은 1~4 lookup, 5~9 screen, 10~13 rank, 14~16 compare,
+17~18 aggregate, 19~20 cross_product, 21 clarification, 22~24 quality 순서로 고정하십시오.
+출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
 """
 
 
@@ -71,6 +123,10 @@ class _Response(Protocol):
 
 class _Client(Protocol):
     async def generate(self, request: HcxRequest, request_id: str) -> _Response: ...
+
+
+class _AuthoringHcxClient(HcxClient):
+    _TIMEOUT = httpx.Timeout(connect=5.0, read=60.0, write=5.0, pool=5.0)
 
 
 async def generate_review_packet(
@@ -123,6 +179,9 @@ async def generate_review_packet(
 def _validate_candidates(content: str) -> list[dict[str, str]]:
     if not content or len(content.encode("utf-8")) > MAX_RESPONSE_BYTES:
         raise ValueError("HCX candidate response is empty or oversized")
+    content = content.strip()
+    if content.startswith("```json\n") and content.endswith("\n```"):
+        content = content[8:-4]
     try:
         payload = json.loads(content)
     except json.JSONDecodeError as exc:
@@ -249,7 +308,7 @@ async def _request_with_hcx(
     api_key: SecretStr,
 ) -> dict[str, object]:
     async with create_hcx_http_client() as http_client:
-        client = HcxClient(http_client=http_client, api_key=api_key)
+        client = _AuthoringHcxClient(http_client=http_client, api_key=api_key)
         return await generate_review_packet(client)
 
 

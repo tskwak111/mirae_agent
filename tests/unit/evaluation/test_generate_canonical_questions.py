@@ -13,6 +13,7 @@ from tools.generate_canonical_questions import (
     write_review_packet,
 )
 
+from finproof.planner.hcx_client import HcxClient
 from finproof.planner.models import HcxRequest
 
 _CATEGORIES = (
@@ -57,6 +58,14 @@ class _Client:
         return _Response(self._content)
 
 
+def test_authoring_timeout_extends_only_the_read_window() -> None:
+    assert HcxClient._TIMEOUT.read == 15.0
+    assert generator._AuthoringHcxClient._TIMEOUT.read == 60.0
+    assert generator._AuthoringHcxClient._TIMEOUT.connect == 5.0
+    assert generator._AuthoringHcxClient._TIMEOUT.write == 5.0
+    assert generator._AuthoringHcxClient._TIMEOUT.pool == 5.0
+
+
 @pytest.mark.asyncio
 async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
     client = _Client(_content())
@@ -71,7 +80,7 @@ async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
     assert packet["provider"] == "naver-hyperclova-x"
     assert packet["model"] == "HCX-007"
     assert packet["seed"] == 17
-    assert packet["prompt_version"] == "canonical-question-candidates-v1"
+    assert packet["prompt_version"] == "canonical-question-candidates-v4"
     prompt_sha256 = packet["prompt_sha256"]
     assert isinstance(prompt_sha256, str)
     assert len(prompt_sha256) == 64
@@ -117,8 +126,29 @@ async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
             "미래 수익률 예측",
             "단정적인 투자 추천",
             "expected answer/result",
+            "1~4 lookup",
+            "22~24 quality",
+            "출력 전 candidates 배열 길이가 24",
+            "overseas_etf/overseas_etn: product_name",
+            "lookup은 정확한 단일 상품 조회",
+            "[검증된 상품명 또는 ID]",
+            "거래량, 표면금리, 분배금, 레버리지",
+            "해외 ETF/ETN 1일 수익률 전부 0",
+            "슬롯별 의미, 식별자, 필드, 조건, 순서와 category를 바꾸지 마십시오",
+            "1 lookup: 국내채권 KR101501DA16",
+            "24 quality: 위험등급이 없는 공모펀드",
         )
     )
+
+
+@pytest.mark.asyncio
+async def test_generation_accepts_one_json_code_fence() -> None:
+    packet = await generate_review_packet(
+        _Client(f"\n```json\n{_content()}\n```\n"),
+        generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert len(cast(list[object], packet["candidates"])) == 24
 
 
 def _invalid_contents() -> tuple[str, ...]:
@@ -134,16 +164,19 @@ def _invalid_contents() -> tuple[str, ...]:
     missing_candidate["candidates"].pop()
     oversized_question = json.loads(_content())
     oversized_question["candidates"][0]["question"] = "가" * 4_001
-    return tuple(
-        json.dumps(value, ensure_ascii=False)
-        for value in (
-            wrong_distribution,
-            duplicate,
-            extra_candidate_field,
-            extra_root_field,
-            missing_candidate,
-            oversized_question,
-        )
+    return (
+        *(
+            json.dumps(value, ensure_ascii=False)
+            for value in (
+                wrong_distribution,
+                duplicate,
+                extra_candidate_field,
+                extra_root_field,
+                missing_candidate,
+                oversized_question,
+            )
+        ),
+        f"설명문\n{_content()}",
     )
 
 
