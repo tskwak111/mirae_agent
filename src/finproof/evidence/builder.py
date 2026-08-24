@@ -1,9 +1,11 @@
 """Bounded evidence assembly."""
 
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 
+from finproof.answer.templates import wording_text
 from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.domain.evidence import (
     EvidenceBundle,
@@ -12,7 +14,7 @@ from finproof.domain.evidence import (
     EvidenceSummaryValue,
 )
 from finproof.domain.execution import ValidatedQueryPlan
-from finproof.domain.query_plan import ProductType, ResultGrain, TopKScope
+from finproof.domain.query_plan import FilterOperator, ProductType, ResultGrain, TopKScope
 from finproof.quality import PolicyExecutionResult, RankPolicyResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
@@ -248,11 +250,37 @@ class EvidenceBuilder:
         if len(summaries) > 200:
             raise ValueError("evidence summary bound exceeded")
         currencies = {partition.currency for partition in policy_result.partitions}
+        wording = repository._session.registries.answers.document["wording"]
+        if not isinstance(wording, Mapping):
+            raise TypeError("answer wording differs")
+        dual_lens_labels = tuple(
+            wording_text(
+                wording,
+                {
+                    "recorded": "recorded_view_label",
+                    "comparison_valid": "comparison_view_label",
+                }[label],
+            )
+            for label in policy_result.dual_lens_labels
+        )
+        rating_limitations = (
+            (
+                "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 "
+                "제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
+            )
+            if any(
+                item.field == "credit_rating"
+                and item.operator in {FilterOperator.GTE, FilterOperator.LTE}
+                for item in original.filters
+            )
+            else ()
+        )
         limitations = tuple(
             dict.fromkeys(
                 (
                     "2026-07-11 제공 스냅샷 기준",
-                    *policy_result.dual_lens_labels,
+                    *dual_lens_labels,
+                    *rating_limitations,
                     *(
                         (
                             "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 "

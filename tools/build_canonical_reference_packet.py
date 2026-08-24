@@ -57,7 +57,7 @@ def build_reference_packet(
         service = AnswerService(session)
         artifact = session.verified_artifacts
         cases = []
-        for case_id, category, question, plan in approved_cases:
+        for case_id, category, question, raw_plan, plan in approved_cases:
             result = service.answer_plan(
                 AnswerRequest(question_id=case_id, question=question),
                 plan,
@@ -75,7 +75,7 @@ def build_reference_packet(
                     "case_id": case_id,
                     "category": category,
                     "question": question,
-                    "plan": plan.model_dump(mode="json", exclude_unset=True),
+                    "plan": raw_plan,
                     "answer": result.answer.model_dump(mode="json"),
                     "retrieved_context": retrieved_context,
                     "trace": trace,
@@ -105,7 +105,7 @@ def build_reference_packet(
 
 def _load_approved_packet(
     raw: bytes,
-) -> tuple[dict[str, object], tuple[tuple[str, str, str, QueryPlan], ...]]:
+) -> tuple[dict[str, object], tuple[tuple[str, str, str, dict[str, object], QueryPlan], ...]]:
     try:
         payload = json.loads(raw, object_pairs_hook=_reject_duplicate_pairs)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -141,7 +141,7 @@ def _load_approved_packet(
     if type(raw_cases) is not list or not raw_cases:
         raise ValueError("question-and-draft-plan packet cases must be a nonempty list")
 
-    approved_cases: list[tuple[str, str, str, QueryPlan]] = []
+    approved_cases: list[tuple[str, str, str, dict[str, object], QueryPlan]] = []
     seen_ids: set[str] = set()
     for raw_case in raw_cases:
         if type(raw_case) is not dict or set(raw_case) != _CASE_KEYS:
@@ -173,7 +173,7 @@ def _load_approved_packet(
             json.dumps(raw_plan, ensure_ascii=False),
             strict=True,
         )
-        approved_cases.append((case_id, category, question, plan))
+        approved_cases.append((case_id, category, question, raw_plan, plan))
         seen_ids.add(case_id)
     return payload, tuple(approved_cases)
 

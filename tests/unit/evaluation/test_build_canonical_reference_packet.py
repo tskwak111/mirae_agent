@@ -206,7 +206,10 @@ def test_reference_plan_omits_unset_missing_value_filter_field(
     plan["intent"] = "screen"
     plan["metrics"] = []
     plan["sort"] = []
-    plan["filters"] = [{"field": "risk_grade", "operator": "is_not_missing"}]
+    plan["filters"] = [
+        {"field": "total_fee", "operator": "lte", "value": 0.1},
+        {"field": "risk_grade", "operator": "is_not_missing"},
+    ]
     input_path.write_text(json.dumps(packet, ensure_ascii=False), encoding="utf-8")
     session = SimpleNamespace(
         verified_artifacts=SimpleNamespace(
@@ -236,7 +239,8 @@ def test_reference_plan_omits_unset_missing_value_filter_field(
     )
 
     emitted_plan = json.loads(output.read_text(encoding="utf-8"))["cases"][0]["plan"]
-    assert "value" not in emitted_plan["filters"][0]
+    assert emitted_plan == plan
+    assert "value" not in emitted_plan["filters"][1]
     QueryPlan.model_validate_json(json.dumps(emitted_plan), strict=True)
 
 

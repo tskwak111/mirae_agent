@@ -3212,7 +3212,7 @@
           {
             "field": "total_fee",
             "operator": "lte",
-            "value": "0.1"
+            "value": 0.1
           }
         ],
         "intent": "screen",
@@ -4323,7 +4323,7 @@
           {
             "field": "total_fee",
             "operator": "lte",
-            "value": "0.5"
+            "value": 0.5
           },
           {
             "field": "saleable",
@@ -12852,8 +12852,8 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "recorded",
-            "value": "recorded"
+            "text": "제공 데이터 기록값",
+            "value": "제공 데이터 기록값"
           },
           {
             "claim_id": "claim:limitation:2",
@@ -12867,8 +12867,8 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "comparison_valid",
-            "value": "comparison_valid"
+            "text": "비교 가능 기준",
+            "value": "비교 가능 기준"
           },
           {
             "claim_id": "claim:limitation:3",
@@ -13120,7 +13120,7 @@
             "value": "0.010000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 3건\n분할 overseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 4건\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272580002 total_fee: 0.070000000000000000 (1위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272910001 total_fee: 0.080000000000000000 (2위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7267770006 total_fee: 0.090000000000000000 (3위)\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AAAD.K total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] IFLO.O total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] TDI.O total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\nrecorded\ncomparison_valid\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7272580002 product_id: KR7272580002\n- domestic_etf KR7272580002 total_fee: 0.07\n- domestic_etf KR7272910001 product_id: KR7272910001\n- domestic_etf KR7272910001 total_fee: 0.08\n- domestic_etf KR7267770006 product_id: KR7267770006\n- domestic_etf KR7267770006 total_fee: 0.09\n- overseas_etf AAAD.K product_id: AAAD.K\n- overseas_etf AAAD.K total_fee: 0.010000\n- overseas_etf IFLO.O product_id: IFLO.O\n- overseas_etf IFLO.O total_fee: 0.010000\n- overseas_etf TDI.O product_id: TDI.O\n- overseas_etf TDI.O total_fee: 0.010000"
+        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 3건\n분할 overseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 4건\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272580002 total_fee: 0.070000000000000000 (1위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272910001 total_fee: 0.080000000000000000 (2위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7267770006 total_fee: 0.090000000000000000 (3위)\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AAAD.K total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] IFLO.O total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] TDI.O total_fee: 0.010000000000000000 (1위)\n해당 지표 값이 동일해 공동순위입니다.\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7272580002 product_id: KR7272580002\n- domestic_etf KR7272580002 total_fee: 0.07\n- domestic_etf KR7272910001 product_id: KR7272910001\n- domestic_etf KR7272910001 total_fee: 0.08\n- domestic_etf KR7267770006 product_id: KR7267770006\n- domestic_etf KR7267770006 total_fee: 0.09\n- overseas_etf AAAD.K product_id: AAAD.K\n- overseas_etf AAAD.K total_fee: 0.010000\n- overseas_etf IFLO.O product_id: IFLO.O\n- overseas_etf IFLO.O total_fee: 0.010000\n- overseas_etf TDI.O product_id: TDI.O\n- overseas_etf TDI.O total_fee: 0.010000"
       },
       "case_id": "CQ-002-CROSS_PRODUCT-002",
       "category": "cross_product",
@@ -13398,8 +13398,8 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
-          "recorded",
-          "comparison_valid",
+          "제공 데이터 기록값",
+          "비교 가능 기준",
           "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
           "검증된 매수 가능 여부는 지원하지 않습니다.",
           "기록된 0값은 비교 가능 기준에서 제외했습니다."
@@ -14229,8 +14229,8 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "recorded",
-            "value": "recorded"
+            "text": "제공 데이터 기록값",
+            "value": "제공 데이터 기록값"
           },
           {
             "claim_id": "claim:limitation:2",
@@ -14244,8 +14244,8 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "comparison_valid",
-            "value": "comparison_valid"
+            "text": "비교 가능 기준",
+            "value": "비교 가능 기준"
           },
           {
             "claim_id": "claim:limitation:3",
@@ -14448,7 +14448,7 @@
             "value": "0.15"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272580002 total_fee: 0.070000000000000000 (1위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272910001 total_fee: 0.080000000000000000 (2위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7267770006 total_fee: 0.090000000000000000 (3위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7285690004 total_fee: 0.100000000000000000 (4위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7114820004 total_fee: 0.150000000000000000 (5위)\n해당 지표 값이 동일해 공동순위입니다.\nrecorded\ncomparison_valid\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n기록된 0값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7272580002 product_id: KR7272580002\n- domestic_etf KR7272580002 total_fee: 0.07\n- domestic_etf KR7272910001 product_id: KR7272910001\n- domestic_etf KR7272910001 total_fee: 0.08\n- domestic_etf KR7267770006 product_id: KR7267770006\n- domestic_etf KR7267770006 total_fee: 0.09\n- domestic_etf KR7285690004 product_id: KR7285690004\n- domestic_etf KR7285690004 total_fee: 0.1\n- domestic_etf KR7114820004 product_id: KR7114820004\n- domestic_etf KR7114820004 total_fee: 0.15"
+        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272580002 total_fee: 0.070000000000000000 (1위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7272910001 total_fee: 0.080000000000000000 (2위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7267770006 total_fee: 0.090000000000000000 (3위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7285690004 total_fee: 0.100000000000000000 (4위)\ndomestic_etf/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] KR7114820004 total_fee: 0.150000000000000000 (5위)\n해당 지표 값이 동일해 공동순위입니다.\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n기록된 0값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7272580002 product_id: KR7272580002\n- domestic_etf KR7272580002 total_fee: 0.07\n- domestic_etf KR7272910001 product_id: KR7272910001\n- domestic_etf KR7272910001 total_fee: 0.08\n- domestic_etf KR7267770006 product_id: KR7267770006\n- domestic_etf KR7267770006 total_fee: 0.09\n- domestic_etf KR7285690004 product_id: KR7285690004\n- domestic_etf KR7285690004 total_fee: 0.1\n- domestic_etf KR7114820004 product_id: KR7114820004\n- domestic_etf KR7114820004 total_fee: 0.15"
       },
       "case_id": "CQ-002-QUALITY-001",
       "category": "quality",
@@ -14691,8 +14691,8 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
-          "recorded",
-          "comparison_valid",
+          "제공 데이터 기록값",
+          "비교 가능 기준",
           "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
           "기록된 0값은 비교 가능 기준에서 제외했습니다."
         ],
@@ -15101,11 +15101,26 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
+            "value": "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "데이터 품질 정책 경고: validated buyability requires a valid maturity date",
             "value": "데이터 품질 정책 경고: validated buyability requires a valid maturity date"
           },
           {
-            "claim_id": "claim:limitation:2",
+            "claim_id": "claim:limitation:3",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -15290,7 +15305,7 @@
             "value": "AAA"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [count:instrument:domestic_bond] 상품 개수: 27\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 credit_rating: AAA\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA\n- domestic_bond KR353601DE34 product_id: KR353601DE34\n- domestic_bond KR353601DE34 credit_rating: AAA\n- domestic_bond KR354301GB84 product_id: KR354301GB84\n- domestic_bond KR354301GB84 credit_rating: AA+\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [count:instrument:domestic_bond] 상품 개수: 27\n신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 credit_rating: AAA\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA\n- domestic_bond KR353601DE34 product_id: KR353601DE34\n- domestic_bond KR353601DE34 credit_rating: AAA\n- domestic_bond KR354301GB84 product_id: KR354301GB84\n- domestic_bond KR354301GB84 credit_rating: AA+\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA"
       },
       "case_id": "CQ-002-QUALITY-002",
       "category": "quality",
@@ -15536,6 +15551,7 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
           "데이터 품질 정책 경고: validated buyability requires a valid maturity date",
           "데이터 품질 정책 경고: source quantity remains positive after maturity"
         ],

@@ -1,6 +1,7 @@
 """Focused evidence construction contracts."""
 
 import json
+from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -244,6 +245,93 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
     )
     assert summary.tie_count == 3
     assert any("동률" in limitation for limitation in evidence.material_policy_limitations)
+    session._close()
+
+
+def test_builder_translates_dual_lens_labels_from_answer_registry() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.answer.templates import wording_text
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=("recorded", "comparison_valid"),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+    )
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(
+            plan=_plan().model_copy(update={"top_k": 1}), resolutions=(), context=()
+        ),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+    wording = session.registries.answers.document["wording"]
+    assert isinstance(wording, Mapping)
+    assert wording_text(wording, "recorded_view_label") in evidence.material_policy_limitations
+    assert wording_text(wording, "comparison_view_label") in evidence.material_policy_limitations
+    assert "recorded" not in evidence.material_policy_limitations
+    assert "comparison_valid" not in evidence.material_policy_limitations
+    session._close()
+
+
+def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import FilterClause, FilterOperator
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+    )
+    plan = _plan().model_copy(
+        update={
+            "filters": (
+                FilterClause(field="credit_rating", operator=FilterOperator.GTE, value="AA-"),
+            )
+        }
+    )
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(plan=plan, resolutions=(), context=()),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+    assert any(
+        "대표 정규화 등급" in item and "미평가" in item and "복수 평가기관" in item
+        for item in evidence.material_policy_limitations
+    )
     session._close()
 
 
