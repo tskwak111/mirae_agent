@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -243,8 +244,8 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
     content = content.strip()
     if content.startswith("```json\n"):
         content = content[8:]
-    if content.endswith("\n```"):
-        content = content[:-4]
+        if closing_fence := re.search(r"\n```[ \t]*(?:\n|$)", content):
+            content = content[: closing_fence.start()]
     try:
         payload = json.loads(content)
     except json.JSONDecodeError as exc:

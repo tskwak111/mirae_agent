@@ -280,6 +280,16 @@ async def test_generation_accepts_opening_json_fence_without_closing_fence() -> 
     assert len(cast(list[object], packet["candidates"])) == 24
 
 
+@pytest.mark.asyncio
+async def test_generation_accepts_fenced_json_before_provider_commentary() -> None:
+    packet = await generate_review_packet(
+        _Client(f"```json\n{_content()}\n``` \n\n각 카테고리별 슬롯 수는 확인했습니다."),
+        generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert len(cast(list[object], packet["candidates"])) == 24
+
+
 def _invalid_contents() -> tuple[str, ...]:
     wrong_distribution = json.loads(_content())
     wrong_distribution["candidates"][-1]["category"] = "lookup"
