@@ -1,7 +1,9 @@
 # Implementation Status
 
-**Last updated:** 2026-08-24 — Phase 3 Tasks 1–5 and the corrected Phase 3 gate are
-complete. The scoped re-review at `46c9001` returned Critical 0 / Important 0.
+**Last updated:** 2026-08-24 — Phase 4 Task 1 harness and canonical batch-001
+checkpoint are implemented; the batch-001 independent review returned Critical 0 /
+Important 0. Task 1 remains open until the reviewed canonical set reaches 250–300
+cases and its final measured report/full gate pass.
 
 ## Frozen baseline
 
@@ -50,7 +52,8 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness
+- [ ] Task 1: canonical golden set and scoring harness — harness complete; 25 reviewed
+  canonical cases committed (24 batch-001 cases plus 1 official clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
 - [ ] Task 4: competition compliance and independent review closure
@@ -59,10 +62,33 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1: build the canonical golden dataset schema, authoring checks, scorer,
-runner, and reviewed canonical set from the approved Phase 4 plan.** Begin with the
-failing `GoldenCase` schema tests; do not treat the 13 AI-handoff seeds as reviewed
-ground truth.
+**Phase 4 Task 1 Step 6: author and review canonical batch-002 using the same bounded
+candidate → question/plan approval → deterministic reference → expectation approval →
+canonical promotion flow.** The suite has 25 of the required 250–300 cases, so 225–275
+more reviewed cases remain. Do not start Task 2 or run the final full gate until the
+Task 1 canonical set is complete.
+
+## Phase 4 Task 1 batch-001 checkpoint
+
+- Reference-generation checkpoint: `6236020` (`test: build approved canonical
+  reference batch`). Canonical-promotion checkpoint: `9a8bc77` (`test: promote
+  approved canonical batch`).
+- Human approval is versioned as reviewer `곽태성`, review date `2026-08-24`, bound to
+  reference packet SHA-256
+  `4db47c4dfcb0ea63a32c70cd5883e4d6e695f0219bffba9a67c336876d2655d8` and artifact
+  manifest logical hash
+  `59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236`.
+- Focused promotion TDD: 11 expected RED failures before the module existed, then 11
+  passed in 0.32 seconds. Related evaluation/authoring aggregate: 62 passed in 0.37
+  seconds. Scoped Ruff format/check and clean non-incremental mypy passed.
+- Canonical inventory: lookup 4, screen 5, rank 4, compare 3, aggregate 2,
+  cross-product 2, clarification 2 (1 official + 1 batch), and quality 3; 25 unique
+  IDs total. The existing `OFFICIAL-CLARIFY-001` line was preserved unchanged.
+- Independent promotion review of `6236020..9a8bc77`: Critical 0 / Important 0 /
+  Minor 0. No correction round was required.
+- Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
+  not repeated at this partial authoring checkpoint; they remain reserved for the
+  final Task 1 commit candidate.
 
 ## Phase 1 Task 5 design and plan record
 
