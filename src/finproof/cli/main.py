@@ -12,6 +12,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Protocol, cast
 
+from finproof.cli.evaluate import run_evaluation
 from finproof.core.errors import FinProofError
 from finproof.core.settings import Settings
 from finproof.core.versions import VersionBundle
@@ -19,6 +20,7 @@ from finproof.data.artifacts.builder import build_artifacts
 from finproof.data.artifacts.config import ArtifactBuildOptions
 from finproof.data.artifacts.errors import ArtifactContractError
 from finproof.data.artifacts.manifest import ArtifactManifest
+from finproof.evaluation.runner import EvaluationMode
 
 
 class _ArtifactBuilder(Protocol):
@@ -31,6 +33,10 @@ class _ArtifactBuilder(Protocol):
     ) -> ArtifactManifest: ...
 
 
+class _Evaluator(Protocol):
+    def __call__(self, suite: str, output: Path, mode: EvaluationMode, /) -> None: ...
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="finproof")
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -39,6 +45,15 @@ def _parser() -> argparse.ArgumentParser:
     subcommands.add_parser("show-versions", help="Print the current immutable version bundle")
     build_data = subcommands.add_parser("build-data", help="Build verified data artifacts")
     build_data.add_argument("--clean", action="store_true")
+    evaluate = subcommands.add_parser("evaluate", help="Run a reviewed evaluation suite")
+    evaluate.add_argument("--suite", choices=("canonical",), required=True)
+    evaluate.add_argument("--output", type=Path, required=True)
+    evaluate.add_argument(
+        "--mode",
+        type=EvaluationMode,
+        choices=tuple(EvaluationMode),
+        default=EvaluationMode.END_TO_END,
+    )
     return parser
 
 
@@ -125,6 +140,7 @@ def _run_main(
     *,
     builder: _ArtifactBuilder = build_artifacts,
     clock: Callable[[], datetime] = _utc_now,
+    evaluator: _Evaluator = run_evaluation,
 ) -> int:
     args = _parser().parse_args(None if argv is None else list(argv))
     command = cast(str, args.command)
@@ -140,6 +156,13 @@ def _run_main(
                 builder=builder,
                 clock=clock,
             )
+        if command == "evaluate":
+            evaluator(
+                cast(str, args.suite),
+                cast(Path, args.output),
+                cast(EvaluationMode, args.mode),
+            )
+            return 0
         return _show_versions()
     except ArtifactContractError as error:
         published = "; published verified target retained" if error.published else ""
