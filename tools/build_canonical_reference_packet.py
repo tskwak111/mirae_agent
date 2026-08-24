@@ -75,7 +75,7 @@ def build_reference_packet(
                     "case_id": case_id,
                     "category": category,
                     "question": question,
-                    "plan": plan.model_dump(mode="json"),
+                    "plan": plan.model_dump(mode="json", exclude_unset=True),
                     "answer": result.answer.model_dump(mode="json"),
                     "retrieved_context": retrieved_context,
                     "trace": trace,

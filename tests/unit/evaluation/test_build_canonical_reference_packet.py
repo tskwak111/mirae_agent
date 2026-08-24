@@ -192,6 +192,54 @@ def test_builds_one_reproducible_pending_packet_with_one_session_and_service(
     ]
 
 
+def test_reference_plan_omits_unset_missing_value_filter_field(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    input_path = repository / "review" / "approved-plans.json"
+    input_path.parent.mkdir()
+    packet = _approved_packet()
+    case = cast(list[dict[str, object]], packet["cases"])[0]
+    plan = cast(dict[str, object], case["plan"])
+    plan["intent"] = "screen"
+    plan["metrics"] = []
+    plan["sort"] = []
+    plan["filters"] = [{"field": "risk_grade", "operator": "is_not_missing"}]
+    input_path.write_text(json.dumps(packet, ensure_ascii=False), encoding="utf-8")
+    session = SimpleNamespace(
+        verified_artifacts=SimpleNamespace(
+            artifact_set_id="finproof-data-artifacts/v1",
+            artifact_contract_version="1.0.0",
+            dataset_version=date(2026, 7, 11),
+            overall_manifest_logical_hash="b" * 64,
+        )
+    )
+
+    @contextmanager
+    def open_session(_settings: Settings) -> Iterator[SimpleNamespace]:
+        yield session
+
+    class Service:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        def answer_plan(self, request: AnswerRequest, _plan: QueryPlan) -> AnswerResult:
+            return _answer(request.question_id)
+
+    monkeypatch.setattr(authoring, "open_runtime_artifact_session", open_session)
+    monkeypatch.setattr(authoring, "AnswerService", Service)
+    output = input_path.with_name("reference.json")
+    authoring.build_reference_packet(
+        input_path, output, artifact_dir=tmp_path / "artifact", repository_root=repository
+    )
+
+    emitted_plan = json.loads(output.read_text(encoding="utf-8"))["cases"][0]["plan"]
+    assert "value" not in emitted_plan["filters"][0]
+    QueryPlan.model_validate_json(json.dumps(emitted_plan), strict=True)
+
+
 @pytest.mark.parametrize(
     "case",
     [
