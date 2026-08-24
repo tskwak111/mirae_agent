@@ -163,8 +163,38 @@ async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
     assert request.model_name == "HCX-007"
     assert request.seed == 29
     prompt = "\n".join(message.content for message in request.messages)
-    assert "1 lookup: 국내채권 KR350105G9C6" in prompt
-    assert "24 quality: 판매 가능한 해외 ETF 5개" in prompt
+    batch_002_slots = (
+        "1 lookup: 국내채권 KR350105G9C6의 신용등급과 매수가능수량 조회",
+        "2 lookup: 국내 ETF KR7243880002의 연초이후 수익률과 AUM 조회",
+        "3 lookup: 해외 ETF VOO의 AUM과 거래통화 조회",
+        "4 lookup: 공모펀드 KR5129470010의 1년 수익률과 위험등급 조회",
+        "5 screen: 매수수익률 4% 이상, 만기일이 2026-07-11 이후이고 매수가능수량이 양수인 국내채권",
+        "6 screen: AUM 1조원 이상이고 판매 가능한 국내 ETF, ETN 제외",
+        "7 screen: 총보수가 0% 초과 0.1% 이하인 해외 ETF",
+        "8 screen: 1년 수익률 100% 이상이고 위험등급이 있는 공모펀드",
+        "9 screen: 총보수 0.5% 이하이고 판매 가능한 국내 ETN(ETN 명시)",
+        "10 rank: 현재 매수 가능한 국내채권 중 매수수익률 높은 5개",
+        "11 rank: 국내 ETF AUM 큰 5개, ETN 제외",
+        "12 rank: 거래통화 USD인 해외 ETF AUM 큰 5개",
+        "13 rank: 거래통화 KRW인 공모펀드 AUM 큰 5개",
+        "14 compare: 국내채권 KR350105G9C6와 KR350901G671의 매수가능수량 비교",
+        "15 compare: 국내 ETF KR7243880002와 KR7494310006의 연초이후 수익률 비교",
+        "16 compare: 공모펀드 KR5129470010와 KR5129470016의 1년 수익률 비교",
+        "17 aggregate: 거래통화 USD인 해외 ETF 수 집계, ETN 제외",
+        "18 aggregate: 국내 ETF 1년 수익률 평균, ETN 제외",
+        "19 cross_product: 국내 ETF와 공모펀드의 3개월 수익률 상위 3개를 유형별 분리",
+        "20 cross_product: 국내 ETF와 해외 ETF의 총보수 낮은 3개를 유형별 분리",
+        (
+            "21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청—"
+            "수익률 기간과 복합 우선순위가 없음"
+        ),
+        "22 quality: 국내 ETF 총보수 낮은 5개—기록된 0의 미검증 품질 경고 확인",
+        "23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외와 등급 정책 확인",
+        "24 quality: 판매 가능한 해외 ETF 5개—검증된 매수 가능 여부 제한 확인",
+    )
+    assert [prompt.index(slot) for slot in batch_002_slots] == sorted(
+        prompt.index(slot) for slot in batch_002_slots
+    )
 
     with pytest.raises(ValueError, match="batch_id"):
         await generate_review_packet(client, batch_id="999")
@@ -353,3 +383,43 @@ def test_cli_rejects_model_override_before_hcx_request(
 
     assert requested is False
     assert not output.exists()
+
+
+def test_cli_passes_batch_002_to_hcx_and_writes_batch_002_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    packet = asyncio.run(
+        generate_review_packet(
+            _Client(_content()),
+            batch_id="002",
+            generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+        )
+    )
+    observed: dict[str, object] = {}
+
+    async def fake_request(api_key: SecretStr, *, batch_id: str) -> dict[str, object]:
+        observed["api_key"] = api_key
+        observed["batch_id"] = batch_id
+        return packet
+
+    monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
+    output = tmp_path / "review" / "batch-002.json"
+
+    assert (
+        generator.main(
+            ["--output", str(output), "--batch-id", "002"],
+            environ={"FINPROOF_HCX_API_KEY": "not-a-real-key"},
+            repository_root=tmp_path,
+        )
+        == 0
+    )
+
+    written = json.loads(output.read_text(encoding="utf-8"))
+    assert isinstance(observed["api_key"], SecretStr)
+    assert observed["batch_id"] == "002"
+    assert written["batch_id"] == "002"
+    assert written["seed"] == 29
+    assert written["prompt_version"] == "canonical-question-candidates-v5"
+    assert written["candidates"][0]["candidate_id"] == "CQ-002-LOOKUP-001"
+    assert written["candidates"][-1]["candidate_id"] == "CQ-002-QUALITY-003"
