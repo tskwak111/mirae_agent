@@ -222,7 +222,8 @@ async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
 def test_batch_002_rejects_v1_screen_question_without_positive_quantity() -> None:
     packet = json.loads(
         (
-            Path(__file__).parents[3] / "evaluation/review_batches/batch-002-candidates.json"
+            Path(__file__).parents[3]
+            / "evaluation/review_batches/batch-002-candidates-v1-rejected.json"
         ).read_text(encoding="utf-8")
     )
     content = json.dumps(
@@ -263,6 +264,16 @@ def test_batch_002_rejects_quality_question_without_multiple_rating_policy() -> 
 async def test_generation_accepts_one_json_code_fence() -> None:
     packet = await generate_review_packet(
         _Client(f"\n```json\n{_content()}\n```\n"),
+        generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+
+    assert len(cast(list[object], packet["candidates"])) == 24
+
+
+@pytest.mark.asyncio
+async def test_generation_accepts_opening_json_fence_without_closing_fence() -> None:
+    packet = await generate_review_packet(
+        _Client(f"```json\n{_content()}"),
         generated_at=datetime(2026, 8, 24, tzinfo=UTC),
     )
 

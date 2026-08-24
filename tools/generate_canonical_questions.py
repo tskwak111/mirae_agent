@@ -241,8 +241,10 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
     if not content or len(content.encode("utf-8")) > MAX_RESPONSE_BYTES:
         raise ValueError("HCX candidate response is empty or oversized")
     content = content.strip()
-    if content.startswith("```json\n") and content.endswith("\n```"):
-        content = content[8:-4]
+    if content.startswith("```json\n"):
+        content = content[8:]
+    if content.endswith("\n```"):
+        content = content[:-4]
     try:
         payload = json.loads(content)
     except json.JSONDecodeError as exc:
