@@ -285,9 +285,6 @@ class ExpectedResult(_FrozenModel):
             raise ValueError("expected results require unique full product identities")
         if self.order_matters and not self.products:
             raise ValueError("order_matters requires expected products")
-        actual_envelope = len({product.native_result_grain for product in self.products}) > 1
-        if self.assembled_envelope is not None and self.assembled_envelope is not actual_envelope:
-            raise ValueError("assembled envelope must match the expected product identities")
         value_keys = {(value.product_id, value.field_id) for value in self.values}
         if len(value_keys) != len(self.values):
             raise ValueError("expected values must have unique product and field keys")
@@ -352,6 +349,7 @@ class ObservedCase(_FrozenModel):
     repeat_signatures: tuple[Annotated[str, Field(min_length=1)], ...] = ()
     segments: tuple[ObservedSegment, ...] = ()
     compatibility_partitions: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
+    assembled_envelope: bool = False
     latency_ms: tuple[Annotated[int, Field(ge=0)], ...] = ()
 
     @model_validator(mode="after")

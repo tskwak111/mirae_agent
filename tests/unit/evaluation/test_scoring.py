@@ -288,6 +288,31 @@ def test_score_case_keeps_contract_dimensions_and_failures_separate() -> None:
     assert any("forbidden concept" in failure for failure in score.failures)
 
 
+def test_typed_product_diversity_does_not_manufacture_an_observed_envelope() -> None:
+    case = _case().model_copy(
+        update={
+            "expected_result": _case().expected_result.model_copy(
+                update={"assembled_envelope": True}
+            )
+        }
+    )
+    observed = ObservedCase(
+        products=(
+            _product("BOND"),
+            _product(
+                "FUND",
+                product_type=ProductType.PUBLIC_FUND,
+                native_result_grain=ResultGrain.FUND_ITEM,
+            ),
+        )
+    )
+
+    score = score_case(case, observed)
+
+    assert score.assembled_envelope.value == 0.0
+    assert score.assembled_envelope.failures == ("assembled envelope differs",)
+
+
 def test_missing_observed_plan_is_a_zero_score_not_an_invalid_ratio() -> None:
     score = score_case(_case(), ObservedCase())
 

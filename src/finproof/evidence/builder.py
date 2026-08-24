@@ -78,6 +78,12 @@ class EvidenceBuilder:
             if any(selected_type is product_type for selected_type, _ in selected)
         )
         records = repository.fetch_final_record_evidence(requests) if requests else ()
+        records_by_identity = {
+            (record.product_type, record.product_id): record for record in records
+        }
+        if len(records_by_identity) != len(records) or set(records_by_identity) != set(selected):
+            raise ValueError("selected evidence record identities differ")
+        records = tuple(records_by_identity[identity] for identity in selected)
         direct = tuple(item for record in records for item in record.direct)
         derived = tuple(item for record in records for item in record.derived)
         evidence_ids = (

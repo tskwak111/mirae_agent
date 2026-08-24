@@ -241,6 +241,10 @@ def _observed(
         compatibility_partitions=tuple(
             dict.fromkeys(segment.partition_key for segment in result.trace.segments)
         ),
+        assembled_envelope=(
+            result.trace.result_grain is ResultGrain.PRODUCT
+            and len({segment.native_result_grain for segment in result.trace.segments}) > 1
+        ),
         latency_ms=(planner_latency_ms + sum(result.trace.latency_ms.values()),),
     )
 

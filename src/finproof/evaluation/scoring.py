@@ -316,7 +316,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         if case.expected_result.assembled_envelope is None
         else _exact_dimension(
             case.expected_result.assembled_envelope,
-            len({product.native_result_grain for product in observed.products}) > 1,
+            observed.assembled_envelope,
             "assembled envelope",
         )
     )

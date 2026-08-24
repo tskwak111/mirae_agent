@@ -207,6 +207,152 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
     session._close()
 
 
+def test_builder_restores_interleaved_global_selection_order_after_grouped_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import (
+        EvidenceLookup,
+        EvidenceRepository,
+        RecordEvidence,
+    )
+
+    session, _ = _bond_evidence_session()
+    repository = EvidenceRepository(session)
+    template = repository.fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("product_id",),
+            ),
+        )
+    )[0].direct[0]
+
+    def policy_row(product_type: ProductType, product_id: str) -> PolicyRow:
+        raw = RawProductRow(
+            product_type=product_type,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            product_id=product_id,
+            values=(
+                RawFieldValue(
+                    field_id="product_id",
+                    value=product_id,
+                    quality_status="valid",
+                ),
+            ),
+        )
+        return PolicyRow(
+            raw=raw,
+            state=StateEvaluation(
+                product_id=product_id,
+                eligible=True,
+                state_ids=(),
+                warnings=(),
+            ),
+        )
+
+    selected = (
+        policy_row(ProductType.DOMESTIC_ETF, "ETF-1"),
+        policy_row(ProductType.DOMESTIC_ETN, "ETN-1"),
+        policy_row(ProductType.DOMESTIC_ETF, "ETF-2"),
+    )
+    supporting = policy_row(ProductType.DOMESTIC_ETN, "UNSELECTED")
+    policy = PolicyExecutionResult(
+        included_rows=(*selected, supporting),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(),
+            comparison_valid_values=(),
+            excluded_count=0,
+            warnings=(),
+        ),
+        dual_lens_labels=(),
+        selected_rows=selected,
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+    )
+    plan = ValidatedQueryPlan._issue(
+        plan=QueryPlan(
+            intent=Intent.SCREEN,
+            product_types=(ProductType.DOMESTIC_ETF, ProductType.DOMESTIC_ETN),
+            entities=(),
+            as_of_date=date(2026, 7, 11),
+            result_grain=ResultGrain.LISTED_PRODUCT,
+            filters=(),
+            metrics=(),
+            sort=(),
+            aggregation=None,
+            top_k=3,
+            top_k_scope=TopKScope.GLOBAL,
+            needs_clarification=False,
+            clarification_reason="",
+        ),
+        resolutions=(),
+        context=(),
+    )
+
+    def grouped_fetch(
+        _repository: EvidenceRepository,
+        requests: tuple[EvidenceLookup, ...],
+    ) -> tuple[RecordEvidence, ...]:
+        return tuple(
+            RecordEvidence(
+                product_type=request.product_type,
+                product_id=product_id,
+                direct=(
+                    template.model_copy(
+                        update={
+                            "evidence_id": (
+                                f"{request.product_type.value}:{product_id}:product_id"
+                            ),
+                            "product_type": request.product_type,
+                            "product_id": product_id,
+                            "value": template.value.model_copy(
+                                update={"raw_value": product_id, "normalized_value": product_id}
+                            ),
+                        }
+                    ),
+                ),
+                derived=(),
+            )
+            for request in requests
+            for product_id in request.product_ids
+        )
+
+    monkeypatch.setattr(EvidenceRepository, "fetch_final_record_evidence", grouped_fetch)
+
+    evidence = EvidenceBuilder().build(
+        plan=plan,
+        policy_result=policy,
+        repository=repository,
+    )
+
+    assert tuple((item.product_type, item.product_id) for item in evidence.direct) == (
+        (ProductType.DOMESTIC_ETF, "ETF-1"),
+        (ProductType.DOMESTIC_ETN, "ETN-1"),
+        (ProductType.DOMESTIC_ETF, "ETF-2"),
+    )
+    assert all(item.product_id != "UNSELECTED" for item in evidence.direct)
+    session._close()
+
+
 def test_context_serialization_is_stable_json_safe_size_bounded_and_contains_no_local_runtime_path() -> (  # noqa: E501
     None
 ):

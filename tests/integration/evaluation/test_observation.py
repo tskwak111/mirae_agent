@@ -2,13 +2,17 @@ import json
 from datetime import date
 from decimal import Decimal
 
-from finproof.cli.evaluate import _observed_aggregates, _observed_products
+import pytest
+
+from finproof.cli.evaluate import _observed, _observed_aggregates, _observed_products
+from finproof.domain.answers import AnswerResult, VerifiedAnswer
 from finproof.domain.evidence import (
     EvidenceBundle,
     EvidenceSummary,
     EvidenceSummaryKind,
     EvidenceSummaryValue,
 )
+from finproof.domain.execution import ExecutionTrace, ExecutionTraceSegment, TraceValidation
 from finproof.domain.query_plan import (
     AggregationFunction,
     AggregationSpec,
@@ -18,7 +22,7 @@ from finproof.domain.query_plan import (
     ResultGrain,
     TopKScope,
 )
-from finproof.evaluation.models import ExpectedAggregate
+from finproof.evaluation.models import ExpectedAggregate, GoldenCase
 from finproof.evidence.serializer import serialize_evidence_context
 
 
@@ -68,6 +72,150 @@ def _summary(**updates: object) -> EvidenceSummary:
     }
     values.update(updates)
     return EvidenceSummary.model_validate(values)
+
+
+def _case_for_trace(plan: QueryPlan, *, assembled_envelope: bool) -> GoldenCase:
+    native_segments = [
+        {
+            "product_type": product_type,
+            "native_result_grain": (
+                "instrument"
+                if product_type is ProductType.DOMESTIC_BOND
+                else "fund_item"
+                if product_type is ProductType.PUBLIC_FUND
+                else "listed_product"
+            ),
+        }
+        for product_type in plan.product_types
+    ]
+    return GoldenCase.model_validate(
+        {
+            "case_id": "TRACE-ENVELOPE-001",
+            "category": "cross_product",
+            "question": "상품 유형별 결과",
+            "expected_plan": {
+                "intent": plan.intent,
+                "product_types": plan.product_types,
+                "as_of_date": "2026-07-11",
+                "result_grain": plan.result_grain,
+                "top_k_scope": plan.top_k_scope,
+                "native_segments": native_segments,
+            },
+            "expected_result": {"assembled_envelope": assembled_envelope},
+            "expected_answer": {"required_concepts": [], "forbidden_concepts": []},
+            "review": {
+                "reviewer": "test-reviewer",
+                "reviewed_at": "2026-08-24",
+                "source": "controlled-trace-fixture",
+            },
+        }
+    )
+
+
+def _answer_result(
+    *,
+    plan: QueryPlan,
+    segments: tuple[ExecutionTraceSegment, ...],
+    product: tuple[ProductType, str] | None,
+) -> AnswerResult:
+    direct_fields = ("evidence_id", "product_type", "product_id", "field_id")
+    direct = (
+        []
+        if product is None
+        else [[f"evidence:{product[1]}", product[0].value, product[1], "product_id"]]
+    )
+    return AnswerResult(
+        answer=VerifiedAnswer(text="2026-07-11 제공 스냅샷 기준", claims=()),
+        retrieved_context=json.dumps(
+            {
+                "direct_fields": direct_fields,
+                "direct": direct,
+                "derived_fields": (),
+                "derived": (),
+                "summaries": (),
+                "material_policy_limitations": (),
+            }
+        ),
+        trace=ExecutionTrace(
+            correlation_id="trace-envelope",
+            intent=plan.intent,
+            product_types=plan.product_types,
+            as_of_date=plan.as_of_date,
+            result_grain=plan.result_grain,
+            top_k_scope=plan.top_k_scope,
+            segments=segments,
+            candidate_counts={},
+            tools=(),
+            policy_ids=(),
+            validation=TraceValidation.PASSED,
+            versions={},
+            latency_ms={},
+        ),
+    )
+
+
+@pytest.mark.parametrize("product", [None, (ProductType.DOMESTIC_BOND, "BOND-ONLY")])
+def test_heterogeneous_execution_trace_records_envelope_for_empty_or_partial_results(
+    product: tuple[ProductType, str] | None,
+) -> None:
+    plan = _plan(
+        intent=Intent.SCREEN,
+        products=(ProductType.DOMESTIC_BOND, ProductType.PUBLIC_FUND),
+        grain=ResultGrain.PRODUCT,
+    )
+    segments = (
+        ExecutionTraceSegment(
+            product_type=ProductType.DOMESTIC_BOND,
+            native_result_grain=ResultGrain.INSTRUMENT,
+            partition_key="bond:KRW",
+            candidate_counts={},
+            returned=0 if product is None else 1,
+        ),
+        ExecutionTraceSegment(
+            product_type=ProductType.PUBLIC_FUND,
+            native_result_grain=ResultGrain.FUND_ITEM,
+            partition_key="fund:KRW",
+            candidate_counts={},
+            returned=0,
+        ),
+    )
+
+    observed = _observed(
+        _case_for_trace(plan, assembled_envelope=True),
+        plan,
+        _answer_result(plan=plan, segments=segments, product=product),
+        0,
+    )
+
+    assert observed.assembled_envelope is True
+    assert len(observed.products) == (0 if product is None else 1)
+
+
+def test_product_trace_with_only_one_native_grain_is_not_an_assembled_envelope() -> None:
+    plan = _plan(
+        intent=Intent.SCREEN,
+        products=(ProductType.DOMESTIC_ETF, ProductType.DOMESTIC_ETN),
+        grain=ResultGrain.PRODUCT,
+    )
+    segments = tuple(
+        ExecutionTraceSegment(
+            product_type=product_type,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            partition_key=f"{product_type.value}:KRW",
+            candidate_counts={},
+            returned=0,
+        )
+        for product_type in plan.product_types
+    )
+
+    observed = _observed(
+        _case_for_trace(plan, assembled_envelope=False),
+        plan,
+        _answer_result(plan=plan, segments=segments, product=None),
+        0,
+    )
+
+    assert observed.assembled_envelope is False
 
 
 def test_serialized_rank_summaries_preserve_compatible_multi_product_order() -> None:

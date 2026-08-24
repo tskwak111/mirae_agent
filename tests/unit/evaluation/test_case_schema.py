@@ -87,6 +87,29 @@ def test_expected_result_rejects_impossible_ordering() -> None:
         GoldenCase.model_validate(_case(expected_result={"products": [], "order_matters": True}))
 
 
+@pytest.mark.parametrize(
+    "products",
+    [
+        [],
+        [
+            {
+                "product_type": "domestic_bond",
+                "native_result_grain": "instrument",
+                "product_id": "ONLY-NONEMPTY-SEGMENT",
+            }
+        ],
+    ],
+)
+def test_expected_envelope_fact_is_independent_of_returned_product_diversity(
+    products: list[dict[str, str]],
+) -> None:
+    from finproof.evaluation.models import ExpectedResult
+
+    result = ExpectedResult.model_validate({"products": products, "assembled_envelope": True})
+
+    assert result.assembled_envelope is True
+
+
 def test_expected_results_use_full_typed_identity_for_uniqueness() -> None:
     products = [
         {
