@@ -1,5 +1,6 @@
 """Ordered deterministic policy composition."""
 
+from datetime import date
 from decimal import Decimal
 from typing import Any, cast
 
@@ -29,6 +30,7 @@ from finproof.quality.state import PolicyProduct, StateEvaluation, StatePolicy
 from finproof.quality.ties import TiePolicy
 from finproof.query.fields import FieldRegistry
 from finproof.registry.loader import RegistryBundle
+from finproof.registry.rating import RatingRegistry
 from finproof.storage import RawExecutionResult, RawFieldValue, RawProductRow
 
 
@@ -86,7 +88,9 @@ class PolicyExecutionResult(BaseModel):
 class PolicyEngine:
     def __init__(self) -> None:
         self._state = StatePolicy()
-        self._fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+        registries = RegistryBundle.from_package()
+        self._fields = FieldRegistry.from_bundle(registries)
+        self._ratings = registries.ratings
         self._partitioner = CompatibilityPartitioner()
 
     def apply(
@@ -106,7 +110,9 @@ class PolicyEngine:
             if segment.product_type is not raw_segment.product_type:
                 raise ValueError("policy segment identity differs")
             for row in raw_segment.rows:
-                if not all(_matches(row, clause) for clause in segment.filters):
+                if not all(
+                    _matches(row, clause, ratings=self._ratings) for clause in segment.filters
+                ):
                     excluded_filter += 1
                     continue
                 product = PolicyProduct(
@@ -160,7 +166,13 @@ class PolicyEngine:
                             metric_id=projection.metric_id,
                             product_type=row.product_type,
                             product_id=row.product_id,
-                            value=item.value if type(item.value) is Decimal else None,
+                            value=(
+                                item.value
+                                if type(item.value) is Decimal
+                                else Decimal(item.value)
+                                if type(item.value) is int
+                                else None
+                            ),
                             quality_status=item.quality_status,
                             currency=currency.value
                             if currency is not None and type(currency.value) is str
@@ -206,7 +218,11 @@ class PolicyEngine:
                 if policy_values
                 else ()
             )
-        if bundle.top_k_scope is TopKScope.GLOBAL and len(partitions) > 1:
+        if (
+            operation in {Operation.RANK, Operation.AGGREGATE}
+            and bundle.top_k_scope is TopKScope.GLOBAL
+            and len(partitions) > 1
+        ):
             raise ValueError("global scope requires one final partition")
         descending = bool(
             bundle.validated_plan.plan.sort
@@ -434,15 +450,42 @@ def _row_matches_partition(row: PolicyRow, currency: str | None) -> bool:
     return currency is None or row_currency == currency
 
 
-def _matches(row: RawProductRow, clause: FilterClause) -> bool:
+def _matches(
+    row: RawProductRow,
+    clause: FilterClause,
+    *,
+    ratings: RatingRegistry,
+) -> bool:
     value = next((item.value for item in row.values if item.field_id == clause.field), None)
-    target = clause.value
+    target: object = clause.value
     if clause.operator is FilterOperator.IS_MISSING:
         return value is None
     if clause.operator is FilterOperator.IS_NOT_MISSING:
         return value is not None
     if value is None:
         return False
+    if type(value) is date:
+        if type(target) is str:
+            target = date.fromisoformat(target)
+        elif type(target) is tuple:
+            target = tuple(
+                date.fromisoformat(item) if type(item) is str else item for item in target
+            )
+    if clause.field == "credit_rating" and clause.operator in {
+        FilterOperator.GTE,
+        FilterOperator.LTE,
+    }:
+        if type(value) is not str or type(target) is not str:
+            return False
+        value_ordinal = ratings.resolve(value).ordinal
+        target_ordinal = ratings.resolve(target).ordinal
+        if value_ordinal is None or target_ordinal is None:
+            return False
+        return (
+            value_ordinal <= target_ordinal
+            if clause.operator is FilterOperator.GTE
+            else value_ordinal >= target_ordinal
+        )
     if clause.operator is FilterOperator.EQ:
         return value == target
     if clause.operator is FilterOperator.NE:
@@ -453,7 +496,7 @@ def _matches(row: RawProductRow, clause: FilterClause) -> bool:
         return contained if clause.operator is FilterOperator.IN else not contained
     if clause.operator is FilterOperator.BETWEEN:
         assert isinstance(target, tuple)
-        return target[0] <= value <= target[1]  # type: ignore[operator]
+        return bool(target[0] <= value <= target[1])
     if clause.operator is FilterOperator.CONTAINS:
         return type(value) is str and type(target) is str and target in value
     if clause.operator is FilterOperator.STARTS_WITH:

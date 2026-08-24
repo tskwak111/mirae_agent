@@ -91,7 +91,7 @@ class EvidenceRepository:
                 payload = by_id[product_id]
                 if type(payload) is not str:
                     raise ValueError("record evidence JSON differs")
-                model = _MODELS[request.product_type].model_validate_json(payload, strict=True)
+                model = _MODELS[request.product_type].model_validate_json(payload)
                 if canonical_record_json(model) != payload:
                     raise ValueError("record evidence JSON is not canonical")
                 direct: list[DirectEvidence[object]] = []
@@ -99,7 +99,7 @@ class EvidenceRepository:
                 for field_id in request.field_ids:
                     projection = self._fields.projection(field_id, request.product_type)
                     wrapped = getattr(model, projection.column_name)
-                    if type(wrapped) is FundItemValue:
+                    if isinstance(wrapped, FundItemValue):
                         wrapped = wrapped.representative
                     evidence_id = f"{request.product_type.value}:{product_id}:{field_id}"
                     if isinstance(wrapped, NormalizedValue):

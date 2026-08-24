@@ -6,9 +6,16 @@ from finproof.domain.execution import (
     ExecutionSegment,
     ValidatedQueryPlan,
 )
-from finproof.domain.query_plan import Intent, ProductType, ResultGrain, TopKScope
+from finproof.domain.query_plan import (
+    FilterClause,
+    FilterOperator,
+    Intent,
+    ProductType,
+    ResultGrain,
+    TopKScope,
+)
 from finproof.query.fields import FieldRegistry
-from finproof.query.semantic_validator import ValidationContext
+from finproof.query.semantic_validator import ResolutionBundle, ValidationContext
 
 
 class ExecutionBundleBuilder:
@@ -28,14 +35,38 @@ class ExecutionBundleBuilder:
         if plan.context != context:
             raise ValueError("segment validation context differs")
         original = plan.plan
+        resolutions = plan.resolutions
+        if type(resolutions) is not ResolutionBundle:
+            raise TypeError("segment entity resolutions differ")
+        entity_ids = {
+            product_type: tuple(
+                result.selected.product_id
+                for result in resolutions.results
+                if result.selected is not None and result.selected.product_type is product_type
+            )
+            for product_type in ProductType
+        }
         segments = tuple(
             ExecutionSegment(
                 product_type=product_type,
                 native_result_grain=_NATIVE_GRAIN[product_type],
-                filters=tuple(
-                    clause
-                    for clause in original.filters
-                    if (clause.field, product_type) in self._fields.projections
+                filters=(
+                    *(
+                        clause
+                        for clause in original.filters
+                        if (clause.field, product_type) in self._fields.projections
+                    ),
+                    *(
+                        (
+                            FilterClause(
+                                field="product_id",
+                                operator=FilterOperator.IN,
+                                value=entity_ids[product_type],
+                            ),
+                        )
+                        if entity_ids[product_type]
+                        else ()
+                    ),
                 ),
                 metrics=tuple(
                     metric

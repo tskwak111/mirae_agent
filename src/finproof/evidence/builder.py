@@ -12,8 +12,8 @@ from finproof.domain.evidence import (
     EvidenceSummaryValue,
 )
 from finproof.domain.execution import ValidatedQueryPlan
-from finproof.domain.query_plan import ProductType, ResultGrain
-from finproof.quality import PolicyExecutionResult
+from finproof.domain.query_plan import ProductType, ResultGrain, TopKScope
+from finproof.quality import PolicyExecutionResult, RankPolicyResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
 
@@ -31,16 +31,22 @@ class EvidenceBuilder:
             or type(repository) is not EvidenceRepository
         ):
             raise TypeError("evidence builder inputs differ")
+        original = plan.plan
+        ranks = _bounded_ranks(
+            policy_result.ranks,
+            top_k=original.top_k,
+            scope=original.top_k_scope,
+        )
         selected: dict[tuple[ProductType, str], None] = {}
         for row in policy_result.selected_rows:
             selected[(row.raw.product_type, row.raw.product_id)] = None
-        for partition in policy_result.partitions:
-            for value in partition.selected_values:
-                selected[(value.product_type, value.product_id)] = None
-        for rank in policy_result.ranks:
+        if not ranks:
+            for partition in policy_result.partitions:
+                for value in partition.selected_values:
+                    selected[(value.product_type, value.product_id)] = None
+        for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
 
-        original = plan.plan
         field_ids = tuple(
             dict.fromkeys(
                 (
@@ -157,7 +163,7 @@ class EvidenceBuilder:
                     value=len(partition.selected_values),
                 )
             )
-        for index, rank in enumerate(policy_result.ranks):
+        for index, rank in enumerate(ranks):
             rank_evidence_ids = (
                 *(
                     item.evidence_id
@@ -247,6 +253,14 @@ class EvidenceBuilder:
                 (
                     "2026-07-11 제공 스냅샷 기준",
                     *policy_result.dual_lens_labels,
+                    *(
+                        (
+                            "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 "
+                            "요청한 표시 개수까지만 제시했습니다.",
+                        )
+                        if len(ranks) < len(policy_result.ranks)
+                        else ()
+                    ),
                     *(("통화별로 결과를 분리했습니다.",) if len(currencies - {None}) > 1 else ()),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
@@ -305,6 +319,26 @@ def _summary(
 
 def _hash(value: object) -> str:
     return sha256(canonical_json_bytes(value, terminal_newline=False)).hexdigest()
+
+
+def _bounded_ranks(
+    ranks: tuple[RankPolicyResult, ...],
+    *,
+    top_k: int,
+    scope: TopKScope,
+) -> tuple[RankPolicyResult, ...]:
+    counts: dict[tuple[ProductType | None, str], int] = {}
+    selected: list[RankPolicyResult] = []
+    for rank in ranks:
+        key = (
+            rank.value.product_type if scope is TopKScope.PER_PRODUCT_TYPE else None,
+            rank.partition_key,
+        )
+        count = counts.get(key, 0)
+        if count < top_k:
+            selected.append(rank)
+            counts[key] = count + 1
+    return tuple(selected)
 
 
 def _warning_text(value: str) -> str:

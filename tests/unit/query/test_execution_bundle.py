@@ -8,6 +8,7 @@ from tests.unit.query.test_semantic_validator import _context, _plan
 from finproof.domain.query_plan import (
     AggregationFunction,
     AggregationSpec,
+    EntityMention,
     FilterClause,
     FilterOperator,
     Intent,
@@ -17,6 +18,7 @@ from finproof.domain.query_plan import (
     SortSpec,
     TopKScope,
 )
+from finproof.entity import ResolutionCandidate, ResolutionMatchKind, ResolutionResult
 from finproof.query import (
     ExecutionBundleBuilder,
     FieldRegistry,
@@ -24,6 +26,49 @@ from finproof.query import (
     SemanticValidator,
 )
 from finproof.registry.loader import RegistryBundle
+
+
+def test_exact_entity_resolutions_become_closed_product_id_filters() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    mentions = (EntityMention(text="KR0000000001"), EntityMention(text="KR0000000002"))
+    candidates = tuple(
+        ResolutionCandidate(
+            product_id=mention.text,
+            product_type=ProductType.DOMESTIC_BOND,
+            name=f"채권 {index}",
+            match_kind=ResolutionMatchKind.EXACT_PRODUCT_ID,
+            score=10_000,
+        )
+        for index, mention in enumerate(mentions, 1)
+    )
+    plan = _plan(entities=mentions).model_copy(update={"intent": Intent.COMPARE})
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(
+            results=tuple(
+                ResolutionResult(selected=candidate, candidates=(candidate,))
+                for candidate in candidates
+            )
+        ),
+        context=_context(),
+    )
+
+    segment = (
+        ExecutionBundleBuilder(fields)
+        .build(
+            validated,
+            context=_context(),
+        )
+        .segments[0]
+    )
+
+    assert segment.filters == (
+        FilterClause(
+            field="product_id",
+            operator=FilterOperator.IN,
+            value=("KR0000000001", "KR0000000002"),
+        ),
+    )
 
 
 def test_heterogeneous_product_envelope_builds_ordered_native_segments() -> None:

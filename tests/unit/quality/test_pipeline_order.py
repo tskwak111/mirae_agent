@@ -202,6 +202,195 @@ def test_pipeline_applies_filter_then_state_and_metric_eligibility() -> None:
     assert "source quantity remains positive after maturity" in result.warnings
 
 
+def test_pipeline_uses_the_frozen_rating_scale_for_aa_minus_or_higher() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import FilterClause, FilterOperator, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        filters=(
+            FilterClause(
+                field="credit_rating",
+                operator=FilterOperator.GTE,
+                value="AA-",
+            ),
+        )
+    ).model_copy(update={"metrics": ()})
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        _bond(product_id, "10", date(2030, 1, 1)).model_copy(
+            update={
+                "values": (
+                    *_bond(product_id, "10", date(2030, 1, 1)).values,
+                    RawFieldValue(
+                        field_id="credit_rating",
+                        value=rating,
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+        for product_id, rating in (("strong", "AA"), ("weak", "BBB"))
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=rows,
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple(row.raw.product_id for row in result.included_rows) == ("strong",)
+    assert result.excluded_filter_count == 1
+
+
+def test_pipeline_compares_iso_date_filter_values_as_dates() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import FilterClause, FilterOperator, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        filters=(
+            FilterClause(
+                field="maturity_date",
+                operator=FilterOperator.GTE,
+                value="2026-07-11",
+            ),
+        )
+    ).model_copy(update={"metrics": ()})
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=(
+                    _bond("expired", "10", date(2026, 7, 10)),
+                    _bond("active", "10", date(2030, 1, 1)),
+                ),
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple(row.raw.product_id for row in result.included_rows) == ("active",)
+    assert result.excluded_filter_count == 1
+
+
+def test_pipeline_ranks_integer_derived_metric_values() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ResultGrain, SortDirection, SortSpec
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("remaining_days_at_as_of",),
+            "sort": (
+                SortSpec(
+                    field="remaining_days_at_as_of",
+                    direction=SortDirection.ASC,
+                ),
+            ),
+            "top_k": 2,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        _bond(product_id, "10", maturity).model_copy(
+            update={
+                "values": (
+                    *_bond(product_id, "10", maturity).values,
+                    RawFieldValue(
+                        field_id="remaining_days_at_as_of",
+                        value=remaining_days,
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+        for product_id, maturity, remaining_days in (
+            ("near", date(2026, 7, 21), 10),
+            ("far", date(2026, 8, 10), 30),
+        )
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=rows,
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple((rank.value.product_id, rank.rank, rank.value.value) for rank in result.ranks) == (
+        ("near", 1, Decimal(10)),
+        ("far", 2, Decimal(30)),
+    )
+
+
 def test_pipeline_partitions_before_aggregate_or_rank_tie() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 
@@ -270,6 +459,80 @@ def test_pipeline_partitions_before_aggregate_or_rank_tie() -> None:
         "K1",
         "U1",
     )
+
+
+def test_lookup_allows_multiple_metric_partitions_for_the_same_selected_product() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawProductRow, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.LOOKUP,
+            "metrics": ("total_fee", "aum"),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    row = RawProductRow(
+        product_type=ProductType.DOMESTIC_ETF,
+        native_result_grain=ResultGrain.LISTED_PRODUCT,
+        product_id="K1",
+        values=(
+            RawFieldValue(field_id="product_id", value="K1", quality_status="valid"),
+            RawFieldValue(field_id="total_fee", value=Decimal("0.1"), quality_status="valid"),
+            RawFieldValue(field_id="aum", value=Decimal("100"), quality_status="valid"),
+            RawFieldValue(field_id="currency", value="KRW", quality_status="valid"),
+            RawFieldValue(field_id="saleable", value=True, quality_status="valid"),
+            RawFieldValue(field_id="suspension_flag", value=False, quality_status="valid"),
+            RawFieldValue(
+                field_id="listing_date",
+                value=date(2020, 1, 1),
+                quality_status="valid",
+            ),
+            RawFieldValue(
+                field_id="listing_end_date",
+                value=None,
+                quality_status="sentinel_max_date",
+            ),
+        ),
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_ETF,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                rows=(row,),
+                candidate_count=1,
+                max_batch_rows=1,
+            ),
+        ),
+        candidate_count=1,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert len(result.partitions) == 2
+    assert {
+        value.product_id for partition in result.partitions for value in partition.selected_values
+    } == {"K1"}
 
 
 def test_pipeline_applies_top_k_only_after_each_final_partition() -> None:

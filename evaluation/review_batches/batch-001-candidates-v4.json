@@ -1,0 +1,143 @@
+{
+  "batch_id": "001",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 17,
+  "prompt_version": "canonical-question-candidates-v4",
+  "prompt_sha256": "658fd6e181b66ad1e10f96e0e788a56e879ab0c4d7c666bd33580a7ab31ed8ca",
+  "generated_at": "2026-08-24T04:58:11Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-001-LOOKUP-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DA16의 매수수익률과 만기일을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-LOOKUP-002",
+      "category": "lookup",
+      "question": "국내 ETF KR7305080004의 총보수와 AUM을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-LOOKUP-003",
+      "category": "lookup",
+      "question": "해외 ETF EES의 총보수와 거래통화를 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-LOOKUP-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5114420158의 위험등급과 AUM을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-SCREEN-001",
+      "category": "screen",
+      "question": "총보수가 0.2% 이하인 해외 ETF만 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-SCREEN-002",
+      "category": "screen",
+      "question": "신용등급이 AA- 이상이면서 현재 매수 가능한 국내채권을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-SCREEN-003",
+      "category": "screen",
+      "question": "위험등급 정보가 없는 공모펀드를 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-SCREEN-004",
+      "category": "screen",
+      "question": "3개월 수익률이 5% 이상인 국내 ETF를 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-SCREEN-005",
+      "category": "screen",
+      "question": "판매 가능한 국내 ETF 중에서 ETN을 제외한 상품을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-RANK-001",
+      "category": "rank",
+      "question": "연초이후 수익률이 가장 높은 상위 3개의 국내 ETF를 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-001-RANK-002",
+      "category": "rank",
+      "question": "최근 1년간 수익률이 가장 좋은 상위 5개의 공모펀드를 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-001-RANK-003",
+      "category": "rank",
+      "question": "잔존일이 가장 짧은 상위 5개의 국내채권을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-001-RANK-004",
+      "category": "rank",
+      "question": "총보수가 가장 낮은 상위 5개의 해외 ETF를 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-001-COMPARE-001",
+      "category": "compare",
+      "question": "국내 ETF KR7305080004와 KR7371160003 중 어떤 것이 최근 1년간 수익률이 더 좋았나요?"
+    },
+    {
+      "candidate_id": "CQ-001-COMPARE-002",
+      "category": "compare",
+      "question": "해외 ETF EES와 CHGX.O 중 어느 것이 총보수가 더 낮나요?"
+    },
+    {
+      "candidate_id": "CQ-001-COMPARE-003",
+      "category": "compare",
+      "question": "공모펀드 KR5114420158과 KR5138490078 중 어느 것이 최근 3개월간 수익률이 더 높았나요?"
+    },
+    {
+      "candidate_id": "CQ-001-AGGREGATE-001",
+      "category": "aggregate",
+      "question": "ETN을 제외한 국내 ETF의 총 개수를 집계해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-AGGREGATE-002",
+      "category": "aggregate",
+      "question": "모든 공모펀드의 최근 1년간 수익률 평균을 계산해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-CROSS_PRODUCT-001",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드 각각의 최근 1개월 수익률 상위 3개를 구분하여 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-001-CROSS_PRODUCT-002",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF 각각의 AUM 상위 3개를 통화별 및 유형별로 분류해 주세요."
+    },
+    {
+      "candidate_id": "CQ-001-CLARIFICATION-001",
+      "category": "clarification",
+      "question": "특정 상품 유형이나 기간을 언급하지 않고 '수익률이 우수한 금융상품'을 요청하면 어떻게 처리되나요?"
+    },
+    {
+      "candidate_id": "CQ-001-QUALITY-001",
+      "category": "quality",
+      "question": "추적오차가 가장 낮은 국내 ETF 5개를 요청했을 때 모두 0으로 표시되는 현상이 맞나요?"
+    },
+    {
+      "candidate_id": "CQ-001-QUALITY-002",
+      "category": "quality",
+      "question": "해외 ETF의 일일 수익률 상위 5개를 요청했을 때 모두 동일하게 0으로 표시되는 현상이 정상인가요?"
+    },
+    {
+      "candidate_id": "CQ-001-QUALITY-003",
+      "category": "quality",
+      "question": "위험등급 정보가 누락된 공모펀드의 수는 몇 개인가요?"
+    }
+  ]
+}

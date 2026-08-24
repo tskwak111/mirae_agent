@@ -113,6 +113,31 @@ def test_sql_compiler_parameterizes_every_value_and_uses_closed_identifiers() ->
     assert "Bond One" not in compiled.sql
 
 
+def test_sql_compiler_defers_ordinal_rating_order_to_the_domain_policy() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    segment = ExecutionSegment(
+        product_type=ProductType.DOMESTIC_BOND,
+        native_result_grain=ResultGrain.INSTRUMENT,
+        filters=(
+            FilterClause(
+                field="credit_rating",
+                operator=FilterOperator.GTE,
+                value="AA-",
+            ),
+        ),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+    )
+
+    compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
+
+    assert '"credit_rating"' in compiled.sql
+    assert '"credit_rating" >= ?' not in compiled.sql
+    assert compiled.parameters == ()
+
+
 def test_contains_and_starts_with_treat_wildcards_controls_and_unicode_as_literal_data() -> None:
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     values = ("%_\\\x00한글", "시작%_")

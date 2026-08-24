@@ -43,6 +43,11 @@ class SqlCompiler:
             parameters.append(_LISTED_DISCRIMINATOR[ast.segment.product_type])
         for clause in ast.segment.filters:
             projection = by_field[clause.field]
+            if projection.value_type == "ordinal_rating" and clause.operator in {
+                FilterOperator.GTE,
+                FilterOperator.LTE,
+            }:
+                continue
             predicate, values = _predicate(projection.column_name, clause.operator, clause.value)
             predicates.append(predicate)
             parameters.extend(values)

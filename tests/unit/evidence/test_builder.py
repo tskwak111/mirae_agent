@@ -92,6 +92,42 @@ def test_derived_claims_bind_formula_inputs_rule_and_as_of() -> None:
     session._close()
 
 
+def test_public_fund_evidence_restores_canonical_nested_lineage() -> None:
+    from tests.unit.data.artifacts.test_serialization import _fund_record
+
+    from finproof.domain.query_plan import ProductType
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    fund = _fund_record()
+    product_id = fund.fund_item_id.representative.normalized_value
+    assert type(product_id) is str
+
+    class Connection:
+        def execute(self, _sql: str, _parameters: object) -> Self:
+            return self
+
+        def fetchall(self) -> tuple[tuple[object, ...], ...]:
+            return ((product_id, canonical_record_json(fund)),)
+
+        def close(self) -> None: ...
+
+    session = _session(Connection())  # type: ignore[arg-type]
+
+    record = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.PUBLIC_FUND,
+                product_ids=(product_id,),
+                field_ids=("product_id",),
+            ),
+        )
+    )[0]
+
+    assert record.direct[0].value.normalized_value == product_id
+    assert record.direct[0].value.source == fund.fund_item_id.representative.source
+    session._close()
+
+
 def test_count_exclusion_rank_tie_partition_and_aggregate_summaries_are_bounded() -> None:
     from pydantic import ValidationError
 
@@ -176,24 +212,26 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
                 RawSegmentResult(
                     product_type=ProductType.DOMESTIC_BOND,
                     native_result_grain=ResultGrain.INSTRUMENT,
-                    rows=(row,),
-                    candidate_count=1,
-                    max_batch_rows=1,
+                    rows=(row, row, row),
+                    candidate_count=3,
+                    max_batch_rows=3,
                 ),
             ),
-            candidate_count=1,
+            candidate_count=3,
         ),
         bundle=bundle,
     )
 
-    summaries = (
-        EvidenceBuilder()
-        .build(plan=validated, policy_result=policy, repository=EvidenceRepository(session))
-        .summaries
+    evidence = EvidenceBuilder().build(
+        plan=validated,
+        policy_result=policy,
+        repository=EvidenceRepository(session),
     )
-    summary = next(item for item in summaries if item.kind.value == "rank")
-    partition_summary = next(item for item in summaries if item.kind.value == "partition")
+    rank_summaries = tuple(item for item in evidence.summaries if item.kind.value == "rank")
+    summary = rank_summaries[0]
+    partition_summary = next(item for item in evidence.summaries if item.kind.value == "partition")
 
+    assert len(rank_summaries) == 1
     assert partition_summary.value == len(policy.partitions[0].selected_values)
     assert summary.product_types == (ProductType.DOMESTIC_BOND,)
     assert summary.native_result_grains == (ResultGrain.INSTRUMENT,)
@@ -204,7 +242,48 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
         1,
         Decimal("2.25"),
     )
+    assert summary.tie_count == 3
+    assert any("동률" in limitation for limitation in evidence.material_policy_limitations)
     session._close()
+
+
+def test_rank_evidence_bound_uses_global_or_per_product_type_scope() -> None:
+    from finproof.domain.query_plan import ProductType, ResultGrain, TopKScope
+    from finproof.evidence.builder import _bounded_ranks
+    from finproof.quality import MetricValue, RankPolicyResult
+
+    ranks = tuple(
+        RankPolicyResult(
+            value=MetricValue(
+                metric_id="return_1m",
+                product_type=product_type,
+                product_id=product_id,
+                value=Decimal("5"),
+                quality_status="valid",
+                currency=None,
+                period="1m",
+            ),
+            native_result_grain=grain,
+            partition_key="return_1m|percent|1m|none|available|compatible",
+            field_id="return_1m",
+            rank=1,
+            tie_count=2,
+            policy_id="return_1m:rank",
+            evidence_requirements=("value", "quality", "tie"),
+        )
+        for product_type, grain, product_id in (
+            (ProductType.DOMESTIC_ETF, ResultGrain.LISTED_PRODUCT, "ETF-1"),
+            (ProductType.PUBLIC_FUND, ResultGrain.FUND_ITEM, "FUND-1"),
+        )
+    )
+
+    assert tuple(
+        rank.value.product_id for rank in _bounded_ranks(ranks, top_k=1, scope=TopKScope.GLOBAL)
+    ) == ("ETF-1",)
+    assert tuple(
+        rank.value.product_id
+        for rank in _bounded_ranks(ranks, top_k=1, scope=TopKScope.PER_PRODUCT_TYPE)
+    ) == ("ETF-1", "FUND-1")
 
 
 def test_builder_restores_interleaved_global_selection_order_after_grouped_lookup(
