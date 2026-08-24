@@ -146,9 +146,11 @@ _PROMPT_002 = """당신은 FinProof 평가 질문 후보 작성자입니다.
 18 aggregate: 국내 ETF 1년 수익률 평균, ETN 제외
 19 cross_product: 국내 ETF와 공모펀드의 3개월 수익률 상위 3개를 유형별 분리
 20 cross_product: 국내 ETF와 해외 ETF의 총보수 낮은 3개를 유형별 분리
-21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청—수익률 기간과 복합 우선순위가 없음
+21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청. \
+자연스러운 질문으로만 작성하고 추천이나 모호성 설명을 쓰지 마십시오. \
+수익률 기간과 복합 우선순위는 질문에서 자연스럽게 생략하십시오.
 22 quality: 국내 ETF 총보수 낮은 5개—기록된 0의 미검증 품질 경고 확인
-23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외와 등급 정책 확인
+23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외, 복수 신용등급과 등급 정책 확인
 24 quality: 판매 가능한 해외 ETF 5개—검증된 매수 가능 여부 제한 확인
 슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
 상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
@@ -274,6 +276,43 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         TARGET_DISTRIBUTION
     ):
         raise ValueError("HCX candidate distribution does not match the target")
+    if batch_id == "002":
+        if not any(
+            phrase in grouped["screen"][0]
+            for phrase in (
+                "매수가능수량이 양수",
+                "매수가능수량이 0 초과",
+                "매수가능수량이 0보다 큰",
+            )
+        ):
+            raise ValueError("batch 002 screen 001 must require positive buyable quantity")
+        clarification = grouped["clarification"][0]
+        if not all(phrase in clarification for phrase in ("국내 ETF", "수익률", "AUM")) or any(
+            phrase in clarification
+            for phrase in (
+                "추천",
+                "기간",
+                "우선순위",
+                "기준",
+                "명시",
+                "모호",
+                "불명확",
+                "1일",
+                "1주",
+                "1개월",
+                "3개월",
+                "6개월",
+                "1년",
+                "2년",
+                "3년",
+                "5년",
+                "연초",
+            )
+        ):
+            raise ValueError("batch 002 clarification must be a natural clarification")
+        quality = grouped["quality"][1]
+        if "복수" not in quality or "등급 정책" not in quality:
+            raise ValueError("batch 002 quality 002 must confirm multiple-rating policy")
     return [
         {
             "candidate_id": f"CQ-{batch_id}-{category.upper()}-{index:03d}",

@@ -43,6 +43,23 @@ def _content(*, categories: tuple[str, ...] = _CATEGORIES) -> str:
     )
 
 
+def _content_with_question(index: int, question: str) -> str:
+    content = json.loads(_batch_002_content())
+    content["candidates"][index]["question"] = question
+    return json.dumps(content, ensure_ascii=False)
+
+
+def _batch_002_content() -> str:
+    content = json.loads(_content())
+    questions = content["candidates"]
+    questions[4]["question"] = "매수가능수량이 양수인 국내채권을 찾아주세요."
+    questions[20]["question"] = "수익률이 좋고 AUM이 큰 국내 ETF 5개를 알려주세요."
+    questions[22]["question"] = (
+        "AA- 이상 국내채권 수를 복수 신용등급과 등급 정책을 확인해 집계해주세요."
+    )
+    return json.dumps(content, ensure_ascii=False)
+
+
 class _Response:
     def __init__(self, message_content: str) -> None:
         self.message_content = message_content
@@ -143,7 +160,7 @@ async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
 
 @pytest.mark.asyncio
 async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
-    client = _Client(_content())
+    client = _Client(_batch_002_content())
 
     packet = await generate_review_packet(
         client,
@@ -185,11 +202,12 @@ async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
         "19 cross_product: 국내 ETF와 공모펀드의 3개월 수익률 상위 3개를 유형별 분리",
         "20 cross_product: 국내 ETF와 해외 ETF의 총보수 낮은 3개를 유형별 분리",
         (
-            "21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청—"
-            "수익률 기간과 복합 우선순위가 없음"
+            "21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청. "
+            "자연스러운 질문으로만 작성하고 추천이나 모호성 설명을 쓰지 마십시오. "
+            "수익률 기간과 복합 우선순위는 질문에서 자연스럽게 생략하십시오."
         ),
         "22 quality: 국내 ETF 총보수 낮은 5개—기록된 0의 미검증 품질 경고 확인",
-        "23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외와 등급 정책 확인",
+        "23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외, 복수 신용등급과 등급 정책 확인",
         "24 quality: 판매 가능한 해외 ETF 5개—검증된 매수 가능 여부 제한 확인",
     )
     assert [prompt.index(slot) for slot in batch_002_slots] == sorted(
@@ -199,6 +217,46 @@ async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
     with pytest.raises(ValueError, match="batch_id"):
         await generate_review_packet(client, batch_id="999")
     assert len(client.requests) == 1
+
+
+def test_batch_002_rejects_v1_screen_question_without_positive_quantity() -> None:
+    packet = json.loads(
+        (
+            Path(__file__).parents[3] / "evaluation/review_batches/batch-002-candidates.json"
+        ).read_text(encoding="utf-8")
+    )
+    content = json.dumps(
+        {
+            "candidates": [
+                {"category": candidate["category"], "question": candidate["question"]}
+                for candidate in packet["candidates"]
+            ]
+        },
+        ensure_ascii=False,
+    )
+
+    with pytest.raises(ValueError, match="positive buyable quantity"):
+        generator._validate_candidates(content, batch_id="002")
+
+
+def test_batch_002_rejects_clarification_recommendation_or_stated_ambiguity() -> None:
+    content = _content_with_question(
+        20,
+        "수익률이 우수하면서 AUM이 큰 국내 ETF 5개를 추천해주세요. 기간이 명시되지 않았습니다.",
+    )
+
+    with pytest.raises(ValueError, match="natural clarification"):
+        generator._validate_candidates(content, batch_id="002")
+
+
+def test_batch_002_rejects_quality_question_without_multiple_rating_policy() -> None:
+    content = _content_with_question(
+        22,
+        "AA- 이상의 신용등급을 가진 국내채권 수를 집계하고 미평가 채권은 제외해주세요.",
+    )
+
+    with pytest.raises(ValueError, match="multiple-rating policy"):
+        generator._validate_candidates(content, batch_id="002")
 
 
 @pytest.mark.asyncio
@@ -391,7 +449,7 @@ def test_cli_passes_batch_002_to_hcx_and_writes_batch_002_packet(
 ) -> None:
     packet = asyncio.run(
         generate_review_packet(
-            _Client(_content()),
+            _Client(_batch_002_content()),
             batch_id="002",
             generated_at=datetime(2026, 8, 24, tzinfo=UTC),
         )
