@@ -1,0 +1,8 @@
+{
+  "batch_id": "001",
+  "reference_packet_sha256": "4db47c4dfcb0ea63a32c70cd5883e4d6e695f0219bffba9a67c336876d2655d8",
+  "review_status": "human_approved_canonical_references",
+  "reviewed_at": "2026-08-24",
+  "reviewer": "곽태성",
+  "schema_version": "canonical_reference_approval.v1"
+}

@@ -80,6 +80,15 @@ class ExpectedPlan(_FrozenModel):
             return None
         if isinstance(value, (list, tuple)) and all(type(item) is FilterClause for item in value):
             return tuple(value)
+        if isinstance(value, (list, tuple)):
+            value = [
+                {key: child for key, child in item.items() if key != "value"}
+                if isinstance(item, Mapping)
+                and item.get("operator") in {"is_missing", "is_not_missing"}
+                and item.get("value") is None
+                else item
+                for item in value
+            ]
         return TypeAdapter(tuple[FilterClause, ...]).validate_json(json.dumps(value))
 
     @field_validator("sort", mode="before")
