@@ -110,6 +110,38 @@ def test_expected_envelope_fact_is_independent_of_returned_product_diversity(
     assert result.assembled_envelope is True
 
 
+def test_golden_case_rejects_envelope_fact_that_contradicts_expected_plan() -> None:
+    with pytest.raises(ValidationError, match="envelope must match"):
+        GoldenCase.model_validate(_case(expected_result={"assembled_envelope": True}))
+
+    heterogeneous_plan = {
+        "intent": "screen",
+        "product_types": ["domestic_bond", "public_fund"],
+        "as_of_date": "2026-07-11",
+        "result_grain": "product",
+        "top_k_scope": "per_product_type",
+        "native_segments": [
+            {"product_type": "domestic_bond", "native_result_grain": "instrument"},
+            {"product_type": "public_fund", "native_result_grain": "fund_item"},
+        ],
+    }
+    with pytest.raises(ValidationError, match="envelope must match"):
+        GoldenCase.model_validate(
+            _case(
+                expected_plan=heterogeneous_plan,
+                expected_result={"assembled_envelope": False},
+            )
+        )
+
+    case = GoldenCase.model_validate(
+        _case(
+            expected_plan=heterogeneous_plan,
+            expected_result={"assembled_envelope": True},
+        )
+    )
+    assert case.expected_result.assembled_envelope is True
+
+
 def test_expected_results_use_full_typed_identity_for_uniqueness() -> None:
     products = [
         {

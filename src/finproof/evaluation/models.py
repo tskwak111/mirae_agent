@@ -330,6 +330,20 @@ class GoldenCase(_FrozenModel):
             raise ValueError("golden-case text cannot be blank")
         return value
 
+    @model_validator(mode="after")
+    def _validate_envelope_expectation(self) -> Self:
+        expected = self.expected_result.assembled_envelope
+        if expected is None:
+            return self
+        actual = (
+            self.expected_plan.result_grain is ResultGrain.PRODUCT
+            and len({segment.native_result_grain for segment in self.expected_plan.native_segments})
+            > 1
+        )
+        if expected is not actual:
+            raise ValueError("expected envelope must match the expected execution shape")
+        return self
+
 
 class ObservedSegment(_FrozenModel):
     product_type: ProductType
