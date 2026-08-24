@@ -160,6 +160,20 @@ async def test_generation_rejects_malformed_or_inexact_candidate_content(
 
 
 @pytest.mark.asyncio
+async def test_generation_rejects_non_hcx_007_before_request() -> None:
+    client = _Client(_content())
+
+    with pytest.raises(ValueError, match="HCX-007"):
+        await generate_review_packet(
+            client,
+            model_name="HCX-999",
+            generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+        )
+
+    assert client.requests == []
+
+
+@pytest.mark.asyncio
 async def test_packet_writer_validates_then_atomically_refuses_unsafe_targets(
     tmp_path: Path,
 ) -> None:
@@ -193,6 +207,21 @@ async def test_packet_writer_validates_then_atomically_refuses_unsafe_targets(
     assert not invalid_output.exists()
 
 
+@pytest.mark.asyncio
+async def test_packet_writer_rejects_non_hcx_007_model(tmp_path: Path) -> None:
+    packet = await generate_review_packet(
+        _Client(_content()),
+        generated_at=datetime(2026, 8, 24, tzinfo=UTC),
+    )
+    packet["model"] = "HCX-999"
+    output = tmp_path / "review" / "batch.json"
+
+    with pytest.raises(ValueError, match="HCX-007"):
+        write_review_packet(output, packet, repository_root=tmp_path)
+
+    assert not output.exists()
+
+
 def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -207,9 +236,8 @@ def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
     secret = "super-secret-hcx-key"  # noqa: S105 - sentinel verifies redaction.
     observed: dict[str, object] = {}
 
-    async def fake_request(api_key: SecretStr, model_name: str) -> dict[str, object]:
+    async def fake_request(api_key: SecretStr) -> dict[str, object]:
         observed["api_key"] = api_key
-        observed["model_name"] = model_name
         return packet
 
     monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
@@ -224,8 +252,8 @@ def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
         == 0
     )
 
-    assert observed["model_name"] == "HCX-007"
     assert isinstance(observed["api_key"], SecretStr)
+    assert json.loads(output.read_text(encoding="utf-8"))["model"] == "HCX-007"
     assert secret not in output.read_text(encoding="utf-8")
     assert secret not in capsys.readouterr().out
 
@@ -235,3 +263,28 @@ def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
             environ={},
             repository_root=tmp_path,
         )
+
+
+def test_cli_rejects_model_override_before_hcx_request(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    requested = False
+
+    async def fake_request(api_key: SecretStr) -> dict[str, object]:
+        nonlocal requested
+        requested = True
+        raise AssertionError("HCX must not be requested")
+
+    monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
+    output = tmp_path / "review" / "batch.json"
+
+    with pytest.raises(SystemExit):
+        generator.main(
+            ["--output", str(output), "--model", "HCX-999"],
+            environ={"FINPROOF_HCX_API_KEY": "not-a-real-key"},
+            repository_root=tmp_path,
+        )
+
+    assert requested is False
+    assert not output.exists()

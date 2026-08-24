@@ -80,6 +80,8 @@ async def generate_review_packet(
     generated_at: datetime | None = None,
 ) -> dict[str, object]:
     """Request, validate, and label one pending human-review packet."""
+    if model_name != DEFAULT_MODEL:
+        raise ValueError(f"model_name must be exactly {DEFAULT_MODEL}")
     request = HcxRequest.strict_json(
         model_name=model_name,
         messages=(
@@ -200,11 +202,11 @@ def _validate_output_path(output: Path, *, repository_root: Path) -> None:
 def _validate_packet(packet: dict[str, object]) -> None:
     if type(packet) is not dict or set(packet) != _PACKET_KEYS:
         raise ValueError("review packet has an invalid shape")
+    if packet["model"] != DEFAULT_MODEL:
+        raise ValueError(f"review packet model must be exactly {DEFAULT_MODEL}")
     if (
         packet["batch_id"] != BATCH_ID
         or packet["provider"] != PROVIDER
-        or type(packet["model"]) is not str
-        or not packet["model"].strip()
         or packet["seed"] != SEED
         or packet["prompt_version"] != PROMPT_VERSION
         or packet["prompt_sha256"] != sha256(_PROMPT.encode("utf-8")).hexdigest()
@@ -245,11 +247,10 @@ def _validate_packet(packet: dict[str, object]) -> None:
 
 async def _request_with_hcx(
     api_key: SecretStr,
-    model_name: str,
 ) -> dict[str, object]:
     async with create_hcx_http_client() as http_client:
         client = HcxClient(http_client=http_client, api_key=api_key)
-        return await generate_review_packet(client, model_name=model_name)
+        return await generate_review_packet(client)
 
 
 def main(
@@ -263,7 +264,6 @@ def main(
         description="Generate HCX-only noncanonical question candidates."
     )
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--model", default=DEFAULT_MODEL)
     args = parser.parse_args(argv)
 
     root = repository_root or Path.cwd()
@@ -273,7 +273,7 @@ def main(
     if raw_api_key is None or not raw_api_key.strip():
         raise SystemExit("FINPROOF_HCX_API_KEY is required")
 
-    packet = asyncio.run(_request_with_hcx(SecretStr(raw_api_key), args.model))
+    packet = asyncio.run(_request_with_hcx(SecretStr(raw_api_key)))
     write_review_packet(args.output, packet, repository_root=root)
     return 0
 
