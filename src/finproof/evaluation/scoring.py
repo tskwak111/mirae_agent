@@ -7,10 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from finproof.domain.query_plan import FilterClause
 from finproof.evaluation.models import (
+    ExpectedAggregate,
     ExpectedValue,
     GoldenCase,
+    ObservedAggregate,
     ObservedCase,
     ObservedValue,
+    ProductIdentity,
+    aggregate_key,
 )
 
 
@@ -65,6 +69,7 @@ class CaseScore(_FrozenModel):
     product_set: RatioScore
     product_order: RatioScore
     numeric_values: RatioScore
+    aggregate_values: RatioScore
     evidence_coverage: RatioScore
     answer_semantics: RatioScore
     repeat_stability: RatioScore
@@ -85,7 +90,9 @@ def _ratio(
     )
 
 
-def score_products(expected: Sequence[str], observed: Sequence[str]) -> ProductScore:
+def score_products(
+    expected: Sequence[ProductIdentity], observed: Sequence[ProductIdentity]
+) -> ProductScore:
     expected_set = set(expected)
     observed_set = set(observed)
     set_denominator = len(expected_set) + len(observed_set)
@@ -144,6 +151,39 @@ def score_values(
             continue
         failures.append(f"value differs: {key}")
     return _ratio(matched, len(expected), failures)
+
+
+def score_aggregates(
+    expected: Sequence[ExpectedAggregate], observed: Sequence[ObservedAggregate]
+) -> RatioScore:
+    observed_by_key: dict[tuple[object, ...], list[ObservedAggregate]] = {}
+    for value in observed:
+        observed_by_key.setdefault(aggregate_key(value), []).append(value)
+    expected_keys = {aggregate_key(value) for value in expected}
+    failures: list[str] = []
+    matched = 0
+    for expectation in expected:
+        actual = observed_by_key.get(aggregate_key(expectation), [])
+        if not actual:
+            failures.append(f"aggregate missing: {expectation.partition_key}")
+        elif len(actual) > 1:
+            failures.append(f"duplicate aggregate observation: {expectation.partition_key}")
+        elif (
+            actual[0].value_type is expectation.value_type and actual[0].value == expectation.value
+        ):
+            matched += 1
+        else:
+            failures.append(f"aggregate value differs: {expectation.partition_key}")
+    unexpected = [value for value in observed if aggregate_key(value) not in expected_keys]
+    failures.extend(f"unexpected aggregate: {value.partition_key}" for value in unexpected)
+    duplicate_count = sum(
+        max(0, len(values) - 1) for key, values in observed_by_key.items() if key in expected_keys
+    )
+    return _ratio(
+        matched,
+        len(expected) + len(unexpected) + duplicate_count,
+        failures,
+    )
 
 
 def score_evidence(expected_ids: Sequence[str], observed_ids: Sequence[str]) -> RatioScore:
@@ -276,12 +316,12 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         if case.expected_result.assembled_envelope is None
         else _exact_dimension(
             case.expected_result.assembled_envelope,
-            observed.assembled_envelope,
+            len({product.native_result_grain for product in observed.products}) > 1,
             "assembled envelope",
         )
     )
 
-    products = score_products(case.expected_result.product_ids, observed.product_ids)
+    products = score_products(case.expected_result.products, observed.products)
     product_set = _ratio(
         products.set_numerator,
         products.set_denominator,
@@ -297,6 +337,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         )
     )
     numeric_values = score_values(case.expected_result.values, observed.values)
+    aggregate_values = score_aggregates(case.expected_result.aggregates, observed.aggregates)
     evidence_coverage = score_evidence(
         case.expected_result.required_evidence_ids, observed.evidence_ids
     )
@@ -339,6 +380,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         product_set,
         product_order,
         numeric_values,
+        aggregate_values,
         evidence_coverage,
         answer_semantics,
         repeat_stability,
@@ -354,6 +396,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         product_set=product_set,
         product_order=product_order,
         numeric_values=numeric_values,
+        aggregate_values=aggregate_values,
         evidence_coverage=evidence_coverage,
         answer_semantics=answer_semantics,
         repeat_stability=repeat_stability,

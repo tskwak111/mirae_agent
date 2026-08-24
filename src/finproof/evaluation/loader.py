@@ -24,6 +24,10 @@ def load_golden_cases(paths: Sequence[Path]) -> tuple[GoldenCase, ...]:
                 case = GoldenCase.model_validate_json(line)
             except ValueError as error:
                 raise ValueError(f"invalid golden case at {path}:{line_number}") from error
+            if case.review.reviewer == "AI-handoff-seed":
+                raise ValueError(
+                    f"AI-handoff-seed is not a canonical reviewer: {path}:{line_number}"
+                )
             if case.case_id in seen:
                 raise ValueError(f"duplicate golden case id: {case.case_id}")
             seen.add(case.case_id)

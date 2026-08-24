@@ -1,4 +1,5 @@
 import json
+from datetime import date
 from pathlib import Path
 
 from finproof.cli.main import _parser, _run_main
@@ -53,3 +54,120 @@ def test_evaluate_dispatches_exact_suite_mode_and_output(
     )
     assert calls == [("canonical", output, EvaluationMode.PLAN_ONLY)]
     assert json.loads(output.read_text(encoding="utf-8")) == {"suite": "canonical"}
+
+
+def test_selected_products_follow_compatible_cross_product_rank_summaries() -> None:
+    from finproof.cli.evaluate import _observed_products
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+
+    plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.OVERSEAS_ETF),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(),
+        metrics=("return_1y",),
+        sort=(),
+        aggregation=None,
+        top_k=2,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    evidence = (
+        {"product_type": "domestic_etf", "product_id": "SAME"},
+        {"product_type": "overseas_etf", "product_id": "SAME"},
+    )
+    summaries = (
+        {
+            "kind": "rank",
+            "product_types": ["overseas_etf"],
+            "native_result_grains": ["listed_product"],
+            "product_id": "SAME",
+            "rank": 1,
+        },
+        {
+            "kind": "rank",
+            "product_types": ["domestic_etf"],
+            "native_result_grains": ["listed_product"],
+            "product_id": "SAME",
+            "rank": 2,
+        },
+    )
+
+    observed = _observed_products(plan, evidence, summaries)
+
+    assert tuple(item.product_type for item in observed) == (
+        ProductType.OVERSEAS_ETF,
+        ProductType.DOMESTIC_ETF,
+    )
+    assert tuple(item.product_id for item in observed) == ("SAME", "SAME")
+
+
+def test_aggregate_observations_parse_verified_summary_identity_and_exact_value() -> None:
+    from decimal import Decimal
+
+    from finproof.cli.evaluate import _observed_aggregates
+    from finproof.evaluation.models import ExpectedAggregate
+
+    expected = (
+        ExpectedAggregate.model_validate(
+            {
+                "function": "avg",
+                "field_id": "return_1y",
+                "product_type": "domestic_etf",
+                "native_result_grain": "listed_product",
+                "partition_key": "return_1y:KRW",
+                "group_values": [{"field_id": "currency", "value_type": "text", "value": "KRW"}],
+                "value_type": "decimal",
+                "value": "3.10",
+            }
+        ),
+    )
+    summaries = (
+        {
+            "kind": "aggregate",
+            "policy_versions": ["return_1y:avg"],
+            "product_types": ["domestic_etf"],
+            "native_result_grains": ["listed_product"],
+            "partition_key": "return_1y:KRW",
+            "metric_id": "return_1y",
+            "group_values": [{"field_id": "currency", "value": "KRW"}],
+            "value": "3.10",
+        },
+    )
+
+    observed = _observed_aggregates(expected, summaries)
+
+    assert observed[0].value == Decimal("3.10")
+    assert observed[0].group_values[0].value == "KRW"
+
+
+def test_unexpected_missing_aggregate_value_remains_a_typed_observation() -> None:
+    from finproof.cli.evaluate import _observed_aggregates
+    from finproof.evaluation.models import ValueType
+
+    summaries = (
+        {
+            "kind": "aggregate",
+            "policy_versions": ["return_1y:avg"],
+            "product_types": ["domestic_etf"],
+            "native_result_grains": ["listed_product"],
+            "partition_key": "return_1y:KRW",
+            "metric_id": "return_1y",
+            "group_values": [],
+            "value": None,
+        },
+    )
+
+    observed = _observed_aggregates((), summaries)
+
+    assert observed[0].value_type is ValueType.NULL
+    assert observed[0].value is None

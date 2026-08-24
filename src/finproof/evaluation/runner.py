@@ -1,11 +1,13 @@
 """Sequential deterministic replay runner for reviewed golden cases."""
 
+import json
 import platform
 import re
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
+from hashlib import sha256
 from pathlib import Path
 from typing import Protocol, Self
 
@@ -26,11 +28,79 @@ class EvaluationMode(StrEnum):
     END_TO_END = "end-to-end"
 
 
+class PlannerRuntimeMode(StrEnum):
+    FALLBACK_ONLY = "fallback-only"
+    HCX_STRICT_JSON_WITH_FALLBACK = "hcx-strict-json-with-fallback"
+
+
 class ReplayVersions(_FrozenModel):
     artifact_version: str = Field(min_length=1)
     config_versions: dict[str, str]
     prompt_version: str = Field(min_length=1)
     planner_version: str = Field(min_length=1)
+    planner_mode: PlannerRuntimeMode
+    planner_provider: str = Field(min_length=1)
+    planner_model: str | None
+    hcx_enabled: bool
+    fallback_enabled: bool
+    structured_outputs_enabled: bool
+    configuration_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @classmethod
+    def from_configuration(
+        cls,
+        *,
+        artifact_version: str,
+        config_versions: Mapping[str, str],
+        prompt_version: str,
+        planner_version: str,
+        hcx_enabled: bool,
+        planner_model: str | None,
+        fallback_enabled: bool,
+        structured_outputs_enabled: bool,
+    ) -> "ReplayVersions":
+        if hcx_enabled:
+            mode = PlannerRuntimeMode.HCX_STRICT_JSON_WITH_FALLBACK
+            provider = "naver-hyperclova-x"
+            if not planner_model:
+                raise ValueError("enabled HCX replay requires a planner model")
+        else:
+            mode = PlannerRuntimeMode.FALLBACK_ONLY
+            provider = "local-rule-fallback"
+            if planner_model is not None:
+                raise ValueError("fallback-only replay cannot identify an unused HCX model")
+        configuration = {
+            "config_versions": dict(config_versions),
+            "prompt_version": prompt_version,
+            "planner_version": planner_version,
+            "planner_mode": mode.value,
+            "planner_provider": provider,
+            "planner_model": planner_model,
+            "hcx_enabled": hcx_enabled,
+            "fallback_enabled": fallback_enabled,
+            "structured_outputs_enabled": structured_outputs_enabled,
+        }
+        digest = sha256(
+            json.dumps(
+                configuration,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()
+        return cls(
+            artifact_version=artifact_version,
+            config_versions=dict(config_versions),
+            prompt_version=prompt_version,
+            planner_version=planner_version,
+            planner_mode=mode,
+            planner_provider=provider,
+            planner_model=planner_model,
+            hcx_enabled=hcx_enabled,
+            fallback_enabled=fallback_enabled,
+            structured_outputs_enabled=structured_outputs_enabled,
+            configuration_sha256=digest,
+        )
 
 
 class ReplayMetadata(ReplayVersions):
@@ -75,6 +145,7 @@ _METRICS = (
     "product_set",
     "product_order",
     "numeric_values",
+    "aggregate_values",
     "evidence_coverage",
     "answer_semantics",
     "repeat_stability",
@@ -103,6 +174,7 @@ class EvaluationRunner:
         if not cases or len({case.case_id for case in cases}) != len(cases):
             raise ValueError("evaluation cases must be nonempty with unique IDs")
         started_at = self._clock()
+        code_commit = self._code_commit()
         versions = service.replay_versions()
         observations = tuple(service.observe(case, self._mode) for case in cases)
         scores = tuple(
@@ -116,7 +188,7 @@ class EvaluationRunner:
         return EvaluationReport(
             replay=ReplayMetadata(
                 **versions.model_dump(),
-                code_commit=self._code_commit(),
+                code_commit=code_commit,
                 environment=dict(self._environment()),
                 started_at=started_at,
                 ended_at=ended_at,
@@ -159,6 +231,7 @@ def _for_mode(score: CaseScore, mode: EvaluationMode) -> CaseScore:
             "product_set",
             "product_order",
             "numeric_values",
+            "aggregate_values",
             "evidence_coverage",
             "answer_semantics",
             "repeat_stability",
@@ -183,19 +256,38 @@ def _code_commit(root: Path | None = None) -> str:
         if not declaration.startswith("gitdir: "):
             raise RuntimeError("git worktree metadata differs")
         candidate = Path(declaration.removeprefix("gitdir: "))
-        git_dir = candidate if candidate.is_absolute() else repository / candidate
+        git_dir = (candidate if candidate.is_absolute() else repository / candidate).resolve()
     else:
         raise RuntimeError("git metadata is missing")
+    common_dir = git_dir
+    common_marker = git_dir / "commondir"
+    if common_marker.is_file():
+        declaration = common_marker.read_text(encoding="utf-8").strip()
+        if not declaration:
+            raise RuntimeError("git common metadata differs")
+        candidate = Path(declaration)
+        common_dir = (candidate if candidate.is_absolute() else git_dir / candidate).resolve()
     head = (git_dir / "HEAD").read_text(encoding="utf-8").strip()
     if head.startswith("ref: "):
         reference = head.removeprefix("ref: ")
         if not reference.startswith("refs/") or ".." in Path(reference).parts:
             raise RuntimeError("git HEAD reference differs")
-        ref_path = git_dir / reference
-        if ref_path.is_file():
+        ref_paths = (git_dir / reference, common_dir / reference)
+        ref_path = next((path for path in ref_paths if path.is_file()), None)
+        if ref_path is not None:
             commit = ref_path.read_text(encoding="utf-8").strip()
         else:
-            packed = (git_dir / "packed-refs").read_text(encoding="utf-8").splitlines()
+            packed_path = next(
+                (
+                    path
+                    for path in (git_dir / "packed-refs", common_dir / "packed-refs")
+                    if path.is_file()
+                ),
+                None,
+            )
+            if packed_path is None:
+                raise RuntimeError("git HEAD reference is missing")
+            packed = packed_path.read_text(encoding="utf-8").splitlines()
             commit = next(
                 (line.split(" ", 1)[0] for line in packed if line.endswith(f" {reference}")),
                 "",

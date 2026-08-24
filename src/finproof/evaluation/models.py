@@ -10,6 +10,7 @@ from typing import Annotated, Self
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator, model_validator
 
 from finproof.domain.query_plan import (
+    AggregationFunction,
     AggregationSpec,
     FilterClause,
     Intent,
@@ -41,22 +42,36 @@ class ExpectedSegment(_FrozenModel):
     native_result_grain: ResultGrain
 
 
+def native_result_grain(product_type: ProductType) -> ResultGrain:
+    if product_type is ProductType.DOMESTIC_BOND:
+        return ResultGrain.INSTRUMENT
+    if product_type is ProductType.PUBLIC_FUND:
+        return ResultGrain.FUND_ITEM
+    return ResultGrain.LISTED_PRODUCT
+
+
 class ExpectedPlan(_FrozenModel):
     """A checked expectation subset, never an executable partial QueryPlan."""
 
     intent: Intent
-    product_types: tuple[ProductType, ...]
+    product_types: Annotated[tuple[ProductType, ...], Field(max_length=6)]
     as_of_date: date
     result_grain: ResultGrain
     top_k_scope: TopKScope
-    filters: tuple[FilterClause, ...] | None = None
-    metrics: tuple[Annotated[str, Field(min_length=1, max_length=100)], ...] | None = None
-    sort: tuple[SortSpec, ...] | None = None
+    filters: Annotated[tuple[FilterClause, ...], Field(max_length=20)] | None = None
+    metrics: (
+        Annotated[
+            tuple[Annotated[str, Field(min_length=1, max_length=100)], ...],
+            Field(max_length=20),
+        ]
+        | None
+    ) = None
+    sort: Annotated[tuple[SortSpec, ...], Field(max_length=5)] | None = None
     top_k: Annotated[int, Field(ge=1, le=50)] | None = None
     needs_clarification: bool | None = None
     clarification_reason: Annotated[str, Field(max_length=1_000)] | None = None
     aggregation: AggregationSpec | None = None
-    native_segments: tuple[ExpectedSegment, ...] = ()
+    native_segments: Annotated[tuple[ExpectedSegment, ...], Field(max_length=6)] = ()
 
     @field_validator("filters", mode="before")
     @classmethod
@@ -97,19 +112,27 @@ class ExpectedPlan(_FrozenModel):
                 raise ValueError("terminal expectations prohibit executable clauses")
         elif self.needs_clarification is True or self.clarification_reason not in {None, ""}:
             raise ValueError("executable expectations cannot require clarification")
+        elif not self.product_types:
+            raise ValueError("executable expectations require products")
         if len(set(self.product_types)) != len(self.product_types):
             raise ValueError("expected product types must be unique")
+        if self.metrics is not None and len(set(self.metrics)) != len(self.metrics):
+            raise ValueError("expected metrics must be unique")
         native_by_product = {
-            product: ResultGrain.INSTRUMENT
-            if product is ProductType.DOMESTIC_BOND
-            else ResultGrain.FUND_ITEM
-            if product is ProductType.PUBLIC_FUND
-            else ResultGrain.LISTED_PRODUCT
-            for product in self.product_types
+            product: native_result_grain(product) for product in self.product_types
         }
         native_grains = set(native_by_product.values())
         if len(native_grains) > 1 and self.result_grain is not ResultGrain.PRODUCT:
             raise ValueError("heterogeneous expected plans require the product envelope")
+        if not terminal and len(native_grains) == 1:
+            native_grain = next(iter(native_grains))
+            allowed_grains = (
+                {native_grain, ResultGrain.PRODUCT}
+                if len(self.product_types) > 1
+                else {native_grain}
+            )
+            if self.result_grain not in allowed_grains:
+                raise ValueError("expected plan has the wrong result grain")
         if self.native_segments:
             segments = {segment.product_type: segment for segment in self.native_segments}
             if len(segments) != len(self.native_segments) or set(segments) != set(
@@ -132,13 +155,12 @@ class ValueType(StrEnum):
     DATE = "date"
     TEXT = "text"
     BOOLEAN = "boolean"
+    NULL = "null"
 
 
-class _TypedValue(_FrozenModel):
-    product_id: Annotated[str, Field(min_length=1, max_length=300)] | None = None
-    field_id: Annotated[str, Field(min_length=1, max_length=100)]
+class _TypedScalar(_FrozenModel):
     value_type: ValueType
-    value: Decimal | date | str | bool | int
+    value: Decimal | date | str | bool | int | None
 
     @model_validator(mode="before")
     @classmethod
@@ -169,10 +191,16 @@ class _TypedValue(_FrozenModel):
             ValueType.DATE: date,
             ValueType.TEXT: str,
             ValueType.BOOLEAN: bool,
+            ValueType.NULL: type(None),
         }[self.value_type]
         if type(self.value) is not expected_type:
             raise ValueError("value does not match its declared type")
         return self
+
+
+class _TypedValue(_TypedScalar):
+    product_id: Annotated[str, Field(min_length=1, max_length=300)] | None = None
+    field_id: Annotated[str, Field(min_length=1, max_length=100)]
 
 
 class ExpectedValue(_TypedValue):
@@ -183,10 +211,68 @@ class ObservedValue(_TypedValue):
     pass
 
 
+class ProductIdentity(_FrozenModel):
+    product_type: ProductType
+    native_result_grain: ResultGrain
+    product_id: Annotated[str, Field(min_length=1, max_length=300)]
+
+    @model_validator(mode="after")
+    def _validate_native_result_grain(self) -> Self:
+        if self.native_result_grain is not native_result_grain(self.product_type):
+            raise ValueError("product identity has the wrong native result grain")
+        return self
+
+
+class AggregateGroupValue(_TypedScalar):
+    field_id: Annotated[str, Field(min_length=1, max_length=100)]
+
+
+class _AggregateValue(_TypedScalar):
+    function: AggregationFunction
+    field_id: Annotated[str, Field(min_length=1, max_length=100)] | None
+    product_type: ProductType
+    native_result_grain: ResultGrain
+    partition_key: Annotated[str, Field(min_length=1, max_length=300)]
+    group_values: Annotated[tuple[AggregateGroupValue, ...], Field(max_length=2)] = ()
+
+    @model_validator(mode="after")
+    def _validate_aggregate_identity(self) -> Self:
+        if self.function is AggregationFunction.COUNT:
+            if self.field_id is not None:
+                raise ValueError("count aggregate prohibits a target field")
+        elif self.field_id is None:
+            raise ValueError("value aggregate requires a target field")
+        if self.native_result_grain is not native_result_grain(self.product_type):
+            raise ValueError("aggregate has the wrong native result grain")
+        if len({group.field_id for group in self.group_values}) != len(self.group_values):
+            raise ValueError("aggregate group fields must be unique")
+        return self
+
+
+class ExpectedAggregate(_AggregateValue):
+    pass
+
+
+class ObservedAggregate(_AggregateValue):
+    pass
+
+
+def aggregate_key(value: _AggregateValue) -> tuple[object, ...]:
+    return (
+        value.function,
+        value.field_id,
+        value.product_type,
+        value.native_result_grain,
+        value.partition_key,
+        tuple((group.field_id, group.value_type, group.value) for group in value.group_values),
+    )
+
+
 class ExpectedResult(_FrozenModel):
-    product_ids: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
+    products: tuple[ProductIdentity, ...] = ()
     order_matters: bool = False
     values: tuple[ExpectedValue, ...] = ()
+    aggregates: tuple[ExpectedAggregate, ...] = ()
     required_evidence_ids: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
     required_compatibility_partitions: tuple[
         Annotated[str, Field(min_length=1, max_length=300)], ...
@@ -195,13 +281,19 @@ class ExpectedResult(_FrozenModel):
 
     @model_validator(mode="after")
     def _validate_order(self) -> Self:
-        if len(set(self.product_ids)) != len(self.product_ids):
-            raise ValueError("expected product ordering cannot contain duplicates")
-        if self.order_matters and not self.product_ids:
+        if len(set(self.products)) != len(self.products):
+            raise ValueError("expected results require unique full product identities")
+        if self.order_matters and not self.products:
             raise ValueError("order_matters requires expected products")
+        actual_envelope = len({product.native_result_grain for product in self.products}) > 1
+        if self.assembled_envelope is not None and self.assembled_envelope is not actual_envelope:
+            raise ValueError("assembled envelope must match the expected product identities")
         value_keys = {(value.product_id, value.field_id) for value in self.values}
         if len(value_keys) != len(self.values):
             raise ValueError("expected values must have unique product and field keys")
+        aggregate_keys = {aggregate_key(value) for value in self.aggregates}
+        if len(aggregate_keys) != len(self.aggregates):
+            raise ValueError("expected aggregates must have unique full aggregate keys")
         return self
 
 
@@ -250,8 +342,9 @@ class ObservedSegment(_FrozenModel):
 
 class ObservedCase(_FrozenModel):
     plan: "QueryPlan | None" = None
-    product_ids: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
+    products: tuple[ProductIdentity, ...] = ()
     values: tuple[ObservedValue, ...] = ()
+    aggregates: tuple[ObservedAggregate, ...] = ()
     answer_text: str = ""
     evidence_ids: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
     limitation_present: bool = False
@@ -259,8 +352,16 @@ class ObservedCase(_FrozenModel):
     repeat_signatures: tuple[Annotated[str, Field(min_length=1)], ...] = ()
     segments: tuple[ObservedSegment, ...] = ()
     compatibility_partitions: tuple[Annotated[str, Field(min_length=1, max_length=300)], ...] = ()
-    assembled_envelope: bool | None = None
     latency_ms: tuple[Annotated[int, Field(ge=0)], ...] = ()
+
+    @model_validator(mode="after")
+    def _validate_product_identities(self) -> Self:
+        if len(set(self.products)) != len(self.products):
+            raise ValueError("observations require unique full product identities")
+        aggregate_keys = {aggregate_key(value) for value in self.aggregates}
+        if len(aggregate_keys) != len(self.aggregates):
+            raise ValueError("observations require unique full aggregate keys")
+        return self
 
 
 from finproof.domain.query_plan import QueryPlan  # noqa: E402

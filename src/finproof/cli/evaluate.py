@@ -15,16 +15,26 @@ from finproof.core.errors import FinProofError
 from finproof.core.settings import Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult, ClaimKind
 from finproof.domain.execution import TraceValidation
-from finproof.domain.query_plan import QueryPlan, ResultGrain
+from finproof.domain.query_plan import (
+    AggregationFunction,
+    Intent,
+    ProductType,
+    QueryPlan,
+    ResultGrain,
+)
 from finproof.entity import EntityIndex, EntityResolver
 from finproof.evaluation.loader import load_golden_cases
 from finproof.evaluation.models import (
+    ExpectedAggregate,
     ExpectedValue,
     GoldenCase,
+    ObservedAggregate,
     ObservedCase,
     ObservedSegment,
     ObservedValue,
+    ProductIdentity,
     ValueType,
+    native_result_grain,
 )
 from finproof.evaluation.runner import (
     EvaluationMode,
@@ -83,15 +93,19 @@ class _LocalEvaluationService:
         planner: PlannerProtocol,
         answer_service: AnswerService,
         loop: asyncio.AbstractEventLoop,
+        hcx_enabled: bool,
+        planner_model: str | None,
     ) -> None:
         self._session = session
         self._planner = planner
         self._answer_service = answer_service
         self._loop = loop
+        self._hcx_enabled = hcx_enabled
+        self._planner_model = planner_model
 
     def replay_versions(self) -> ReplayVersions:
         facts = self._session.versions.runtime_facts()
-        return ReplayVersions(
+        return ReplayVersions.from_configuration(
             artifact_version=facts["artifact_manifest_hash"],
             config_versions={
                 key: value
@@ -100,6 +114,10 @@ class _LocalEvaluationService:
             },
             prompt_version=PROMPT_VERSION,
             planner_version=facts["planner_version"],
+            hcx_enabled=self._hcx_enabled,
+            planner_model=self._planner_model,
+            fallback_enabled=True,
+            structured_outputs_enabled=False,
         )
 
     def observe(self, case: GoldenCase, mode: EvaluationMode) -> ObservedCase:
@@ -157,6 +175,8 @@ def _open_local_service(settings: Settings) -> Iterator[_LocalEvaluationService]
                 planner=planner,
                 answer_service=AnswerService(session),
                 loop=loop,
+                hcx_enabled=settings.hcx_enabled,
+                planner_model=settings.hcx_model_name if settings.hcx_enabled else None,
             )
     finally:
         if http_context is not None:
@@ -183,14 +203,9 @@ def _observed(
             )
         )
     )
-    products = tuple(
-        dict.fromkeys(
-            str(value["product_id"])
-            for value in (*direct, *derived)
-            if value.get("product_id") is not None
-        )
-    )
+    products = _observed_products(plan, (*direct, *derived), summaries)
     values = _observed_values(case.expected_result.values, (*direct, *derived), summaries)
+    aggregates = _observed_aggregates(case.expected_result.aggregates, summaries)
     limitations = payload.get("material_policy_limitations", ())
     signature = sha256(
         json.dumps(
@@ -206,8 +221,9 @@ def _observed(
     ).hexdigest()
     return ObservedCase(
         plan=plan,
-        product_ids=products,
+        products=products,
         values=values,
+        aggregates=aggregates,
         answer_text=result.answer.text,
         evidence_ids=evidence_ids,
         limitation_present=bool(limitations)
@@ -225,9 +241,174 @@ def _observed(
         compatibility_partitions=tuple(
             dict.fromkeys(segment.partition_key for segment in result.trace.segments)
         ),
-        assembled_envelope=result.trace.result_grain is ResultGrain.PRODUCT,
         latency_ms=(planner_latency_ms + sum(result.trace.latency_ms.values()),),
     )
+
+
+def _observed_products(
+    plan: QueryPlan,
+    evidence: Sequence[Mapping[str, object]],
+    summaries: Sequence[Mapping[str, object]],
+) -> tuple[ProductIdentity, ...]:
+    if plan.intent is Intent.AGGREGATE:
+        return ()
+    ranked = tuple(
+        _summary_product_identity(summary) for summary in summaries if summary.get("kind") == "rank"
+    )
+    if ranked:
+        return tuple(dict.fromkeys(ranked))
+    selected = tuple(
+        ProductIdentity(
+            product_type=ProductType(str(value["product_type"])),
+            native_result_grain=native_result_grain(ProductType(str(value["product_type"]))),
+            product_id=str(value["product_id"]),
+        )
+        for value in evidence
+        if value.get("product_id") is not None
+    )
+    return tuple(dict.fromkeys(selected))
+
+
+def _summary_product_identity(summary: Mapping[str, object]) -> ProductIdentity:
+    product_types = summary.get("product_types")
+    native_grains = summary.get("native_result_grains")
+    product_id = summary.get("product_id")
+    if (
+        not isinstance(product_types, Sequence)
+        or isinstance(product_types, (str, bytes))
+        or len(product_types) != 1
+        or not isinstance(native_grains, Sequence)
+        or isinstance(native_grains, (str, bytes))
+        or len(native_grains) != 1
+        or product_id is None
+    ):
+        raise ValueError("rank summary product identity differs")
+    return ProductIdentity(
+        product_type=ProductType(str(product_types[0])),
+        native_result_grain=ResultGrain(str(native_grains[0])),
+        product_id=str(product_id),
+    )
+
+
+def _observed_aggregates(
+    expected: Sequence[ExpectedAggregate],
+    summaries: Sequence[Mapping[str, object]],
+) -> tuple[ObservedAggregate, ...]:
+    observed: list[ObservedAggregate] = []
+    for summary in summaries:
+        if summary.get("kind") != "aggregate":
+            continue
+        function = _summary_aggregation_function(summary)
+        product = _summary_aggregate_product(summary)
+        partition_key = summary.get("partition_key")
+        field_id = summary.get("metric_id")
+        group_values = summary.get("group_values", ())
+        if (
+            type(partition_key) is not str
+            or not isinstance(group_values, Sequence)
+            or isinstance(group_values, (str, bytes))
+        ):
+            raise ValueError("aggregate summary identity differs")
+        raw_groups = tuple(group_values)
+        candidates = tuple(
+            item
+            for item in expected
+            if item.function is function
+            and item.field_id == field_id
+            and item.product_type is product.product_type
+            and item.native_result_grain is product.native_result_grain
+            and item.partition_key == partition_key
+            and _groups_match(item, raw_groups)
+        )
+        if len(candidates) > 1:
+            raise ValueError("aggregate summary group values are ambiguous")
+        typed_groups: tuple[dict[str, object], ...]
+        if candidates:
+            expectation = candidates[0]
+            typed_groups = tuple(
+                {
+                    "field_id": group.field_id,
+                    "value_type": group.value_type,
+                    "value": _typed_value(group.value_type, raw["value"]),
+                }
+                for group, raw in zip(expectation.group_values, raw_groups, strict=True)
+                if isinstance(raw, Mapping)
+            )
+            value_type = expectation.value_type
+        else:
+            typed_groups = tuple(_inferred_group_value(raw) for raw in raw_groups)
+            value_type = (
+                ValueType.NULL
+                if summary.get("value") is None
+                else ValueType.INTEGER
+                if function is AggregationFunction.COUNT
+                else ValueType.DECIMAL
+            )
+        observed.append(
+            ObservedAggregate.model_validate(
+                {
+                    "function": function,
+                    "field_id": field_id,
+                    "product_type": product.product_type,
+                    "native_result_grain": product.native_result_grain,
+                    "partition_key": partition_key,
+                    "group_values": typed_groups,
+                    "value_type": value_type,
+                    "value": _typed_value(value_type, summary.get("value")),
+                }
+            )
+        )
+    return tuple(observed)
+
+
+def _summary_aggregation_function(summary: Mapping[str, object]) -> AggregationFunction:
+    policies = summary.get("policy_versions")
+    if not isinstance(policies, Sequence) or isinstance(policies, (str, bytes)):
+        raise ValueError("aggregate summary policy identity differs")
+    functions: set[AggregationFunction] = set()
+    for policy in policies:
+        try:
+            functions.add(AggregationFunction(str(policy).rsplit(":", 1)[-1]))
+        except ValueError:
+            continue
+    if len(functions) != 1:
+        raise ValueError("aggregate summary function differs")
+    return next(iter(functions))
+
+
+def _summary_aggregate_product(summary: Mapping[str, object]) -> ProductIdentity:
+    return _summary_product_identity({**summary, "product_id": "aggregate"})
+
+
+def _groups_match(expectation: ExpectedAggregate, raw_groups: Sequence[object]) -> bool:
+    if len(expectation.group_values) != len(raw_groups):
+        return False
+    for expected, raw in zip(expectation.group_values, raw_groups, strict=True):
+        if not isinstance(raw, Mapping) or raw.get("field_id") != expected.field_id:
+            return False
+        try:
+            actual = _typed_value(expected.value_type, raw.get("value"))
+        except (TypeError, ValueError):
+            return False
+        if actual != expected.value:
+            return False
+    return True
+
+
+def _inferred_group_value(raw: object) -> dict[str, object]:
+    if not isinstance(raw, Mapping) or type(raw.get("field_id")) is not str:
+        raise ValueError("aggregate group value differs")
+    value = raw.get("value")
+    value_type = (
+        ValueType.NULL
+        if value is None
+        else ValueType.BOOLEAN
+        if type(value) is bool
+        else ValueType.INTEGER
+        if type(value) is int
+        else ValueType.TEXT
+    )
+    return {"field_id": raw["field_id"], "value_type": value_type, "value": value}
 
 
 def _rows(payload: Mapping[str, object], name: str) -> tuple[dict[str, object], ...]:
@@ -271,7 +452,7 @@ def _observed_values(
     return tuple(observed)
 
 
-def _typed_value(value_type: ValueType, value: object) -> Decimal | date | str | bool | int:
+def _typed_value(value_type: ValueType, value: object) -> Decimal | date | str | bool | int | None:
     if value_type is ValueType.DECIMAL:
         return Decimal(str(value))
     if value_type is ValueType.INTEGER:
@@ -282,4 +463,8 @@ def _typed_value(value_type: ValueType, value: object) -> Decimal | date | str |
         if type(value) is not bool:
             raise ValueError("observed boolean differs")
         return value
+    if value_type is ValueType.NULL:
+        if value is not None:
+            raise ValueError("observed null differs")
+        return None
     return str(value)

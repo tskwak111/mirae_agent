@@ -16,6 +16,7 @@ from finproof.evaluation.models import (
     ObservedCase,
     ObservedSegment,
     ObservedValue,
+    ProductIdentity,
 )
 from finproof.evaluation.scoring import (
     LatencySummary,
@@ -46,6 +47,19 @@ def _plan(*, filters: tuple[FilterClause, ...] = ()) -> QueryPlan:
     )
 
 
+def _product(
+    product_id: str,
+    *,
+    product_type: ProductType = ProductType.DOMESTIC_BOND,
+    native_result_grain: ResultGrain = ResultGrain.INSTRUMENT,
+) -> ProductIdentity:
+    return ProductIdentity(
+        product_type=product_type,
+        native_result_grain=native_result_grain,
+        product_id=product_id,
+    )
+
+
 def _case() -> GoldenCase:
     return GoldenCase.model_validate(
         {
@@ -63,7 +77,14 @@ def _case() -> GoldenCase:
                 "needs_clarification": False,
             },
             "expected_result": {
-                "product_ids": ["A", "B"],
+                "products": [
+                    {
+                        "product_type": "domestic_bond",
+                        "native_result_grain": "instrument",
+                        "product_id": product_id,
+                    }
+                    for product_id in ("A", "B")
+                ],
                 "order_matters": True,
                 "values": [
                     {
@@ -92,11 +113,31 @@ def _case() -> GoldenCase:
 
 
 def test_product_set_f1_and_order_accuracy_are_separate() -> None:
-    score = score_products(expected=["A", "B", "C"], observed=["B", "A", "C"])
+    score = score_products(
+        expected=[_product("A"), _product("B"), _product("C")],
+        observed=[_product("B"), _product("A"), _product("C")],
+    )
 
     assert score.set_f1 == 1.0
     assert score.order_accuracy < 1.0
     assert (score.set_numerator, score.set_denominator) == (6, 6)
+
+
+def test_product_scoring_distinguishes_overlapping_ids_by_typed_identity() -> None:
+    domestic = _product(
+        "OVERLAP",
+        product_type=ProductType.DOMESTIC_ETF,
+        native_result_grain=ResultGrain.LISTED_PRODUCT,
+    )
+    overseas = _product(
+        "OVERLAP",
+        product_type=ProductType.OVERSEAS_ETF,
+        native_result_grain=ResultGrain.LISTED_PRODUCT,
+    )
+
+    score = score_products(expected=(domestic, overseas), observed=(domestic,))
+
+    assert (score.set_numerator, score.set_denominator) == (2, 3)
 
 
 def test_decimal_and_date_values_are_exact_unless_display_tolerance_is_declared() -> None:
@@ -127,6 +168,59 @@ def test_decimal_and_date_values_are_exact_unless_display_tolerance_is_declared(
 
     tolerant = expected[0].model_copy(update={"display_tolerance": Decimal("0.01")})
     assert score_values((tolerant,), (observed[0],)).numerator == 1
+
+
+def test_typed_partitioned_aggregates_are_scored_independently_and_exactly() -> None:
+    from finproof.evaluation.models import ExpectedAggregate, ObservedAggregate
+    from finproof.evaluation.scoring import score_aggregates
+
+    base = {
+        "function": "avg",
+        "field_id": "return_1y",
+        "product_type": "domestic_etf",
+        "native_result_grain": "listed_product",
+        "group_values": [{"field_id": "currency", "value_type": "text", "value": "KRW"}],
+        "value_type": "decimal",
+    }
+    expected = (
+        ExpectedAggregate.model_validate({**base, "partition_key": "KRW:A", "value": "3.10"}),
+        ExpectedAggregate.model_validate({**base, "partition_key": "KRW:B", "value": "4.20"}),
+    )
+    observed = (
+        ObservedAggregate.model_validate({**base, "partition_key": "KRW:A", "value": "3.10"}),
+        ObservedAggregate.model_validate({**base, "partition_key": "KRW:B", "value": "4.21"}),
+    )
+
+    score = score_aggregates(expected, observed)
+
+    assert (score.numerator, score.denominator) == (1, 2)
+    assert score.failures == ("aggregate value differs: KRW:B",)
+
+
+def test_aggregate_scoring_rejects_duplicate_observations_without_last_wins() -> None:
+    from finproof.evaluation.models import ExpectedAggregate, ObservedAggregate
+    from finproof.evaluation.scoring import score_aggregates
+
+    value: dict[str, object] = {
+        "function": "count",
+        "field_id": None,
+        "product_type": "domestic_bond",
+        "native_result_grain": "instrument",
+        "partition_key": "bond:KRW",
+        "group_values": [],
+        "value_type": "integer",
+        "value": 2,
+    }
+    expected = ExpectedAggregate.model_validate(value)
+    observed = ObservedAggregate.model_validate(value)
+
+    score = score_aggregates(
+        (expected,),
+        (observed, observed.model_copy(update={"value": 3})),
+    )
+
+    assert (score.numerator, score.denominator) == (0, 2)
+    assert score.failures == ("duplicate aggregate observation: bond:KRW",)
 
 
 def test_filter_slot_f1_scores_literal_operator_and_value() -> None:
@@ -162,7 +256,7 @@ def test_score_case_keeps_contract_dimensions_and_failures_separate() -> None:
     case = _case()
     observed = ObservedCase(
         plan=_plan(filters=(expected_filter,)),
-        product_ids=("B", "A"),
+        products=(_product("B"), _product("A")),
         values=(
             ObservedValue.model_validate(
                 {
@@ -178,7 +272,6 @@ def test_score_case_keeps_contract_dimensions_and_failures_separate() -> None:
         limitation_present=True,
         clarification_present=False,
         repeat_signatures=("stable", "stable"),
-        assembled_envelope=False,
         latency_ms=(25, 20),
     )
 

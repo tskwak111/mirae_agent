@@ -11,7 +11,7 @@ from finproof.domain.query_plan import (
     TopKScope,
 )
 from finproof.evaluation.loader import suite_checksum
-from finproof.evaluation.models import GoldenCase, ObservedCase
+from finproof.evaluation.models import GoldenCase, ObservedCase, ProductIdentity
 from finproof.evaluation.runner import EvaluationMode, EvaluationRunner, ReplayVersions
 
 
@@ -28,7 +28,15 @@ def _case() -> GoldenCase:
                 "result_grain": "instrument",
                 "top_k_scope": "global",
             },
-            "expected_result": {"product_ids": ["A"]},
+            "expected_result": {
+                "products": [
+                    {
+                        "product_type": "domestic_bond",
+                        "native_result_grain": "instrument",
+                        "product_id": "A",
+                    }
+                ]
+            },
             "expected_answer": {
                 "required_concepts": ["2026-07-11"],
                 "forbidden_concepts": ["실시간"],
@@ -60,6 +68,19 @@ def _plan() -> QueryPlan:
     )
 
 
+def _versions() -> ReplayVersions:
+    return ReplayVersions.from_configuration(
+        artifact_version="artifact-sha256",
+        config_versions={"metric": "1.0.0", "state": "1.1.0"},
+        prompt_version="prompt-1.0.0",
+        planner_version="planner-1.0.0",
+        hcx_enabled=False,
+        planner_model=None,
+        fallback_enabled=True,
+        structured_outputs_enabled=False,
+    )
+
+
 def test_code_commit_reads_symbolic_head_without_a_subprocess(tmp_path: Path) -> None:
     from finproof.evaluation.runner import _code_commit
 
@@ -72,6 +93,95 @@ def test_code_commit_reads_symbolic_head_without_a_subprocess(tmp_path: Path) ->
     assert _code_commit(tmp_path) == commit
 
 
+def test_replay_versions_label_fallback_only_and_hash_actual_configuration() -> None:
+    first = ReplayVersions.from_configuration(
+        artifact_version="artifact-sha256",
+        config_versions={"state": "1.1.0", "metric": "1.0.0"},
+        prompt_version="prompt-1.0.0",
+        planner_version="planner-1.0.0",
+        hcx_enabled=False,
+        planner_model=None,
+        fallback_enabled=True,
+        structured_outputs_enabled=False,
+    )
+    reordered = ReplayVersions.from_configuration(
+        artifact_version="artifact-sha256",
+        config_versions={"metric": "1.0.0", "state": "1.1.0"},
+        prompt_version="prompt-1.0.0",
+        planner_version="planner-1.0.0",
+        hcx_enabled=False,
+        planner_model=None,
+        fallback_enabled=True,
+        structured_outputs_enabled=False,
+    )
+    hcx = ReplayVersions.from_configuration(
+        artifact_version="artifact-sha256",
+        config_versions={"metric": "1.0.0", "state": "1.1.0"},
+        prompt_version="prompt-1.0.0",
+        planner_version="planner-1.0.0",
+        hcx_enabled=True,
+        planner_model="HCX-007",
+        fallback_enabled=True,
+        structured_outputs_enabled=False,
+    )
+
+    assert first.planner_mode == "fallback-only"
+    assert first.planner_provider == "local-rule-fallback"
+    assert first.planner_model is None
+    assert first.configuration_sha256 == reordered.configuration_sha256
+    assert hcx.planner_mode == "hcx-strict-json-with-fallback"
+    assert hcx.planner_provider == "naver-hyperclova-x"
+    assert hcx.configuration_sha256 != first.configuration_sha256
+
+
+def test_code_commit_resolves_linked_worktree_commondir_and_packed_refs(
+    tmp_path: Path,
+) -> None:
+    from finproof.evaluation.runner import _code_commit
+
+    commit = "c" * 40
+    repository = tmp_path / "worktree"
+    common = tmp_path / "common.git"
+    worktree_git = common / "worktrees" / "evaluation"
+    repository.mkdir()
+    worktree_git.mkdir(parents=True)
+    (repository / ".git").write_text(
+        "gitdir: ../common.git/worktrees/evaluation\n", encoding="utf-8"
+    )
+    (worktree_git / "HEAD").write_text("ref: refs/heads/evaluation\n", encoding="utf-8")
+    (worktree_git / "commondir").write_text("../..\n", encoding="utf-8")
+    (common / "packed-refs").write_text(
+        f"# pack-refs with: peeled fully-peeled sorted\n{commit} refs/heads/evaluation\n",
+        encoding="utf-8",
+    )
+
+    assert _code_commit(repository) == commit
+
+
+def test_runner_captures_commit_before_versions_and_observations() -> None:
+    events: list[str] = []
+
+    class Service:
+        def replay_versions(self) -> ReplayVersions:
+            events.append("versions")
+            return _versions()
+
+        def observe(self, _case: GoldenCase, _mode: EvaluationMode) -> ObservedCase:
+            events.append("observe")
+            return ObservedCase(plan=_plan())
+
+    def code_commit() -> str:
+        events.append("commit")
+        return "a" * 40
+
+    EvaluationRunner(
+        code_commit=code_commit,
+        environment=lambda: {"python": "3.12"},
+    ).run((_case(),), Service())
+
+    assert events == ["commit", "versions", "observe"]
+
+
 @pytest.mark.parametrize("mode", tuple(EvaluationMode))
 def test_runner_records_replay_metadata_and_ratio_aggregates(mode: EvaluationMode) -> None:
     case = _case()
@@ -79,18 +189,19 @@ def test_runner_records_replay_metadata_and_ratio_aggregates(mode: EvaluationMod
 
     class Service:
         def replay_versions(self) -> ReplayVersions:
-            return ReplayVersions(
-                artifact_version="artifact-sha256",
-                config_versions={"metric": "1.0.0", "state": "1.1.0"},
-                prompt_version="prompt-1.0.0",
-                planner_version="planner-1.0.0",
-            )
+            return _versions()
 
         def observe(self, observed_case: GoldenCase, observed_mode: EvaluationMode) -> ObservedCase:
             calls.append((observed_case.case_id, observed_mode))
             return ObservedCase(
                 plan=_plan(),
-                product_ids=("A",),
+                products=(
+                    ProductIdentity(
+                        product_type=ProductType.DOMESTIC_BOND,
+                        native_result_grain=ResultGrain.INSTRUMENT,
+                        product_id="A",
+                    ),
+                ),
                 answer_text="2026-07-11 기준",
                 repeat_signatures=("same", "same"),
                 latency_ms=(12,),

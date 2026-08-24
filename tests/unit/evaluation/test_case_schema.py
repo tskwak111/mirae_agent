@@ -21,7 +21,16 @@ def _case(**updates: object) -> dict[str, object]:
             "result_grain": "instrument",
             "top_k_scope": "global",
         },
-        "expected_result": {"product_ids": ["B1"], "order_matters": True},
+        "expected_result": {
+            "products": [
+                {
+                    "product_type": "domestic_bond",
+                    "native_result_grain": "instrument",
+                    "product_id": "B1",
+                }
+            ],
+            "order_matters": True,
+        },
         "expected_answer": {
             "required_concepts": ["2026-07-11"],
             "forbidden_concepts": ["실시간"],
@@ -75,7 +84,58 @@ def test_golden_case_rejects_missing_review_metadata() -> None:
 
 def test_expected_result_rejects_impossible_ordering() -> None:
     with pytest.raises(ValidationError):
-        GoldenCase.model_validate(_case(expected_result={"product_ids": [], "order_matters": True}))
+        GoldenCase.model_validate(_case(expected_result={"products": [], "order_matters": True}))
+
+
+def test_expected_results_use_full_typed_identity_for_uniqueness() -> None:
+    products = [
+        {
+            "product_type": "domestic_etf",
+            "native_result_grain": "listed_product",
+            "product_id": "OVERLAP",
+        },
+        {
+            "product_type": "overseas_etf",
+            "native_result_grain": "listed_product",
+            "product_id": "OVERLAP",
+        },
+    ]
+    case = GoldenCase.model_validate(
+        _case(expected_result={"products": products, "order_matters": True})
+    )
+    assert len(case.expected_result.products) == 2
+
+    with pytest.raises(ValidationError, match="full product identities"):
+        GoldenCase.model_validate(_case(expected_result={"products": [products[0], products[0]]}))
+
+
+def test_product_identity_rejects_wrong_native_grain() -> None:
+    from finproof.evaluation.models import ProductIdentity
+
+    with pytest.raises(ValidationError, match="native result grain"):
+        ProductIdentity.model_validate(
+            {
+                "product_type": "domestic_bond",
+                "native_result_grain": "listed_product",
+                "product_id": "B1",
+            }
+        )
+
+
+def test_expected_result_rejects_duplicate_full_aggregate_keys() -> None:
+    aggregate = {
+        "function": "count",
+        "field_id": None,
+        "product_type": "domestic_bond",
+        "native_result_grain": "instrument",
+        "partition_key": "bond:KRW",
+        "group_values": [{"field_id": "currency", "value_type": "text", "value": "KRW"}],
+        "value_type": "integer",
+        "value": 2,
+    }
+
+    with pytest.raises(ValidationError, match="aggregate keys"):
+        GoldenCase.model_validate(_case(expected_result={"aggregates": [aggregate, aggregate]}))
 
 
 def test_heterogeneous_plan_requires_product_envelope_and_native_segments() -> None:
@@ -144,6 +204,50 @@ def test_terminal_expected_plan_requires_explicit_clarification_semantics() -> N
     assert case.expected_plan.clarification_reason == "return period is unresolved"
 
 
+@pytest.mark.parametrize(
+    "plan_update",
+    [
+        {"product_types": [], "result_grain": "instrument"},
+        {"product_types": ["domestic_bond"], "result_grain": "listed_product"},
+        {
+            "filters": [
+                {"field": f"field_{index}", "operator": "eq", "value": index} for index in range(21)
+            ]
+        },
+        {"metrics": [f"metric_{index}" for index in range(21)]},
+        {"sort": [{"field": f"field_{index}", "direction": "asc"} for index in range(6)]},
+    ],
+)
+def test_expected_plan_rejects_runtime_impossible_executable_shapes(
+    plan_update: dict[str, object],
+) -> None:
+    expected_plan = _case()["expected_plan"]
+    assert isinstance(expected_plan, dict)
+    plan = dict(expected_plan)
+    plan.update(plan_update)
+
+    with pytest.raises(ValidationError):
+        GoldenCase.model_validate(_case(expected_plan=plan))
+
+
+def test_compatible_multi_product_plan_may_retain_its_native_grain() -> None:
+    plan = {
+        "intent": "screen_rank",
+        "product_types": ["domestic_etf", "domestic_etn"],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "top_k_scope": "global",
+        "native_segments": [
+            {"product_type": "domestic_etf", "native_result_grain": "listed_product"},
+            {"product_type": "domestic_etn", "native_result_grain": "listed_product"},
+        ],
+    }
+
+    case = GoldenCase.model_validate(_case(expected_plan=plan))
+
+    assert case.expected_plan.result_grain.value == "listed_product"
+
+
 def test_loader_rejects_duplicate_case_ids_across_files(tmp_path: Path) -> None:
     first = tmp_path / "rank-a.jsonl"
     second = tmp_path / "rank-b.jsonl"
@@ -183,3 +287,17 @@ def test_loader_requires_one_category_per_jsonl_and_stable_checksum(tmp_path: Pa
     )
     with pytest.raises(ValueError, match="one category"):
         load_golden_cases((mixed,))
+
+
+def test_loader_rejects_ai_handoff_seed_reviewer_sentinel(tmp_path: Path) -> None:
+    path = tmp_path / "rank.jsonl"
+    value = _case()
+    value["review"] = {
+        "reviewer": "AI-handoff-seed",
+        "reviewed_at": "2026-08-20",
+        "source": "authoring-seed",
+    }
+    path.write_text(json.dumps(value, ensure_ascii=False) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="AI-handoff-seed"):
+        load_golden_cases((path,))
