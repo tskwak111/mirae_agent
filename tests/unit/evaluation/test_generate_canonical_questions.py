@@ -142,6 +142,36 @@ async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
 
 
 @pytest.mark.asyncio
+async def test_hcx_generation_supports_the_frozen_batch_002_contract() -> None:
+    client = _Client(_content())
+
+    packet = await generate_review_packet(
+        client,
+        batch_id="002",
+        generated_at=datetime(2026, 8, 24, 12, 30, tzinfo=UTC),
+    )
+
+    assert packet["batch_id"] == "002"
+    assert packet["model"] == "HCX-007"
+    assert packet["seed"] == 29
+    assert packet["prompt_version"] == "canonical-question-candidates-v5"
+    candidates = cast(list[dict[str, str]], packet["candidates"])
+    assert candidates[0]["candidate_id"] == "CQ-002-LOOKUP-001"
+    assert candidates[-1]["candidate_id"] == "CQ-002-QUALITY-003"
+    request, request_id = client.requests[0]
+    assert request_id == "finproof-canonical-question-candidates-002"
+    assert request.model_name == "HCX-007"
+    assert request.seed == 29
+    prompt = "\n".join(message.content for message in request.messages)
+    assert "1 lookup: 국내채권 KR350105G9C6" in prompt
+    assert "24 quality: 판매 가능한 해외 ETF 5개" in prompt
+
+    with pytest.raises(ValueError, match="batch_id"):
+        await generate_review_packet(client, batch_id="999")
+    assert len(client.requests) == 1
+
+
+@pytest.mark.asyncio
 async def test_generation_accepts_one_json_code_fence() -> None:
     packet = await generate_review_packet(
         _Client(f"\n```json\n{_content()}\n```\n"),
@@ -269,8 +299,9 @@ def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
     secret = "super-secret-hcx-key"  # noqa: S105 - sentinel verifies redaction.
     observed: dict[str, object] = {}
 
-    async def fake_request(api_key: SecretStr) -> dict[str, object]:
+    async def fake_request(api_key: SecretStr, *, batch_id: str) -> dict[str, object]:
         observed["api_key"] = api_key
+        observed["batch_id"] = batch_id
         return packet
 
     monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
@@ -286,6 +317,7 @@ def test_cli_loads_hcx_secret_without_printing_or_persisting_it(
     )
 
     assert isinstance(observed["api_key"], SecretStr)
+    assert observed["batch_id"] == "001"
     assert json.loads(output.read_text(encoding="utf-8"))["model"] == "HCX-007"
     assert secret not in output.read_text(encoding="utf-8")
     assert secret not in capsys.readouterr().out

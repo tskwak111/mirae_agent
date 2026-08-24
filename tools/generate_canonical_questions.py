@@ -116,6 +116,65 @@ clarification 1, quality 3.
 출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
 """
 
+_PROMPT_002 = """당신은 FinProof 평가 질문 후보 작성자입니다.
+생성물은 사람 검토 전의 질문 후보이며 정답 데이터가 아니다. ground truth로 취급하지 마십시오.
+공식 2026-07-11 스냅샷의 네 데이터 계열인 국내채권, 국내 ETF/ETN, 해외 ETF/ETN,
+공모펀드를 대상으로 자연스러운 한국어 질문을 작성하십시오.
+공식 데이터와 FinProof 계약으로 지원 가능한 필드, 상태, 지표, 기간, 통화, 집계만 질문하십시오.
+일반적인 ETF 질문은 ETN을 제외합니다. ETN을 명시한 질문만 ETN을 포함합니다.
+미래 수익률 예측이나 단정적인 투자 추천을 요구하지 마십시오.
+명확화 필요성과 데이터 품질 한계를 의도적으로 시험하는 질문은 해당 범주에 포함할 수 있습니다.
+아래 24개 슬롯을 각각 자연스러운 한국어 질문 하나로만 표현하십시오.
+슬롯별 의미, 식별자, 지표, 임계값, 상품 유형, 순서와 category를 바꾸지 마십시오:
+1 lookup: 국내채권 KR350105G9C6의 신용등급과 매수가능수량 조회
+2 lookup: 국내 ETF KR7243880002의 연초이후 수익률과 AUM 조회
+3 lookup: 해외 ETF VOO의 AUM과 거래통화 조회
+4 lookup: 공모펀드 KR5129470010의 1년 수익률과 위험등급 조회
+5 screen: 매수수익률 4% 이상, 만기일이 2026-07-11 이후이고 매수가능수량이 양수인 국내채권
+6 screen: AUM 1조원 이상이고 판매 가능한 국내 ETF, ETN 제외
+7 screen: 총보수가 0% 초과 0.1% 이하인 해외 ETF
+8 screen: 1년 수익률 100% 이상이고 위험등급이 있는 공모펀드
+9 screen: 총보수 0.5% 이하이고 판매 가능한 국내 ETN(ETN 명시)
+10 rank: 현재 매수 가능한 국내채권 중 매수수익률 높은 5개
+11 rank: 국내 ETF AUM 큰 5개, ETN 제외
+12 rank: 거래통화 USD인 해외 ETF AUM 큰 5개
+13 rank: 거래통화 KRW인 공모펀드 AUM 큰 5개
+14 compare: 국내채권 KR350105G9C6와 KR350901G671의 매수가능수량 비교
+15 compare: 국내 ETF KR7243880002와 KR7494310006의 연초이후 수익률 비교
+16 compare: 공모펀드 KR5129470010와 KR5129470016의 1년 수익률 비교
+17 aggregate: 거래통화 USD인 해외 ETF 수 집계, ETN 제외
+18 aggregate: 국내 ETF 1년 수익률 평균, ETN 제외
+19 cross_product: 국내 ETF와 공모펀드의 3개월 수익률 상위 3개를 유형별 분리
+20 cross_product: 국내 ETF와 해외 ETF의 총보수 낮은 3개를 유형별 분리
+21 clarification: 국내 ETF 중 수익률이 좋고 AUM이 큰 5개 요청—수익률 기간과 복합 우선순위가 없음
+22 quality: 국내 ETF 총보수 낮은 5개—기록된 0의 미검증 품질 경고 확인
+23 quality: AA- 이상 국내채권 수 집계—미평가 채권 제외와 등급 정책 확인
+24 quality: 판매 가능한 해외 ETF 5개—검증된 매수 가능 여부 제한 확인
+슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
+상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
+응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
+루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
+정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
+lookup 4, screen 5, rank 4, compare 3, aggregate 2, cross_product 2,
+clarification 1, quality 3.
+배열 슬롯은 1~4 lookup, 5~9 screen, 10~13 rank, 14~16 compare,
+17~18 aggregate, 19~20 cross_product, 21 clarification, 22~24 quality 순서로 고정하십시오.
+출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
+"""
+
+
+def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
+    if batch_id == "001":
+        return SEED, PROMPT_VERSION, _PROMPT, "finproof-canonical-question-candidates-001"
+    if batch_id == "002":
+        return (
+            29,
+            "canonical-question-candidates-v5",
+            _PROMPT_002,
+            ("finproof-canonical-question-candidates-002"),
+        )
+    raise ValueError("batch_id must be one of: 001, 002")
+
 
 class _Response(Protocol):
     message_content: str
@@ -133,15 +192,17 @@ async def generate_review_packet(
     client: _Client,
     *,
     model_name: str = DEFAULT_MODEL,
+    batch_id: str = BATCH_ID,
     generated_at: datetime | None = None,
 ) -> dict[str, object]:
     """Request, validate, and label one pending human-review packet."""
     if model_name != DEFAULT_MODEL:
         raise ValueError(f"model_name must be exactly {DEFAULT_MODEL}")
+    seed, prompt_version, prompt, request_id = _batch_contract(batch_id)
     request = HcxRequest.strict_json(
         model_name=model_name,
         messages=(
-            HcxMessage(role="system", content=_PROMPT),
+            HcxMessage(role="system", content=prompt),
             HcxMessage(
                 role="user",
                 content="지정된 분포대로 한국어 질문 후보 24개를 JSON으로 생성하십시오.",
@@ -149,23 +210,20 @@ async def generate_review_packet(
         ),
         max_completion_tokens=MAX_COMPLETION_TOKENS,
         temperature=0.0,
-        seed=SEED,
+        seed=seed,
     )
-    response = await client.generate(
-        request,
-        request_id="finproof-canonical-question-candidates-001",
-    )
-    candidates = _validate_candidates(response.message_content)
+    response = await client.generate(request, request_id=request_id)
+    candidates = _validate_candidates(response.message_content, batch_id=batch_id)
     timestamp = generated_at or datetime.now(UTC)
     if timestamp.tzinfo is None:
         raise ValueError("generated timestamp must be timezone-aware")
     return {
-        "batch_id": BATCH_ID,
+        "batch_id": batch_id,
         "provider": PROVIDER,
         "model": model_name,
-        "seed": SEED,
-        "prompt_version": PROMPT_VERSION,
-        "prompt_sha256": sha256(_PROMPT.encode("utf-8")).hexdigest(),
+        "seed": seed,
+        "prompt_version": prompt_version,
+        "prompt_sha256": sha256(prompt.encode("utf-8")).hexdigest(),
         "generated_at": timestamp.astimezone(UTC)
         .isoformat(timespec="seconds")
         .replace("+00:00", "Z"),
@@ -176,7 +234,8 @@ async def generate_review_packet(
     }
 
 
-def _validate_candidates(content: str) -> list[dict[str, str]]:
+def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict[str, str]]:
+    _batch_contract(batch_id)
     if not content or len(content.encode("utf-8")) > MAX_RESPONSE_BYTES:
         raise ValueError("HCX candidate response is empty or oversized")
     content = content.strip()
@@ -217,7 +276,7 @@ def _validate_candidates(content: str) -> list[dict[str, str]]:
         raise ValueError("HCX candidate distribution does not match the target")
     return [
         {
-            "candidate_id": f"CQ-001-{category.upper()}-{index:03d}",
+            "candidate_id": f"CQ-{batch_id}-{category.upper()}-{index:03d}",
             "category": category,
             "question": question,
         }
@@ -263,12 +322,15 @@ def _validate_packet(packet: dict[str, object]) -> None:
         raise ValueError("review packet has an invalid shape")
     if packet["model"] != DEFAULT_MODEL:
         raise ValueError(f"review packet model must be exactly {DEFAULT_MODEL}")
+    batch_id = packet["batch_id"]
+    if type(batch_id) is not str:
+        raise ValueError("review packet batch_id is invalid")
+    seed, prompt_version, prompt, _ = _batch_contract(batch_id)
     if (
-        packet["batch_id"] != BATCH_ID
-        or packet["provider"] != PROVIDER
-        or packet["seed"] != SEED
-        or packet["prompt_version"] != PROMPT_VERSION
-        or packet["prompt_sha256"] != sha256(_PROMPT.encode("utf-8")).hexdigest()
+        packet["provider"] != PROVIDER
+        or packet["seed"] != seed
+        or packet["prompt_version"] != prompt_version
+        or packet["prompt_sha256"] != sha256(prompt.encode("utf-8")).hexdigest()
         or packet["review_status"] != "pending_human_review"
         or packet["reviewer"] != "곽태성"
         or packet["target_distribution"] != TARGET_DISTRIBUTION
@@ -299,17 +361,21 @@ def _validate_packet(packet: dict[str, object]) -> None:
                 "question": candidate["question"],
             }
         )
-    expected = _validate_candidates(json.dumps({"candidates": raw_candidates}, ensure_ascii=False))
+    expected = _validate_candidates(
+        json.dumps({"candidates": raw_candidates}, ensure_ascii=False), batch_id=batch_id
+    )
     if candidates != expected:
         raise ValueError("review packet candidate IDs or ordering are invalid")
 
 
 async def _request_with_hcx(
     api_key: SecretStr,
+    *,
+    batch_id: str = BATCH_ID,
 ) -> dict[str, object]:
     async with create_hcx_http_client() as http_client:
         client = _AuthoringHcxClient(http_client=http_client, api_key=api_key)
-        return await generate_review_packet(client)
+        return await generate_review_packet(client, batch_id=batch_id)
 
 
 def main(
@@ -323,6 +389,7 @@ def main(
         description="Generate HCX-only noncanonical question candidates."
     )
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--batch-id", default=BATCH_ID, choices=("001", "002"))
     args = parser.parse_args(argv)
 
     root = repository_root or Path.cwd()
@@ -332,7 +399,7 @@ def main(
     if raw_api_key is None or not raw_api_key.strip():
         raise SystemExit("FINPROOF_HCX_API_KEY is required")
 
-    packet = asyncio.run(_request_with_hcx(SecretStr(raw_api_key)))
+    packet = asyncio.run(_request_with_hcx(SecretStr(raw_api_key), batch_id=args.batch_id))
     write_review_packet(args.output, packet, repository_root=root)
     return 0
 
