@@ -19,6 +19,29 @@ pytestmark = [
 
 
 @pytest.mark.asyncio
+async def test_live_hcx_007_strict_json_authentication() -> None:
+    api_key = SecretStr(os.environ["FINPROOF_HCX_API_KEY"])
+    request = HcxRequest.strict_json(
+        model_name="HCX-007",
+        messages=(
+            HcxMessage(role="system", content="Return only valid JSON."),
+            HcxMessage(role="user", content='Return {"ok": true}.'),
+        ),
+        max_completion_tokens=2_048,
+        temperature=0.0,
+        seed=17,
+    )
+
+    async with httpx.AsyncClient() as http_client:
+        response = await HcxClient(http_client=http_client, api_key=api_key).generate(
+            request, request_id="finproof-live-auth-smoke"
+        )
+
+    assert response.status_code == "20000"
+    assert response.message_content
+
+
+@pytest.mark.asyncio
 async def test_live_hcx_007_structured_outputs_capability() -> None:
     api_key = SecretStr(os.environ["FINPROOF_HCX_API_KEY"])
     request = HcxRequest.structured(
