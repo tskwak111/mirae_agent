@@ -273,7 +273,11 @@ def _build_case(
     ):
         raise ValueError("material policy limitations differ")
     executable = plan.intent not in {Intent.CLARIFY, Intent.UNSUPPORTED}
-    required_concepts = tuple(limitations) if executable else (plan.clarification_reason,)
+    required_concepts = (
+        (*limitations, *_dual_count_claim_texts(answer, summaries))
+        if executable
+        else (plan.clarification_reason,)
+    )
     if executable and (
         _SNAPSHOT_CONCEPT not in required_concepts or trace.validation is not TraceValidation.PASSED
     ):
@@ -320,6 +324,31 @@ def _build_case(
             },
             "review": {"reviewer": reviewer, "reviewed_at": reviewed_at, "source": source},
         }
+    )
+
+
+def _dual_count_claim_texts(
+    answer: VerifiedAnswer,
+    summaries: Sequence[Mapping[str, object]],
+) -> tuple[str, ...]:
+    source_ids = {
+        str(summary["summary_id"])
+        for summary in summaries
+        if summary.get("kind") == "count" and summary.get("value") is not None
+    }
+    if not source_ids:
+        return ()
+    count_ids = source_ids | {
+        str(summary["summary_id"])
+        for summary in summaries
+        if summary.get("kind") == "aggregate" and summary.get("metric_id") is None
+    }
+    return tuple(
+        claim.text
+        for claim in answer.claims
+        if claim.kind is ClaimKind.NUMERIC
+        and claim.evidence_ids
+        and set(claim.evidence_ids) <= count_ids
     )
 
 
