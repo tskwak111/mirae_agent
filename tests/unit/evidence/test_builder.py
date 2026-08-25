@@ -374,7 +374,7 @@ def test_builder_records_post_filter_count_before_state_exclusions() -> None:
     session._close()
 
 
-def test_builder_exposes_recorded_only_rank_values_with_direct_evidence() -> None:
+def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
     """Dropping the recorded lens would hide policy-excluded source values."""
     from tests.unit.query.test_semantic_validator import _plan
 
@@ -393,7 +393,7 @@ def test_builder_exposes_recorded_only_rank_values_with_direct_evidence() -> Non
     from finproof.storage import RawFieldValue, RawProductRow
     from finproof.storage.repositories.evidence import EvidenceRepository
 
-    session, _ = _bond_evidence_session()
+    session, _ = _bond_evidence_session(buy_yield="0")
     row = PolicyRow(
         raw=RawProductRow(
             product_type=ProductType.DOMESTIC_BOND,
@@ -401,7 +401,11 @@ def test_builder_exposes_recorded_only_rank_values_with_direct_evidence() -> Non
             product_id="KR0000000001",
             values=(
                 RawFieldValue(field_id="product_id", value="KR0000000001", quality_status="valid"),
-                RawFieldValue(field_id="buy_yield", value=Decimal("2.25"), quality_status="valid"),
+                RawFieldValue(
+                    field_id="buy_yield",
+                    value=Decimal("0"),
+                    quality_status="recorded_zero_unverified",
+                ),
             ),
         ),
         state=StateEvaluation(product_id="KR0000000001", eligible=True, state_ids=(), warnings=()),
@@ -417,7 +421,7 @@ def test_builder_exposes_recorded_only_rank_values_with_direct_evidence() -> Non
                     metric_id="bond.buy_yield",
                     product_type=ProductType.DOMESTIC_BOND,
                     product_id="KR0000000001",
-                    value=Decimal("2.25"),
+                    value=Decimal("0"),
                     quality_status="recorded_zero_unverified",
                 ),
             ),
@@ -453,13 +457,86 @@ def test_builder_exposes_recorded_only_rank_values_with_direct_evidence() -> Non
     assert (recorded.product_id, recorded.metric_id, recorded.value) == (
         "KR0000000001",
         "buy_yield",
-        Decimal("2.25"),
+        Decimal("0"),
     )
-    assert recorded.evidence_ids
+    direct = next(item for item in evidence.direct if item.evidence_id in recorded.evidence_ids)
+    assert direct.value.normalized_value == Decimal("0")
     assert any(
         "실제 무보수" in item and "검증되지 않았" in item
         for item in evidence.material_policy_limitations
     )
+    session._close()
+
+
+def test_recorded_selection_stays_within_final_evidence_budget() -> None:
+    """A recorded-only product cannot turn an existing 50-product selection into 51."""
+    from finproof.domain.query_plan import ProductType
+    from finproof.evidence.builder import _fit_recorded_values
+    from finproof.quality.metric_policy import MetricValue
+
+    selected = dict.fromkeys((ProductType.DOMESTIC_BOND, f"BOND-{index:02}") for index in range(50))
+    recorded = MetricValue(
+        metric_id="bond.buy_yield",
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="RECORDED-ONLY",
+        value=Decimal("0"),
+        quality_status="recorded_zero_unverified",
+    )
+
+    assert _fit_recorded_values(selected, (recorded,)) == ()
+    assert len(selected) == 50
+
+
+def test_recorded_evidence_matching_keeps_product_type_identity() -> None:
+    """Matching only product_id would cross-link equal identifiers across product types."""
+    from finproof.domain.query_plan import ProductType
+    from finproof.evidence.builder import _recorded_evidence_ids
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    record = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("buy_yield", "remaining_days_at_as_of"),
+            ),
+        )
+    )[0]
+    bond_direct, bond_derived = record.direct[0], record.derived[0]
+    etf_direct = bond_direct.model_copy(
+        update={
+            "evidence_id": "domestic_etf:SAME:buy_yield",
+            "product_type": ProductType.DOMESTIC_ETF,
+            "product_id": "SAME",
+        }
+    )
+    etf_derived = bond_derived.model_copy(
+        update={
+            "evidence_id": "domestic_etf:SAME:remaining_days_at_as_of",
+            "product_type": ProductType.DOMESTIC_ETF,
+            "product_id": "SAME",
+        }
+    )
+    bond_direct = bond_direct.model_copy(
+        update={"evidence_id": "domestic_bond:SAME:buy_yield", "product_id": "SAME"}
+    )
+    bond_derived = bond_derived.model_copy(
+        update={"evidence_id": "domestic_bond:SAME:remaining_days_at_as_of", "product_id": "SAME"}
+    )
+
+    assert _recorded_evidence_ids(
+        items=(bond_direct, etf_direct, bond_derived, etf_derived),
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="SAME",
+        field_id="buy_yield",
+    ) == ("domestic_bond:SAME:buy_yield",)
+    assert _recorded_evidence_ids(
+        items=(bond_direct, etf_direct, bond_derived, etf_derived),
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="SAME",
+        field_id="remaining_days_at_as_of",
+    ) == ("domestic_bond:SAME:remaining_days_at_as_of",)
     session._close()
 
 
@@ -823,13 +900,15 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
     session._close()
 
 
-def _bond_evidence_session() -> tuple[RuntimeArtifactSession, BondInstrument]:
+def _bond_evidence_session(
+    *, buy_yield: str = "2.25"
+) -> tuple[RuntimeArtifactSession, BondInstrument]:
     record = normalize_bond(
         source_row(
             "PRBD01N001",
             {
                 "PD_NO": "KR0000000001",
-                "BUY_YIELD": "2.25",
+                "BUY_YIELD": buy_yield,
                 "BUYABLE_QUANTITY": "10",
                 "MAT_DT": "20270711",
             },

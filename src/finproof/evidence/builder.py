@@ -8,6 +8,8 @@ from hashlib import sha256
 from finproof.answer.templates import wording_text
 from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.domain.evidence import (
+    DerivedEvidence,
+    DirectEvidence,
     EvidenceBundle,
     EvidenceSummary,
     EvidenceSummaryKind,
@@ -61,8 +63,7 @@ class EvidenceBuilder:
                     selected[(value.product_type, value.product_id)] = None
         for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
-        for value in recorded_values:
-            selected[(value.product_type, value.product_id)] = None
+        recorded_values = _fit_recorded_values(selected, recorded_values)
 
         field_ids = tuple(
             dict.fromkeys(
@@ -183,17 +184,11 @@ class EvidenceBuilder:
             )
         for index, value in enumerate(recorded_values):
             field_id = original.sort[0].field
-            recorded_evidence_ids = (
-                *(
-                    item.evidence_id
-                    for item in direct
-                    if item.product_id == value.product_id and item.field_id == field_id
-                ),
-                *(
-                    item.evidence_id
-                    for item in derived
-                    if item.product_id == value.product_id and item.field_id == field_id
-                ),
+            recorded_evidence_ids = _recorded_evidence_ids(
+                items=(*direct, *derived),
+                product_type=value.product_type,
+                product_id=value.product_id,
+                field_id=field_id,
             )
             summaries.append(
                 _summary(
@@ -449,6 +444,34 @@ def _bounded_recorded_values(
             key=lambda item: (item.value or Decimal(0), item.product_id),
             reverse=sort.direction is SortDirection.DESC,
         )[: plan.top_k]
+    )
+
+
+def _fit_recorded_values(
+    selected: dict[tuple[ProductType, str], None],
+    values: tuple[MetricValue, ...],
+) -> tuple[MetricValue, ...]:
+    retained: list[MetricValue] = []
+    for value in values:
+        identity = (value.product_type, value.product_id)
+        if identity in selected or len(selected) < 50:
+            selected[identity] = None
+            retained.append(value)
+    return tuple(retained)
+
+
+def _recorded_evidence_ids(
+    *,
+    items: tuple[DirectEvidence[object] | DerivedEvidence[object], ...],
+    product_type: ProductType,
+    product_id: str,
+    field_id: str,
+) -> tuple[str, ...]:
+    return tuple(
+        item.evidence_id
+        for item in items
+        if (item.product_type, item.product_id, item.field_id)
+        == (product_type, product_id, field_id)
     )
 
 
