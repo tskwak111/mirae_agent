@@ -17,6 +17,7 @@ from finproof.domain.evidence import (
 )
 from finproof.domain.execution import ValidatedQueryPlan
 from finproof.domain.query_plan import (
+    AggregationFunction,
     FilterOperator,
     Intent,
     ProductType,
@@ -132,6 +133,15 @@ class EvidenceBuilder:
             + policy_result.excluded_state_count
             + policy_result.excluded_metric_count
         )
+        source_count = (
+            len(policy_result.included_rows) + policy_result.excluded_state_count
+            if original.intent is Intent.AGGREGATE
+            and original.aggregation is not None
+            and original.aggregation.function is AggregationFunction.COUNT
+            and not original.aggregation.group_by
+            and policy_result.excluded_state_count
+            else None
+        )
         native_grains = {
             row.raw.product_type: row.raw.native_result_grain for row in policy_result.included_rows
         }
@@ -141,7 +151,7 @@ class EvidenceBuilder:
                 kind=EvidenceSummaryKind.COUNT,
                 included_count=len(policy_result.included_rows),
                 excluded_count=excluded,
-                value=len(policy_result.included_rows) + policy_result.excluded_state_count,
+                value=source_count,
                 evidence_ids=evidence_ids,
                 policy_versions=policy_versions,
                 plan_hash=plan_hash,
@@ -426,7 +436,7 @@ def _bounded_recorded_values(
     for value in policy_result.metric_policy.recorded_values:
         if (
             value in policy_result.metric_policy.comparison_valid_values
-            or value.value is None
+            or value.value != 0
             or repository._fields.projection(sort.field, value.product_type).metric_id
             != value.metric_id
         ):

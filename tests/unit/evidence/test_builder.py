@@ -362,7 +362,6 @@ def test_builder_records_post_filter_count_before_state_exclusions() -> None:
         resolutions=(),
         context=(),
     )
-
     evidence = EvidenceBuilder().build(
         plan=plan,
         policy_result=policy,
@@ -387,6 +386,7 @@ def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
         SortSpec,
     )
     from finproof.evidence import EvidenceBuilder
+    from finproof.evidence.builder import _bounded_recorded_values
     from finproof.quality import PolicyExecutionResult, PolicyRow
     from finproof.quality.metric_policy import MetricPolicyResult, MetricValue
     from finproof.quality.state import StateEvaluation
@@ -446,6 +446,29 @@ def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
         resolutions=(),
         context=(),
     )
+    recorded_zero = policy.metric_policy.recorded_values[0]
+    recorded_values = _bounded_recorded_values(
+        plan=plan.plan,
+        policy_result=policy.model_copy(
+            update={
+                "metric_policy": policy.metric_policy.model_copy(
+                    update={
+                        "recorded_values": (
+                            recorded_zero,
+                            recorded_zero.model_copy(
+                                update={
+                                    "product_id": "NONZERO-EXCLUDED",
+                                    "value": Decimal("-4381.56"),
+                                }
+                            ),
+                        )
+                    }
+                )
+            }
+        ),
+        repository=EvidenceRepository(session),
+    )
+    assert recorded_values == (recorded_zero,)
 
     evidence = EvidenceBuilder().build(
         plan=plan,
@@ -453,6 +476,7 @@ def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
         repository=EvidenceRepository(session),
     )
 
+    assert next(item for item in evidence.summaries if item.kind.value == "count").value is None
     recorded = next(item for item in evidence.summaries if item.kind.value == "recorded")
     assert (recorded.product_id, recorded.metric_id, recorded.value) == (
         "KR0000000001",
