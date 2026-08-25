@@ -14,7 +14,7 @@ from finproof.domain.answers import (
     ValueSign,
 )
 from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
-from finproof.domain.query_plan import Intent, ProductType, QueryPlan
+from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
 from finproof.registry.loader import RegistryBundle
 
 
@@ -68,8 +68,47 @@ class AnswerRenderer:
         recommendation_request = "추천" in request.question
         if recommendation_request:
             lines.append(wording_text(self._wording, "matched_candidates"))
+        count_summary = next(
+            (
+                summary
+                for summary in evidence.summaries
+                if summary.kind is EvidenceSummaryKind.COUNT
+            ),
+            None,
+        )
+        source_count = (
+            count_summary
+            if (
+                count_summary is not None
+                and type(count_summary.value) is int
+                and plan.intent is Intent.AGGREGATE
+                and plan.aggregation is not None
+                and plan.aggregation.function is AggregationFunction.COUNT
+                and not plan.aggregation.group_by
+                and any(
+                    summary.kind is EvidenceSummaryKind.AGGREGATE
+                    and summary.policy_versions[0].endswith(":count")
+                    and summary.value != count_summary.value
+                    for summary in evidence.summaries
+                )
+            )
+            else None
+        )
         for summary in evidence.summaries:
-            if summary.kind is EvidenceSummaryKind.PARTITION and summary.value is not None:
+            if summary.kind is EvidenceSummaryKind.COUNT and summary is source_count:
+                count_text = f"원천 기록 기준 상품 개수: {summary.value}"
+                lines.append(count_text)
+                claims.append(
+                    AnswerClaim(
+                        claim_id=f"claim:summary:{summary.summary_id}",
+                        kind=ClaimKind.NUMERIC,
+                        text=count_text,
+                        value=summary.value,
+                        evidence_ids=(summary.summary_id,),
+                        sign=_sign(summary.value),
+                    )
+                )
+            elif summary.kind is EvidenceSummaryKind.PARTITION and summary.value is not None:
                 partition_text = f"분할 {_summary_scope(summary)}: {summary.value}건"
                 lines.append(partition_text)
                 claims.append(
@@ -107,6 +146,28 @@ class AnswerRenderer:
                         sign=_sign(summary.value),
                     )
                 )
+            elif summary.kind is EvidenceSummaryKind.RECORDED and summary.value is not None:
+                recorded_text = (
+                    f"제공 데이터 기록값 {_summary_scope(summary)} {summary.product_id} "
+                    f"{summary.metric_id}: {summary.value}"
+                )
+                lines.append(recorded_text)
+                claims.append(
+                    AnswerClaim(
+                        claim_id=f"claim:summary:{summary.summary_id}",
+                        kind=ClaimKind.NUMERIC,
+                        text=recorded_text,
+                        product_type=summary.product_types[0],
+                        product_types=summary.product_types,
+                        native_result_grains=summary.native_result_grains,
+                        partition_key=summary.partition_key,
+                        product_id=summary.product_id,
+                        field_id=summary.metric_id,
+                        value=summary.value,
+                        evidence_ids=(summary.summary_id,),
+                        sign=_sign(summary.value),
+                    )
+                )
             elif summary.kind is EvidenceSummaryKind.AGGREGATE and summary.value is not None:
                 groups = " ".join(f"{item.field_id}={item.value}" for item in summary.group_values)
                 operation = {
@@ -116,9 +177,11 @@ class AnswerRenderer:
                     "max": "최댓값",
                     "count": "개수",
                 }.get(summary.policy_versions[0].rsplit(":", 1)[-1], "집계")
+                subject = summary.metric_id or "상품"
+                prefix = "상태 검증 후 " if source_count is not None and operation == "개수" else ""
                 aggregate_text = (
                     f"{_summary_scope(summary)} {groups + ' ' if groups else ''}"
-                    f"{summary.metric_id or '상품'} "
+                    f"{prefix}{subject} "
                     f"{operation}: {summary.value}"
                 )
                 lines.append(aggregate_text)
@@ -222,14 +285,6 @@ class AnswerRenderer:
                     evidence_id=derived_item.evidence_id,
                     value=derived_item.value.value,
                 )
-        count_summary = next(
-            (
-                summary
-                for summary in evidence.summaries
-                if summary.kind is EvidenceSummaryKind.COUNT
-            ),
-            None,
-        )
         if (
             not evidence.direct
             and not evidence.derived

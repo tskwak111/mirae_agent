@@ -14,8 +14,16 @@ from finproof.domain.evidence import (
     EvidenceSummaryValue,
 )
 from finproof.domain.execution import ValidatedQueryPlan
-from finproof.domain.query_plan import FilterOperator, ProductType, ResultGrain, TopKScope
-from finproof.quality import PolicyExecutionResult, RankPolicyResult
+from finproof.domain.query_plan import (
+    FilterOperator,
+    Intent,
+    ProductType,
+    QueryPlan,
+    ResultGrain,
+    SortDirection,
+    TopKScope,
+)
+from finproof.quality import MetricValue, PolicyExecutionResult, RankPolicyResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
 
@@ -39,6 +47,11 @@ class EvidenceBuilder:
             top_k=original.top_k,
             scope=original.top_k_scope,
         )
+        recorded_values = _bounded_recorded_values(
+            plan=original,
+            policy_result=policy_result,
+            repository=repository,
+        )
         selected: dict[tuple[ProductType, str], None] = {}
         for row in policy_result.selected_rows:
             selected[(row.raw.product_type, row.raw.product_id)] = None
@@ -48,6 +61,8 @@ class EvidenceBuilder:
                     selected[(value.product_type, value.product_id)] = None
         for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
+        for value in recorded_values:
+            selected[(value.product_type, value.product_id)] = None
 
         field_ids = tuple(
             dict.fromkeys(
@@ -125,6 +140,7 @@ class EvidenceBuilder:
                 kind=EvidenceSummaryKind.COUNT,
                 included_count=len(policy_result.included_rows),
                 excluded_count=excluded,
+                value=len(policy_result.included_rows) + policy_result.excluded_state_count,
                 evidence_ids=evidence_ids,
                 policy_versions=policy_versions,
                 plan_hash=plan_hash,
@@ -163,6 +179,39 @@ class EvidenceBuilder:
                     native_result_grains=tuple(native_grains[item] for item in product_types),
                     partition_key=partition.compatibility_key,
                     value=len(partition.selected_values),
+                )
+            )
+        for index, value in enumerate(recorded_values):
+            field_id = original.sort[0].field
+            recorded_evidence_ids = (
+                *(
+                    item.evidence_id
+                    for item in direct
+                    if item.product_id == value.product_id and item.field_id == field_id
+                ),
+                *(
+                    item.evidence_id
+                    for item in derived
+                    if item.product_id == value.product_id and item.field_id == field_id
+                ),
+            )
+            summaries.append(
+                _summary(
+                    summary_id=f"summary:recorded:{index}",
+                    kind=EvidenceSummaryKind.RECORDED,
+                    included_count=1,
+                    excluded_count=0,
+                    evidence_ids=recorded_evidence_ids,
+                    policy_versions=(f"{value.metric_id}:recorded",),
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(value.product_type,),
+                    native_result_grains=(native_grains[value.product_type],),
+                    partition_key=(f"recorded:{value.metric_id}:{value.currency or 'none'}"),
+                    product_id=value.product_id,
+                    metric_id=field_id,
+                    value=value.value,
                 )
             )
         for index, rank in enumerate(ranks):
@@ -369,9 +418,45 @@ def _bounded_ranks(
     return tuple(selected)
 
 
+def _bounded_recorded_values(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+    repository: EvidenceRepository,
+) -> tuple[MetricValue, ...]:
+    if plan.intent is not Intent.SCREEN_RANK or not plan.sort:
+        return ()
+    sort = plan.sort[0]
+    grouped: dict[tuple[ProductType | None, str | None], list[MetricValue]] = {}
+    for value in policy_result.metric_policy.recorded_values:
+        if (
+            value in policy_result.metric_policy.comparison_valid_values
+            or value.value is None
+            or repository._fields.projection(sort.field, value.product_type).metric_id
+            != value.metric_id
+        ):
+            continue
+        key = (
+            value.product_type if plan.top_k_scope is TopKScope.PER_PRODUCT_TYPE else None,
+            value.currency,
+        )
+        grouped.setdefault(key, []).append(value)
+    return tuple(
+        value
+        for values in grouped.values()
+        for value in sorted(
+            values,
+            key=lambda item: (item.value or Decimal(0), item.product_id),
+            reverse=sort.direction is SortDirection.DESC,
+        )[: plan.top_k]
+    )
+
+
 def _warning_text(value: str) -> str:
     return {
-        "recorded zero excluded from comparison": "기록된 0값은 비교 가능 기준에서 제외했습니다.",
+        "recorded zero excluded from comparison": (
+            "기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다."
+        ),
         "metric values excluded from comparison": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
         "validated eligibility is unsupported": "검증된 매수 가능 여부는 지원하지 않습니다.",
     }.get(value, f"데이터 품질 정책 경고: {value}")

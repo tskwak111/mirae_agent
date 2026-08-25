@@ -38,6 +38,7 @@ class EvidenceSummaryKind(StrEnum):
     TIE = "tie"
     PARTITION = "partition"
     AGGREGATE = "aggregate"
+    RECORDED = "recorded"
 
 
 class EvidenceSummaryValue(_FrozenModel):

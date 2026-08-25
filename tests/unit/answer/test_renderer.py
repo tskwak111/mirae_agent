@@ -253,6 +253,139 @@ def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
 
 
+def test_renderer_distinguishes_source_recorded_and_state_validated_count() -> None:
+    """Removing either count lens would conceal the state exclusion."""
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import (
+        AggregationFunction,
+        AggregationSpec,
+        Intent,
+        ProductType,
+        ResultGrain,
+    )
+    from finproof.evidence import ClaimVerifier
+
+    common: dict[str, Any] = {
+        "included_count": 254,
+        "excluded_count": 71,
+        "evidence_ids": (),
+        "validated_plan_sha256": "a" * 64,
+        "version_bundle_sha256": "b" * 64,
+        "artifact_manifest_hash": "c" * 64,
+    }
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:count",
+                kind=EvidenceSummaryKind.COUNT,
+                policy_versions=("count:count",),
+                value=325,
+                **common,
+            ),
+            EvidenceSummary(
+                summary_id="summary:aggregate:0",
+                kind=EvidenceSummaryKind.AGGREGATE,
+                policy_versions=("count:count",),
+                product_types=(ProductType.DOMESTIC_BOND,),
+                native_result_grains=(ResultGrain.INSTRUMENT,),
+                partition_key="count:instrument:domestic_bond",
+                value=254,
+                **common,
+            ),
+        ),
+        material_policy_limitations=(),
+    )
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT, field=None, group_by=()
+            ),
+        }
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-count-lenses", question="두 수를 집계해줘"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    assert "원천 기록 기준 상품 개수: 325" in draft.text
+    assert "상태 검증 후 상품 개수: 254" in draft.text
+    assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (
+        325,
+        254,
+    )
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    grouped = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-grouped-count", question="그룹별 수를 집계해줘"),
+        plan=plan.model_copy(
+            update={
+                "aggregation": AggregationSpec(
+                    function=AggregationFunction.COUNT, field=None, group_by=("currency",)
+                )
+            }
+        ),
+        evidence=evidence,
+    )
+    assert "원천 기록 기준 상품 개수" not in grouped.text
+
+
+def test_renderer_projects_recorded_rank_lens_separately() -> None:
+    """Removing recorded summaries would make a recorded zero disappear from the answer."""
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.evidence import ClaimVerifier
+
+    common: dict[str, Any] = {
+        "included_count": 1,
+        "excluded_count": 0,
+        "evidence_ids": (),
+        "validated_plan_sha256": "a" * 64,
+        "version_bundle_sha256": "b" * 64,
+        "artifact_manifest_hash": "c" * 64,
+        "product_types": (ProductType.OVERSEAS_ETN,),
+        "native_result_grains": (ResultGrain.LISTED_PRODUCT,),
+        "partition_key": "recorded:overseas_etn.total_fee:USD",
+        "product_id": "NRGD.K",
+        "metric_id": "total_fee",
+        "value": Decimal("0"),
+    }
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:recorded:0",
+                kind=EvidenceSummaryKind.RECORDED,
+                policy_versions=("overseas_etn.total_fee:recorded",),
+                **common,
+            ),
+        ),
+        material_policy_limitations=(
+            "기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다.",
+        ),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-recorded", question="보수를 보여줘"),
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+    assert "제공 데이터 기록값" in draft.text
+    assert "NRGD.K total_fee: 0" in draft.text
+    assert "실제 무보수인지는 검증되지 않았습니다." in draft.text
+    assert next(claim for claim in draft.claims if claim.kind is ClaimKind.NUMERIC).value == 0
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+
+
 def test_renderer_projects_actual_compatibility_partition_identity() -> None:
     from finproof.answer import AnswerRenderer
     from finproof.domain.answers import AnswerRequest, ClaimKind
