@@ -1,0 +1,143 @@
+{
+  "batch_id": "003",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 41,
+  "prompt_version": "canonical-question-candidates-v6",
+  "prompt_sha256": "edfbcd76c90eee8e02f9af21033b959149fdfd7c2ed1c73add6f433f32406f71",
+  "generated_at": "2026-08-25T02:15:51Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-003-001",
+      "category": "lookup",
+      "question": "국내채권 KR353601DE34의 매수수익률과 잔존일수를 알고 싶어요."
+    },
+    {
+      "candidate_id": "CQ-003-002",
+      "category": "lookup",
+      "question": "국내 ETN KRG520000826의 최근 3개월간 수익률과 올해 초부터의 누적 수익률을 비교해 주세요."
+    },
+    {
+      "candidate_id": "CQ-003-003",
+      "category": "lookup",
+      "question": "해외 ETN NRGD.K의 연간 운용 보수율과 현재 관리 중인 자산 규모(AUM)를 확인할 수 있을까요?"
+    },
+    {
+      "candidate_id": "CQ-003-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5174430032의 지난 3년간 수익률과 현재 위험 등급이 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-003-005",
+      "category": "screen",
+      "question": "매수수익률이 3% 이상이면서 2026년 7월 11일 이후에 만기가 도래하는 국내채권 중 최소 100만 주 이상 유통되는 종목을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-003-006",
+      "category": "screen",
+      "question": "최근 6개월 동안 50% 이상의 수익률을 기록한 국내 상장지수상품(ETF만 해당, ETN 제외) 목록을 보여주시겠어요?"
+    },
+    {
+      "candidate_id": "CQ-003-007",
+      "category": "screen",
+      "question": "투자 국가가 미국에 집중되어 있고 연간 운용 보수가 0.15% 이하인 해외 ETF 및 ETN(ETN 제외) 상품을 검색해 주세요."
+    },
+    {
+      "candidate_id": "CQ-003-008",
+      "category": "screen",
+      "question": "3년 누적 수익률이 50% 이상 달성되었으며 위험 등급이 '낮음'으로 분류된 공모펀드는 어떤 것들이 있나요?"
+    },
+    {
+      "candidate_id": "CQ-003-009",
+      "category": "screen",
+      "question": "최근 3개월 내 10% 이상의 수익률을 보이고 즉시 매매 가능한 국내 ETN 종목 리스트를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-003-010",
+      "category": "rank",
+      "question": "2026년 7월 11일 기준으로 아직 상환되지 않았고 유통 물량이 남아있는 국내채권 중 가장 많은 잔여 수량을 가진 상위 5개 종목은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-003-011",
+      "category": "rank",
+      "question": "최근 6개월 수익률이 가장 높은 국내 ETF 종목 TOP 5를 ETN을 제외하고 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-003-012",
+      "category": "rank",
+      "question": "달러화로 표시된 해외 ETN 중에서 시가총액이 가장 큰 상위 5개 종목은 어디인가요?(ETN 명시)"
+    },
+    {
+      "candidate_id": "CQ-003-013",
+      "category": "rank",
+      "question": "지난 3년간 누적 수익률이 가장 뛰어난 공모펀드 TOP 5를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-003-014",
+      "category": "compare",
+      "question": "국내채권 KR353601DE34와 KR354301GB84의 매수수익률을 각각 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-003-015",
+      "category": "compare",
+      "question": "국내 ETN KRG520000826와 KRG530001202의 최근 3개월 수익률은 어느 쪽이 더 높나요?"
+    },
+    {
+      "candidate_id": "CQ-003-016",
+      "category": "compare",
+      "question": "공모펀드 KR5174430032와 KR5114450497의 3년 수익률을 비교했을 때 차이가 얼마나 나나요?"
+    },
+    {
+      "candidate_id": "CQ-003-017",
+      "category": "aggregate",
+      "question": "2026년 7월 11일까지 만기가 도래하지 않은 국내채권들의 평균 매수수익률은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-003-018",
+      "category": "aggregate",
+      "question": "미국 달러화로 거래되는 해외 ETN 전체 자산의 합계는 얼마인가요?(ETN 명시)"
+    },
+    {
+      "candidate_id": "CQ-003-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드 각각의 6개월 수익률 상위 3개 종목을 유형별로 구분해서 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-003-020",
+      "category": "cross_product",
+      "question": "국내 ETN과 해외 ETN의 자산규모 상위 3개 종목을 통화와 유형별로 나누어 보여주시겠어요?"
+    },
+    {
+      "candidate_id": "CQ-003-021",
+      "category": "clarification",
+      "question": "장기적으로 안정적인 성과를 보이면서도 위험도가 낮은 공모펀드 5개를 추천받을 수 있을까요?"
+    },
+    {
+      "candidate_id": "CQ-003-022",
+      "category": "quality",
+      "question": "유통 가능한 수량이 정상적으로 등록된 국내채권 종목 수와 2026년 7월 11일 기준으로 만기 도래하지 않은 종목 수를 각각 확인해 주세요."
+    },
+    {
+      "candidate_id": "CQ-003-023",
+      "category": "quality",
+      "question": "해외 ETN 중 총보수가 0%로 표기된 종목들 중에서 실제로 수수료가 전혀 부과되지 않는 것과 그렇지 않은 것을 구분해 주시겠어요?"
+    },
+    {
+      "candidate_id": "CQ-003-024",
+      "category": "quality",
+      "question": "공모펀드의 위험 등급별 종목 수를 중복 없이 계산할 때 실제 존재하는 펀드 수와 일치하는지 검증해 주세요."
+    }
+  ]
+}
