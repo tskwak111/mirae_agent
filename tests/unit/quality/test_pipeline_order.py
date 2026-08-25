@@ -535,6 +535,174 @@ def test_lookup_allows_multiple_metric_partitions_for_the_same_selected_product(
     } == {"K1"}
 
 
+def test_display_lookup_preserves_mixed_nonnumeric_metric_rows_without_a_partition() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.LOOKUP,
+            "metrics": ("credit_rating", "maturity_date"),
+            "top_k": 1,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    bond = _bond("B1", "10", date(2031, 7, 21))
+    row = bond.model_copy(
+        update={
+            "values": (
+                *bond.values,
+                RawFieldValue(field_id="credit_rating", value="AAA", quality_status="valid"),
+            )
+        }
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=(row,),
+                candidate_count=1,
+                max_batch_rows=1,
+            ),
+        ),
+        candidate_count=1,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert result.partitions == ()
+    assert tuple(item.raw.product_id for item in result.selected_rows) == ("B1",)
+
+
+def test_display_compare_preserves_ordinal_rating_rows_without_a_partition() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={"intent": Intent.COMPARE, "metrics": ("credit_rating",), "top_k": 2}
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        bond.model_copy(
+            update={
+                "values": (
+                    *bond.values,
+                    RawFieldValue(field_id="credit_rating", value="AAA", quality_status="valid"),
+                )
+            }
+        )
+        for bond in (
+            _bond("B1", "10", date(2030, 1, 1)),
+            _bond("B2", "10", date(2031, 1, 1)),
+        )
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=rows,
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert result.partitions == ()
+    assert tuple(item.raw.product_id for item in result.selected_rows) == ("B1", "B2")
+
+
+def test_display_compare_keeps_all_missing_numeric_rows_unselected() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import (
+        RawExecutionResult,
+        RawFieldValue,
+        RawProductRow,
+        RawSegmentResult,
+    )
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.PUBLIC_FUND,),
+        result_grain=ResultGrain.FUND_ITEM,
+    ).model_copy(update={"intent": Intent.COMPARE, "metrics": ("return_3m",), "top_k": 2})
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        RawProductRow(
+            product_type=ProductType.PUBLIC_FUND,
+            native_result_grain=ResultGrain.FUND_ITEM,
+            product_id=product_id,
+            values=(
+                RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                RawFieldValue(field_id="return_3m", value=None, quality_status="missing_blank"),
+            ),
+        )
+        for product_id in ("F1", "F2")
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.PUBLIC_FUND,
+                native_result_grain=ResultGrain.FUND_ITEM,
+                rows=rows,
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert result.partitions == ()
+    assert result.selected_rows == ()
+
+
 def test_pipeline_applies_top_k_only_after_each_final_partition() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 

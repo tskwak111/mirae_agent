@@ -39,9 +39,60 @@
             "sign": null,
             "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
             "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350901G671:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350901G671 product_id: KR350901G671",
+            "value": "KR350901G671"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350901G671:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350901G671 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350901G671:maturity_date",
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:maturity_date"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350901G671 maturity_date: 2031-07-21",
+            "value": "2031-07-21"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA\n- domestic_bond KR350901G671 maturity_date: 2031-07-21"
       },
       "case_id": "CQ-005-001",
       "category": "lookup",
@@ -85,7 +136,59 @@
           "as_of_date",
           "inputs"
         ],
-        "direct": [],
+        "direct": [
+          [
+            "domestic_bond:KR350901G671:product_id",
+            "domestic_bond",
+            "KR350901G671",
+            "product_id",
+            "KR350901G671",
+            "KR350901G671",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4978,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350901G671:credit_rating",
+            "domestic_bond",
+            "KR350901G671",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4978,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350901G671:maturity_date",
+            "domestic_bond",
+            "KR350901G671",
+            "maturity_date",
+            "20310721",
+            "2031-07-21",
+            "valid",
+            "bond.maturity_date",
+            "1.0.0",
+            0,
+            4978,
+            "MAT_DT",
+            15,
+            "O",
+            null
+          ]
+        ],
         "direct_fields": [
           "evidence_id",
           "product_type",
@@ -116,11 +219,23 @@
           "2026-07-11 제공 스냅샷 기준",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
-        "sources": [],
+        "sources": [
+          {
+            "source_checksum": "728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8",
+            "source_file": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
+            "source_sheet": "datarows",
+            "source_snapshot_date": "2026-07-11",
+            "source_table": "PRBD01N001"
+          }
+        ],
         "summaries": [
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [],
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:product_id",
+              "domestic_bond:KR350901G671:credit_rating",
+              "domestic_bond:KR350901G671:maturity_date"
+            ],
             "excluded_count": 1,
             "group_values": [],
             "included_count": 1,
@@ -144,7 +259,11 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [],
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:product_id",
+              "domestic_bond:KR350901G671:credit_rating",
+              "domestic_bond:KR350901G671:maturity_date"
+            ],
             "excluded_count": 1,
             "group_values": [],
             "included_count": 1,
@@ -173,7 +292,7 @@
         "candidate_counts": {
           "eligible": 1,
           "raw": 1,
-          "returned": 0
+          "returned": 1
         },
         "correlation_id": "trace-73e0c94911ad9815",
         "intent": "lookup",
@@ -195,7 +314,7 @@
             "native_result_grain": "instrument",
             "partition_key": "domestic_bond",
             "product_type": "domestic_bond",
-            "returned": 0
+            "returned": 1
           }
         ],
         "tools": [
@@ -10882,9 +11001,77 @@
             "sign": null,
             "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
             "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105G9C6:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350105G9C6:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105G9C6",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105G9C6 product_id: KR350105G9C6",
+            "value": "KR350105G9C6"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105G9C6:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350105G9C6:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105G9C6",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105G9C6 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350901G671:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350901G671 product_id: KR350901G671",
+            "value": "KR350901G671"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350901G671:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350901G671:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350901G671 credit_rating: AAA",
+            "value": "AAA"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 credit_rating: AAA\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA"
       },
       "case_id": "CQ-005-014",
       "category": "compare",
@@ -10931,7 +11118,76 @@
           "as_of_date",
           "inputs"
         ],
-        "direct": [],
+        "direct": [
+          [
+            "domestic_bond:KR350105G9C6:product_id",
+            "domestic_bond",
+            "KR350105G9C6",
+            "product_id",
+            "KR350105G9C6",
+            "KR350105G9C6",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4072,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350105G9C6:credit_rating",
+            "domestic_bond",
+            "KR350105G9C6",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4072,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350901G671:product_id",
+            "domestic_bond",
+            "KR350901G671",
+            "product_id",
+            "KR350901G671",
+            "KR350901G671",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4978,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350901G671:credit_rating",
+            "domestic_bond",
+            "KR350901G671",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4978,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ]
+        ],
         "direct_fields": [
           "evidence_id",
           "product_type",
@@ -10962,11 +11218,24 @@
           "2026-07-11 제공 스냅샷 기준",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
-        "sources": [],
+        "sources": [
+          {
+            "source_checksum": "728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8",
+            "source_file": "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx",
+            "source_sheet": "datarows",
+            "source_snapshot_date": "2026-07-11",
+            "source_table": "PRBD01N001"
+          }
+        ],
         "summaries": [
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [],
+            "evidence_ids": [
+              "domestic_bond:KR350105G9C6:product_id",
+              "domestic_bond:KR350105G9C6:credit_rating",
+              "domestic_bond:KR350901G671:product_id",
+              "domestic_bond:KR350901G671:credit_rating"
+            ],
             "excluded_count": 2,
             "group_values": [],
             "included_count": 2,
@@ -10990,7 +11259,12 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [],
+            "evidence_ids": [
+              "domestic_bond:KR350105G9C6:product_id",
+              "domestic_bond:KR350105G9C6:credit_rating",
+              "domestic_bond:KR350901G671:product_id",
+              "domestic_bond:KR350901G671:credit_rating"
+            ],
             "excluded_count": 2,
             "group_values": [],
             "included_count": 2,
@@ -11019,7 +11293,7 @@
         "candidate_counts": {
           "eligible": 2,
           "raw": 2,
-          "returned": 0
+          "returned": 2
         },
         "correlation_id": "trace-51ac5c5ae27c9220",
         "intent": "compare",
@@ -11041,7 +11315,7 @@
             "native_result_grain": "instrument",
             "partition_key": "domestic_bond",
             "product_type": "domestic_bond",
-            "returned": 0
+            "returned": 2
           }
         ],
         "tools": [

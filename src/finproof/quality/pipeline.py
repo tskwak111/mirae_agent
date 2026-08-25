@@ -279,6 +279,19 @@ class PolicyEngine:
                 self._fields.projection(field_id, segment.product_type).metric_id is not None
                 for field_id in segment.metrics
             )
+            or (
+                operation is Operation.DISPLAY
+                and any(
+                    self._fields.projection(field_id, segment.product_type).value_type
+                    not in {"decimal", "integer"}
+                    for field_id in segment.metrics
+                )
+                and not any(
+                    value.product_type is segment.product_type
+                    for partition in selected_partitions
+                    for value in partition.values
+                )
+            )
         )
         if bundle.top_k_scope is TopKScope.GLOBAL:
             field_rows = tuple(
