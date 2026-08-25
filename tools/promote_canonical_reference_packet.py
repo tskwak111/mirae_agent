@@ -76,6 +76,13 @@ _VALUE_TYPES = {
     "ordinal_rating": ValueType.TEXT,
     "boolean": ValueType.BOOLEAN,
 }
+_SYNTHETIC_VALUE_TYPES = {
+    (
+        ProductType.DOMESTIC_BOND,
+        "remaining_days_difference",
+        "comparison.remaining_days_difference",
+    ): ValueType.INTEGER,
+}
 
 
 def promote_reference_packet(
@@ -365,7 +372,8 @@ def _expected_values(
         value_type = (
             ValueType.NULL
             if raw_value is None
-            else _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
+            else _SYNTHETIC_VALUE_TYPES.get((product_type, field_id, str(item.get("rule_id"))))
+            or _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
         )
         values.append(
             ExpectedValue(

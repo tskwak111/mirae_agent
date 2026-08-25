@@ -19,6 +19,8 @@ _BATCH_TWO_REFERENCE = _ROOT / "evaluation/review_batches/batch-002-reference-re
 _BATCH_TWO_APPROVAL = _ROOT / "evaluation/review_batches/batch-002-reference-approval.json"
 _BATCH_THREE_REFERENCE = _ROOT / "evaluation/review_batches/batch-003-reference-review.json"
 _BATCH_THREE_APPROVAL = _ROOT / "evaluation/review_batches/batch-003-reference-approval.json"
+_BATCH_FOUR_REFERENCE = _ROOT / "evaluation/review_batches/batch-004-reference-review.json"
+_BATCH_FOUR_APPROVAL = _ROOT / "evaluation/review_batches/batch-004-reference-approval.json"
 _OFFICIAL = _ROOT / "evaluation/canonical/clarification.jsonl"
 
 
@@ -239,6 +241,32 @@ def test_promotes_dual_count_answer_claims(tmp_path: Path) -> None:
         "원천 기록 기준 상품 개수: 325",
         "domestic_bond/instrument [count:instrument:domestic_bond] 상태 검증 후 상품 개수: 254",
     } <= set(promoted.expected_answer.required_concepts)
+
+
+def test_promotes_approved_synthetic_integer_evidence(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    review = repository / "evaluation/review_batches"
+    canonical = repository / "evaluation/canonical"
+    review.mkdir(parents=True)
+    reference = review / _BATCH_FOUR_REFERENCE.name
+    approval = review / _BATCH_FOUR_APPROVAL.name
+    reference.write_bytes(_BATCH_FOUR_REFERENCE.read_bytes())
+    approval.write_bytes(_BATCH_FOUR_APPROVAL.read_bytes())
+
+    _promote(repository, reference, approval, canonical)
+
+    promoted = next(
+        case
+        for case in load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))
+        if case.case_id == "CQ-004-014"
+    )
+    difference = next(
+        value
+        for value in promoted.expected_result.values
+        if value.field_id == "remaining_days_difference"
+    )
+    assert difference.value_type.value == "integer"
+    assert difference.value == 90
 
 
 @pytest.mark.parametrize(
