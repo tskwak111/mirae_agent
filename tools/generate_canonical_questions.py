@@ -1,5 +1,7 @@
 """Generate one HCX-only packet of noncanonical question candidates."""
 
+# ruff: noqa: E501 - prompt slot literals are reviewable authoring contracts.
+
 from __future__ import annotations
 
 import argparse
@@ -319,6 +321,214 @@ clarification 1, quality 3.
 출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
 """
 
+_NEW_BATCH_SLOTS = {
+    "006": (
+        "lookup: 국내채권 KR101501DB72의 신용등급과 매수수익률 조회",
+        "lookup: 국내 ETF KR70000D0009의 3개월 수익률과 판매상태 조회",
+        "lookup: 해외 ETF AAAA.K의 1일 수익률과 투자지역 조회",
+        "lookup: 공모펀드 KR5010101401의 1주 수익률과 미래에셋 판매상태 조회",
+        "screen: 2026-07-11 이후부터 2027-07-11까지 만기이고 매수가능수량이 양수인 국내채권",
+        "screen: 3개월 수익률이 0% 미만이고 판매 가능한 국내 ETF, ETN 제외",
+        "screen: AUM이 5천만 USD 이상이고 총보수가 0.25% 이하인 해외 ETF, ETN 제외",
+        "screen: 1주 수익률이 1% 이상이고 거래통화가 KRW인 공모펀드",
+        "screen: 6개월 수익률이 0% 초과이고 판매 가능한 국내 ETN, ETN 명시",
+        "rank: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 국내채권 중 만기일이 빠른 5개",
+        "rank: 국내 ETF 3개월 수익률 높은 5개, ETN 제외",
+        "rank: 해외 ETF 1일 수익률 낮은 5개, ETN 제외",
+        "rank: 공모펀드 1주 수익률 높은 5개",
+        "compare: 국내채권 KR101501DA16과 KR350105G9C6의 만기일 비교",
+        "compare: 국내 ETF KR7243880002와 KR7494310006의 3개월 수익률 비교",
+        "compare: 공모펀드 KR5129470010과 KR5129470016의 3개월 수익률 비교",
+        "aggregate: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 국내채권의 매수수익률 최솟값",
+        "aggregate: 공모펀드 1주 수익률 최댓값",
+        "cross_product: 국내 ETF와 공모펀드의 1개월 수익률 하위 4개를 유형별 분리",
+        "cross_product: 국내 ETF와 해외 ETF의 총보수 높은 4개를 유형별 분리",
+        "clarification: 수익률이 안정적이고 규모가 큰 ETF 5개 요청에서 국내·해외 구분, 수익률 기간과 복합 우선순위 생략",
+        "quality: 매수가능수량이 양수로 기록된 국내채권의 원천 수량 합계와 2026-07-11 기준 만기 검증 후 수량 합계를 구분",
+        "quality: 해외 ETF 1일 수익률 낮은 5개의 기록된 0 공동순위와 동률 정책 확인",
+        "quality: 1주 수익률이 없는 공모펀드 수를 itm_no 상품번호 기준으로 중복 없이 집계",
+    ),
+    "007": (
+        "lookup: 국내채권 KR101501DD88의 만기일과 매수가능수량 조회",
+        "lookup: 국내 ETN KRG500000614의 총보수와 1년 수익률 조회",
+        "lookup: 해외 ETN AIQD.K의 AUM과 1일 수익률 조회",
+        "lookup: 공모펀드 KR5010101402의 6개월 수익률과 위험등급 조회",
+        "screen: 신용등급 A+ 이상이고 잔존일수가 365일 이하이며 매수가능수량이 양수인 국내채권",
+        "screen: 1년 수익률이 10% 이상이고 판매 가능한 국내 ETF, ETN 제외",
+        "screen: 거래통화가 USD이고 총보수가 0.3% 이하인 해외 ETN, ETN 명시",
+        "screen: 6개월 수익률이 0% 미만이고 위험등급이 있는 공모펀드",
+        "screen: 추적오차가 0%이고 판매 가능한 국내 ETN, ETN 명시",
+        "rank: 2026-07-11 기준 매수 가능한 국내채권 중 신용등급 높은 5개",
+        "rank: 국내 ETF 1년 수익률 낮은 5개, ETN 제외",
+        "rank: 해외 ETN AUM 작은 5개, ETN 명시",
+        "rank: 공모펀드 6개월 수익률 높은 5개",
+        "compare: 국내채권 KR353601DE34와 KR354301GB84의 매수가능수량 비교",
+        "compare: 해외 ETF VOO와 EES의 AUM 비교",
+        "compare: 공모펀드 KR5174430032와 KR5114450497의 5년 수익률 비교",
+        "aggregate: 국내 ETF 총보수 최솟값, ETN 제외",
+        "aggregate: 공모펀드 6개월 수익률 평균",
+        "cross_product: 판매 가능한 국내 ETF와 공모펀드의 1년 수익률 상위 4개를 유형별 분리",
+        "cross_product: 국내 ETF와 해외 ETF의 AUM 평균을 통화별·유형별 분리",
+        "clarification: 성과가 좋고 총보수가 낮은 해외 ETF 5개 요청에서 수익률 기간과 복합 우선순위 생략",
+        "quality: 해외 ETF 총보수 낮은 5개에서 기록된 0%와 양수 값을 분리하고 0% 미검증 경고",
+        "quality: 공모펀드의 원천 판매상태와 미래에셋 판매상태를 itm_no 기준으로 표시하고 검증된 매수 가능 상태로 해석하지 않음",
+        "quality: 판매상태가 누락된 해외 ETN 수를 원천 기록 기준으로 집계하고 검증된 매수 가능 여부의 부재를 경고",
+    ),
+    "008": (
+        "lookup: 국내채권 KR101501DDA1의 잔존일수와 거래통화 조회",
+        "lookup: 국내 ETF KR70000H0005의 6개월 수익률과 총보수 조회",
+        "lookup: 해외 ETF AAAC.K의 원천 판매상태와 거래통화 조회",
+        "lookup: 공모펀드 KR5010101404의 2년 수익률과 3년 수익률 조회",
+        "screen: 매수수익률이 3% 이하이고 2026-07-11 기준 만기가 지나지 않았으며 매수가능수량이 양수인 국내채권",
+        "screen: 추적오차가 0% 초과인 국내 ETF, ETN 제외",
+        "screen: 1일 수익률이 0%이고 총보수가 0% 초과인 해외 ETF, ETN 제외",
+        "screen: 2년 수익률이 20% 이상이고 미래에셋 판매 가능한 공모펀드",
+        "screen: 1년 수익률이 0% 미만인 국내 ETN, ETN 명시",
+        "rank: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 국내채권 중 매수가능수량 작은 5개",
+        "rank: 국내 ETF 총보수 높은 5개, ETN 제외",
+        "rank: 해외 ETF 1일 수익률 높은 7개, ETN 제외",
+        "rank: 공모펀드 2년 수익률 낮은 5개",
+        "compare: 국내채권 KR101501DD13과 KR101501DD47의 매수수익률 비교",
+        "compare: 국내 ETN KRG520000826와 KRG530001202의 연초이후 수익률 비교",
+        "compare: 공모펀드 KR5010101702와 KR5010101714의 3년 수익률 비교",
+        "aggregate: 거래통화가 USD인 해외 ETF의 AUM 최댓값, ETN 제외",
+        "aggregate: 공모펀드 2년 수익률 최솟값",
+        "cross_product: 국내 ETF와 공모펀드의 6개월 수익률 하위 4개를 유형별 분리",
+        "cross_product: 국내 ETN과 해외 ETN의 AUM 하위 4개를 통화별·유형별 분리",
+        "clarification: 만기가 짧고 매수수익률이 높은 국내채권 5개 요청에서 복합 우선순위 생략",
+        "quality: 국내 ETF 추적오차 높은 5개가 기록된 0%로 공동순위인지 확인하고 동률 정책 표시",
+        "quality: 2년 수익률이 없는 공모펀드 수를 fund_item grain의 itm_no 기준으로 집계",
+        "quality: 판매 가능한 해외 ETF 요청에서 원천 판매상태만 표시하고 검증된 매수 가능 여부는 지원하지 않음을 경고",
+    ),
+    "009": (
+        "lookup: 국내채권 KR101501DE61의 상품명과 신용등급 조회",
+        "lookup: 국내 ETN KRG500000630의 3개월 수익률과 추적오차 조회",
+        "lookup: 해외 ETN AIQU.K의 총보수와 원천 판매상태 조회",
+        "lookup: 공모펀드 KR5010101405의 3개월 수익률과 5년 수익률 조회",
+        "screen: 신용등급 AAA이고 잔존일수가 180일 이하이며 매수가능수량이 양수인 국내채권",
+        "screen: 3개월 수익률이 -5% 이하이고 판매 가능한 국내 ETF, ETN 제외",
+        "screen: 투자지역이 미국이고 1일 수익률이 0% 이하인 해외 ETF, ETN 제외",
+        "screen: 3개월 수익률이 3% 이상이고 미래에셋 판매 가능한 공모펀드",
+        "screen: AUM이 50억원 이하이고 판매 가능한 국내 ETN, ETN 명시",
+        "rank: 신용등급 AAA이고 2026-07-11 기준 매수 가능한 국내채권 중 만기일이 늦은 7개",
+        "rank: 국내 ETF 1개월 수익률 높은 7개, ETN 제외",
+        "rank: 해외 ETN 총보수 낮은 7개, ETN 명시",
+        "rank: 공모펀드 5년 수익률 낮은 5개",
+        "compare: 국내채권 KR350105G9C6와 KR350901G671의 만기일 비교",
+        "compare: 해외 ETN NRGD.K와 AIQD.K의 총보수 비교",
+        "compare: 공모펀드 KR5114420158과 KR5138490078의 1년 수익률 비교",
+        "aggregate: 국내 ETF AUM 평균, ETN 제외",
+        "aggregate: 2026-07-11 기준 매수 가능한 국내채권의 매수가능수량 최댓값",
+        "cross_product: 판매 가능한 국내 ETF와 미래에셋 판매 가능한 공모펀드의 3개월 수익률 상위 4개를 유형별 분리",
+        "cross_product: 국내채권은 매수수익률 상위 4개, 국내 ETF는 연초이후 수익률 상위 4개로 유형별 분리",
+        "clarification: 신용등급이 높고 만기가 적당한 국내채권 요청에서 만기 범위와 복합 우선순위 생략",
+        "quality: 복수 신용등급 국내채권을 높은 등급 순으로 볼 때 미평가 제외와 등급 정책 표시",
+        "quality: 총보수가 없는 국내 ETF를 순위에서 제외하면서 누락값 수와 제외 정책 표시",
+        "quality: 공모펀드의 원천 판매상태와 미래에셋 판매상태가 다른 itm_no 수를 표시하고 검증된 상태로 추론하지 않음",
+    ),
+    "010": (
+        "lookup: 국내채권 KR101501DE79의 만기일과 매수수익률 조회",
+        "lookup: 국내 ETF KR70000J0003의 연초이후 수익률과 추적오차 조회",
+        "lookup: 해외 ETF AAAD.K의 AUM과 총보수 조회",
+        "lookup: 공모펀드 KR5010101501의 18개월 수익률과 5년 수익률 조회",
+        "screen: 매수수익률이 4% 이상이고 잔존일수가 730일 이상이며 매수가능수량이 양수인 국내채권",
+        "screen: 6개월 수익률이 0% 이하이고 판매 가능한 국내 ETF, ETN 제외",
+        "screen: AUM이 1억 USD 이상인 해외 ETN, ETN 명시",
+        "screen: 18개월 수익률이 0% 미만이고 위험등급이 있는 공모펀드",
+        "screen: 총보수가 0% 초과이고 연초이후 수익률이 0% 초과인 국내 ETN, ETN 명시",
+        "rank: 잔존일수가 730일 이상이고 2026-07-11 기준 매수 가능한 국내채권 중 매수수익률 높은 7개",
+        "rank: 국내 ETF 연초이후 수익률 낮은 7개, ETN 제외",
+        "rank: 해외 ETF 총보수 높은 7개, ETN 제외",
+        "rank: 공모펀드 18개월 수익률 낮은 7개",
+        "compare: 국내채권 KR101501DA16과 KR101501DD13의 신용등급 비교",
+        "compare: 국내 ETF KR7305080004와 KR7371160003의 추적오차 비교",
+        "compare: 공모펀드 KR5129470010과 KR5129470016의 2년 수익률 비교",
+        "aggregate: 거래통화가 USD인 해외 ETN의 AUM 평균, ETN 명시",
+        "aggregate: 공모펀드 18개월 수익률 최댓값",
+        "cross_product: 국내 ETF와 공모펀드의 1개월 수익률 평균을 유형별 분리",
+        "cross_product: 국내 ETF와 해외 ETF의 AUM 합계를 통화별·유형별 분리",
+        "clarification: 단기와 장기 수익률이 모두 좋은 공모펀드 요청에서 두 기간과 복합 우선순위 생략",
+        "quality: 5년 수익률이 없는 공모펀드 수를 itm_no 상품번호 기준으로 집계하고 속성 행 수 제외",
+        "quality: 해외 ETF AUM 평균 집계에서 기록된 0과 누락값을 분리하고 집계 정책 표시",
+        "quality: 국내 ETF의 원천 판매상태와 2026-07-11 기준 검증된 판매 가능 상태의 차이 표시",
+    ),
+    "011": (
+        "lookup: 국내채권 KR101501DE95의 매수가능수량과 신용등급 조회",
+        "lookup: 국내 ETN KRG500000671의 6개월 수익률과 AUM 조회",
+        "lookup: 해외 ETN AMJB.K의 1일 수익률과 총보수 조회",
+        "lookup: 공모펀드 KR5010101802의 1개월 수익률과 1년 수익률 조회",
+        "screen: 신용등급 AA+ 이상이고 잔존일수가 180일 이상이며 매수가능수량이 양수인 국내채권",
+        "screen: AUM이 1천억원 미만이고 판매 가능한 국내 ETF, ETN 제외",
+        "screen: 총보수가 1% 이상인 해외 ETF, ETN 제외",
+        "screen: 거래통화가 USD이고 1년 수익률이 0% 이상 10% 이하인 공모펀드",
+        "screen: 3개월 수익률이 0% 미만이고 총보수가 0% 초과인 국내 ETN, ETN 명시",
+        "rank: 신용등급 AA+ 이상이고 2026-07-11 기준 매수 가능한 국내채권 중 매수수익률 높은 7개",
+        "rank: 국내 ETN AUM 큰 7개, ETN 명시",
+        "rank: 거래통화가 USD인 해외 ETF AUM 작은 7개, ETN 제외",
+        "rank: 공모펀드 1개월 수익률 낮은 7개",
+        "compare: 국내채권 KR353601DE34와 KR354301GB84의 잔존일수 비교",
+        "compare: 해외 ETF AAA와 AAEQ.O의 총보수 비교",
+        "compare: 공모펀드 KR5174430032와 KR5114450497의 1개월 수익률 비교",
+        "aggregate: 판매 가능한 국내 ETN 수 집계, ETN 명시",
+        "aggregate: 거래통화가 KRW인 공모펀드의 AUM 합계",
+        "cross_product: 국내채권은 매수가능수량 상위 4개, 공모펀드는 AUM 상위 4개로 유형별 분리",
+        "cross_product: 국내 ETN과 해외 ETN의 총보수 높은 4개를 유형별 분리",
+        "clarification: 현재 살 수 있고 수익률이 좋은 ETF 요청에서 국내·해외, 수익률 기간과 우선순위 생략",
+        "quality: 매수가능수량이 0으로 기록된 국내채권을 표시하되 매수 가능 필터와 순위에서는 제외하고 경고",
+        "quality: 해외 ETF AUM 낮은 순위에서 기록된 0과 누락값 및 동률을 분리",
+        "quality: 원천 판매상태가 누락된 공모펀드 수를 itm_no 기준으로 집계하고 검증된 매수 가능 상태를 추론하지 않음",
+    ),
+}
+
+_NEW_BATCH_METADATA = {
+    "006": (77, "canonical-question-candidates-v9"),
+    "007": (89, "canonical-question-candidates-v10"),
+    "008": (101, "canonical-question-candidates-v11"),
+    "009": (113, "canonical-question-candidates-v12"),
+    "010": (125, "canonical-question-candidates-v13"),
+    "011": (137, "canonical-question-candidates-v14"),
+}
+
+
+def _new_batch_prompt(slots: Sequence[str]) -> str:
+    numbered_slots = "\n".join(f"{index} {slot}" for index, slot in enumerate(slots, start=1))
+    return f"""당신은 FinProof 평가 질문 후보 작성자입니다.
+생성물은 사람 검토 전의 질문 후보이며 정답 데이터가 아니다. ground truth로 취급하지 마십시오.
+공식 2026-07-11 스냅샷의 국내채권, 국내 ETF/ETN, 해외 ETF/ETN, 공모펀드만 대상으로
+자연스러운 한국어 질문을 작성하십시오. 공식 데이터와 FinProof 계약으로 지원 가능한
+필드, 상태, 지표, 기간, 통화, 집계만 질문하십시오.
+일반적인 ETF 질문은 ETN을 제외합니다. ETN을 명시한 질문만 ETN을 포함합니다.
+미래 수익률 예측, 단정적인 투자 추천, 실시간 값, 가족형 펀드 추론을 요구하지 마십시오.
+허용 필드는 아래 목록으로 닫혀 있습니다:
+- domestic_bond: product_name, product_id, currency, buyable_quantity, maturity_date,
+  remaining_days_at_as_of, credit_rating, buy_yield
+- domestic_etf/domestic_etn: product_name, product_id, asset_type, region, currency,
+  total_fee, aum, tracking_error, return_1m, return_3m, return_6m, return_1y,
+  return_ytd, saleable
+- overseas_etf/overseas_etn: product_name, product_id, asset_type, region, currency,
+  total_fee, aum, return_1d, saleable
+- public_fund: product_name, product_id, region, currency, aum, return_1w, return_1m,
+  return_3m, return_6m, return_18m, return_1y, return_2y, return_3y, return_5y,
+  risk_grade, saleable, mirae_saleable
+집계는 count 또는 허용 필드의 min/max/avg만 사용하고, sum은 aum과 buyable_quantity에만 사용하십시오.
+공모펀드 검색·비교·순위·집계는 itm_no의 fund_item grain을 사용하고 속성 행을 상품으로 세지 마십시오.
+검증된 매수 가능 상태는 국내채권과 국내 ETF/ETN에만 적용하며 해외 상품과 공모펀드의
+원천 판매상태를 검증된 상태로 바꾸지 마십시오. 통화가 다른 AUM은 고정 환율 없이 통합 순위를 만들지 마십시오.
+아래 24개 슬롯을 각각 자연스러운 한국어 질문 하나로만 표현하십시오.
+슬롯별 식별자, 필드/지표, 임계값, 날짜, 상품 유형, 집계, 순서와 category를 바꾸지 마십시오:
+{numbered_slots}
+슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
+상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
+응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
+루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
+정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
+lookup 4, screen 5, rank 4, compare 3, aggregate 2, cross_product 2,
+clarification 1, quality 3.
+배열 슬롯은 1~4 lookup, 5~9 screen, 10~13 rank, 14~16 compare,
+17~18 aggregate, 19~20 cross_product, 21 clarification, 22~24 quality 순서로 고정하십시오.
+출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
+"""
+
 
 def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
     if batch_id == "001":
@@ -351,7 +561,15 @@ def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
             _PROMPT_005,
             "finproof-canonical-question-candidates-005",
         )
-    raise ValueError("batch_id must be one of: 001, 002, 003, 004, 005")
+    if batch_id in _NEW_BATCH_METADATA:
+        seed, prompt_version = _NEW_BATCH_METADATA[batch_id]
+        return (
+            seed,
+            prompt_version,
+            _new_batch_prompt(_NEW_BATCH_SLOTS[batch_id]),
+            f"finproof-canonical-question-candidates-{batch_id}",
+        )
+    raise ValueError("batch_id must be one of: 001, 002, 003, 004, 005, 006-011")
 
 
 class _Response(Protocol):
@@ -432,7 +650,7 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         raise ValueError("HCX candidate response has an invalid candidate count")
 
     grouped: dict[str, list[str]] = {category: [] for category in TARGET_DISTRIBUTION}
-    batch_005_categories = tuple(
+    ordered_categories = tuple(
         category for category, count in TARGET_DISTRIBUTION.items() for _ in range(count)
     )
     seen_questions: set[str] = set()
@@ -443,8 +661,8 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         question = raw["question"]
         if type(category) is not str or category not in TARGET_DISTRIBUTION:
             raise ValueError("HCX candidate has an invalid category")
-        if batch_id == "005" and category != batch_005_categories[index]:
-            raise ValueError("batch 005 candidate order does not match the target")
+        if batch_id in {"005", *_NEW_BATCH_METADATA} and category != ordered_categories[index]:
+            raise ValueError(f"batch {batch_id} candidate order does not match the target")
         if (
             type(question) is not str
             or question != question.strip()
@@ -505,7 +723,7 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         for category, category_questions in grouped.items()
         for index, question in enumerate(category_questions, 1)
     ]
-    if batch_id in {"003", "004", "005"}:
+    if batch_id in {"003", "004", "005", *_NEW_BATCH_METADATA}:
         for index, candidate in enumerate(candidates, 1):
             candidate["candidate_id"] = f"CQ-{batch_id}-{index:03d}"
     return candidates
@@ -615,7 +833,11 @@ def main(
         description="Generate HCX-only noncanonical question candidates."
     )
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--batch-id", default=BATCH_ID, choices=("001", "002", "003", "004", "005"))
+    parser.add_argument(
+        "--batch-id",
+        default=BATCH_ID,
+        choices=("001", "002", "003", "004", "005", *_NEW_BATCH_METADATA),
+    )
     args = parser.parse_args(argv)
 
     root = repository_root or Path.cwd()
