@@ -52,8 +52,8 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness — harness complete; 49 reviewed
-  canonical cases committed (24 cases in each of batches 001–002 plus 1 official
+- [ ] Task 1: canonical golden set and scoring harness — harness complete; 73 reviewed
+  canonical cases committed (24 cases in each of batches 001–003 plus 1 official
   clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
@@ -63,9 +63,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1 Step 6: author and review canonical batch-003 using the same bounded
+**Phase 4 Task 1 Step 6: author and review canonical batch-004 using the same bounded
 candidate → question/plan approval → deterministic reference → expectation approval →
-canonical promotion flow.** The suite has 49 of the required 250–300 cases, so 201–251
+canonical promotion flow.** The suite has 73 of the required 250–300 cases, so 177–227
 more reviewed cases remain. Do not start Task 2 or run the final full gate until the
 Task 1 canonical set is complete.
 
@@ -112,6 +112,39 @@ Task 1 canonical set is complete.
   Minor 0. No correction round was required.
 - Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
   not repeated at this partial authoring checkpoint; they remain reserved for the
+  final Task 1 commit candidate.
+
+## Phase 4 Task 1 batch-003 checkpoint
+
+- Deterministic quality-lens commits: `51c179f`, `eacf5eb`, and `282dd67`;
+  final reference checkpoint: `ec74e16` (`test: refresh batch-003 quality reference`).
+  Canonical-approval/promotion checkpoints: `82736bb` and `cfbfd12`
+  (`test: promote approved canonical batch-003`).
+- Human canonical-reference approval is versioned as reviewer `곽태성`, review date
+  `2026-08-25`, bound to reference packet SHA-256
+  `580f950b20198f3769e1c6ef709d0501907f26d6cec312fd71025e2877586879` and artifact
+  manifest logical hash
+  `59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236`.
+- Focused RED→GREEN preserved the source-recorded/state-validated count lenses,
+  recorded-zero/comparison-valid metric lenses, the 50-product evidence bound, and
+  full product evidence identity. The final quality/evidence aggregate passed 54 tests,
+  with scoped Ruff format/check clean. The promotion aggregate passed 66 tests;
+  scoped Ruff and clean non-incremental mypy passed for the promoter and its test.
+- `CQ-003-022` preserves source count 325 and state-validated count 254 in both the
+  verified answer and canonical answer semantics. `CQ-003-023` preserves five
+  recorded-zero and five positive comparison values with the explicit unverified-zero
+  warning. `CQ-003-024` preserves all nine `fund_item` risk-grade groups totaling
+  11,138 items.
+- Canonical inventory: lookup 12, screen 15, rank 12, compare 9, aggregate 6,
+  cross-product 6, clarification 4 (1 official + 3 batches), and quality 9; 73 unique
+  IDs total. All 49 prior canonical lines were preserved as exact byte prefixes.
+- Independent implementation, reference, promoter, and final promotion reviews each
+  closed at Critical 0 / Important 0 / Minor 0. The final promotion review covered
+  `82736bb..cfbfd12`.
+- Pre-promotion handoff passed with 61 required files, 9 official inputs, and
+  41,384,928 source bytes; the official source audit passed at 145,393 rows and snapshot
+  `2026-07-11`. Repository-wide pytest/Ruff/mypy and the final full gate were
+  deliberately not repeated at this partial checkpoint; they remain reserved for the
   final Task 1 commit candidate.
 
 ## Phase 1 Task 5 design and plan record
