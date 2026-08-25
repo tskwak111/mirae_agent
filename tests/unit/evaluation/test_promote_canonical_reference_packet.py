@@ -2,6 +2,7 @@
 
 import importlib
 import json
+from collections import Counter
 from hashlib import sha256
 from pathlib import Path
 from typing import cast
@@ -21,6 +22,8 @@ _BATCH_THREE_REFERENCE = _ROOT / "evaluation/review_batches/batch-003-reference-
 _BATCH_THREE_APPROVAL = _ROOT / "evaluation/review_batches/batch-003-reference-approval.json"
 _BATCH_FOUR_REFERENCE = _ROOT / "evaluation/review_batches/batch-004-reference-review.json"
 _BATCH_FOUR_APPROVAL = _ROOT / "evaluation/review_batches/batch-004-reference-approval.json"
+_BATCH_FIVE_REFERENCE = _ROOT / "evaluation/review_batches/batch-005-reference-review.json"
+_BATCH_FIVE_APPROVAL = _ROOT / "evaluation/review_batches/batch-005-reference-approval.json"
 _OFFICIAL = _ROOT / "evaluation/canonical/clarification.jsonl"
 
 
@@ -267,6 +270,80 @@ def test_promotes_approved_synthetic_integer_evidence(tmp_path: Path) -> None:
     )
     assert difference.value_type.value == "integer"
     assert difference.value == 90
+
+
+def test_promotes_batch_five_approved_boundaries(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    review = repository / "evaluation/review_batches"
+    canonical = repository / "evaluation/canonical"
+    review.mkdir(parents=True)
+    canonical.mkdir(parents=True)
+    reference = review / _BATCH_FIVE_REFERENCE.name
+    approval = review / _BATCH_FIVE_APPROVAL.name
+    reference.write_bytes(_BATCH_FIVE_REFERENCE.read_bytes())
+    approval.write_bytes(_BATCH_FIVE_APPROVAL.read_bytes())
+
+    _promote(repository, reference, approval, canonical)
+
+    cases = load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))
+    assert len(cases) == len({case.case_id for case in cases}) == 24
+    assert Counter(case.category.value for case in cases) == {
+        "aggregate": 2,
+        "clarification": 1,
+        "compare": 3,
+        "cross_product": 2,
+        "lookup": 4,
+        "quality": 3,
+        "rank": 4,
+        "screen": 5,
+    }
+    assert {case.review.reviewer for case in cases} == {"곽태성"}
+    assert {case.review.reviewed_at.isoformat() for case in cases} == {"2026-08-26"}
+    assert all(
+        "batch-005-reference-review.json "
+        "sha256:dce110eed040f0fda0c26ced2ba5726d8f0a0c3e0584c63ff6ceb99d1eb04e3d"
+        in case.review.source
+        for case in cases
+    )
+
+    by_id = {case.case_id: case for case in cases}
+    lookup_values = {
+        (value.field_id, str(value.value)) for value in by_id["CQ-005-001"].expected_result.values
+    }
+    assert {("credit_rating", "AAA"), ("maturity_date", "2031-07-21")} <= lookup_values
+
+    comparison = by_id["CQ-005-014"]
+    assert [
+        (value.product_id, value.value)
+        for value in comparison.expected_result.values
+        if value.field_id == "credit_rating"
+    ] == [("KR350105G9C6", "AAA"), ("KR350901G671", "AAA")]
+    assert {
+        "domestic_bond:KR350105G9C6:credit_rating",
+        "domestic_bond:KR350901G671:credit_rating",
+    } <= set(comparison.expected_result.required_evidence_ids)
+
+    cross_product = by_id["CQ-005-020"]
+    assert {
+        segment.product_type.value for segment in cross_product.expected_plan.native_segments
+    } == {
+        "domestic_etn",
+        "overseas_etn",
+    }
+    assert [
+        (product.product_type.value, product.product_id)
+        for product in cross_product.expected_result.products
+    ] == [
+        ("overseas_etn", "VYLD.K"),
+        ("overseas_etn", "AIQD.K"),
+        ("overseas_etn", "AIQU.K"),
+    ]
+
+    missing_returns = by_id["CQ-005-024"]
+    assert missing_returns.expected_plan.result_grain.value == "fund_item"
+    assert len(missing_returns.expected_result.aggregates) == 1
+    assert missing_returns.expected_result.aggregates[0].value == 4259
+    assert missing_returns.expected_result.aggregates[0].native_result_grain.value == "fund_item"
 
 
 @pytest.mark.parametrize(
