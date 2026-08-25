@@ -54,6 +54,166 @@ def test_clarify_and_unsupported_answers_execute_no_repository_query(
     session._close()
 
 
+def test_trace_preserves_planned_product_type_with_no_comparable_metric_values() -> None:
+    from decimal import Decimal
+
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.execution import (
+        ComparisonPartition,
+        ExecutionBundle,
+        ExecutionSegment,
+        ValidatedQueryPlan,
+    )
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.quality import (
+        CompatibilityPartition,
+        MetricPolicyResult,
+        MetricValue,
+        PolicyExecutionResult,
+    )
+    from finproof.service import AnswerService
+    from finproof.storage import RawExecutionResult, RawSegmentResult
+
+    class Connection:
+        def close(self) -> None: ...
+
+    session = _session(Connection())  # type: ignore[arg-type]
+    plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=(ProductType.DOMESTIC_ETN, ProductType.OVERSEAS_ETN),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("total_fee",),
+        sort=(SortSpec(field="total_fee", direction=SortDirection.ASC),),
+        aggregation=None,
+        top_k=3,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    native = ResultGrain.LISTED_PRODUCT
+    segments = tuple(
+        ExecutionSegment(
+            product_type=product_type,
+            native_result_grain=native,
+            filters=(),
+            metrics=("total_fee",),
+            sort=plan.sort,
+            aggregation=None,
+            top_k=3,
+        )
+        for product_type in plan.product_types
+    )
+    bundle = ExecutionBundle(
+        validated_plan=ValidatedQueryPlan._issue(plan=plan, resolutions=(), context=()),
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        segments=segments,
+        comparison_partitions=(
+            ComparisonPartition(
+                partition_id="partition-1",
+                product_types=plan.product_types,
+                compatibility_key="annual_fee:percent:annual_source_convention:none",
+            ),
+        ),
+        response_grain=ResultGrain.PRODUCT,
+    )
+    raw = RawExecutionResult(
+        segments=tuple(
+            RawSegmentResult(
+                product_type=product_type,
+                native_result_grain=native,
+                rows=(),
+                candidate_count=count,
+                max_batch_rows=0,
+            )
+            for product_type, count in zip(plan.product_types, (532, 59), strict=True)
+        ),
+        candidate_count=591,
+    )
+    overseas = MetricValue(
+        metric_id="overseas_etf.total_fee",
+        product_type=ProductType.OVERSEAS_ETN,
+        product_id="OVERSEAS-VALID",
+        value=Decimal("0.85"),
+        quality_status="valid",
+        period="annual_source_convention",
+    )
+    partition_key = "annual_fee:None:annual_source_convention:same_definition_with_source_caveat"
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=532,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(overseas,),
+            comparison_valid_values=(overseas,),
+            excluded_count=532,
+            warnings=("metric values excluded from comparison",),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(
+            CompatibilityPartition(
+                compatibility_key=partition_key,
+                currency=None,
+                period="annual_source_convention",
+                values=(overseas,),
+                selected_values=(overseas,),
+                caveats=(),
+            ),
+        ),
+        aggregates=(),
+        ranks=(),
+        warnings=("metric values excluded from comparison",),
+    )
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:partition:empty:domestic_etn",
+                kind=EvidenceSummaryKind.PARTITION,
+                included_count=0,
+                excluded_count=532,
+                evidence_ids=(),
+                policy_versions=("metric:1.0.0",),
+                validated_plan_sha256="a" * 64,
+                version_bundle_sha256="b" * 64,
+                artifact_manifest_hash="c" * 64,
+                product_types=(ProductType.DOMESTIC_ETN,),
+                native_result_grains=(native,),
+                partition_key=partition_key,
+                value=0,
+            ),
+        ),
+        material_policy_limitations=(),
+    )
+
+    trace = AnswerService(session)._trace(
+        request=AnswerRequest(question_id="q-empty-segment", question="ETN 유형별 하위 3개"),
+        plan=plan,
+        bundle=bundle,
+        raw=raw,
+        policy_result=policy,
+        evidence=evidence,
+    )
+
+    assert tuple(segment.product_type for segment in trace.segments) == plan.product_types
+    assert trace.segments[0].returned == 0
+    session._close()
+
+
 def test_answer_service_composes_exact_runtime_resolution_validation_execution_policy_evidence_render_verify_order() -> (  # noqa: E501
     None
 ):

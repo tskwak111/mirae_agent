@@ -1,0 +1,143 @@
+{
+  "batch_id": "005",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 65,
+  "prompt_version": "canonical-question-candidates-v8",
+  "prompt_sha256": "1551205333c322a3813cbdc40a25d0c4f2558a189d0e2fc285007d15654bc6a9",
+  "generated_at": "2026-08-25T10:34:17Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-005-001",
+      "category": "lookup",
+      "question": "국내채권 KR350901G671의 신용등급과 만기일은 언제까지인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-002",
+      "category": "lookup",
+      "question": "국내 ETF KR7371160003의 연간 총보수와 최근 추적오차는 어느 정도인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-003",
+      "category": "lookup",
+      "question": "해외 ETN NRGD.K의 오늘(1일) 수익률은 얼마이며 거래 통화는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5138490078의 지난 18개월 및 2년간 누적 수익률은 각각 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-005-005",
+      "category": "screen",
+      "question": "신용등급이 BBB+ 이상이고 매수수익률이 3.5% 이상이며 2026년 7월 11일 현재 만기가 도래하지 않은 국내채권 중 매수가능수량이 남은 종목들은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-006",
+      "category": "screen",
+      "question": "연초 이후 수익률이 음수(-)이면서 아직 판매 중인 국내 ETF 목록을 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-005-007",
+      "category": "screen",
+      "question": "미국 달러(USD)로 거래되며 총보수가 0%보다 높은 해외 ETN 종목을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-005-008",
+      "category": "screen",
+      "question": "최근 18개월간 수익률이 10% 이상 달성되었고 위험등급 정보가 기재된 공모펀드는 어떤 것들이 있나요?"
+    },
+    {
+      "candidate_id": "CQ-005-009",
+      "category": "screen",
+      "question": "운용자산(AUM) 규모가 100억 원 이상이며 올해 초부터 현재까지 플러스 수익률을 기록하고 있는 국내 ETN 상품을 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-005-010",
+      "category": "rank",
+      "question": "만기가 남았고 매수가능수량이 유효한 국내채권 가운데 매수수익률이 가장 낮은 5개 종목은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-011",
+      "category": "rank",
+      "question": "추적오차가 가장 큰 국내 ETN 5개 종목은 어디인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-012",
+      "category": "rank",
+      "question": "총보수가 가장 높은 미국 달러(USD) 표시 해외 ETN 5개는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-013",
+      "category": "rank",
+      "question": "지난 18개월 동안 수익률이 가장 높았던 공모펀드 Top 5를 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-005-014",
+      "category": "compare",
+      "question": "국내채권 KR350105G9C6와 KR350901G671 중 어느 종목의 신용등급이 더 높나요?"
+    },
+    {
+      "candidate_id": "CQ-005-015",
+      "category": "compare",
+      "question": "국내 ETF KR7305080004와 KR7371160003의 연간 총보수를 비교해 주세요."
+    },
+    {
+      "candidate_id": "CQ-005-016",
+      "category": "compare",
+      "question": "공모펀드 KR5114420158과 KR5138490078의 2년 수익률을 각각 얼마나 차이가 나나요?"
+    },
+    {
+      "candidate_id": "CQ-005-017",
+      "category": "aggregate",
+      "question": "2026년 7월 11일 기준으로 유효한 국내채권들의 전체 매수가능수량은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-005-018",
+      "category": "aggregate",
+      "question": "모든 공모펀드의 18개월 수익률 평균값은 어떻게 계산되나요?"
+    },
+    {
+      "candidate_id": "CQ-005-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드 각각의 3개월 수익률 하위 3개 종목을 유형별로 구분하여 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-005-020",
+      "category": "cross_product",
+      "question": "국내 ETN과 해외 ETN 중에서 총보수가 가장 낮은 3개씩을 유형별로 나누어 제시해 주세요."
+    },
+    {
+      "candidate_id": "CQ-005-021",
+      "category": "clarification",
+      "question": "해외 상장 상품 중 일일 수익률이 우수하고 총보수가 저렴한 5개 종목을 선정해 주세요."
+    },
+    {
+      "candidate_id": "CQ-005-022",
+      "category": "quality",
+      "question": "추적오차가 모두 0%로 동일한 국내 ETN 5개 종목이 있다면 그 내역을 확인해 주세요."
+    },
+    {
+      "candidate_id": "CQ-005-023",
+      "category": "quality",
+      "question": "오늘(1일) 기준으로 수익률이 동일하게 가장 높은 해외 ETN 5개가 있다면 그 상황을 검증해 주세요."
+    },
+    {
+      "candidate_id": "CQ-005-024",
+      "category": "quality",
+      "question": "18개월 수익률 데이터가 누락된 공모펀드의 총 개수를 중복 없이 카운트해 주세요."
+    }
+  ]
+}

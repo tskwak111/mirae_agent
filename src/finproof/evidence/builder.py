@@ -184,6 +184,57 @@ class EvidenceBuilder:
                     artifact_hash=artifact_hash,
                 )
             )
+        if (
+            original.intent is Intent.SCREEN_RANK
+            and original.top_k_scope is TopKScope.PER_PRODUCT_TYPE
+            and original.sort
+        ):
+            partitioned_types = {
+                value.product_type
+                for partition in policy_result.partitions
+                for value in partition.values
+            }
+            for product_type in original.product_types:
+                if product_type in partitioned_types:
+                    continue
+                projection = repository._fields.projection(original.sort[0].field, product_type)
+                if projection.metric_id is None:
+                    raise ValueError("rank partition metric differs")
+                metric = repository._session.registries.metrics.entries[projection.metric_id]
+                summaries.append(
+                    _summary(
+                        summary_id=f"summary:partition:empty:{product_type.value}",
+                        kind=EvidenceSummaryKind.PARTITION,
+                        included_count=0,
+                        excluded_count=sum(
+                            row.raw.product_type is product_type
+                            for row in policy_result.included_rows
+                        ),
+                        evidence_ids=(),
+                        policy_versions=policy_versions,
+                        plan_hash=plan_hash,
+                        version_hash=version_hash,
+                        artifact_hash=artifact_hash,
+                        product_types=(product_type,),
+                        native_result_grains=(
+                            ResultGrain.INSTRUMENT
+                            if product_type is ProductType.DOMESTIC_BOND
+                            else ResultGrain.FUND_ITEM
+                            if product_type is ProductType.PUBLIC_FUND
+                            else ResultGrain.LISTED_PRODUCT,
+                        ),
+                        partition_key=":".join(
+                            str(value)
+                            for value in (
+                                metric.comparability_group,
+                                metric.currency,
+                                metric.period,
+                                metric.cross_product_policy,
+                            )
+                        ),
+                        value=0,
+                    )
+                )
         for index, partition in enumerate(policy_result.partitions):
             product_types = tuple(dict.fromkeys(value.product_type for value in partition.values))
             summaries.append(
@@ -271,7 +322,7 @@ class EvidenceBuilder:
                         kind=EvidenceSummaryKind.TIE,
                         included_count=rank.tie_count,
                         excluded_count=0,
-                        evidence_ids=evidence_ids,
+                        evidence_ids=rank_evidence_ids,
                         policy_versions=(rank.policy_id,),
                         plan_hash=plan_hash,
                         version_hash=version_hash,

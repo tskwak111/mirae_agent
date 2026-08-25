@@ -230,6 +230,7 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
     )
     rank_summaries = tuple(item for item in evidence.summaries if item.kind.value == "rank")
     summary = rank_summaries[0]
+    tie_summary = next(item for item in evidence.summaries if item.kind.value == "tie")
     partition_summary = next(item for item in evidence.summaries if item.kind.value == "partition")
 
     assert len(rank_summaries) == 1
@@ -244,7 +245,129 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
         Decimal("2.25"),
     )
     assert summary.tie_count == 3
+    assert tie_summary.evidence_ids == summary.evidence_ids
     assert any("동률" in limitation for limitation in evidence.material_policy_limitations)
+    session._close()
+
+
+def test_builder_exposes_empty_per_product_type_rank_partition_in_answer() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.evidence import ClaimVerifier, EvidenceBuilder
+    from finproof.quality import (
+        CompatibilityPartition,
+        MetricPolicyResult,
+        MetricValue,
+        PolicyExecutionResult,
+        PolicyRow,
+        StateEvaluation,
+    )
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+
+    def row(product_type: ProductType, product_id: str) -> PolicyRow:
+        return PolicyRow(
+            raw=RawProductRow(
+                product_type=product_type,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                product_id=product_id,
+                values=(
+                    RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                ),
+            ),
+            state=StateEvaluation(product_id=product_id, eligible=True, state_ids=(), warnings=()),
+        )
+
+    rows = (
+        row(ProductType.DOMESTIC_ETN, "DOMESTIC-MISSING"),
+        row(ProductType.OVERSEAS_ETN, "OVERSEAS-VALID"),
+    )
+    overseas_value = MetricValue(
+        metric_id="overseas_etf.total_fee",
+        product_type=ProductType.OVERSEAS_ETN,
+        product_id="OVERSEAS-VALID",
+        value=Decimal("0.85"),
+        quality_status="valid",
+        period="annual_source_convention",
+    )
+    policy = PolicyExecutionResult(
+        included_rows=rows,
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=1,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(overseas_value,),
+            comparison_valid_values=(overseas_value,),
+            excluded_count=1,
+            warnings=("metric values excluded from comparison",),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(
+            CompatibilityPartition(
+                compatibility_key=(
+                    "annual_fee:None:annual_source_convention:same_definition_with_source_caveat"
+                ),
+                currency=None,
+                period="annual_source_convention",
+                values=(overseas_value,),
+                selected_values=(),
+                caveats=(),
+            ),
+        ),
+        aggregates=(),
+        ranks=(),
+        warnings=("metric values excluded from comparison",),
+    )
+    plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=(ProductType.DOMESTIC_ETN, ProductType.OVERSEAS_ETN),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("total_fee",),
+        sort=(SortSpec(field="total_fee", direction=SortDirection.ASC),),
+        aggregation=None,
+        top_k=3,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(plan=plan, resolutions=(), context=()),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+    domestic = next(
+        summary
+        for summary in evidence.summaries
+        if summary.kind.value == "partition"
+        and summary.product_types == (ProductType.DOMESTIC_ETN,)
+    )
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-empty-partition", question="ETN 유형별 하위 3개"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    assert (domestic.included_count, domestic.excluded_count, domestic.value) == (0, 1, 0)
+    assert "분할 domestic_etn/listed_product" in draft.text
+    assert "0건" in draft.text
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
     session._close()
 
 

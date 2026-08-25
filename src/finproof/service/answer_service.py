@@ -6,7 +6,7 @@ from time import monotonic
 
 from finproof.answer import AnswerRenderer
 from finproof.domain.answers import AnswerRequest, AnswerResult
-from finproof.domain.evidence import EvidenceBundle
+from finproof.domain.evidence import EvidenceBundle, EvidenceSummaryKind
 from finproof.domain.execution import (
     ExecutionBundle,
     ExecutionTrace,
@@ -196,6 +196,23 @@ class AnswerService:
                     for item in policy_result.aggregates
                 )
             )
+            partitioned_types = {product_type for product_type, *_ in partition_specs}
+            partition_specs = (
+                *partition_specs,
+                *(
+                    (
+                        summary.product_types[0],
+                        summary.partition_key,
+                        None,
+                        set(),
+                    )
+                    for summary in evidence.summaries
+                    if summary.kind is EvidenceSummaryKind.PARTITION
+                    and len(summary.product_types) == 1
+                    and summary.partition_key is not None
+                    and summary.product_types[0] not in partitioned_types
+                ),
+            )
             if not partition_specs:
                 partition_specs = tuple(
                     (
@@ -210,6 +227,12 @@ class AnswerService:
                     )
                     for segment in bundle.segments
                 )
+            partition_specs = tuple(
+                spec
+                for segment in bundle.segments
+                for spec in partition_specs
+                if spec[0] is segment.product_type
+            )
             segments = tuple(
                 ExecutionTraceSegment(
                     product_type=product_type,
