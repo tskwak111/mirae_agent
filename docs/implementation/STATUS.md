@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-25 — Phase 4 Task 1 harness and canonical batches 001–002
-are implemented; the batch-002 promotion review returned Critical 0 / Important 0.
+**Last updated:** 2026-08-25 — Phase 4 Task 1 harness and canonical batches 001–004
+are implemented; the batch-004 promotion review returned Critical 0 / Important 0.
 Task 1 remains open until the reviewed canonical set reaches 250–300 cases and its
 final measured report/full gate pass.
 
@@ -52,8 +52,8 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness — harness complete; 73 reviewed
-  canonical cases committed (24 cases in each of batches 001–003 plus 1 official
+- [ ] Task 1: canonical golden set and scoring harness — harness complete; 97 reviewed
+  canonical cases committed (24 cases in each of batches 001–004 plus 1 official
   clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
@@ -63,9 +63,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1 Step 6: author and review canonical batch-004 using the same bounded
+**Phase 4 Task 1 Step 6: author and review canonical batch-005 using the same bounded
 candidate → question/plan approval → deterministic reference → expectation approval →
-canonical promotion flow.** The suite has 73 of the required 250–300 cases, so 177–227
+canonical promotion flow.** The suite has 97 of the required 250–300 cases, so 153–203
 more reviewed cases remain. Do not start Task 2 or run the final full gate until the
 Task 1 canonical set is complete.
 
@@ -146,6 +146,41 @@ Task 1 canonical set is complete.
   `2026-07-11`. Repository-wide pytest/Ruff/mypy and the final full gate were
   deliberately not repeated at this partial checkpoint; they remain reserved for the
   final Task 1 commit candidate.
+
+## Phase 4 Task 1 batch-004 checkpoint
+
+- Candidate generator checkpoint: `7c387f8`. Deterministic reference checkpoint:
+  `19ee9e5`. Approval/promotion-boundary checkpoints: `585048b` and `1baabb0`.
+  Canonical promotion checkpoint: `5254855` (`test: promote approved canonical
+  batch-004`).
+- Human canonical-reference approval is versioned as reviewer `곽태성`, review date
+  `2026-08-25`, bound to reference packet SHA-256
+  `cc4aed0d151555c6f4e6e62bfc1edb9c4913fa03eda81bf9d8d068c9c1546923`, approved
+  question/plan packet SHA-256
+  `dacf05f0571e963148f345b1d16b771036d3cc05a1c2fb6af75d1644fe6edd5a`, and artifact
+  manifest logical hash
+  `59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236`.
+- Focused RED→GREEN removed bounded product/partition row leakage from aggregate
+  answers, added a source-linked 90-day remaining-days comparison, made missing fixed
+  FX explicit for cross-currency AUM, and taught the promoter the one approved
+  synthetic integer evidence field without adding it to the query registry. The final
+  answer/evidence aggregate passed 27 tests; reference authoring passed 18 tests;
+  promotion passed 15 tests; and the unit evaluation aggregate passed 94 tests. Scoped
+  Ruff and both clean non-incremental and standard mypy passed.
+- `CQ-004-014` preserves the evidenced 90-day difference and identifies
+  `KR101501DD47` as longer. `CQ-004-017` and `CQ-004-018` expose aggregate results
+  without bounded sample rows. `CQ-004-020` and `CQ-004-022` preserve currency
+  separation and state that no integrated rank is provided without a fixed FX basis.
+- Canonical inventory: lookup 16, screen 20, rank 16, compare 12, aggregate 8,
+  cross-product 8, clarification 5 (1 official + 4 batches), and quality 12; 97 unique
+  IDs total. All 73 prior canonical lines were preserved as exact byte prefixes.
+- Independent implementation review found one Important exact-byte lineage mismatch
+  caused by removing the approved packet's terminal blank line. Commit `1baabb0`
+  restored the approved bytes; the bounded re-review closed at Critical 0 / Important
+  0 / Minor 0. No other correction round was required.
+- Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
+  not repeated at this partial checkpoint; they remain reserved for the final Task 1
+  commit candidate.
 
 ## Phase 1 Task 5 design and plan record
 
