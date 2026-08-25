@@ -374,7 +374,7 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         quality = grouped["quality"][1]
         if "복수" not in quality or "등급 정책" not in quality:
             raise ValueError("batch 002 quality 002 must confirm multiple-rating policy")
-    return [
+    candidates = [
         {
             "candidate_id": f"CQ-{batch_id}-{category.upper()}-{index:03d}",
             "category": category,
@@ -383,6 +383,10 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         for category, category_questions in grouped.items()
         for index, question in enumerate(category_questions, 1)
     ]
+    if batch_id == "003":
+        for index, candidate in enumerate(candidates, 1):
+            candidate["candidate_id"] = f"CQ-003-{index:03d}"
+    return candidates
 
 
 def write_review_packet(

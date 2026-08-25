@@ -236,8 +236,9 @@ async def test_hcx_generation_supports_the_frozen_batch_003_contract() -> None:
     assert packet["review_status"] == "pending_human_review"
     assert packet["reviewer"] == "곽태성"
     candidates = cast(list[dict[str, str]], packet["candidates"])
-    assert candidates[0]["candidate_id"] == "CQ-003-LOOKUP-001"
-    assert candidates[-1]["candidate_id"] == "CQ-003-QUALITY-003"
+    assert [candidate["candidate_id"] for candidate in candidates] == [
+        f"CQ-003-{index:03d}" for index in range(1, 25)
+    ]
     request, request_id = client.requests[0]
     assert request_id == "finproof-canonical-question-candidates-003"
     assert request.model_name == "HCX-007"
@@ -614,5 +615,6 @@ def test_cli_passes_batch_003_to_hcx_and_writes_batch_003_packet(
     assert written["batch_id"] == "003"
     assert written["seed"] == 41
     assert written["prompt_version"] == "canonical-question-candidates-v6"
-    assert written["candidates"][0]["candidate_id"] == "CQ-003-LOOKUP-001"
-    assert written["candidates"][-1]["candidate_id"] == "CQ-003-QUALITY-003"
+    assert [candidate["candidate_id"] for candidate in written["candidates"]] == [
+        f"CQ-003-{index:03d}" for index in range(1, 25)
+    ]
