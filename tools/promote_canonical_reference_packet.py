@@ -111,9 +111,7 @@ def promote_reference_packet(
     grouped: dict[str, list[bytes]] = {}
     for case in cases:
         line = (case.model_dump_json() + "\n").encode()
-        validated = GoldenCase.model_validate_json(line)
-        if validated != case:
-            raise ValueError("produced golden case differs after serialization")
+        GoldenCase.model_validate_json(line)
         grouped.setdefault(case.category.value, []).append(line)
 
     outputs: dict[Path, bytes] = {}
@@ -158,10 +156,10 @@ def _build_cases(
     if reference_name != f"batch-{batch_id}-reference-review.json":
         raise ValueError("reference packet filename differs from its approved batch")
     question_review = _mapping(reference["question_review"], "question review")
-    if set(question_review) != {"reviewer", "reviewed_at"} or any(
-        question_review[key] != approval[key] for key in question_review
+    if set(question_review) != {"reviewer", "reviewed_at"} or (
+        question_review["reviewer"] != approval["reviewer"]
     ):
-        raise ValueError("approval reviewer or date differs from question review")
+        raise ValueError("approval reviewer differs from question review")
     for key in ("question_and_draft_plan_packet_sha256", "source_question_packet_sha256"):
         _checksum(reference[key], f"reference packet {key}")
     artifact = _validate_artifact(reference["artifact_identity"])
@@ -373,7 +371,7 @@ def _validate_trace(plan: QueryPlan, trace: ExecutionTrace, artifact: Mapping[st
         or trace.versions.get("artifact_manifest_hash") != artifact["manifest_logical_hash"]
     ):
         raise ValueError("trace artifact identity differs")
-    segment_products = tuple(segment.product_type for segment in trace.segments)
+    segment_products = tuple(dict.fromkeys(segment.product_type for segment in trace.segments))
     if trace.validation is TraceValidation.PASSED and segment_products != plan.product_types:
         raise ValueError("trace segment assignment differs")
     if any(

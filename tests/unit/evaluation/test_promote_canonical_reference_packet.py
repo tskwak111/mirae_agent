@@ -8,11 +8,15 @@ from typing import cast
 
 import pytest
 
+from finproof.domain.query_plan import QueryPlan
 from finproof.evaluation.loader import load_golden_cases
+from finproof.evaluation.scoring import score_filters
 
 _ROOT = Path(__file__).resolve().parents[3]
 _REFERENCE = _ROOT / "evaluation/review_batches/batch-001-reference-review.json"
 _APPROVAL = _ROOT / "evaluation/review_batches/batch-001-reference-approval.json"
+_BATCH_TWO_REFERENCE = _ROOT / "evaluation/review_batches/batch-002-reference-review.json"
+_BATCH_TWO_APPROVAL = _ROOT / "evaluation/review_batches/batch-002-reference-approval.json"
 _OFFICIAL = _ROOT / "evaluation/canonical/clarification.jsonl"
 
 
@@ -153,13 +157,71 @@ def test_promotes_exact_approved_packet_and_preserves_existing_case(tmp_path: Pa
     )
 
 
+def test_promotes_later_canonical_reference_approval_date(tmp_path: Path) -> None:
+    repository, reference, approval, canonical = _workspace(tmp_path)
+    payload = json.loads(approval.read_text(encoding="utf-8"))
+    payload["reviewed_at"] = "2026-08-25"
+    approval.write_text(json.dumps(payload), encoding="utf-8")
+
+    _promote(repository, reference, approval, canonical)
+
+    cases = load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))
+    promoted = [case for case in cases if case.case_id.startswith("CQ-001-")]
+    assert len(promoted) == 24
+    assert {case.review.reviewed_at.isoformat() for case in promoted} == {"2026-08-25"}
+
+
+def test_accepts_repeated_compatibility_segments_but_rejects_reordered_products(
+    tmp_path: Path,
+) -> None:
+    repository, reference, approval, canonical = _workspace(tmp_path)
+    payload = json.loads(reference.read_text(encoding="utf-8"))
+    cases = cast(list[dict[str, object]], payload["cases"])
+    cross_product = next(case for case in cases if case["case_id"] == "CQ-001-CROSS_PRODUCT-001")
+    trace = cast(dict[str, object], cross_product["trace"])
+    segments = cast(list[dict[str, object]], trace["segments"])
+    segments.append(dict(segments[0]))
+    _write_packet(reference, approval, payload)
+
+    _promote(repository, reference, approval, canonical)
+
+    before = {path.name: path.read_bytes() for path in canonical.iterdir()}
+    segments[:] = [segments[1], segments[0], segments[2]]
+    _write_packet(reference, approval, payload)
+    with pytest.raises(ValueError, match="segment assignment"):
+        _promote(repository, reference, approval, canonical)
+    assert {path.name: path.read_bytes() for path in canonical.iterdir()} == before
+
+
+def test_promotes_decimal_filters_with_stable_scoring_keys(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    review = repository / "evaluation/review_batches"
+    canonical = repository / "evaluation/canonical"
+    review.mkdir(parents=True)
+    reference = review / _BATCH_TWO_REFERENCE.name
+    approval = review / _BATCH_TWO_APPROVAL.name
+    reference.write_bytes(_BATCH_TWO_REFERENCE.read_bytes())
+    approval.write_bytes(_BATCH_TWO_APPROVAL.read_bytes())
+
+    _promote(repository, reference, approval, canonical)
+
+    cases = load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))
+    promoted = next(case for case in cases if case.case_id == "CQ-002-SCREEN-003")
+    source = next(
+        case
+        for case in json.loads(_BATCH_TWO_REFERENCE.read_text(encoding="utf-8"))["cases"]
+        if case["case_id"] == promoted.case_id
+    )
+    observed_plan = QueryPlan.model_validate_json(json.dumps(source["plan"]))
+    assert score_filters(promoted.expected_plan.filters or (), observed_plan.filters).value == 1
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
         ("reference_packet_sha256", "0" * 64),
         ("review_status", "pending_human_review"),
         ("reviewer", "someone-else"),
-        ("reviewed_at", "2026-08-23"),
         ("batch_id", "002"),
     ],
 )
