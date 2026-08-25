@@ -165,6 +165,57 @@ clarification 1, quality 3.
 출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
 """
 
+_PROMPT_003 = """당신은 FinProof 평가 질문 후보 작성자입니다.
+생성물은 사람 검토 전의 질문 후보이며 정답 데이터가 아니다. ground truth로 취급하지 마십시오.
+공식 2026-07-11 스냅샷의 네 데이터 계열인 국내채권, 국내 ETF/ETN, 해외 ETF/ETN,
+공모펀드를 대상으로 자연스러운 한국어 질문을 작성하십시오.
+일반적인 ETF 질문은 ETN을 제외합니다. ETN을 명시한 질문만 ETN을 포함합니다.
+미래 수익률 예측이나 단정적인 투자 추천을 요구하지 마십시오.
+아래 24개 슬롯을 각각 자연스러운 한국어 질문 하나로만 표현하십시오.
+슬롯별 식별자, 필드/지표, 임계값, 날짜, 상품 유형, 순서와 category를 바꾸지 마십시오:
+1 lookup: 국내채권 KR353601DE34의 매수수익률과 잔존일수 조회
+2 lookup: 국내 ETN KRG520000826의 3개월 수익률과 연초이후 수익률 조회
+3 lookup: 해외 ETN NRGD.K의 총보수와 AUM 조회
+4 lookup: 공모펀드 KR5174430032의 3년 수익률과 위험등급 조회
+5 screen: 매수수익률 3% 이상, 만기일이 2026-07-11 이후이고 \
+매수가능수량이 1천만 이상인 국내채권
+6 screen: 6개월 수익률 50% 이상이고 판매 가능한 국내 ETF, ETN 제외
+7 screen: 투자지역이 미국이고 총보수 0.15% 이하인 해외 ETF, ETN 제외
+8 screen: 3년 수익률 50% 이상이고 위험등급이 낮은 위험인 공모펀드
+9 screen: 3개월 수익률 10% 이상이고 판매 가능한 국내 ETN, ETN 명시
+10 rank: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 국내채권 중 \
+매수가능수량 상위 5개
+11 rank: 국내 ETF 6개월 수익률 상위 5개, ETN 제외
+12 rank: 거래통화 USD인 해외 ETN AUM 상위 5개, ETN 명시
+13 rank: 공모펀드 3년 수익률 상위 5개
+14 compare: 국내채권 KR353601DE34와 KR354301GB84의 매수수익률 비교
+15 compare: 국내 ETN KRG520000826와 KRG530001202의 3개월 수익률 비교
+16 compare: 공모펀드 KR5174430032와 KR5114450497의 3년 수익률 비교
+17 aggregate: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 국내채권의 \
+매수수익률 평균
+18 aggregate: 거래통화 USD인 해외 ETN의 AUM 합계, ETN 명시
+19 cross_product: 국내 ETF와 공모펀드의 6개월 수익률 상위 3개를 유형별 분리
+20 cross_product: 국내 ETN과 해외 ETN의 AUM 상위 3개를 통화별·유형별 분리
+21 clarification: 위험이 낮고 장기 수익률이 좋은 공모펀드 5개 요청. 자연스러운 질문으로만 작성하고 \
+추천·모호성 설명을 쓰지 않으며, 수익률 기간과 복합 우선순위는 질문에서 생략
+22 quality: 매수가능수량이 양수로 기록된 국내채권과 2026-07-11 기준 만기 경과를 제외한 \
+매수 가능 후보 수를 각각 집계
+23 quality: 해외 ETN 총보수 낮은 5개에서 기록된 0%와 0보다 큰 값을 구분하고, \
+기록된 0%가 실제 무보수인지 미검증임을 경고
+24 quality: 위험등급별 공모펀드 수를 itm_no 상품번호 기준으로 중복 없이 집계하고 \
+속성 행 수로 세지 않음을 확인
+슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
+상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
+응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
+루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
+정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
+lookup 4, screen 5, rank 4, compare 3, aggregate 2, cross_product 2,
+clarification 1, quality 3.
+배열 슬롯은 1~4 lookup, 5~9 screen, 10~13 rank, 14~16 compare,
+17~18 aggregate, 19~20 cross_product, 21 clarification, 22~24 quality 순서로 고정하십시오.
+출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
+"""
+
 
 def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
     if batch_id == "001":
@@ -176,7 +227,14 @@ def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
             _PROMPT_002,
             ("finproof-canonical-question-candidates-002"),
         )
-    raise ValueError("batch_id must be one of: 001, 002")
+    if batch_id == "003":
+        return (
+            41,
+            "canonical-question-candidates-v6",
+            _PROMPT_003,
+            "finproof-canonical-question-candidates-003",
+        )
+    raise ValueError("batch_id must be one of: 001, 002, 003")
 
 
 class _Response(Protocol):
@@ -431,7 +489,7 @@ def main(
         description="Generate HCX-only noncanonical question candidates."
     )
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--batch-id", default=BATCH_ID, choices=("001", "002"))
+    parser.add_argument("--batch-id", default=BATCH_ID, choices=("001", "002", "003"))
     args = parser.parse_args(argv)
 
     root = repository_root or Path.cwd()
