@@ -108,7 +108,11 @@ class AnswerRenderer:
                         sign=_sign(summary.value),
                     )
                 )
-            elif summary.kind is EvidenceSummaryKind.PARTITION and summary.value is not None:
+            elif (
+                summary.kind is EvidenceSummaryKind.PARTITION
+                and summary.value is not None
+                and plan.intent is not Intent.AGGREGATE
+            ):
                 partition_text = f"분할 {_summary_scope(summary)}: {summary.value}건"
                 lines.append(partition_text)
                 claims.append(
@@ -224,18 +228,23 @@ class AnswerRenderer:
                     value=limitation,
                 )
             )
-        products = dict.fromkeys(
-            (
-                *(
-                    (item.product_type, item.product_id)
-                    for item in evidence.direct
-                    if item.product_id is not None
-                ),
-                *(
-                    (item.product_type, item.product_id)
-                    for item in evidence.derived
-                    if item.product_id is not None
-                ),
+        _append_remaining_days_difference(lines=lines, claims=claims, evidence=evidence)
+        products = (
+            {}
+            if plan.intent is Intent.AGGREGATE
+            else dict.fromkeys(
+                (
+                    *(
+                        (item.product_type, item.product_id)
+                        for item in evidence.direct
+                        if item.product_id is not None
+                    ),
+                    *(
+                        (item.product_type, item.product_id)
+                        for item in evidence.derived
+                        if item.product_id is not None
+                    ),
+                )
             )
         )
         for product_type, product_id in products:
@@ -276,6 +285,8 @@ class AnswerRenderer:
                     value=direct_item.value.normalized_value,
                 )
             for derived_item in derived:
+                if derived_item.field_id == "remaining_days_difference":
+                    continue
                 _append_value(
                     lines=lines,
                     claims=claims,
@@ -308,6 +319,60 @@ class AnswerRenderer:
             text="\n".join(lines),
             claims=tuple(claims),
         )
+
+
+def _append_remaining_days_difference(
+    *,
+    lines: list[str],
+    claims: list[AnswerClaim],
+    evidence: EvidenceBundle,
+) -> None:
+    difference = next(
+        (item for item in evidence.derived if item.field_id == "remaining_days_difference"),
+        None,
+    )
+    if (
+        difference is None
+        or difference.product_id is None
+        or type(difference.value.value) is not int
+    ):
+        return
+    compared_ids = tuple(
+        dict.fromkeys(
+            item.product_id
+            for item in evidence.derived
+            if item.field_id == "remaining_days_at_as_of"
+            and item.product_type is difference.product_type
+            and item.product_id is not None
+        )
+    )
+    if len(compared_ids) != 2 or difference.product_id not in compared_ids:
+        return
+    other_id = next(item for item in compared_ids if item != difference.product_id)
+    value = difference.value.value
+    line = (
+        f"- {difference.product_type.value} {difference.product_id}의 기준일 잔존일수가 "
+        f"{other_id}보다 {value}일 깁니다."
+        if value
+        else (
+            f"- {difference.product_type.value} {compared_ids[0]}과 {compared_ids[1]}의 "
+            "기준일 잔존일수 차이는 0일입니다."
+        )
+    )
+    lines.append(line)
+    claims.append(
+        AnswerClaim(
+            claim_id=f"claim:value:{difference.evidence_id}",
+            kind=ClaimKind.NUMERIC,
+            text=line,
+            product_type=difference.product_type,
+            product_id=difference.product_id,
+            field_id=difference.field_id,
+            value=value,
+            evidence_ids=(difference.evidence_id,),
+            sign=_sign(value),
+        )
+    )
 
 
 def _append_value(

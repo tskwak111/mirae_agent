@@ -4,6 +4,7 @@ from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 from hashlib import sha256
+from typing import cast
 
 from finproof.answer.templates import wording_text
 from finproof.data.artifacts.hashing import canonical_json_bytes
@@ -16,6 +17,7 @@ from finproof.domain.evidence import (
     EvidenceSummaryValue,
 )
 from finproof.domain.execution import ValidatedQueryPlan
+from finproof.domain.quality import QualityStatus
 from finproof.domain.query_plan import (
     AggregationFunction,
     FilterOperator,
@@ -26,6 +28,7 @@ from finproof.domain.query_plan import (
     SortDirection,
     TopKScope,
 )
+from finproof.domain.values import DerivedValue
 from finproof.quality import MetricValue, PolicyExecutionResult, RankPolicyResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
@@ -111,6 +114,14 @@ class EvidenceBuilder:
         records = tuple(records_by_identity[identity] for identity in selected)
         direct = tuple(item for record in records for item in record.direct)
         derived = tuple(item for record in records for item in record.derived)
+        derived = (
+            *derived,
+            *_remaining_days_difference(
+                plan=original,
+                items=derived,
+                rule_version=repository._session.versions.answer_policy_version,
+            ),
+        )
         evidence_ids = (
             *(item.evidence_id for item in direct),
             *(item.evidence_id for item in derived),
@@ -343,7 +354,7 @@ class EvidenceBuilder:
                         if len(ranks) < len(policy_result.ranks)
                         else ()
                     ),
-                    *(("통화별로 결과를 분리했습니다.",) if len(currencies - {None}) > 1 else ()),
+                    *_cross_currency_limitations(currencies),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
             )
@@ -482,6 +493,66 @@ def _recorded_evidence_ids(
         for item in items
         if (item.product_type, item.product_id, item.field_id)
         == (product_type, product_id, field_id)
+    )
+
+
+def _remaining_days_difference(
+    *,
+    plan: QueryPlan,
+    items: tuple[DerivedEvidence[object], ...],
+    rule_version: str,
+) -> tuple[DerivedEvidence[object], ...]:
+    if plan.intent is not Intent.COMPARE or plan.metrics != ("remaining_days_at_as_of",):
+        return ()
+    values = tuple(
+        item
+        for item in items
+        if item.field_id == "remaining_days_at_as_of"
+        and item.product_id is not None
+        and type(item.value.value) is int
+        and item.value.quality_status is QualityStatus.VALID
+    )
+    if len(values) != 2 or values[0].product_type is not values[1].product_type:
+        return ()
+    first, second = values
+    first_product_id = first.product_id
+    second_product_id = second.product_id
+    if first_product_id is None or second_product_id is None:
+        return ()
+    first_value = cast(int, first.value.value)
+    second_value = cast(int, second.value.value)
+    longer_product_id = second_product_id if second_value > first_value else first_product_id
+    identity = "\0".join(
+        (
+            first.product_type.value,
+            first_product_id,
+            second_product_id,
+            "remaining_days_difference",
+        )
+    )
+    return (
+        DerivedEvidence[object](
+            evidence_id=f"comparison:{sha256(identity.encode()).hexdigest()}:remaining_days_difference",
+            product_type=first.product_type,
+            product_id=longer_product_id,
+            field_id="remaining_days_difference",
+            value=DerivedValue[object](
+                value=abs(first_value - second_value),
+                quality_status=QualityStatus.VALID,
+                rule_id="comparison.remaining_days_difference",
+                rule_version=rule_version,
+                as_of_date=plan.as_of_date,
+                inputs=(*first.value.inputs, *second.value.inputs),
+            ),
+        ),
+    )
+
+
+def _cross_currency_limitations(currencies: set[str | None]) -> tuple[str, ...]:
+    return (
+        ("통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다.",)
+        if len(currencies - {None}) > 1
+        else ()
     )
 
 

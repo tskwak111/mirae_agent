@@ -253,6 +253,87 @@ def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
 
 
+def test_aggregate_renderer_does_not_project_sample_product_rows() -> None:
+    """Rendering bounded aggregate evidence as products would misstate the aggregate output."""
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import AggregationFunction, AggregationSpec, Intent, ProductType
+    from finproof.evidence import ClaimVerifier
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("product_id", "buy_yield"),
+                ),
+            )
+        )[0]
+        .direct
+    )
+    summary = EvidenceSummary(
+        summary_id="summary:aggregate:0",
+        kind=EvidenceSummaryKind.AGGREGATE,
+        included_count=254,
+        excluded_count=0,
+        evidence_ids=tuple(item.evidence_id for item in direct),
+        policy_versions=("bond.buy_yield:avg",),
+        validated_plan_sha256="a" * 64,
+        version_bundle_sha256="b" * 64,
+        artifact_manifest_hash="c" * 64,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        native_result_grains=(_plan().result_grain,),
+        partition_key="yield:None:source:same_metric_only",
+        metric_id="buy_yield",
+        value=Decimal("3.10"),
+    )
+    partition = summary.model_copy(
+        update={
+            "summary_id": "summary:partition:0",
+            "kind": EvidenceSummaryKind.PARTITION,
+            "included_count": 5,
+            "excluded_count": 249,
+            "value": 5,
+        }
+    )
+    evidence = EvidenceBundle(
+        direct=direct,
+        derived=(),
+        summaries=(partition, summary),
+        material_policy_limitations=(),
+    )
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": ("buy_yield",),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.AVG,
+                field="buy_yield",
+                group_by=(),
+            ),
+        }
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-aggregate-only", question="평균 매수수익률은?"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    assert "buy_yield 평균: 3.10" in draft.text
+    assert "분할" not in draft.text
+    assert "- domestic_bond KR0000000001" not in draft.text
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    session._close()
+
+
 def test_renderer_distinguishes_source_recorded_and_state_validated_count() -> None:
     """Removing either count lens would conceal the state exclusion."""
     from finproof.answer import AnswerRenderer

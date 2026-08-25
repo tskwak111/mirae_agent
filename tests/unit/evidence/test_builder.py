@@ -609,6 +609,95 @@ def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
     session._close()
 
 
+def test_builder_cross_currency_limitation_names_missing_fixed_fx_basis() -> None:
+    """Currency separation alone would omit why an integrated AUM rank is invalid."""
+    from finproof.evidence.builder import _cross_currency_limitations
+
+    assert any(
+        "고정 환율 기준이 없어" in item and "통합 순위" in item
+        for item in _cross_currency_limitations({"KRW", "USD"})
+    )
+    assert _cross_currency_limitations({"USD"}) == ()
+
+
+def test_compare_builder_and_renderer_expose_evidenced_remaining_days_difference() -> None:
+    """Listing two remaining-day values would omit the requested deterministic difference."""
+    from tests.unit.answer.test_renderer import _plan
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import Intent, ProductType
+    from finproof.evidence import ClaimVerifier
+    from finproof.evidence.builder import _remaining_days_difference
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    template = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("remaining_days_at_as_of",),
+                ),
+            )
+        )[0]
+        .derived[0]
+    )
+    product_ids = ("KR101501DD13", "KR101501DD47")
+    remaining_days = (569, 659)
+    items = tuple(
+        template.model_copy(
+            update={
+                "evidence_id": f"domestic_bond:{product_id}:remaining_days_at_as_of",
+                "product_id": product_id,
+                "value": template.value.model_copy(
+                    update={
+                        "value": days,
+                        "inputs": tuple(
+                            source.model_copy(update={"source_row_number": 77 + index})
+                            for source in template.value.inputs
+                        ),
+                    }
+                ),
+            }
+        )
+        for index, (product_id, days) in enumerate(zip(product_ids, remaining_days, strict=True))
+    )
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.COMPARE,
+            "metrics": ("remaining_days_at_as_of",),
+            "top_k": 2,
+        }
+    )
+    difference = _remaining_days_difference(
+        plan=plan,
+        items=items,
+        rule_version="1.0.0",
+    )[0]
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(*items, difference),
+        summaries=(),
+        material_policy_limitations=(),
+    )
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-days-difference", question="잔존기간 차이는?"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    assert difference.product_id == "KR101501DD47"
+    assert difference.value.value == 90
+    assert len(difference.value.inputs) == 2
+    assert "KR101501DD47의 기준일 잔존일수가 KR101501DD13보다 90일 깁니다." in draft.text
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    session._close()
+
+
 def test_rank_evidence_bound_uses_global_or_per_product_type_scope() -> None:
     from finproof.domain.query_plan import ProductType, ResultGrain, TopKScope
     from finproof.evidence.builder import _bounded_ranks
