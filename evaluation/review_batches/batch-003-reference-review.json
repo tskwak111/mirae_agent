@@ -14320,6 +14320,23 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:count",
+            "evidence_ids": [
+              "summary:count"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": "positive",
+            "text": "원천 기록 기준 상품 개수: 325",
+            "value": 325
+          },
+          {
             "claim_id": "claim:summary:summary:aggregate:0",
             "evidence_ids": [
               "summary:aggregate:0"
@@ -14337,7 +14354,7 @@
               "domestic_bond"
             ],
             "sign": "positive",
-            "text": "domestic_bond/instrument [count:instrument:domestic_bond] 상품 개수: 254",
+            "text": "domestic_bond/instrument [count:instrument:domestic_bond] 상태 검증 후 상품 개수: 254",
             "value": 254
           },
           {
@@ -14526,7 +14543,7 @@
             "value": "295814000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [count:instrument:domestic_bond] 상품 개수: 254\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR101501DB72 product_id: KR101501DB72\n- domestic_bond KR101501DB72 buyable_quantity: 31637000\n- domestic_bond KR101501DC48 product_id: KR101501DC48\n- domestic_bond KR101501DC48 buyable_quantity: 52865000\n- domestic_bond KR101501DD13 product_id: KR101501DD13\n- domestic_bond KR101501DD13 buyable_quantity: 147172000\n- domestic_bond KR101501DD47 product_id: KR101501DD47\n- domestic_bond KR101501DD47 buyable_quantity: 194692000\n- domestic_bond KR101501DD54 product_id: KR101501DD54\n- domestic_bond KR101501DD54 buyable_quantity: 295814000"
+        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 325\ndomestic_bond/instrument [count:instrument:domestic_bond] 상태 검증 후 상품 개수: 254\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR101501DB72 product_id: KR101501DB72\n- domestic_bond KR101501DB72 buyable_quantity: 31637000\n- domestic_bond KR101501DC48 product_id: KR101501DC48\n- domestic_bond KR101501DC48 buyable_quantity: 52865000\n- domestic_bond KR101501DD13 product_id: KR101501DD13\n- domestic_bond KR101501DD13 buyable_quantity: 147172000\n- domestic_bond KR101501DD47 product_id: KR101501DD47\n- domestic_bond KR101501DD47 buyable_quantity: 194692000\n- domestic_bond KR101501DD54 product_id: KR101501DD54\n- domestic_bond KR101501DD54 buyable_quantity: 295814000"
       },
       "case_id": "CQ-003-022",
       "category": "quality",
@@ -14816,7 +14833,7 @@
             "summary_id": "summary:count",
             "tie_count": null,
             "validated_plan_sha256": "16791dd5a7cdd2a13b3e9aaa6d49d82fd547d4d59a6ec83ab981063eb8adf222",
-            "value": null,
+            "value": 325,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -14987,6 +15004,111 @@
             "sign": "positive",
             "text": "분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건",
             "value": 8
+          },
+          {
+            "claim_id": "claim:summary:summary:recorded:0",
+            "evidence_ids": [
+              "summary:recorded:0"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "product_id": "AMJB.K",
+            "product_type": "overseas_etn",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMJB.K total_fee: 0E-18",
+            "value": "0E-18"
+          },
+          {
+            "claim_id": "claim:summary:summary:recorded:1",
+            "evidence_ids": [
+              "summary:recorded:1"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "product_id": "AMUB.K",
+            "product_type": "overseas_etn",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMUB.K total_fee: 0E-18",
+            "value": "0E-18"
+          },
+          {
+            "claim_id": "claim:summary:summary:recorded:2",
+            "evidence_ids": [
+              "summary:recorded:2"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "product_id": "ATMP.K",
+            "product_type": "overseas_etn",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] ATMP.K total_fee: 0E-18",
+            "value": "0E-18"
+          },
+          {
+            "claim_id": "claim:summary:summary:recorded:3",
+            "evidence_ids": [
+              "summary:recorded:3"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "product_id": "BDCX.K",
+            "product_type": "overseas_etn",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCX.K total_fee: 0E-18",
+            "value": "0E-18"
+          },
+          {
+            "claim_id": "claim:summary:summary:recorded:4",
+            "evidence_ids": [
+              "summary:recorded:4"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "product_id": "BDCZ.K",
+            "product_type": "overseas_etn",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCZ.K total_fee: 0E-18",
+            "value": "0E-18"
           },
           {
             "claim_id": "claim:summary:summary:rank:0",
@@ -15233,8 +15355,8 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "기록된 0값은 비교 가능 기준에서 제외했습니다.",
-            "value": "기록된 0값은 비교 가능 기준에서 제외했습니다."
+            "text": "기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다.",
+            "value": "기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다."
           },
           {
             "claim_id": "claim:value:overseas_etn:VYLD.K:product_id",
@@ -15405,9 +15527,179 @@
             "sign": "positive",
             "text": "- overseas_etn BNKU.K total_fee: 0.950000",
             "value": "0.950000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:AMJB.K:product_id",
+            "evidence_ids": [
+              "overseas_etn:AMJB.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AMJB.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etn AMJB.K product_id: AMJB.K",
+            "value": "AMJB.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:AMJB.K:total_fee",
+            "evidence_ids": [
+              "overseas_etn:AMJB.K:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AMJB.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn AMJB.K total_fee: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:AMUB.K:product_id",
+            "evidence_ids": [
+              "overseas_etn:AMUB.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AMUB.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etn AMUB.K product_id: AMUB.K",
+            "value": "AMUB.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:AMUB.K:total_fee",
+            "evidence_ids": [
+              "overseas_etn:AMUB.K:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AMUB.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn AMUB.K total_fee: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:ATMP.K:product_id",
+            "evidence_ids": [
+              "overseas_etn:ATMP.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "ATMP.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etn ATMP.K product_id: ATMP.K",
+            "value": "ATMP.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:ATMP.K:total_fee",
+            "evidence_ids": [
+              "overseas_etn:ATMP.K:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "ATMP.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn ATMP.K total_fee: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:BDCX.K:product_id",
+            "evidence_ids": [
+              "overseas_etn:BDCX.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "BDCX.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etn BDCX.K product_id: BDCX.K",
+            "value": "BDCX.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:BDCX.K:total_fee",
+            "evidence_ids": [
+              "overseas_etn:BDCX.K:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "BDCX.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn BDCX.K total_fee: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:BDCZ.K:product_id",
+            "evidence_ids": [
+              "overseas_etn:BDCZ.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "BDCZ.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etn BDCZ.K product_id: BDCZ.K",
+            "value": "BDCZ.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etn:BDCZ.K:total_fee",
+            "evidence_ids": [
+              "overseas_etn:BDCZ.K:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "BDCZ.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn BDCZ.K total_fee: 0.000000",
+            "value": "0.000000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] VYLD.K total_fee: 0.850000000000000000 (1위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQU.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKU.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했습니다.\n- overseas_etn VYLD.K product_id: VYLD.K\n- overseas_etn VYLD.K total_fee: 0.850000\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn AIQU.K product_id: AIQU.K\n- overseas_etn AIQU.K total_fee: 0.950000\n- overseas_etn BNKD.K product_id: BNKD.K\n- overseas_etn BNKD.K total_fee: 0.950000\n- overseas_etn BNKU.K product_id: BNKU.K\n- overseas_etn BNKU.K total_fee: 0.950000"
+        "text": "2026-07-11 제공 스냅샷 기준\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMJB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMUB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] ATMP.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCX.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCZ.K total_fee: 0E-18\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] VYLD.K total_fee: 0.850000000000000000 (1위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQU.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKU.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다.\n- overseas_etn VYLD.K product_id: VYLD.K\n- overseas_etn VYLD.K total_fee: 0.850000\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn AIQU.K product_id: AIQU.K\n- overseas_etn AIQU.K total_fee: 0.950000\n- overseas_etn BNKD.K product_id: BNKD.K\n- overseas_etn BNKD.K total_fee: 0.950000\n- overseas_etn BNKU.K product_id: BNKU.K\n- overseas_etn BNKU.K total_fee: 0.950000\n- overseas_etn AMJB.K product_id: AMJB.K\n- overseas_etn AMJB.K total_fee: 0.000000\n- overseas_etn AMUB.K product_id: AMUB.K\n- overseas_etn AMUB.K total_fee: 0.000000\n- overseas_etn ATMP.K product_id: ATMP.K\n- overseas_etn ATMP.K total_fee: 0.000000\n- overseas_etn BDCX.K product_id: BDCX.K\n- overseas_etn BDCX.K total_fee: 0.000000\n- overseas_etn BDCZ.K product_id: BDCZ.K\n- overseas_etn BDCZ.K total_fee: 0.000000"
       },
       "case_id": "CQ-003-023",
       "category": "quality",
@@ -15620,6 +15912,176 @@
             2,
             "B",
             null
+          ],
+          [
+            "overseas_etn:AMJB.K:product_id",
+            "overseas_etn",
+            "AMJB.K",
+            "product_id",
+            "AMJB.K",
+            "AMJB.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            140,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etn:AMJB.K:total_fee",
+            "overseas_etn",
+            "AMJB.K",
+            "total_fee",
+            "0.000000",
+            "0.000000",
+            "recorded_zero_unverified",
+            "overseas_listed.total_fee",
+            "1.0.0",
+            0,
+            140,
+            "cu_charge_rt",
+            2,
+            "B",
+            null
+          ],
+          [
+            "overseas_etn:AMUB.K:product_id",
+            "overseas_etn",
+            "AMUB.K",
+            "product_id",
+            "AMUB.K",
+            "AMUB.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            2672,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etn:AMUB.K:total_fee",
+            "overseas_etn",
+            "AMUB.K",
+            "total_fee",
+            "0.000000",
+            "0.000000",
+            "recorded_zero_unverified",
+            "overseas_listed.total_fee",
+            "1.0.0",
+            0,
+            2672,
+            "cu_charge_rt",
+            2,
+            "B",
+            null
+          ],
+          [
+            "overseas_etn:ATMP.K:product_id",
+            "overseas_etn",
+            "ATMP.K",
+            "product_id",
+            "ATMP.K",
+            "ATMP.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            2125,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etn:ATMP.K:total_fee",
+            "overseas_etn",
+            "ATMP.K",
+            "total_fee",
+            "0.000000",
+            "0.000000",
+            "recorded_zero_unverified",
+            "overseas_listed.total_fee",
+            "1.0.0",
+            0,
+            2125,
+            "cu_charge_rt",
+            2,
+            "B",
+            null
+          ],
+          [
+            "overseas_etn:BDCX.K:product_id",
+            "overseas_etn",
+            "BDCX.K",
+            "product_id",
+            "BDCX.K",
+            "BDCX.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            1859,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etn:BDCX.K:total_fee",
+            "overseas_etn",
+            "BDCX.K",
+            "total_fee",
+            "0.000000",
+            "0.000000",
+            "recorded_zero_unverified",
+            "overseas_listed.total_fee",
+            "1.0.0",
+            0,
+            1859,
+            "cu_charge_rt",
+            2,
+            "B",
+            null
+          ],
+          [
+            "overseas_etn:BDCZ.K:product_id",
+            "overseas_etn",
+            "BDCZ.K",
+            "product_id",
+            "BDCZ.K",
+            "BDCZ.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            3822,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etn:BDCZ.K:total_fee",
+            "overseas_etn",
+            "BDCZ.K",
+            "total_fee",
+            "0.000000",
+            "0.000000",
+            "recorded_zero_unverified",
+            "overseas_listed.total_fee",
+            "1.0.0",
+            0,
+            3822,
+            "cu_charge_rt",
+            2,
+            "B",
+            null
           ]
         ],
         "direct_fields": [
@@ -15654,7 +16116,7 @@
           "비교 가능 기준",
           "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
           "검증된 매수 가능 여부는 지원하지 않습니다.",
-          "기록된 0값은 비교 가능 기준에서 제외했습니다."
+          "기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다."
         ],
         "sources": [
           {
@@ -15678,7 +16140,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 51,
             "group_values": [],
@@ -15713,7 +16185,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 51,
             "group_values": [],
@@ -15748,7 +16230,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -15773,6 +16265,146 @@
             "tie_count": null,
             "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
             "value": 8,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "overseas_etn:AMJB.K:total_fee"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "recorded",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "policy_versions": [
+              "overseas_etf.total_fee:recorded"
+            ],
+            "product_id": "AMJB.K",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:recorded:0",
+            "tie_count": null,
+            "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
+            "value": "0E-18",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "overseas_etn:AMUB.K:total_fee"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "recorded",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "policy_versions": [
+              "overseas_etf.total_fee:recorded"
+            ],
+            "product_id": "AMUB.K",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:recorded:1",
+            "tie_count": null,
+            "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
+            "value": "0E-18",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "overseas_etn:ATMP.K:total_fee"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "recorded",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "policy_versions": [
+              "overseas_etf.total_fee:recorded"
+            ],
+            "product_id": "ATMP.K",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:recorded:2",
+            "tie_count": null,
+            "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
+            "value": "0E-18",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "overseas_etn:BDCX.K:total_fee"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "recorded",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "policy_versions": [
+              "overseas_etf.total_fee:recorded"
+            ],
+            "product_id": "BDCX.K",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:recorded:3",
+            "tie_count": null,
+            "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
+            "value": "0E-18",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "overseas_etn:BDCZ.K:total_fee"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "recorded",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "recorded:overseas_etf.total_fee:none",
+            "policy_versions": [
+              "overseas_etf.total_fee:recorded"
+            ],
+            "product_id": "BDCZ.K",
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:recorded:4",
+            "tie_count": null,
+            "validated_plan_sha256": "321899697031ecb213d9cec88492a04209065e72f38a1e55aa165c09a5fcf070",
+            "value": "0E-18",
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -15843,7 +16475,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -15908,7 +16550,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -15973,7 +16625,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -16038,7 +16700,17 @@
               "overseas_etn:BNKD.K:product_id",
               "overseas_etn:BNKD.K:total_fee",
               "overseas_etn:BNKU.K:product_id",
-              "overseas_etn:BNKU.K:total_fee"
+              "overseas_etn:BNKU.K:total_fee",
+              "overseas_etn:AMJB.K:product_id",
+              "overseas_etn:AMJB.K:total_fee",
+              "overseas_etn:AMUB.K:product_id",
+              "overseas_etn:AMUB.K:total_fee",
+              "overseas_etn:ATMP.K:product_id",
+              "overseas_etn:ATMP.K:total_fee",
+              "overseas_etn:BDCX.K:product_id",
+              "overseas_etn:BDCX.K:total_fee",
+              "overseas_etn:BDCZ.K:product_id",
+              "overseas_etn:BDCZ.K:total_fee"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -16070,7 +16742,7 @@
         "candidate_counts": {
           "eligible": 59,
           "raw": 59,
-          "returned": 5
+          "returned": 10
         },
         "correlation_id": "trace-86bb1194b4a7090e",
         "intent": "screen_rank",
@@ -16270,6 +16942,110 @@
             "value": 1663
           },
           {
+            "claim_id": "claim:summary:summary:aggregate:5",
+            "evidence_ids": [
+              "summary:aggregate:5"
+            ],
+            "field_id": null,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "매우 낮은 위험"
+              }
+            ],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "product_id": null,
+            "product_type": "public_fund",
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [count:fund_item:public_fund] risk_grade=매우 낮은 위험 상품 개수: 338",
+            "value": 338
+          },
+          {
+            "claim_id": "claim:summary:summary:aggregate:6",
+            "evidence_ids": [
+              "summary:aggregate:6"
+            ],
+            "field_id": null,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "매우 높은 위험"
+              }
+            ],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "product_id": null,
+            "product_type": "public_fund",
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [count:fund_item:public_fund] risk_grade=매우 높은 위험 상품 개수: 670",
+            "value": 670
+          },
+          {
+            "claim_id": "claim:summary:summary:aggregate:7",
+            "evidence_ids": [
+              "summary:aggregate:7"
+            ],
+            "field_id": null,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "보통 위험"
+              }
+            ],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "product_id": null,
+            "product_type": "public_fund",
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [count:fund_item:public_fund] risk_grade=보통 위험 상품 개수: 1386",
+            "value": 1386
+          },
+          {
+            "claim_id": "claim:summary:summary:aggregate:8",
+            "evidence_ids": [
+              "summary:aggregate:8"
+            ],
+            "field_id": null,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "보통위험"
+              }
+            ],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "product_id": null,
+            "product_type": "public_fund",
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [count:fund_item:public_fund] risk_grade=보통위험 상품 개수: 8",
+            "value": 8
+          },
+          {
             "claim_id": "claim:limitation:1",
             "evidence_ids": [],
             "field_id": null,
@@ -16368,9 +17144,145 @@
             "sign": null,
             "text": "- public_fund KR5010101501 product_id: KR5010101501",
             "value": "KR5010101501"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101502:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101502:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101502",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101502 product_id: KR5010101502",
+            "value": "KR5010101502"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101701:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101701:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101701",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101701 product_id: KR5010101701",
+            "value": "KR5010101701"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101702:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101702:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101702",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101702 product_id: KR5010101702",
+            "value": "KR5010101702"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101702:risk_grade",
+            "evidence_ids": [
+              "public_fund:KR5010101702:risk_grade"
+            ],
+            "field_id": "risk_grade",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101702",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101702 risk_grade: 매우 낮은 위험",
+            "value": "매우 낮은 위험"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101703:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101703:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101703",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101703 product_id: KR5010101703",
+            "value": "KR5010101703"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101703:risk_grade",
+            "evidence_ids": [
+              "public_fund:KR5010101703:risk_grade"
+            ],
+            "field_id": "risk_grade",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101703",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101703 risk_grade: 매우 낮은 위험",
+            "value": "매우 낮은 위험"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101714:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101714:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101714",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101714 product_id: KR5010101714",
+            "value": "KR5010101714"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101714:risk_grade",
+            "evidence_ids": [
+              "public_fund:KR5010101714:risk_grade"
+            ],
+            "field_id": "risk_grade",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101714",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101714 risk_grade: 매우 낮은 위험",
+            "value": "매우 낮은 위험"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=None 상품 개수: 2573\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=낮은 위험 상품 개수: 1199\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=높은 위험 상품 개수: 3281\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=높은위험 상품 개수: 20\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=다소 높은 위험 상품 개수: 1663\n검증된 매수 가능 여부는 지원하지 않습니다.\n- public_fund KR5010101401 product_id: KR5010101401\n- public_fund KR5010101402 product_id: KR5010101402\n- public_fund KR5010101404 product_id: KR5010101404\n- public_fund KR5010101405 product_id: KR5010101405\n- public_fund KR5010101501 product_id: KR5010101501"
+        "text": "2026-07-11 제공 스냅샷 기준\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=None 상품 개수: 2573\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=낮은 위험 상품 개수: 1199\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=높은 위험 상품 개수: 3281\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=높은위험 상품 개수: 20\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=다소 높은 위험 상품 개수: 1663\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=매우 낮은 위험 상품 개수: 338\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=매우 높은 위험 상품 개수: 670\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=보통 위험 상품 개수: 1386\npublic_fund/fund_item [count:fund_item:public_fund] risk_grade=보통위험 상품 개수: 8\n검증된 매수 가능 여부는 지원하지 않습니다.\n- public_fund KR5010101401 product_id: KR5010101401\n- public_fund KR5010101402 product_id: KR5010101402\n- public_fund KR5010101404 product_id: KR5010101404\n- public_fund KR5010101405 product_id: KR5010101405\n- public_fund KR5010101501 product_id: KR5010101501\n- public_fund KR5010101502 product_id: KR5010101502\n- public_fund KR5010101701 product_id: KR5010101701\n- public_fund KR5010101702 product_id: KR5010101702\n- public_fund KR5010101702 risk_grade: 매우 낮은 위험\n- public_fund KR5010101703 product_id: KR5010101703\n- public_fund KR5010101703 risk_grade: 매우 낮은 위험\n- public_fund KR5010101714 product_id: KR5010101714\n- public_fund KR5010101714 risk_grade: 매우 낮은 위험"
       },
       "case_id": "CQ-003-024",
       "category": "quality",
@@ -16394,7 +17306,7 @@
         ],
         "result_grain": "fund_item",
         "sort": [],
-        "top_k": 5,
+        "top_k": 10,
         "top_k_scope": "global"
       },
       "question": "위험등급별 공모펀드 수를 itm_no 상품번호 기준으로 중복 없이 집계하고, 속성 행 수로 세지 않았는지 확인해 주세요.",
@@ -16582,6 +17494,176 @@
             45,
             "AS",
             null
+          ],
+          [
+            "public_fund:KR5010101502:product_id",
+            "public_fund",
+            "KR5010101502",
+            "product_id",
+            "KR5010101502",
+            "KR5010101502",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            26474,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101502:risk_grade",
+            "public_fund",
+            "KR5010101502",
+            "risk_grade",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.risk_name",
+            "1.0.0",
+            0,
+            26474,
+            "zrin_fd_ivst_risk_grd_nm",
+            45,
+            "AS",
+            null
+          ],
+          [
+            "public_fund:KR5010101701:product_id",
+            "public_fund",
+            "KR5010101701",
+            "product_id",
+            "KR5010101701",
+            "KR5010101701",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            23594,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101701:risk_grade",
+            "public_fund",
+            "KR5010101701",
+            "risk_grade",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.risk_name",
+            "1.0.0",
+            0,
+            23594,
+            "zrin_fd_ivst_risk_grd_nm",
+            45,
+            "AS",
+            null
+          ],
+          [
+            "public_fund:KR5010101702:product_id",
+            "public_fund",
+            "KR5010101702",
+            "product_id",
+            "KR5010101702",
+            "KR5010101702",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            11279,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101702:risk_grade",
+            "public_fund",
+            "KR5010101702",
+            "risk_grade",
+            "매우 낮은 위험",
+            "매우 낮은 위험",
+            "valid",
+            "public_fund.risk_name",
+            "1.0.0",
+            0,
+            11279,
+            "zrin_fd_ivst_risk_grd_nm",
+            45,
+            "AS",
+            null
+          ],
+          [
+            "public_fund:KR5010101703:product_id",
+            "public_fund",
+            "KR5010101703",
+            "product_id",
+            "KR5010101703",
+            "KR5010101703",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            7680,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101703:risk_grade",
+            "public_fund",
+            "KR5010101703",
+            "risk_grade",
+            "매우 낮은 위험",
+            "매우 낮은 위험",
+            "valid",
+            "public_fund.risk_name",
+            "1.0.0",
+            0,
+            7680,
+            "zrin_fd_ivst_risk_grd_nm",
+            45,
+            "AS",
+            null
+          ],
+          [
+            "public_fund:KR5010101714:product_id",
+            "public_fund",
+            "KR5010101714",
+            "product_id",
+            "KR5010101714",
+            "KR5010101714",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            10530,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101714:risk_grade",
+            "public_fund",
+            "KR5010101714",
+            "risk_grade",
+            "매우 낮은 위험",
+            "매우 낮은 위험",
+            "valid",
+            "public_fund.risk_name",
+            "1.0.0",
+            0,
+            10530,
+            "zrin_fd_ivst_risk_grd_nm",
+            45,
+            "AS",
+            null
           ]
         ],
         "direct_fields": [
@@ -16636,7 +17718,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -16655,7 +17747,7 @@
             "rank": null,
             "summary_id": "summary:count",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": null,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
@@ -16671,7 +17763,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [
@@ -16697,7 +17799,7 @@
             "rank": null,
             "summary_id": "summary:aggregate:0",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": 2573,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
@@ -16713,7 +17815,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [
@@ -16739,7 +17851,7 @@
             "rank": null,
             "summary_id": "summary:aggregate:1",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": 1199,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
@@ -16755,7 +17867,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [
@@ -16781,7 +17903,7 @@
             "rank": null,
             "summary_id": "summary:aggregate:2",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": 3281,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
@@ -16797,7 +17919,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [
@@ -16823,7 +17955,7 @@
             "rank": null,
             "summary_id": "summary:aggregate:3",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": 20,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
@@ -16839,7 +17971,17 @@
               "public_fund:KR5010101405:product_id",
               "public_fund:KR5010101405:risk_grade",
               "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:risk_grade"
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
             ],
             "excluded_count": 0,
             "group_values": [
@@ -16865,8 +18007,216 @@
             "rank": null,
             "summary_id": "summary:aggregate:4",
             "tie_count": null,
-            "validated_plan_sha256": "ec6a0af1e315b952c892a25dab2d3a6ed6a1f83dd28922b04ac1b03aa55c58e4",
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
             "value": 1663,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "public_fund:KR5010101401:product_id",
+              "public_fund:KR5010101401:risk_grade",
+              "public_fund:KR5010101402:product_id",
+              "public_fund:KR5010101402:risk_grade",
+              "public_fund:KR5010101404:product_id",
+              "public_fund:KR5010101404:risk_grade",
+              "public_fund:KR5010101405:product_id",
+              "public_fund:KR5010101405:risk_grade",
+              "public_fund:KR5010101501:product_id",
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
+            ],
+            "excluded_count": 0,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "매우 낮은 위험"
+              }
+            ],
+            "included_count": 338,
+            "kind": "aggregate",
+            "metric_id": null,
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "policy_versions": [
+              "count:count"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:aggregate:5",
+            "tie_count": null,
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
+            "value": 338,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "public_fund:KR5010101401:product_id",
+              "public_fund:KR5010101401:risk_grade",
+              "public_fund:KR5010101402:product_id",
+              "public_fund:KR5010101402:risk_grade",
+              "public_fund:KR5010101404:product_id",
+              "public_fund:KR5010101404:risk_grade",
+              "public_fund:KR5010101405:product_id",
+              "public_fund:KR5010101405:risk_grade",
+              "public_fund:KR5010101501:product_id",
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
+            ],
+            "excluded_count": 0,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "매우 높은 위험"
+              }
+            ],
+            "included_count": 670,
+            "kind": "aggregate",
+            "metric_id": null,
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "policy_versions": [
+              "count:count"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:aggregate:6",
+            "tie_count": null,
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
+            "value": 670,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "public_fund:KR5010101401:product_id",
+              "public_fund:KR5010101401:risk_grade",
+              "public_fund:KR5010101402:product_id",
+              "public_fund:KR5010101402:risk_grade",
+              "public_fund:KR5010101404:product_id",
+              "public_fund:KR5010101404:risk_grade",
+              "public_fund:KR5010101405:product_id",
+              "public_fund:KR5010101405:risk_grade",
+              "public_fund:KR5010101501:product_id",
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
+            ],
+            "excluded_count": 0,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "보통 위험"
+              }
+            ],
+            "included_count": 1386,
+            "kind": "aggregate",
+            "metric_id": null,
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "policy_versions": [
+              "count:count"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:aggregate:7",
+            "tie_count": null,
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
+            "value": 1386,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "public_fund:KR5010101401:product_id",
+              "public_fund:KR5010101401:risk_grade",
+              "public_fund:KR5010101402:product_id",
+              "public_fund:KR5010101402:risk_grade",
+              "public_fund:KR5010101404:product_id",
+              "public_fund:KR5010101404:risk_grade",
+              "public_fund:KR5010101405:product_id",
+              "public_fund:KR5010101405:risk_grade",
+              "public_fund:KR5010101501:product_id",
+              "public_fund:KR5010101501:risk_grade",
+              "public_fund:KR5010101502:product_id",
+              "public_fund:KR5010101502:risk_grade",
+              "public_fund:KR5010101701:product_id",
+              "public_fund:KR5010101701:risk_grade",
+              "public_fund:KR5010101702:product_id",
+              "public_fund:KR5010101702:risk_grade",
+              "public_fund:KR5010101703:product_id",
+              "public_fund:KR5010101703:risk_grade",
+              "public_fund:KR5010101714:product_id",
+              "public_fund:KR5010101714:risk_grade"
+            ],
+            "excluded_count": 0,
+            "group_values": [
+              {
+                "field_id": "risk_grade",
+                "value": "보통위험"
+              }
+            ],
+            "included_count": 8,
+            "kind": "aggregate",
+            "metric_id": null,
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "count:fund_item:public_fund",
+            "policy_versions": [
+              "count:count"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:aggregate:8",
+            "tie_count": null,
+            "validated_plan_sha256": "f91a76b0f900e4962b25993a56cb11f16f29d82b0b4e41389ea980332261e4a1",
+            "value": 8,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           }
         ]
@@ -16876,7 +18226,7 @@
         "candidate_counts": {
           "eligible": 11138,
           "raw": 11138,
-          "returned": 5
+          "returned": 10
         },
         "correlation_id": "trace-bb5bc9822a537a2d",
         "intent": "aggregate",
@@ -16928,7 +18278,7 @@
       }
     }
   ],
-  "question_and_draft_plan_packet_sha256": "3b6815edf9671326589c32f52ace020e2fb549c8026e418f87e5527e8aeb08e0",
+  "question_and_draft_plan_packet_sha256": "ae3c20fbb290a4cbbf74c4a149376970da95d88244effe850109eac121d80591",
   "question_review": {
     "reviewed_at": "2026-08-25",
     "reviewer": "곽태성"
