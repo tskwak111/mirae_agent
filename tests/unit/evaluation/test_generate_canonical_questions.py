@@ -297,6 +297,84 @@ async def test_hcx_generation_supports_the_frozen_batch_003_contract() -> None:
     )
 
 
+@pytest.mark.asyncio
+async def test_hcx_generation_supports_the_frozen_batch_004_contract() -> None:
+    client = _Client(_content())
+
+    packet = await generate_review_packet(
+        client,
+        batch_id="004",
+        generated_at=datetime(2026, 8, 25, 12, 30, tzinfo=UTC),
+    )
+
+    assert packet["batch_id"] == "004"
+    assert packet["model"] == "HCX-007"
+    assert packet["seed"] == 53
+    assert packet["prompt_version"] == "canonical-question-candidates-v7"
+    assert packet["review_status"] == "pending_human_review"
+    assert packet["reviewer"] == "곽태성"
+    candidates = cast(list[dict[str, str]], packet["candidates"])
+    assert [candidate["candidate_id"] for candidate in candidates] == [
+        f"CQ-004-{index:03d}" for index in range(1, 25)
+    ]
+    request, request_id = client.requests[0]
+    assert request_id == "finproof-canonical-question-candidates-004"
+    assert request.model_name == "HCX-007"
+    assert request.seed == 53
+    prompt = request.messages[0].content
+    batch_004_slots = (
+        "1 lookup: 국내채권 KR101501DD13의 매수수익률과 만기일 조회",
+        "2 lookup: 국내 ETF KR7091160002의 1개월 수익률과 연초이후 수익률 조회",
+        "3 lookup: 해외 ETF AAEQ.O의 총보수와 AUM 조회",
+        "4 lookup: 공모펀드 KR5010101702의 5년 수익률과 AUM 조회",
+        (
+            "5 screen: 매수수익률 3.1% 이상, 2026-07-11 기준 만기가 지나지 않고 "
+            "매수가능수량이 양수인 국내채권"
+        ),
+        ("6 screen: 투자지역이 국내이고 1개월 수익률 15% 이상이며 판매 가능한 국내 ETF, ETN 제외"),
+        (
+            "7 screen: 투자지역이 미국이고 AUM 1억 USD 이상이며 총보수 0.5% 이하인 "
+            "해외 ETF, ETN 제외"
+        ),
+        ("8 screen: 5년 수익률 10% 이상이고 위험등급이 매우 낮은 위험인 공모펀드"),
+        "9 screen: 1년 수익률이 0% 미만이고 판매 가능한 국내 ETN, ETN 명시",
+        (
+            "10 rank: 2026-07-11 기준 만기가 지나지 않고 매수가능수량이 양수인 "
+            "국내채권 중 잔존일수 긴 5개"
+        ),
+        "11 rank: 국내 ETF 1개월 수익률 낮은 5개, ETN 제외",
+        "12 rank: 거래통화 USD인 해외 ETF AUM 작은 5개, ETN 제외",
+        "13 rank: 공모펀드 5년 수익률 상위 5개",
+        "14 compare: 국내채권 KR101501DD13과 KR101501DD47의 잔존일수 비교",
+        "15 compare: 해외 ETF AAA와 AAEQ.O의 AUM 비교",
+        "16 compare: 공모펀드 KR5010101702와 KR5010101714의 5년 수익률 비교",
+        "17 aggregate: 판매 가능한 국내 ETF의 AUM 합계, ETN 제외",
+        "18 aggregate: 공모펀드 5년 수익률 최댓값",
+        ("19 cross_product: 국내 ETF와 공모펀드의 1년 수익률 하위 3개를 유형별 분리"),
+        ("20 cross_product: 국내 ETF와 해외 ETF의 AUM 하위 3개를 통화별·유형별 분리"),
+        (
+            "21 clarification: 안전하고 수익률이 높은 국내채권 5개 요청. 자연스러운 "
+            "질문으로만 작성하고 추천·모호성 설명을 쓰지 않으며, 신용등급 기준과 "
+            "복합 우선순위는 질문에서 생략"
+        ),
+        (
+            "22 quality: 국내 ETF와 해외 ETF의 AUM 상위 5개를 하나의 순위로 합치지 않고 "
+            "통화별로 분리하며 고정 환율 기준이 없음을 경고"
+        ),
+        (
+            "23 quality: 판매 가능한 공모펀드 수를 itm_no 상품번호 기준으로 집계하되 "
+            "원천 판매상태와 검증된 매수 가능 상태를 구분"
+        ),
+        (
+            "24 quality: KODEX 200처럼 비슷한 이름의 상품 후보를 자동으로 같은 상품에 "
+            "병합하지 않고 정확한 식별자 확인을 요청"
+        ),
+    )
+    assert [prompt.index(slot) for slot in batch_004_slots] == sorted(
+        prompt.index(slot) for slot in batch_004_slots
+    )
+
+
 def test_batch_002_rejects_v1_screen_question_without_positive_quantity() -> None:
     packet = json.loads(
         (
@@ -617,4 +695,42 @@ def test_cli_passes_batch_003_to_hcx_and_writes_batch_003_packet(
     assert written["prompt_version"] == "canonical-question-candidates-v6"
     assert [candidate["candidate_id"] for candidate in written["candidates"]] == [
         f"CQ-003-{index:03d}" for index in range(1, 25)
+    ]
+
+
+def test_cli_passes_batch_004_to_hcx_and_writes_batch_004_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    async def fake_request(api_key: SecretStr, *, batch_id: str) -> dict[str, object]:
+        observed["api_key"] = api_key
+        observed["batch_id"] = batch_id
+        return await generate_review_packet(
+            _Client(_content()),
+            batch_id=batch_id,
+            generated_at=datetime(2026, 8, 25, tzinfo=UTC),
+        )
+
+    monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
+    output = tmp_path / "review" / "batch-004.json"
+
+    assert (
+        generator.main(
+            ["--output", str(output), "--batch-id", "004"],
+            environ={"FINPROOF_HCX_API_KEY": "not-a-real-key"},
+            repository_root=tmp_path,
+        )
+        == 0
+    )
+
+    written = json.loads(output.read_text(encoding="utf-8"))
+    assert isinstance(observed["api_key"], SecretStr)
+    assert observed["batch_id"] == "004"
+    assert written["batch_id"] == "004"
+    assert written["seed"] == 53
+    assert written["prompt_version"] == "canonical-question-candidates-v7"
+    assert [candidate["candidate_id"] for candidate in written["candidates"]] == [
+        f"CQ-004-{index:03d}" for index in range(1, 25)
     ]
