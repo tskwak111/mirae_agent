@@ -432,14 +432,19 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         raise ValueError("HCX candidate response has an invalid candidate count")
 
     grouped: dict[str, list[str]] = {category: [] for category in TARGET_DISTRIBUTION}
+    batch_005_categories = tuple(
+        category for category, count in TARGET_DISTRIBUTION.items() for _ in range(count)
+    )
     seen_questions: set[str] = set()
-    for raw in raw_candidates:
+    for index, raw in enumerate(raw_candidates):
         if type(raw) is not dict or set(raw) != {"category", "question"}:
             raise ValueError("HCX candidate has an invalid shape")
         category = raw["category"]
         question = raw["question"]
         if type(category) is not str or category not in TARGET_DISTRIBUTION:
             raise ValueError("HCX candidate has an invalid category")
+        if batch_id == "005" and category != batch_005_categories[index]:
+            raise ValueError("batch 005 candidate order does not match the target")
         if (
             type(question) is not str
             or question != question.strip()

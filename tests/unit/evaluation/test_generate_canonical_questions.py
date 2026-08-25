@@ -461,6 +461,18 @@ async def test_hcx_generation_supports_the_frozen_batch_005_contract() -> None:
     )
 
 
+def test_batch_005_rejects_misordered_raw_candidate_categories() -> None:
+    content = json.loads(_content())
+    candidates = content["candidates"]
+    candidates[0]["category"], candidates[4]["category"] = (
+        candidates[4]["category"],
+        candidates[0]["category"],
+    )
+
+    with pytest.raises(ValueError, match="batch 005 candidate order"):
+        generator._validate_candidates(json.dumps(content, ensure_ascii=False), batch_id="005")
+
+
 def test_batch_002_rejects_v1_screen_question_without_positive_quantity() -> None:
     packet = json.loads(
         (
