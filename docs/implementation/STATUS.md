@@ -1,9 +1,9 @@
 # Implementation Status
 
-**Last updated:** 2026-08-24 — Phase 4 Task 1 harness and canonical batch-001
-checkpoint are implemented; the batch-001 independent review returned Critical 0 /
-Important 0. Task 1 remains open until the reviewed canonical set reaches 250–300
-cases and its final measured report/full gate pass.
+**Last updated:** 2026-08-25 — Phase 4 Task 1 harness and canonical batches 001–002
+are implemented; the batch-002 promotion review returned Critical 0 / Important 0.
+Task 1 remains open until the reviewed canonical set reaches 250–300 cases and its
+final measured report/full gate pass.
 
 ## Frozen baseline
 
@@ -52,8 +52,9 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness — harness complete; 25 reviewed
-  canonical cases committed (24 batch-001 cases plus 1 official clarification case)
+- [ ] Task 1: canonical golden set and scoring harness — harness complete; 49 reviewed
+  canonical cases committed (24 cases in each of batches 001–002 plus 1 official
+  clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
 - [ ] Task 4: competition compliance and independent review closure
@@ -62,9 +63,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1 Step 6: author and review canonical batch-002 using the same bounded
+**Phase 4 Task 1 Step 6: author and review canonical batch-003 using the same bounded
 candidate → question/plan approval → deterministic reference → expectation approval →
-canonical promotion flow.** The suite has 25 of the required 250–300 cases, so 225–275
+canonical promotion flow.** The suite has 49 of the required 250–300 cases, so 201–251
 more reviewed cases remain. Do not start Task 2 or run the final full gate until the
 Task 1 canonical set is complete.
 
@@ -85,6 +86,29 @@ Task 1 canonical set is complete.
   cross-product 2, clarification 2 (1 official + 1 batch), and quality 3; 25 unique
   IDs total. The existing `OFFICIAL-CLARIFY-001` line was preserved unchanged.
 - Independent promotion review of `6236020..9a8bc77`: Critical 0 / Important 0 /
+  Minor 0. No correction round was required.
+- Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
+  not repeated at this partial authoring checkpoint; they remain reserved for the
+  final Task 1 commit candidate.
+
+## Phase 4 Task 1 batch-002 checkpoint
+
+- Deterministic-reference commits: `f4253b9` (`fix: preserve approved reference plan
+  fields`) and `9f130da` (`fix: preserve reviewed reference evidence policies`).
+  Canonical-promotion checkpoint: `42820f7` (`test: promote approved canonical
+  batch-002`).
+- Human canonical-reference approval is versioned as reviewer `곽태성`, review date
+  `2026-08-25`, bound to reference packet SHA-256
+  `fe0b7ec67714ac73d870207f1233465a80f4d128c24778fbf3683bec215020b5`. The immutable
+  packet retains its earlier question/draft-plan review date `2026-08-24`.
+- Focused promotion TDD covered the independent approval date, repeated same-product
+  compatibility partitions in execution traces, and Decimal-filter JSON round trips.
+  Final promotion suite: 13 passed. Related evaluation/authoring aggregate: 65 passed.
+  Scoped Ruff format/check and clean non-incremental mypy passed.
+- Canonical inventory: lookup 8, screen 10, rank 8, compare 6, aggregate 4,
+  cross-product 4, clarification 3 (1 official + 2 batches), and quality 6; 49 unique
+  IDs total. All 25 prior canonical lines were preserved as exact byte prefixes.
+- Independent promotion review of `9f130da..42820f7`: Critical 0 / Important 0 /
   Minor 0. No correction round was required.
 - Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
   not repeated at this partial authoring checkpoint; they remain reserved for the
