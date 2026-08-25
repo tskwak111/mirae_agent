@@ -1,7 +1,7 @@
 # Implementation Status
 
-**Last updated:** 2026-08-25 — Phase 4 Task 1 harness and canonical batches 001–004
-are implemented; the batch-004 promotion review returned Critical 0 / Important 0.
+**Last updated:** 2026-08-26 — Phase 4 Task 1 harness and canonical batches 001–005
+are implemented; the batch-005 promotion review returned Critical 0 / Important 0.
 Task 1 remains open until the reviewed canonical set reaches 250–300 cases and its
 final measured report/full gate pass.
 
@@ -52,8 +52,8 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness — harness complete; 97 reviewed
-  canonical cases committed (24 cases in each of batches 001–004 plus 1 official
+- [ ] Task 1: canonical golden set and scoring harness — harness complete; 121 reviewed
+  canonical cases committed (24 cases in each of batches 001–005 plus 1 official
   clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
@@ -63,9 +63,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1 Step 6: author and review canonical batch-005 using the same bounded
+**Phase 4 Task 1 Step 6: author and review canonical batch-006 using the same bounded
 candidate → question/plan approval → deterministic reference → expectation approval →
-canonical promotion flow.** The suite has 97 of the required 250–300 cases, so 153–203
+canonical promotion flow.** The suite has 121 of the required 250–300 cases, so 129–179
 more reviewed cases remain. Do not start Task 2 or run the final full gate until the
 Task 1 canonical set is complete.
 
@@ -181,6 +181,36 @@ Task 1 canonical set is complete.
 - Repository-wide pytest/Ruff/mypy and the final handoff/source gates were deliberately
   not repeated at this partial checkpoint; they remain reserved for the final Task 1
   commit candidate.
+
+## Phase 4 Task 1 batch-005 checkpoint
+
+- Deterministic-reference checkpoints: `4ed483d` and `f598c45`; canonical promotion
+  checkpoint: `cf51139` (`test: promote approved canonical batch-005`).
+- Human canonical-reference approval is versioned as reviewer `곽태성`, review date
+  `2026-08-26`, bound to reference packet SHA-256
+  `dce110eed040f0fda0c26ced2ba5726d8f0a0c3e0584c63ff6ceb99d1eb04e3d`, approved
+  question/plan packet SHA-256
+  `89951e3a10cb180a9633ca20307e53410019d3b4821a85a2e31d7380bd970998`, and artifact
+  manifest logical hash
+  `59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236`.
+- Initial reference review found one Important nonnumeric DISPLAY evidence gap. One
+  focused correction round restored CQ-005-001's `AAA`/`2031-07-21` evidence and
+  CQ-005-014's two grounded `AAA` values while preserving all-missing numeric, rank,
+  and aggregate behavior. The affected aggregate passed 101 tests; scoped re-review
+  closed at Critical 0 / Important 0 / Minor 0.
+- Focused promotion RED→GREEN bound the exact approval and four key case boundaries.
+  The promoter suite passed 16 tests and the related evaluation/authoring aggregate
+  passed 68 tests. Scoped Ruff, clean non-incremental mypy, source audit, handoff, and
+  diff checks passed; the generic promoter required no production-code change.
+- Canonical inventory: lookup 20, screen 25, rank 20, compare 15, aggregate 10,
+  cross-product 10, clarification 6 (1 official + 5 batches), and quality 15; 121
+  unique IDs total. All 97 prior canonical lines were preserved as exact byte
+  prefixes.
+- Independent promotion review of `f598c45..cf51139`: spec and task quality PASS;
+  Critical 0 / Important 0 / Minor 0. No correction round was required.
+- Repository-wide pytest/Ruff/mypy and the final Task 1 full gate were deliberately
+  not repeated at this partial checkpoint. The next bounded checkpoint is batch-006
+  candidate generation after explicit HCX external-transfer approval.
 
 ## Phase 1 Task 5 design and plan record
 
