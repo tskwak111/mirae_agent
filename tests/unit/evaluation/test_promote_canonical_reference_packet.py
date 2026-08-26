@@ -24,6 +24,14 @@ _BATCH_FOUR_REFERENCE = _ROOT / "evaluation/review_batches/batch-004-reference-r
 _BATCH_FOUR_APPROVAL = _ROOT / "evaluation/review_batches/batch-004-reference-approval.json"
 _BATCH_FIVE_REFERENCE = _ROOT / "evaluation/review_batches/batch-005-reference-review.json"
 _BATCH_FIVE_APPROVAL = _ROOT / "evaluation/review_batches/batch-005-reference-approval.json"
+_BATCH_SIX_TO_ELEVEN = (
+    ("006", "a03a47de8b9e1430047f512efd265e5be7bc0a76c0496fb3a3ccf2dfcc7cd34f"),
+    ("007", "670972fb2fbf4acc31e4d15b7bbd5ca054aa3b424fcae5f19e60db5893eda7db"),
+    ("008", "3795abceaa3fbbf3e38184b0dff96db8e8cd1ddb0a536ea70cb409b37909b470"),
+    ("009", "20a9afd88af3f5a33473f2d6bcd8f038490f7f32a130b7c2779af8690b25cdf0"),
+    ("010", "6cd8077ae18b4c6e846d95e21b1221126c6f63814bac31ec7f924da83122f108"),
+    ("011", "c56ed018507889902be0b9fb765dd1a0d9523a0abed603a7da98720afe982ef9"),
+)
 _OFFICIAL = _ROOT / "evaluation/canonical/clarification.jsonl"
 
 
@@ -396,6 +404,79 @@ def test_promotes_batch_five_approved_boundaries(tmp_path: Path) -> None:
     assert len(missing_returns.expected_result.aggregates) == 1
     assert missing_returns.expected_result.aggregates[0].value == 4259
     assert missing_returns.expected_result.aggregates[0].native_result_grain.value == "fund_item"
+
+
+def test_promotes_batches_six_to_eleven_in_source_order(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    review = repository / "evaluation/review_batches"
+    canonical = repository / "evaluation/canonical"
+    review.mkdir(parents=True)
+    canonical.mkdir(parents=True)
+    existing = {
+        path.name: b"".join(
+            line
+            for line in path.read_bytes().splitlines(keepends=True)
+            if (case_id := json.loads(line)["case_id"]) == "OFFICIAL-CLARIFY-001"
+            or case_id.split("-")[1] <= "005"
+        )
+        for path in (_ROOT / "evaluation/canonical").glob("*.jsonl")
+    }
+    for name, content in existing.items():
+        (canonical / name).write_bytes(content)
+    assert len(load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))) == 121
+
+    for batch_id, _checksum in _BATCH_SIX_TO_ELEVEN:
+        reference_name = f"batch-{batch_id}-reference-review.json"
+        approval_name = f"batch-{batch_id}-reference-approval.json"
+        reference = review / reference_name
+        approval = review / approval_name
+        reference.write_bytes((_ROOT / "evaluation/review_batches" / reference_name).read_bytes())
+        approval.write_bytes((_ROOT / "evaluation/review_batches" / approval_name).read_bytes())
+        _promote(repository, reference, approval, canonical)
+
+    for name, content in existing.items():
+        assert (canonical / name).read_bytes().startswith(content)
+    cases = load_golden_cases(tuple(sorted(canonical.glob("*.jsonl"))))
+    assert len(cases) == len({case.case_id for case in cases}) == 265
+    assert Counter(case.category.value for case in cases) == {
+        "aggregate": 22,
+        "clarification": 12,
+        "compare": 33,
+        "cross_product": 22,
+        "lookup": 44,
+        "quality": 33,
+        "rank": 44,
+        "screen": 55,
+    }
+
+    promoted = [
+        case
+        for case in cases
+        if case.case_id.startswith("CQ-") and 6 <= int(case.case_id.split("-")[1]) <= 11
+    ]
+    assert len(promoted) == 144
+    assert {case.review.reviewer for case in promoted} == {"곽태성"}
+    assert {case.review.reviewed_at.isoformat() for case in promoted} == {"2026-08-27"}
+    for batch_id, checksum in _BATCH_SIX_TO_ELEVEN:
+        assert all(
+            f"batch-{batch_id}-reference-review.json sha256:{checksum}" in case.review.source
+            for case in promoted
+            if case.case_id.startswith(f"CQ-{batch_id}-")
+        )
+
+    by_id = {case.case_id: case for case in cases}
+    assert by_id["CQ-006-010"].expected_result.order_matters is True
+    assert len(by_id["CQ-006-010"].expected_result.products) == 5
+    assert len(by_id["CQ-007-005"].expected_result.products) == 5
+    assert (
+        "public_fund/fund_item [policy:public_fund.return_1m:missing] return_1m 결측 개수: 3568"
+        in by_id["CQ-010-019"].expected_answer.required_concepts
+    )
+    assert (
+        "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 제외했으며, "
+        "이 기록은 매수 가능함의 근거가 아닙니다."
+        in by_id["CQ-011-022"].expected_answer.required_concepts
+    )
 
 
 @pytest.mark.parametrize(
