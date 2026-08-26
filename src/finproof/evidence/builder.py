@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 from hashlib import sha256
-from typing import cast
+from typing import Any, cast
 
 from finproof.answer.templates import wording_text
 from finproof.data.artifacts.hashing import canonical_json_bytes
@@ -69,7 +69,11 @@ class EvidenceBuilder:
         for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
         recorded_values = _fit_recorded_values(selected, recorded_values)
-        source_only_rows = _bounded_source_rows(plan=original, policy_result=policy_result)
+        source_only_rows = _bounded_source_rows(
+            plan=original,
+            policy_result=policy_result,
+            limit=max(0, 50 - len(selected)),
+        )
         for row in source_only_rows:
             selected[(row.raw.product_type, row.raw.product_id)] = None
 
@@ -413,6 +417,17 @@ class EvidenceBuilder:
                         value=_rank_tie_identity(rank.value),
                     )
                 )
+        nonmetric_rank_summaries, nonmetric_rank_boundary = _nonmetric_rank_summaries(
+            plan=original,
+            policy_result=policy_result,
+            repository=repository,
+            items=(*direct, *derived),
+            policy_versions=policy_versions,
+            plan_hash=plan_hash,
+            version_hash=version_hash,
+            artifact_hash=artifact_hash,
+        )
+        summaries.extend(nonmetric_rank_summaries)
         for index, aggregate in enumerate(policy_result.aggregates):
             aggregate_field_ids = tuple(
                 dict.fromkeys(
@@ -515,13 +530,17 @@ class EvidenceBuilder:
                             "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 "
                             "요청한 표시 개수까지만 제시했습니다.",
                         )
-                        if len(ranks) < len(policy_result.ranks)
+                        if len(ranks) < len(policy_result.ranks) or nonmetric_rank_boundary
                         else ()
                     ),
                     *_cross_currency_limitations(currencies),
                     *_direct_recorded_zero_limitations(
                         direct,
                         existing_warnings=policy_result.warnings,
+                    ),
+                    *_recorded_zero_buyability_limitations(
+                        plan=original,
+                        policy_result=policy_result,
                     ),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
@@ -555,6 +574,177 @@ def _requests_source_lens(plan: QueryPlan, *, policy_result: PolicyExecutionResu
     )
 
 
+def _nonmetric_rank_summaries(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+    repository: EvidenceRepository,
+    items: tuple[DirectEvidence[object] | DerivedEvidence[object], ...],
+    policy_versions: tuple[str, ...],
+    plan_hash: str,
+    version_hash: str,
+    artifact_hash: str,
+) -> tuple[tuple[EvidenceSummary, ...], bool]:
+    if plan.intent is not Intent.SCREEN_RANK or not plan.sort:
+        return (), False
+    field_id = plan.sort[0].field
+    if any(
+        repository._fields.projection(field_id, product_type).metric_id is not None
+        for product_type in plan.product_types
+    ):
+        return (), False
+    descending = plan.sort[0].direction is SortDirection.DESC
+    summaries: list[EvidenceSummary] = []
+    emitted_ties: set[tuple[object, ...]] = set()
+    boundary_truncated = False
+    for index, selected_row in enumerate(policy_result.selected_rows):
+        selected_value = _policy_row_value(selected_row, field_id)
+        if selected_value is None:
+            continue
+        population = tuple(
+            row
+            for row in policy_result.included_rows
+            if plan.top_k_scope is TopKScope.GLOBAL
+            or row.raw.product_type is selected_row.raw.product_type
+        )
+        population_values = tuple(
+            value for row in population if (value := _policy_row_value(row, field_id)) is not None
+        )
+        rank = 1 + sum(
+            _sorts_before(value, selected_value, descending=descending)
+            for value in population_values
+        )
+        tie_count = sum(value == selected_value for value in population_values)
+        partition_key = (
+            f"field-rank:{field_id}:global"
+            if plan.top_k_scope is TopKScope.GLOBAL
+            else f"field-rank:{field_id}:{selected_row.raw.product_type.value}"
+        )
+        evidence_ids = _recorded_evidence_ids(
+            items=items,
+            product_type=selected_row.raw.product_type,
+            product_id=selected_row.raw.product_id,
+            field_id=field_id,
+        )
+        summaries.append(
+            _summary(
+                summary_id=f"summary:field-rank:{index}",
+                kind=EvidenceSummaryKind.RANK,
+                included_count=1,
+                excluded_count=0,
+                evidence_ids=evidence_ids,
+                policy_versions=(*policy_versions, f"field:{field_id}:rank"),
+                plan_hash=plan_hash,
+                version_hash=version_hash,
+                artifact_hash=artifact_hash,
+                product_types=(selected_row.raw.product_type,),
+                native_result_grains=(selected_row.raw.native_result_grain,),
+                partition_key=partition_key,
+                product_id=selected_row.raw.product_id,
+                metric_id=field_id,
+                rank=rank,
+                tie_count=tie_count,
+                value=selected_value,
+            )
+        )
+        tie_key = (partition_key, selected_value)
+        if tie_count <= 1 or tie_key in emitted_ties:
+            continue
+        emitted_ties.add(tie_key)
+        selected_tied_rows = tuple(
+            row
+            for row in policy_result.selected_rows
+            if (
+                plan.top_k_scope is TopKScope.GLOBAL
+                or row.raw.product_type is selected_row.raw.product_type
+            )
+            and _policy_row_value(row, field_id) == selected_value
+        )
+        boundary_truncated |= len(selected_tied_rows) < tie_count
+        tie_evidence_ids = tuple(
+            dict.fromkeys(
+                evidence_id
+                for row in selected_tied_rows
+                for evidence_id in _recorded_evidence_ids(
+                    items=items,
+                    product_type=row.raw.product_type,
+                    product_id=row.raw.product_id,
+                    field_id=field_id,
+                )
+            )
+        )
+        summaries.append(
+            _summary(
+                summary_id=f"summary:field-tie:{index}",
+                kind=EvidenceSummaryKind.TIE,
+                included_count=tie_count,
+                excluded_count=0,
+                evidence_ids=tie_evidence_ids,
+                policy_versions=(*policy_versions, f"field:{field_id}:rank"),
+                plan_hash=plan_hash,
+                version_hash=version_hash,
+                artifact_hash=artifact_hash,
+                product_types=tuple(
+                    dict.fromkeys(row.raw.product_type for row in selected_tied_rows)
+                ),
+                native_result_grains=tuple(
+                    dict.fromkeys(row.raw.native_result_grain for row in selected_tied_rows)
+                ),
+                partition_key=partition_key,
+                metric_id=field_id,
+                rank=rank,
+                tie_count=tie_count,
+                value=selected_value,
+            )
+        )
+    return tuple(summaries), boundary_truncated
+
+
+def _policy_row_value(row: PolicyRow, field_id: str) -> Decimal | int | str | date | None:
+    value = next((item.value for item in row.raw.values if item.field_id == field_id), None)
+    return (
+        cast(Decimal | int | str | date, value)
+        if type(value) in {Decimal, int, str, date}
+        else None
+    )
+
+
+def _sorts_before(
+    left: Decimal | int | str | date,
+    right: Decimal | int | str | date,
+    *,
+    descending: bool,
+) -> bool:
+    return bool(cast(Any, left) > right if descending else cast(Any, left) < right)
+
+
+def _recorded_zero_buyability_limitations(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+) -> tuple[str, ...]:
+    requests_recorded_zero = any(
+        clause.field == "buyable_quantity"
+        and clause.operator is FilterOperator.EQ
+        and clause.value == 0
+        for clause in plan.filters
+    )
+    has_excluded_recorded_zero = any(
+        row.raw.product_type is ProductType.DOMESTIC_BOND
+        and not row.state.eligible
+        and _policy_row_value(row, "buyable_quantity") == 0
+        for row in policy_result.source_rows
+    )
+    return (
+        (
+            "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 "
+            "제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다.",
+        )
+        if requests_recorded_zero and has_excluded_recorded_zero
+        else ()
+    )
+
+
 def _source_aggregate(
     function: AggregationFunction,
     values: tuple[Decimal, ...],
@@ -578,8 +768,11 @@ def _bounded_source_rows(
     *,
     plan: QueryPlan,
     policy_result: PolicyExecutionResult,
+    limit: int | None = None,
 ) -> tuple[PolicyRow, ...]:
     if not _requests_source_lens(plan, policy_result=policy_result):
+        return ()
+    if not plan.metrics:
         return ()
     included = {(row.raw.product_type, row.raw.product_id) for row in policy_result.included_rows}
     source_only = tuple(
@@ -589,7 +782,7 @@ def _bounded_source_rows(
     )
     if plan.intent is Intent.AGGREGATE:
         return ()
-    return source_only[: plan.top_k]
+    return source_only[: min(plan.top_k, limit if limit is not None else plan.top_k)]
 
 
 def _source_lens_summaries(
@@ -682,7 +875,9 @@ def _source_lens_summaries(
     for index, row in enumerate(source_only_rows):
         by_field = {item.field_id: item for item in row.raw.values}
         for field_id in plan.metrics:
-            item = by_field[field_id]
+            item = by_field.get(field_id)
+            if item is None:
+                continue
             summaries.append(
                 _summary(
                     summary_id=f"summary:source-recorded:{index}:{field_id}",

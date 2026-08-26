@@ -377,6 +377,8 @@ def _expected_values(
                 field_id=field_id,
                 rule_id=str(item.get("rule_id")),
                 raw_value=raw_value,
+                product_type=product_type,
+                fields=fields,
             )
             or _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
         )
@@ -396,9 +398,14 @@ def _comparison_difference_value_type(
     field_id: str,
     rule_id: str,
     raw_value: object,
+    product_type: ProductType,
+    fields: FieldRegistry,
 ) -> ValueType | None:
     if not field_id.endswith("_difference") or rule_id != f"comparison.{field_id}":
         return None
+    base_field_id = field_id.removesuffix("_difference")
+    if (base_field_id, product_type) not in fields.projections:
+        raise ValueError("comparison difference base field is not registered for product type")
     if type(raw_value) is int:
         return ValueType.INTEGER
     if type(raw_value) is str:

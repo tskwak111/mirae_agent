@@ -4982,6 +4982,143 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:field-rank:0",
+            "evidence_ids": [
+              "summary:field-rank:0"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "product_id": "KR6169374E75",
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": null,
+            "text": "domestic_bond/instrument [field-rank:maturity_date:global] KR6169374E75 maturity_date: 2026-07-15 (1위)",
+            "value": "2026-07-15"
+          },
+          {
+            "claim_id": "claim:summary:summary:field-rank:1",
+            "evidence_ids": [
+              "summary:field-rank:1"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "product_id": "KR6066571474",
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": null,
+            "text": "domestic_bond/instrument [field-rank:maturity_date:global] KR6066571474 maturity_date: 2026-07-16 (2위)",
+            "value": "2026-07-16"
+          },
+          {
+            "claim_id": "claim:summary:summary:field-rank:2",
+            "evidence_ids": [
+              "summary:field-rank:2"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "product_id": "KR6029889674",
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": null,
+            "text": "domestic_bond/instrument [field-rank:maturity_date:global] KR6029889674 maturity_date: 2026-07-25 (3위)",
+            "value": "2026-07-25"
+          },
+          {
+            "claim_id": "claim:summary:summary:field-rank:3",
+            "evidence_ids": [
+              "summary:field-rank:3"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "product_id": "KR101501DB72",
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": null,
+            "text": "domestic_bond/instrument [field-rank:maturity_date:global] KR101501DB72 maturity_date: 2026-07-31 (4위)",
+            "value": "2026-07-31"
+          },
+          {
+            "claim_id": "claim:summary:summary:field-tie:3",
+            "evidence_ids": [
+              "summary:field-tie:3"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "해당 지표 값이 동일해 공동순위입니다.",
+            "value": null
+          },
+          {
+            "claim_id": "claim:summary:summary:field-rank:4",
+            "evidence_ids": [
+              "summary:field-rank:4"
+            ],
+            "field_id": "maturity_date",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "product_id": "KR2001024976",
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": null,
+            "text": "domestic_bond/instrument [field-rank:maturity_date:global] KR2001024976 maturity_date: 2026-07-31 (4위)",
+            "value": "2026-07-31"
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
+            "value": "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다."
+          },
+          {
             "claim_id": "claim:value:domestic_bond:KR6169374E75:product_id",
             "evidence_ids": [
               "domestic_bond:KR6169374E75:product_id"
@@ -5237,7 +5374,7 @@
             "value": "114000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n- domestic_bond KR6169374E75 product_id: KR6169374E75\n- domestic_bond KR6169374E75 maturity_date: 2026-07-15\n- domestic_bond KR6169374E75 buyable_quantity: 10000000\n- domestic_bond KR6066571474 product_id: KR6066571474\n- domestic_bond KR6066571474 maturity_date: 2026-07-16\n- domestic_bond KR6066571474 buyable_quantity: 6856062000\n- domestic_bond KR6029889674 product_id: KR6029889674\n- domestic_bond KR6029889674 maturity_date: 2026-07-25\n- domestic_bond KR6029889674 buyable_quantity: 4656000\n- domestic_bond KR101501DB72 product_id: KR101501DB72\n- domestic_bond KR101501DB72 maturity_date: 2026-07-31\n- domestic_bond KR101501DB72 buyable_quantity: 31637000\n- domestic_bond KR2001024976 product_id: KR2001024976\n- domestic_bond KR2001024976 maturity_date: 2026-07-31\n- domestic_bond KR2001024976 buyable_quantity: 114000"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [field-rank:maturity_date:global] KR6169374E75 maturity_date: 2026-07-15 (1위)\ndomestic_bond/instrument [field-rank:maturity_date:global] KR6066571474 maturity_date: 2026-07-16 (2위)\ndomestic_bond/instrument [field-rank:maturity_date:global] KR6029889674 maturity_date: 2026-07-25 (3위)\ndomestic_bond/instrument [field-rank:maturity_date:global] KR101501DB72 maturity_date: 2026-07-31 (4위)\n해당 지표 값이 동일해 공동순위입니다.\ndomestic_bond/instrument [field-rank:maturity_date:global] KR2001024976 maturity_date: 2026-07-31 (4위)\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n- domestic_bond KR6169374E75 product_id: KR6169374E75\n- domestic_bond KR6169374E75 maturity_date: 2026-07-15\n- domestic_bond KR6169374E75 buyable_quantity: 10000000\n- domestic_bond KR6066571474 product_id: KR6066571474\n- domestic_bond KR6066571474 maturity_date: 2026-07-16\n- domestic_bond KR6066571474 buyable_quantity: 6856062000\n- domestic_bond KR6029889674 product_id: KR6029889674\n- domestic_bond KR6029889674 maturity_date: 2026-07-25\n- domestic_bond KR6029889674 buyable_quantity: 4656000\n- domestic_bond KR101501DB72 product_id: KR101501DB72\n- domestic_bond KR101501DB72 maturity_date: 2026-07-31\n- domestic_bond KR101501DB72 buyable_quantity: 31637000\n- domestic_bond KR2001024976 product_id: KR2001024976\n- domestic_bond KR2001024976 maturity_date: 2026-07-31\n- domestic_bond KR2001024976 buyable_quantity: 114000"
       },
       "case_id": "CQ-006-010",
       "category": "rank",
@@ -5575,7 +5712,8 @@
           "source_applicable_date"
         ],
         "material_policy_limitations": [
-          "2026-07-11 제공 스냅샷 기준"
+          "2026-07-11 제공 스냅샷 기준",
+          "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다."
         ],
         "sources": [
           {
@@ -5609,6 +5747,193 @@
             "tie_count": null,
             "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR6169374E75:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "rank",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": "KR6169374E75",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 1,
+            "summary_id": "summary:field-rank:0",
+            "tie_count": 1,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-15",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR6066571474:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "rank",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": "KR6066571474",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 2,
+            "summary_id": "summary:field-rank:1",
+            "tie_count": 1,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-16",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR6029889674:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "rank",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": "KR6029889674",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 3,
+            "summary_id": "summary:field-rank:2",
+            "tie_count": 1,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-25",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR101501DB72:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "rank",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": "KR101501DB72",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 4,
+            "summary_id": "summary:field-rank:3",
+            "tie_count": 4,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-31",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR101501DB72:maturity_date",
+              "domestic_bond:KR2001024976:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 4,
+            "kind": "tie",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 4,
+            "summary_id": "summary:field-tie:3",
+            "tie_count": 4,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-31",
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [
+              "domestic_bond:KR2001024976:maturity_date"
+            ],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "rank",
+            "metric_id": "maturity_date",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "field-rank:maturity_date:global",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0",
+              "field:maturity_date:rank"
+            ],
+            "product_id": "KR2001024976",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": 4,
+            "summary_id": "summary:field-rank:4",
+            "tie_count": 4,
+            "validated_plan_sha256": "ec7d9e70f3be440127a43a1605c0c5457b16298d81278717a08dc7d05861ac29",
+            "value": "2026-07-31",
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           }
         ]
@@ -9743,8 +10068,8 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
-              "domestic_etf:KR7494310006:product_id",
-              "domestic_etf:KR7243880002:product_id"
+              "domestic_etf:KR7243880002:product_id",
+              "domestic_etf:KR7494310006:product_id"
             ],
             "excluded_count": 0,
             "group_values": [],

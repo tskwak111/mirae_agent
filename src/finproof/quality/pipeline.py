@@ -108,16 +108,20 @@ class PolicyEngine:
         source_rows: list[PolicyRow] = []
         excluded_filter = 0
         excluded_state = 0
+        segment_exclusions: dict[ProductType, tuple[int, int]] = {}
         warnings: list[str] = []
         metric_values: list[MetricValue] = []
         for segment, raw_segment in zip(bundle.segments, raw.segments, strict=True):
             if segment.product_type is not raw_segment.product_type:
                 raise ValueError("policy segment identity differs")
+            segment_excluded_filter = 0
+            segment_excluded_state = 0
             for row in raw_segment.rows:
                 if not all(
                     _matches(row, clause, ratings=self._ratings) for clause in segment.filters
                 ):
                     excluded_filter += 1
+                    segment_excluded_filter += 1
                     continue
                 product = PolicyProduct(
                     product_type=row.product_type,
@@ -145,6 +149,7 @@ class PolicyEngine:
                 source_rows.append(policy_row)
                 if not state.eligible:
                     excluded_state += 1
+                    segment_excluded_state += 1
                     continue
                 included.append(policy_row)
                 by_field = {item.field_id: item for item in row.values}
@@ -209,6 +214,10 @@ class PolicyEngine:
                             sort_value=sort_value,
                         )
                     )
+            segment_exclusions[segment.product_type] = (
+                segment_excluded_filter,
+                segment_excluded_state,
+            )
         requested_period = next(
             (
                 self._partitioner._metrics[value.metric_id].period
@@ -336,6 +345,22 @@ class PolicyEngine:
                     segment.sort,
                 )[: segment.top_k]
             )
+        if operation is Operation.DISPLAY:
+            primary_identities = {
+                (row.raw.product_type, row.raw.product_id) for row in selected_rows
+            }
+            selected_partitions = [
+                partition.model_copy(
+                    update={
+                        "selected_values": tuple(
+                            value
+                            for value in partition.values
+                            if (value.product_type, value.product_id) in primary_identities
+                        )
+                    }
+                )
+                for partition in selected_partitions
+            ]
         aggregates: list[AggregatePolicyResult] = []
         for segment in bundle.segments:
             aggregation = segment.aggregation
@@ -429,7 +454,7 @@ class PolicyEngine:
                             excluded_count=(
                                 metric_excluded
                                 + (
-                                    excluded_filter + excluded_state
+                                    sum(segment_exclusions[segment.product_type])
                                     if not aggregation.group_by
                                     else 0
                                 )

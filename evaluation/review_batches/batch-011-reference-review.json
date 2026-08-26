@@ -12235,8 +12235,8 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
-              "domestic_bond:KR354301GB84:product_id",
-              "domestic_bond:KR353601DE34:product_id"
+              "domestic_bond:KR353601DE34:product_id",
+              "domestic_bond:KR354301GB84:product_id"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -12674,8 +12674,8 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
-              "overseas_etf:AAEQ.O:product_id",
-              "overseas_etf:AAA:product_id"
+              "overseas_etf:AAA:product_id",
+              "overseas_etf:AAEQ.O:product_id"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -18148,9 +18148,24 @@
             "sign": "zero",
             "text": "원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA65 buyable_quantity: 0E-18",
             "value": "0E-18"
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다.",
+            "value": "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다."
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 556\n상태 검증 후 상품 개수: 0\n원천 기록과 상태 검증 개수 차이: 556\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA24 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA32 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA40 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA57 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA65 buyable_quantity: 0E-18"
+        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 556\n상태 검증 후 상품 개수: 0\n원천 기록과 상태 검증 개수 차이: 556\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA24 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA32 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA40 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA57 buyable_quantity: 0E-18\n원천 기록 기준 domestic_bond/instrument [source-recorded:domestic_bond] KR101501DA65 buyable_quantity: 0E-18\n원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다."
       },
       "case_id": "CQ-011-022",
       "category": "quality",
@@ -18393,7 +18408,8 @@
           "source_applicable_date"
         ],
         "material_policy_limitations": [
-          "2026-07-11 제공 스냅샷 기준"
+          "2026-07-11 제공 스냅샷 기준",
+          "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다."
         ],
         "sources": [
           {

@@ -304,6 +304,26 @@ def test_types_generic_comparison_difference_evidence_without_registry_fields() 
     )
 
 
+def test_rejects_comparison_difference_for_unregistered_base_field() -> None:
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    with pytest.raises(ValueError, match="comparison difference base field"):
+        module._expected_values(  # type: ignore[attr-defined]
+            (
+                {
+                    "product_type": "domestic_etf",
+                    "product_id": "ETF-1",
+                    "field_id": "unregistered_metric_difference",
+                    "value": "1.0",
+                    "rule_id": "comparison.unregistered_metric_difference",
+                },
+            ),
+            FieldRegistry.from_bundle(RegistryBundle.from_package()),
+        )
+
+
 def test_promotes_batch_five_approved_boundaries(tmp_path: Path) -> None:
     repository = tmp_path / "repository"
     review = repository / "evaluation/review_batches"

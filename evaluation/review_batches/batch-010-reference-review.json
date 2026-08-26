@@ -13994,7 +13994,7 @@
               "public_fund:KR517502039M:return_1m",
               "public_fund:KR517502003M:return_1m"
             ],
-            "excluded_count": 3630,
+            "excluded_count": 3568,
             "group_values": [],
             "included_count": 7570,
             "kind": "aggregate",

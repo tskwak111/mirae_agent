@@ -1786,6 +1786,199 @@ def test_aggregate_group_by_preserves_typed_keys_values_and_group_counts() -> No
     assert len({aggregate.partition_key for aggregate in aggregates}) == 2
 
 
+def test_display_partitions_do_not_expand_the_primary_top_k_identity_set() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.LOOKUP,
+            "metrics": ("total_fee", "aum"),
+            "sort": (),
+            "top_k": 2,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    def row(
+        product_id: str,
+        *,
+        fee: Decimal | None,
+        aum: Decimal | None,
+    ) -> RawProductRow:
+        base = _listed(product_id, ProductType.DOMESTIC_ETF, "KRW", "100")
+        return base.model_copy(
+            update={
+                "values": (
+                    *(item for item in base.values if item.field_id != "aum"),
+                    RawFieldValue(
+                        field_id="aum",
+                        value=aum,
+                        quality_status="valid" if aum is not None else "missing_blank",
+                    ),
+                    RawFieldValue(
+                        field_id="total_fee",
+                        value=fee,
+                        quality_status="valid" if fee is not None else "missing_blank",
+                    ),
+                )
+            }
+        )
+
+    rows = (
+        row("A", fee=Decimal("0.1"), aum=None),
+        row("B", fee=Decimal("0.2"), aum=None),
+        row("C", fee=None, aum=Decimal("100")),
+        row("D", fee=None, aum=Decimal("200")),
+    )
+    result = PolicyEngine().apply(
+        RawExecutionResult(
+            segments=(
+                RawSegmentResult(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    rows=rows,
+                    candidate_count=4,
+                    max_batch_rows=4,
+                ),
+            ),
+            candidate_count=4,
+        ),
+        bundle=bundle,
+    )
+
+    primary = {row.raw.product_id for row in result.selected_rows}
+    partition_selected = {
+        value.product_id for partition in result.partitions for value in partition.selected_values
+    }
+    assert primary == {"A", "B"}
+    assert partition_selected == primary
+
+
+def test_ungrouped_cross_product_aggregate_exclusions_are_segment_scoped() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import (
+        AggregationFunction,
+        AggregationSpec,
+        Intent,
+        ProductType,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import (
+        RawExecutionResult,
+        RawFieldValue,
+        RawProductRow,
+        RawSegmentResult,
+    )
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.PUBLIC_FUND),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.AVG,
+                field="return_1m",
+                group_by=(),
+            ),
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    def etf(product_id: str, *, saleable: bool) -> RawProductRow:
+        base = _listed(product_id, ProductType.DOMESTIC_ETF, "KRW", "100")
+        return base.model_copy(
+            update={
+                "values": (
+                    *(item for item in base.values if item.field_id != "saleable"),
+                    RawFieldValue(field_id="saleable", value=saleable, quality_status="valid"),
+                    RawFieldValue(
+                        field_id="return_1m",
+                        value=Decimal("1"),
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+
+    funds = tuple(
+        RawProductRow(
+            product_type=ProductType.PUBLIC_FUND,
+            native_result_grain=ResultGrain.FUND_ITEM,
+            product_id=product_id,
+            values=(
+                RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                RawFieldValue(
+                    field_id="return_1m",
+                    value=value,
+                    quality_status="valid" if value is not None else "missing_blank",
+                ),
+            ),
+        )
+        for product_id, value in (("F-VALID", Decimal("2")), ("F-MISSING", None))
+    )
+    result = PolicyEngine().apply(
+        RawExecutionResult(
+            segments=(
+                RawSegmentResult(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    rows=(etf("E-VALID", saleable=True), etf("E-EXCLUDED", saleable=False)),
+                    candidate_count=2,
+                    max_batch_rows=2,
+                ),
+                RawSegmentResult(
+                    product_type=ProductType.PUBLIC_FUND,
+                    native_result_grain=ResultGrain.FUND_ITEM,
+                    rows=funds,
+                    candidate_count=2,
+                    max_batch_rows=2,
+                ),
+            ),
+            candidate_count=4,
+        ),
+        bundle=bundle,
+    )
+
+    by_type = {aggregate.product_type: aggregate for aggregate in result.aggregates}
+    assert by_type[ProductType.DOMESTIC_ETF].excluded_count == 1
+    assert by_type[ProductType.PUBLIC_FUND].excluded_count == 1
+
+
 def _bond(
     product_id: str,
     quantity: str,

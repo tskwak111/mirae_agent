@@ -1722,8 +1722,549 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
     session._close()
 
 
+def test_source_samples_use_only_capacity_remaining_after_primary_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import Intent, ProductType, QueryPlan, ResultGrain, TopKScope
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import (
+        EvidenceLookup,
+        EvidenceRepository,
+        RecordEvidence,
+    )
+
+    session, _ = _bond_evidence_session()
+    repository = EvidenceRepository(session)
+    template = repository.fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("product_id",),
+            ),
+        )
+    )[0].direct[0]
+
+    def row(index: int, *, eligible: bool) -> PolicyRow:
+        product_id = f"B{index:02d}"
+        return PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                product_id=product_id,
+                values=(
+                    RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                    RawFieldValue(
+                        field_id="buy_yield",
+                        value=Decimal("2.5"),
+                        quality_status="valid",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(
+                product_id=product_id,
+                eligible=eligible,
+                state_ids=(),
+                warnings=(),
+            ),
+        )
+
+    selected = tuple(row(index, eligible=True) for index in range(50))
+    source_only = tuple(row(index, eligible=False) for index in range(50, 55))
+    policy = PolicyExecutionResult(
+        included_rows=selected,
+        excluded_filter_count=0,
+        excluded_state_count=5,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=selected,
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=(*selected, *source_only),
+    )
+    plan = ValidatedQueryPlan._issue(
+        plan=QueryPlan(
+            intent=Intent.COMPARE,
+            product_types=(ProductType.DOMESTIC_BOND,),
+            entities=(),
+            as_of_date=date(2026, 7, 11),
+            result_grain=ResultGrain.INSTRUMENT,
+            filters=(),
+            metrics=("buy_yield",),
+            sort=(),
+            aggregation=None,
+            top_k=50,
+            top_k_scope=TopKScope.GLOBAL,
+            needs_clarification=False,
+            clarification_reason="",
+        ),
+        resolutions=(),
+        context=(),
+    )
+
+    def fetch(
+        _repository: EvidenceRepository,
+        requests: tuple[EvidenceLookup, ...],
+    ) -> tuple[RecordEvidence, ...]:
+        return tuple(
+            RecordEvidence(
+                product_type=request.product_type,
+                product_id=product_id,
+                direct=(
+                    template.model_copy(
+                        update={
+                            "evidence_id": f"domestic_bond:{product_id}:product_id",
+                            "product_id": product_id,
+                            "value": template.value.model_copy(
+                                update={"raw_value": product_id, "normalized_value": product_id}
+                            ),
+                        }
+                    ),
+                ),
+                derived=(),
+            )
+            for request in requests
+            for product_id in request.product_ids
+        )
+
+    monkeypatch.setattr(EvidenceRepository, "fetch_final_record_evidence", fetch)
+    evidence = EvidenceBuilder().build(plan=plan, policy_result=policy, repository=repository)
+
+    assert len({item.product_id for item in evidence.direct}) == 50
+    assert not any(summary.kind.value == "recorded" for summary in evidence.summaries)
+    session._close()
+
+
+def test_heterogeneous_source_lens_skips_metrics_absent_from_product_projection() -> None:
+    from finproof.domain.query_plan import Intent, ProductType, QueryPlan, ResultGrain, TopKScope
+    from finproof.evidence.builder import _source_lens_summaries
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+
+    rows = (
+        PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                product_id="B1",
+                values=(
+                    RawFieldValue(field_id="product_id", value="B1", quality_status="valid"),
+                    RawFieldValue(
+                        field_id="maturity_date",
+                        value=date(2027, 7, 11),
+                        quality_status="valid",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(product_id="B1", eligible=False, state_ids=(), warnings=()),
+        ),
+        PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_ETF,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                product_id="E1",
+                values=(
+                    RawFieldValue(field_id="product_id", value="E1", quality_status="valid"),
+                    RawFieldValue(
+                        field_id="total_fee",
+                        value=Decimal("0.1"),
+                        quality_status="valid",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(product_id="E1", eligible=False, state_ids=(), warnings=()),
+        ),
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=2,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=rows,
+    )
+    plan = QueryPlan(
+        intent=Intent.COMPARE,
+        product_types=(ProductType.DOMESTIC_BOND, ProductType.DOMESTIC_ETF),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("maturity_date", "total_fee"),
+        sort=(),
+        aggregation=None,
+        top_k=2,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+    summaries = _source_lens_summaries(
+        plan=plan,
+        policy_result=policy,
+        source_only_rows=rows,
+        items=(),
+        policy_versions=("test:1",),
+        plan_hash="a" * 64,
+        version_hash="b" * 64,
+        artifact_hash="c" * 64,
+    )
+
+    assert {
+        (summary.product_id, summary.metric_id)
+        for summary in summaries
+        if summary.kind.value == "recorded"
+    } == {("B1", "maturity_date"), ("E1", "total_fee")}
+
+
+def test_metrics_empty_screen_does_not_select_state_excluded_source_rows() -> None:
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.evidence.builder import _bounded_source_rows
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+
+    rows = tuple(
+        PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                product_id=product_id,
+                values=(
+                    RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                ),
+            ),
+            state=StateEvaluation(
+                product_id=product_id,
+                eligible=eligible,
+                state_ids=(),
+                warnings=(),
+            ),
+        )
+        for product_id, eligible in (("VALID", True), ("MATURED", False))
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(rows[0],),
+        excluded_filter_count=0,
+        excluded_state_count=1,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(rows[0],),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=rows,
+    )
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.INSTRUMENT,
+        filters=(
+            FilterClause(field="buyable_quantity", operator=FilterOperator.GT, value=Decimal("0")),
+        ),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+    assert _bounded_source_rows(plan=plan, policy_result=policy) == ()
+
+
+def test_nonmetric_date_screen_rank_emits_competition_ranks_tie_and_boundary_warning(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.domain.evidence import EvidenceSummaryKind
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import (
+        EvidenceLookup,
+        EvidenceRepository,
+        RecordEvidence,
+    )
+
+    values = {
+        "A": date(2026, 7, 20),
+        "B": date(2026, 7, 21),
+        "C": date(2026, 7, 22),
+        "D": date(2026, 7, 31),
+        "E": date(2026, 7, 31),
+        "F": date(2026, 7, 31),
+        "G": date(2026, 7, 31),
+    }
+
+    def row(product_id: str) -> PolicyRow:
+        return PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                product_id=product_id,
+                values=(
+                    RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                    RawFieldValue(
+                        field_id="maturity_date",
+                        value=values[product_id],
+                        quality_status="valid",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(product_id=product_id, eligible=True, state_ids=(), warnings=()),
+        )
+
+    included = tuple(row(product_id) for product_id in values)
+    policy = PolicyExecutionResult(
+        included_rows=included,
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=included[:5],
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=included,
+    )
+    plan = ValidatedQueryPlan._issue(
+        plan=QueryPlan(
+            intent=Intent.SCREEN_RANK,
+            product_types=(ProductType.DOMESTIC_BOND,),
+            entities=(),
+            as_of_date=date(2026, 7, 11),
+            result_grain=ResultGrain.INSTRUMENT,
+            filters=(),
+            metrics=("maturity_date",),
+            sort=(SortSpec(field="maturity_date", direction=SortDirection.ASC),),
+            aggregation=None,
+            top_k=5,
+            top_k_scope=TopKScope.GLOBAL,
+            needs_clarification=False,
+            clarification_reason="",
+        ),
+        resolutions=(),
+        context=(),
+    )
+    session, _ = _bond_evidence_session()
+    repository = EvidenceRepository(session)
+    templates = {
+        item.field_id: item
+        for item in repository.fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("product_id", "maturity_date"),
+                ),
+            )
+        )[0].direct
+    }
+
+    def fetch(
+        _repository: EvidenceRepository,
+        requests: tuple[EvidenceLookup, ...],
+    ) -> tuple[RecordEvidence, ...]:
+        return tuple(
+            RecordEvidence(
+                product_type=request.product_type,
+                product_id=product_id,
+                direct=tuple(
+                    templates[field_id].model_copy(
+                        update={
+                            "evidence_id": f"domestic_bond:{product_id}:{field_id}",
+                            "product_id": product_id,
+                            "value": templates[field_id].value.model_copy(
+                                update={
+                                    "raw_value": (
+                                        product_id
+                                        if field_id == "product_id"
+                                        else values[product_id]
+                                    ),
+                                    "normalized_value": (
+                                        product_id
+                                        if field_id == "product_id"
+                                        else values[product_id]
+                                    ),
+                                }
+                            ),
+                        }
+                    )
+                    for field_id in request.field_ids
+                ),
+                derived=(),
+            )
+            for request in requests
+            for product_id in request.product_ids
+        )
+
+    monkeypatch.setattr(EvidenceRepository, "fetch_final_record_evidence", fetch)
+    evidence = EvidenceBuilder().build(plan=plan, policy_result=policy, repository=repository)
+
+    ranks = tuple(
+        summary for summary in evidence.summaries if summary.kind is EvidenceSummaryKind.RANK
+    )
+    ties = tuple(
+        summary for summary in evidence.summaries if summary.kind is EvidenceSummaryKind.TIE
+    )
+    assert tuple((summary.product_id, summary.rank, summary.tie_count) for summary in ranks) == (
+        ("A", 1, 1),
+        ("B", 2, 1),
+        ("C", 3, 1),
+        ("D", 4, 4),
+        ("E", 4, 4),
+    )
+    assert len(ties) == 1
+    assert ties[0].rank == 4
+    assert ties[0].tie_count == 4
+    assert any("동률로 top-k 경계" in item for item in evidence.material_policy_limitations)
+    session._close()
+
+
+def test_recorded_zero_buyable_source_lens_warns_it_is_not_buyability_evidence() -> None:
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    source = PolicyRow(
+        raw=RawProductRow(
+            product_type=ProductType.DOMESTIC_BOND,
+            native_result_grain=ResultGrain.INSTRUMENT,
+            product_id="KR0000000001",
+            values=(
+                RawFieldValue(field_id="product_id", value="KR0000000001", quality_status="valid"),
+                RawFieldValue(
+                    field_id="buyable_quantity",
+                    value=Decimal("0"),
+                    quality_status="recorded_zero",
+                ),
+            ),
+        ),
+        state=StateEvaluation(product_id="KR0000000001", eligible=False, state_ids=(), warnings=()),
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=1,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=(source,),
+    )
+    plan = ValidatedQueryPlan._issue(
+        plan=QueryPlan(
+            intent=Intent.SCREEN,
+            product_types=(ProductType.DOMESTIC_BOND,),
+            entities=(),
+            as_of_date=date(2026, 7, 11),
+            result_grain=ResultGrain.INSTRUMENT,
+            filters=(
+                FilterClause(
+                    field="buyable_quantity",
+                    operator=FilterOperator.EQ,
+                    value=Decimal("0"),
+                ),
+            ),
+            metrics=("buyable_quantity",),
+            sort=(),
+            aggregation=None,
+            top_k=5,
+            top_k_scope=TopKScope.GLOBAL,
+            needs_clarification=False,
+            clarification_reason="",
+        ),
+        resolutions=(),
+        context=(),
+    )
+    session, _ = _bond_evidence_session(buyable_quantity="0")
+    evidence = EvidenceBuilder().build(
+        plan=plan,
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+
+    assert (
+        "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 "
+        "제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다."
+        in evidence.material_policy_limitations
+    )
+    session._close()
+
+
 def _bond_evidence_session(
-    *, buy_yield: str = "2.25"
+    *, buy_yield: str = "2.25", buyable_quantity: str = "10"
 ) -> tuple[RuntimeArtifactSession, BondInstrument]:
     record = normalize_bond(
         source_row(
@@ -1731,7 +2272,7 @@ def _bond_evidence_session(
             {
                 "PD_NO": "KR0000000001",
                 "BUY_YIELD": buy_yield,
-                "BUYABLE_QUANTITY": "10",
+                "BUYABLE_QUANTITY": buyable_quantity,
                 "MAT_DT": "20270711",
             },
             excel_row=77,
