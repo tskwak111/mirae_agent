@@ -1,9 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-26 — Phase 4 Task 1 harness and canonical batches 001–005
-are implemented; the batch-005 promotion review returned Critical 0 / Important 0.
-Task 1 remains open until the reviewed canonical set reaches 250–300 cases and its
-final measured report/full gate pass.
+**Last updated:** 2026-08-27 — Phase 4 Task 1 is closed at 265 reviewed canonical
+cases. The batches 006–011 promotion review returned Critical 0 / Important 0 and
+the final Task 1 full gate passed. Phase 4 Task 2 has not started.
 
 ## Frozen baseline
 
@@ -52,8 +51,8 @@ Plan: `docs/superpowers/plans/2026-08-07-03-hcx-planner-and-api.md`
 
 Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
-- [ ] Task 1: canonical golden set and scoring harness — harness complete; 121 reviewed
-  canonical cases committed (24 cases in each of batches 001–005 plus 1 official
+- [x] Task 1: canonical golden set and scoring harness — harness complete; 265 reviewed
+  canonical cases committed (24 cases in each of batches 001–011 plus 1 official
   clarification case)
 - [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
@@ -63,11 +62,9 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 1 Step 6: author and review canonical batch-006 using the same bounded
-candidate → question/plan approval → deterministic reference → expectation approval →
-canonical promotion flow.** The suite has 121 of the required 250–300 cases, so 129–179
-more reviewed cases remain. Do not start Task 2 or run the final full gate until the
-Task 1 canonical set is complete.
+**Phase 4 Task 2: implement the paraphrase, metamorphic, differential, quality, and
+adversarial suites from the frozen Phase 4 plan.** Stop after the Task 1 closure in
+this checkpoint; Task 2 has not started.
 
 ## Phase 4 Task 1 batch-001 checkpoint
 
@@ -211,6 +208,50 @@ Task 1 canonical set is complete.
 - Repository-wide pytest/Ruff/mypy and the final Task 1 full gate were deliberately
   not repeated at this partial checkpoint. The next bounded checkpoint is batch-006
   candidate generation after explicit HCX external-transfer approval.
+
+## Phase 4 Task 1 batches 006–011 closure
+
+- Final deterministic-reference checkpoint: `2d18c49` (`fix: resolve final reference
+  contract violations`). Canonical promotion checkpoint: `ddd5632` (`test: promote
+  approved canonical batches 006-011`).
+- Human approval was received verbatim as `batch-006~011 expected results/answers
+  144개 승인` from reviewer `곽태성` on `2026-08-27`. The six approved reference
+  SHA-256 values are: 006 `a03a47de8b9e1430047f512efd265e5be7bc0a76c0496fb3a3ccf2dfcc7cd34f`;
+  007 `670972fb2fbf4acc31e4d15b7bbd5ca054aa3b424fcae5f19e60db5893eda7db`;
+  008 `3795abceaa3fbbf3e38184b0dff96db8e8cd1ddb0a536ea70cb409b37909b470`;
+  009 `20a9afd88af3f5a33473f2d6bcd8f038490f7f32a130b7c2779af8690b25cdf0`;
+  010 `6cd8077ae18b4c6e846d95e21b1221126c6f63814bac31ec7f924da83122f108`;
+  011 `c56ed018507889902be0b9fb765dd1a0d9523a0abed603a7da98720afe982ef9`.
+- Approval-record SHA-256 values are: 006 `906cdb68f54677e6aec84bd9ba45fb16bb7f3f533955489cee49a37cde37a4ff`;
+  007 `4814404942402074c85b788e739ebb10e9dad7502dc29ef6ad128ea89f32985d`;
+  008 `1a78585f90f175cb055d6649a3e8722b69d098bc8caa6dde258849b05245a97c`;
+  009 `2bf737c4bfc125ce8145084102c04d8afe207cb5b6ba024e01d3922533175600`;
+  010 `fc1dc3982a4d33b7afbe0caac30f4a29e9e9345d452521abbea289dae2221d13`;
+  011 `690c4958206b73ad83fb4ef8a54ab1d25a58c882ca57928fd580d843750c915c`.
+- Focused promotion TDD produced the expected RED (`1 failed, 18 passed`) because the
+  batch-006 approval record was absent, then GREEN at 19 passed. The related
+  evaluation/authoring aggregate passed 71 tests; scoped Ruff and clean
+  non-incremental plus standard mypy passed.
+- Canonical inventory is 265 unique cases: lookup 44, screen 55, rank 44, compare 33,
+  aggregate 22, cross-product 22, clarification 12, and quality 33. All prior 121
+  canonical lines remain exact byte prefixes.
+- Independent promotion review of `2d18c49..ddd5632`: spec and task quality PASS;
+  Critical 0 / Important 0 / Minor 0. No correction round was required.
+- The first sandbox full-pytest attempt exposed only environment state: an incomplete
+  official-artifact cache and nested `uv` online index refreshes. No repository code
+  changed. The prior 3.6 GB partial cache was preserved at
+  `/private/tmp/finproof-pre-final-gate-official-published-manifest-643a157719d94f17c5f17578c5f4869ec5061f46381f1f5a70fd9d31a6253f57`.
+  A clean official-cache focused rebuild passed 1 test in 8,292.16 seconds; the
+  corrected offline contract/API prefix passed 157 tests with 3 expected skips.
+- Final unchanged-candidate gate: Ruff format reported 291 files already formatted; Ruff
+  check passed; mypy found no issues in 291 source files; pytest passed 2,817 tests
+  with 8 expected skips and 5 warnings in 8,003.08 seconds; source audit passed at
+  145,393 rows and snapshot `2026-07-11`; handoff passed with 61 required files,
+  9 official inputs, and 41,384,928 source bytes. The final pytest used the populated
+  `/private/tmp/finproof-uv-cache` with `UV_OFFLINE=1` so nested package builds stayed
+  inside the validated cache.
+- Phase 4 Task 1 therefore closes at 265 reviewed cases. Exact next task is Phase 4
+  Task 2; it is intentionally not started in this checkpoint.
 
 ## Phase 1 Task 5 design and plan record
 
