@@ -250,6 +250,227 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
     session._close()
 
 
+def test_cross_product_dual_lens_rank_summaries_stay_within_context_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Global cell refs and per-row tie summaries must not overflow a bounded fact pack."""
+    from tests.unit.quality.test_pipeline_order import _listed
+    from tests.unit.query.test_semantic_validator import _context
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.quality import QualityStatus
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.evidence import ClaimVerifier, EvidenceBuilder, serialize_evidence_context
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.storage import (
+        RawExecutionResult,
+        RawFieldValue,
+        RawProductRow,
+        RawSegmentResult,
+    )
+    from finproof.storage.repositories.evidence import (
+        EvidenceLookup,
+        EvidenceRepository,
+        RecordEvidence,
+    )
+
+    session, _ = _bond_evidence_session()
+    repository = EvidenceRepository(session)
+    template = repository.fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("product_id", "buy_yield"),
+            ),
+        )
+    )[0]
+    templates = {item.field_id: item for item in template.direct}
+    ranked = {
+        ProductType.DOMESTIC_ETF: (
+            ("KR7251340006", Decimal("0.64")),
+            ("KR7236350005", Decimal("0.59")),
+            ("KR7091160002", Decimal("0.52")),
+            ("KR7091220004", Decimal("0.52")),
+        ),
+        ProductType.OVERSEAS_ETF: (
+            ("SURI.K", Decimal("2.50")),
+            ("TXXD.O", Decimal("1.89")),
+            ("TXXH.O", Decimal("1.89")),
+            ("TXXS.O", Decimal("1.89")),
+        ),
+    }
+    recorded = {
+        ProductType.DOMESTIC_ETF: (
+            "KR7069500007",
+            "KR7069660009",
+            "KR7091170001",
+            "KR7091180000",
+        ),
+        ProductType.OVERSEAS_ETF: ("AAAU.K", "ADIV.K", "AGQ", "AIBD.K"),
+    }
+    values_by_identity = {
+        (product_type, product_id): (value, QualityStatus.VALID)
+        for product_type, items in ranked.items()
+        for product_id, value in items
+    } | {
+        (product_type, product_id): (
+            Decimal(0),
+            QualityStatus.RECORDED_ZERO_UNVERIFIED,
+        )
+        for product_type, product_ids in recorded.items()
+        for product_id in product_ids
+    }
+
+    def row(
+        product_type: ProductType,
+        product_id: str,
+        value: Decimal,
+        quality: QualityStatus,
+    ) -> RawProductRow:
+        listed = _listed(
+            product_id,
+            product_type,
+            "KRW" if product_type is ProductType.DOMESTIC_ETF else "USD",
+            "100",
+        )
+        return listed.model_copy(
+            update={
+                "values": (
+                    *listed.values,
+                    RawFieldValue(field_id="total_fee", value=value, quality_status=quality),
+                )
+            }
+        )
+
+    plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=tuple(ranked),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("total_fee",),
+        sort=(SortSpec(field="total_fee", direction=SortDirection.DESC),),
+        aggregation=None,
+        top_k=4,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    validated = SemanticValidator(repository._fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(repository._fields).build(validated, context=_context())
+    segments = tuple(
+        RawSegmentResult(
+            product_type=product_type,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            rows=tuple(
+                row(product_type, product_id, value, quality)
+                for (selected_type, product_id), (value, quality) in values_by_identity.items()
+                if selected_type is product_type
+            ),
+            candidate_count=8,
+            max_batch_rows=8,
+        )
+        for product_type in ranked
+    )
+    policy = PolicyEngine().apply(
+        RawExecutionResult(segments=segments, candidate_count=16),
+        bundle=bundle,
+    )
+
+    def fetch(
+        _repository: EvidenceRepository,
+        requests: tuple[EvidenceLookup, ...],
+    ) -> tuple[RecordEvidence, ...]:
+        records = []
+        for request in requests:
+            for product_id in request.product_ids:
+                value, item_quality = values_by_identity[(request.product_type, product_id)]
+                direct = []
+                for field_id in request.field_ids:
+                    template_item = templates[
+                        "product_id" if field_id == "product_id" else "buy_yield"
+                    ]
+                    normalized = product_id if field_id == "product_id" else value
+                    quality = QualityStatus.VALID if field_id == "product_id" else item_quality
+                    direct.append(
+                        template_item.model_copy(
+                            update={
+                                "evidence_id": (
+                                    f"{request.product_type.value}:{product_id}:{field_id}"
+                                ),
+                                "product_type": request.product_type,
+                                "product_id": product_id,
+                                "field_id": field_id,
+                                "value": template_item.value.model_copy(
+                                    update={
+                                        "raw_value": str(normalized),
+                                        "normalized_value": normalized,
+                                        "quality_status": quality,
+                                    }
+                                ),
+                            }
+                        )
+                    )
+                records.append(
+                    RecordEvidence(
+                        product_type=request.product_type,
+                        product_id=product_id,
+                        direct=tuple(direct),
+                        derived=(),
+                    )
+                )
+        return tuple(records)
+
+    monkeypatch.setattr(EvidenceRepository, "fetch_final_record_evidence", fetch)
+    evidence = EvidenceBuilder().build(
+        plan=validated,
+        policy_result=policy,
+        repository=repository,
+    )
+    context = serialize_evidence_context(evidence)
+    general = tuple(
+        item for item in evidence.summaries if item.kind.value in {"count", "exclusion"}
+    )
+    partitions = tuple(item for item in evidence.summaries if item.kind.value == "partition")
+    ties = tuple(item for item in evidence.summaries if item.kind.value == "tie")
+    verified = ClaimVerifier().verify(
+        AnswerRenderer().render(
+            request=AnswerRequest(question_id="q-bounded-cross-product", question="총보수 순위"),
+            plan=plan,
+            evidence=evidence,
+        ),
+        evidence,
+    )
+
+    assert len(context.encode()) <= 24_000
+    assert all(not item.evidence_ids for item in general)
+    assert {len(item.evidence_ids) for item in partitions} == {4}
+    assert len(ties) == 2
+    assert {len(item.evidence_ids) for item in ties} == {2, 3}
+    assert all(claim.evidence_ids for claim in verified.claims if claim.kind is ClaimKind.NUMERIC)
+    session._close()
+
+
 def test_builder_exposes_empty_per_product_type_rank_partition_in_answer() -> None:
     from finproof.answer import AnswerRenderer
     from finproof.domain.answers import AnswerRequest

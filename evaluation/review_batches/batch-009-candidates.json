@@ -1,0 +1,143 @@
+{
+  "batch_id": "009",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 113,
+  "prompt_version": "canonical-question-candidates-v12",
+  "prompt_sha256": "95b6bd8332c112fff5518dc9ae4917ecdd8fe9e97ee4f098f147c6f3bac676f1",
+  "generated_at": "2026-08-25T16:29:03Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-009-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DE61의 상품명과 신용등급을 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-009-002",
+      "category": "lookup",
+      "question": "국내 ETN KRG500000630의 3개월 수익률과 추적오차는 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-009-003",
+      "category": "lookup",
+      "question": "해외 ETN AIQU.K의 총 보수 비용과 현재 판매 가능 여부는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101405의 최근 3개월 수익률과 5년 수익률을 각각 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-009-005",
+      "category": "screen",
+      "question": "신용등급이 AAA이고 잔존기간이 180일 이하이며 매수 가능한 국내채권은 어떤 것인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-006",
+      "category": "screen",
+      "question": "최근 3개월 수익률이 -5% 이하이며 현재 판매 중인 국내 ETF와 ETN을 제외한 상품은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-007",
+      "category": "screen",
+      "question": "투자 지역이 미국이며 당일 수익률이 0% 미만인 해외 ETF/ETN을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-009-008",
+      "category": "screen",
+      "question": "3개월 수익률이 3% 이상이면서 미래에셋에서 판매 가능한 공모펀드를 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-009-009",
+      "category": "screen",
+      "question": "AUM이 50억 원 이하이며 현재 판매 가능한 국내 ETN 상품을 모두 나열해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-010",
+      "category": "rank",
+      "question": "신용등급 AAA이면서 2026-07-11 기준 매수 가능한 국내채권 중 가장 만기가 긴 상위 7개는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-011",
+      "category": "rank",
+      "question": "상장지수펀드 중에서 1개월 수익률이 가장 높은 상위 7개 국내 ETF를 ETN 제외하고 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-009-012",
+      "category": "rank",
+      "question": "총 보수가 가장 낮은 상위 7개 해외 ETN을 ETN 명시를 포함해 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-009-013",
+      "category": "rank",
+      "question": "5년 수익률이 가장 낮은 상위 5개 공모펀드를 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-009-014",
+      "category": "compare",
+      "question": "국내채권 KR350105G9C6와 KR350901G671 중 어느 쪽의 만기일이 더 늦나요?"
+    },
+    {
+      "candidate_id": "CQ-009-015",
+      "category": "compare",
+      "question": "해외 상장 ETN NRGD.K와 AIQD.K의 총 보수 비용을 비교해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-016",
+      "category": "compare",
+      "question": "공모펀드 KR5114420158과 KR5138490078의 1년 수익률을 각각 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-017",
+      "category": "aggregate",
+      "question": "국내 ETF의 AUM 평균값을 ETN을 제외하고 계산해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-018",
+      "category": "aggregate",
+      "question": "2026-07-11 기준 매수 가능한 국내채권들의 최대 매수 가능 수량은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-009-019",
+      "category": "cross_product",
+      "question": "판매 가능한 국내 ETF와 미래에셋에서 판매 가능한 공모펀드 중 3개월 수익률 상위 4개씩을 유형별로 구분해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-020",
+      "category": "cross_product",
+      "question": "국내채권은 매수 수익률 상위 4개, 국내 ETF는 연초 이후 수익률 상위 4개로 나누어 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-009-021",
+      "category": "clarification",
+      "question": "신용등급이 높고 만기가 적절한 국내채권을 찾을 때 구체적인 만기 범위를 설정해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-022",
+      "category": "quality",
+      "question": "여러 신용등급을 가진 국내채권 리스트에서 미평가 채권을 제외하고 등급별 정책을 표시해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-023",
+      "category": "quality",
+      "question": "총 보수 정보가 없는 국내 ETF의 개수를 확인하고 해당 항목을 순위에서 제외해주세요."
+    },
+    {
+      "candidate_id": "CQ-009-024",
+      "category": "quality",
+      "question": "공모펀드의 원천 판매 상태와 미래에셋 판매 상태가 다른 경우의 수를 표시해주세요."
+    }
+  ]
+}

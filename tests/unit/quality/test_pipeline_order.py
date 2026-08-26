@@ -266,6 +266,79 @@ def test_pipeline_uses_the_frozen_rating_scale_for_aa_minus_or_higher() -> None:
     assert result.excluded_filter_count == 1
 
 
+def test_pipeline_ranks_credit_ratings_by_registry_order_and_preserves_labels() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import Intent, ResultGrain, SortDirection, SortSpec
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("credit_rating",),
+            "sort": (SortSpec(field="credit_rating", direction=SortDirection.DESC),),
+            "top_k": 3,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        _bond(product_id, "10", date(2030, 1, 1)).model_copy(
+            update={
+                "values": (
+                    *_bond(product_id, "10", date(2030, 1, 1)).values,
+                    RawFieldValue(
+                        field_id="credit_rating",
+                        value=rating,
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+        for product_id, rating in (
+            ("AA-plus", "AA+"),
+            ("AAA-two", "AAA"),
+            ("not-rated", "NR"),
+            ("AAA-one", "AAA"),
+        )
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=rows,
+                candidate_count=4,
+                max_batch_rows=4,
+            ),
+        ),
+        candidate_count=4,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple(
+        (rank.value.product_id, rank.value.value, rank.rank, rank.tie_count)
+        for rank in result.ranks
+    ) == (
+        ("AAA-one", "AAA", 1, 2),
+        ("AAA-two", "AAA", 1, 2),
+        ("AA-plus", "AA+", 3, 1),
+    )
+    assert result.excluded_metric_count == 1
+
+
 def test_pipeline_compares_iso_date_filter_values_as_dates() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 
@@ -389,6 +462,73 @@ def test_pipeline_ranks_integer_derived_metric_values() -> None:
         ("near", 1, Decimal(10)),
         ("far", 2, Decimal(30)),
     )
+
+
+def test_pipeline_preserves_integer_metric_values_for_decimal_aggregation() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import AggregationFunction, AggregationSpec, Intent, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.AVG,
+                field="remaining_days_at_as_of",
+                group_by=(),
+            ),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    rows = tuple(
+        _bond(product_id, "10", maturity).model_copy(
+            update={
+                "values": (
+                    *_bond(product_id, "10", maturity).values,
+                    RawFieldValue(
+                        field_id="remaining_days_at_as_of",
+                        value=remaining_days,
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+        for product_id, maturity, remaining_days in (
+            ("near", date(2026, 7, 21), 10),
+            ("far", date(2026, 8, 10), 30),
+        )
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                rows=rows,
+                candidate_count=2,
+                max_batch_rows=2,
+            ),
+        ),
+        candidate_count=2,
+    )
+
+    aggregate = PolicyEngine().apply(raw, bundle=bundle).aggregates[0]
+
+    assert aggregate.value == Decimal(20)
+    assert aggregate.included_count == 2
 
 
 def test_pipeline_partitions_before_aggregate_or_rank_tie() -> None:
@@ -987,6 +1127,69 @@ def test_global_scope_rejects_more_than_one_final_partition() -> None:
 
     with pytest.raises(ValueError, match="global"):
         PolicyEngine().apply(raw, bundle=bundle)
+
+
+def test_display_infers_return_period_after_another_requested_metric_is_missing() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETN,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+    ).model_copy(update={"metrics": ("total_fee", "return_1y")})
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+    row = _listed("KRG500000614", ProductType.DOMESTIC_ETN, "KRW", "1")
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_ETN,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                rows=(
+                    row.model_copy(
+                        update={
+                            "values": (
+                                *row.values,
+                                RawFieldValue(
+                                    field_id="total_fee",
+                                    value=None,
+                                    quality_status="missing_blank",
+                                ),
+                                RawFieldValue(
+                                    field_id="return_1y",
+                                    value=Decimal("-76.03"),
+                                    quality_status="valid",
+                                ),
+                            )
+                        }
+                    ),
+                ),
+                candidate_count=1,
+                max_batch_rows=1,
+            ),
+        ),
+        candidate_count=1,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple(partition.period for partition in result.partitions) == ("1y",)
+    assert tuple(value.metric_id for value in result.partitions[0].values) == (
+        "domestic_etf.return_1y",
+    )
 
 
 def test_aggregate_functions_return_typed_value_counts_policy_and_evidence_requirements() -> None:

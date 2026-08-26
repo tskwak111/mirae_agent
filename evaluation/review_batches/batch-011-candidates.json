@@ -1,0 +1,143 @@
+{
+  "batch_id": "011",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 137,
+  "prompt_version": "canonical-question-candidates-v14",
+  "prompt_sha256": "3fc0a9ff9794bf93ff4a3144cec5761317a076904e29640401ca393ecd3e4c6e",
+  "generated_at": "2026-08-25T16:30:02Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-011-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DE95의 매수가능수량과 신용등급 조회"
+    },
+    {
+      "candidate_id": "CQ-011-002",
+      "category": "lookup",
+      "question": "국내 ETN KRG500000671의 6개월 수익률과 AUM 조회"
+    },
+    {
+      "candidate_id": "CQ-011-003",
+      "category": "lookup",
+      "question": "해외 ETN AMJB.K의 1일 수익률과 총보수 조회"
+    },
+    {
+      "candidate_id": "CQ-011-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101802의 1개월 수익률과 1년 수익률 조회"
+    },
+    {
+      "candidate_id": "CQ-011-005",
+      "category": "screen",
+      "question": "신용등급 AA+ 이상이고 잔존일수가 180일 이상이며 매수가능수량이 양수인 국내채권 찾기"
+    },
+    {
+      "candidate_id": "CQ-011-006",
+      "category": "screen",
+      "question": "AUM이 1천억원 미만이고 판매 가능한 국내 ETF, ETN 제외한 상품 조회"
+    },
+    {
+      "candidate_id": "CQ-011-007",
+      "category": "screen",
+      "question": "총보수가 1% 이상인 해외 ETF, ETN 제외한 상품 찾기"
+    },
+    {
+      "candidate_id": "CQ-011-008",
+      "category": "screen",
+      "question": "거래통화가 USD이고 1년 수익률이 0% 이상 10% 이하인 공모펀드 조회"
+    },
+    {
+      "candidate_id": "CQ-011-009",
+      "category": "screen",
+      "question": "3개월 수익률이 0% 미만이고 총보수가 0% 초과인 국내 ETN 중에서 선택하기"
+    },
+    {
+      "candidate_id": "CQ-011-010",
+      "category": "rank",
+      "question": "신용등급 AA+ 이상이고 2026-07-11 기준 매수 가능한 국내채권 중 매수수익률 높은 7개 순위"
+    },
+    {
+      "candidate_id": "CQ-011-011",
+      "category": "rank",
+      "question": "국내 ETN AUM 큰 7개 상품 조회, ETN 명시"
+    },
+    {
+      "candidate_id": "CQ-011-012",
+      "category": "rank",
+      "question": "거래통화가 USD인 해외 ETF 중 AUM 가장 작은 7개 찾기, ETN 제외"
+    },
+    {
+      "candidate_id": "CQ-011-013",
+      "category": "rank",
+      "question": "공모펀드 1개월 수익률 낮은 순으로 7개 상품 나열"
+    },
+    {
+      "candidate_id": "CQ-011-014",
+      "category": "compare",
+      "question": "국내채권 KR353601DE34와 KR354301GB84의 잔존일수 차이 비교"
+    },
+    {
+      "candidate_id": "CQ-011-015",
+      "category": "compare",
+      "question": "해외 ETF AAA와 AAEQ.O의 총보수 금액 비교"
+    },
+    {
+      "candidate_id": "CQ-011-016",
+      "category": "compare",
+      "question": "공모펀드 KR5174430032와 KR5114450497의 최근 1개월 수익률 차이 분석"
+    },
+    {
+      "candidate_id": "CQ-011-017",
+      "category": "aggregate",
+      "question": "판매 가능한 국내 ETN 수 집계, ETN 명시"
+    },
+    {
+      "candidate_id": "CQ-011-018",
+      "category": "aggregate",
+      "question": "KRW 통화로 된 공모펀드들의 AUM 합계 계산"
+    },
+    {
+      "candidate_id": "CQ-011-019",
+      "category": "cross_product",
+      "question": "매수가능수량 상위 4개의 국내채권과 AUM 상위 4개의 공모펀드를 유형별로 구분해 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-011-020",
+      "category": "cross_product",
+      "question": "국내 ETN과 해외 ETN 중 총보수가 가장 높은 4개씩을 유형별로 나열"
+    },
+    {
+      "candidate_id": "CQ-011-021",
+      "category": "clarification",
+      "question": "현재 구매 가능하며 수익률이 우수한 ETF를 요청하셨으나 국내/해외 구분, 수익률 기간, 우선순위가 누락되었습니다. 추가 정보 부탁드립니다."
+    },
+    {
+      "candidate_id": "CQ-011-022",
+      "category": "quality",
+      "question": "매수가능수량이 0으로 기록된 국내채권을 별도로 표시하되 매수 가능 리스트와 순위에서는 제외하고 경고 메시지 추가"
+    },
+    {
+      "candidate_id": "CQ-011-023",
+      "category": "quality",
+      "question": "해외 ETF AUM 하위 순위에서 발견되는 0값과 결측치, 동일 순위를 분리해서 표시"
+    },
+    {
+      "candidate_id": "CQ-011-024",
+      "category": "quality",
+      "question": "원래 판매 상태가 누락된 공모펀드의 총수를 itm_no 기준으로 집계하고 검증된 매수 가능 상태 추정 금지"
+    }
+  ]
+}

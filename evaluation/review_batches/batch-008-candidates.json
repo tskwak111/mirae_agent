@@ -1,0 +1,143 @@
+{
+  "batch_id": "008",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 101,
+  "prompt_version": "canonical-question-candidates-v11",
+  "prompt_sha256": "80bad7e39cf13b447b65551f099f6eaa46d8fe2fafb033aed33a1a0de2423d39",
+  "generated_at": "2026-08-25T16:28:32Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-008-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DDA1의 잔존일수와 거래통화는 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-002",
+      "category": "lookup",
+      "question": "국내 ETF KR70000H0005의 최근 6개월 수익률과 총보수를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-008-003",
+      "category": "lookup",
+      "question": "해외 ETF AAAC.K의 현재 판매가능여부와 거래통화를 확인해주세요."
+    },
+    {
+      "candidate_id": "CQ-008-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101404의 지난 2년 및 3년간 수익률은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-008-005",
+      "category": "screen",
+      "question": "매수수익률이 3% 이하이면서 2026-07-11 기준 만기일이 남은 매수가능한 국내채권은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-006",
+      "category": "screen",
+      "question": "추적오차가 0%보다 큰 국내 ETF 중에서 ETN을 제외한 상품들을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-008-007",
+      "category": "screen",
+      "question": "1일 수익률이 0%이지만 총보수가 0%를 초과하는 해외 ETF나 ETN을 제외한 상품들은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-008",
+      "category": "screen",
+      "question": "지난 2년 동안 20% 이상의 수익을 내며 미래에셋에서 판매 중인 공모펀드를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-008-009",
+      "category": "screen",
+      "question": "연간 수익률이 0% 미만이면서 ETN으로 분류되는 국내 상품은 어떤 것들이 있나요?"
+    },
+    {
+      "candidate_id": "CQ-008-010",
+      "category": "rank",
+      "question": "2026-07-11 기준 유효기간이 남아있고 매수가능수량이 있는 국내채권 중 가장 적게 매수 가능한 상위 5개는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-011",
+      "category": "rank",
+      "question": "총보수가 가장 높은 국내 ETF 5개는 무엇인가요? (단, ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-008-012",
+      "category": "rank",
+      "question": "최근 1일간 수익률이 가장 높은 해외 ETF 상위 7개는 무엇인가요? (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-008-013",
+      "category": "rank",
+      "question": "과거 2년간 수익률이 가장 낮은 공모펀드 5개는 어디인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-014",
+      "category": "compare",
+      "question": "국내채권 KR101501DD13과 KR101501DD47 중 어느 상품의 매수수익률이 더 높나요?"
+    },
+    {
+      "candidate_id": "CQ-008-015",
+      "category": "compare",
+      "question": "국내 ETN KRG520000826와 KRG530001202의 연간 수익률을 비교해주세요."
+    },
+    {
+      "candidate_id": "CQ-008-016",
+      "category": "compare",
+      "question": "공모펀드 KR5010101702와 KR5010101714의 3년 수익률 차이를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-008-017",
+      "category": "aggregate",
+      "question": "USD로 거래되는 해외 ETF 중 가장 많은 운용자산(AUM)을 가진 상품은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-018",
+      "category": "aggregate",
+      "question": "모든 공모펀드 중 2년 수익률이 가장 낮은 값은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-008-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드 각각의 6개월 수익률 하위 4위 상품을 종류별로 구분해 주세요."
+    },
+    {
+      "candidate_id": "CQ-008-020",
+      "category": "cross_product",
+      "question": "국내 ETN과 해외 ETN의 AUM 하위 4위 상품을 통화별/종류별로 나누어 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-008-021",
+      "category": "clarification",
+      "question": "만기가 짧은 순으로 정리했을 때 매수수익률이 높은 국내채권 TOP 5를 요청했는데, 구체적인 우선순위가 누락되었습니다."
+    },
+    {
+      "candidate_id": "CQ-008-022",
+      "category": "quality",
+      "question": "추적오차가 0%로 표기된 국내 ETF들의 실제 순위 체계가 동일한지 확인하고 중복 순위 정책을 설명해주세요."
+    },
+    {
+      "candidate_id": "CQ-008-023",
+      "category": "quality",
+      "question": "2년 수익률 데이터가 없는 공모펀드의 개수를 fund_item 단위 itm_no 기준으로 계산해주세요."
+    },
+    {
+      "candidate_id": "CQ-008-024",
+      "category": "quality",
+      "question": "해외 ETF의 판매 가능 여부를 확인할 때 원천 판매상태 정보만 제공되며, 추가 검증 절차는 지원되지 않는다는 점을 알려주세요."
+    }
+  ]
+}

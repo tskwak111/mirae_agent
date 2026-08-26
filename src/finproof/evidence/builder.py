@@ -163,7 +163,7 @@ class EvidenceBuilder:
                 included_count=len(policy_result.included_rows),
                 excluded_count=excluded,
                 value=source_count,
-                evidence_ids=evidence_ids,
+                evidence_ids=(),
                 policy_versions=policy_versions,
                 plan_hash=plan_hash,
                 version_hash=version_hash,
@@ -177,7 +177,7 @@ class EvidenceBuilder:
                     kind=EvidenceSummaryKind.EXCLUSION,
                     included_count=len(policy_result.included_rows),
                     excluded_count=excluded,
-                    evidence_ids=evidence_ids,
+                    evidence_ids=(),
                     policy_versions=policy_versions,
                     plan_hash=plan_hash,
                     version_hash=version_hash,
@@ -237,13 +237,25 @@ class EvidenceBuilder:
                 )
         for index, partition in enumerate(policy_result.partitions):
             product_types = tuple(dict.fromkeys(value.product_type for value in partition.values))
+            partition_evidence_ids = tuple(
+                dict.fromkeys(
+                    evidence_id
+                    for value in partition.selected_values
+                    for evidence_id in _recorded_evidence_ids(
+                        items=(*direct, *derived),
+                        product_type=value.product_type,
+                        product_id=value.product_id,
+                        field_id="product_id",
+                    )
+                )
+            )
             summaries.append(
                 _summary(
                     summary_id=f"summary:partition:{index}",
                     kind=EvidenceSummaryKind.PARTITION,
                     included_count=len(partition.selected_values),
                     excluded_count=len(partition.values) - len(partition.selected_values),
-                    evidence_ids=evidence_ids,
+                    evidence_ids=partition_evidence_ids,
                     policy_versions=policy_versions,
                     plan_hash=plan_hash,
                     version_hash=version_hash,
@@ -281,6 +293,22 @@ class EvidenceBuilder:
                     value=value.value,
                 )
             )
+        tie_groups: dict[tuple[object, ...], list[RankPolicyResult]] = {}
+        for rank in ranks:
+            if rank.tie_count > 1:
+                tie_groups.setdefault(
+                    (
+                        rank.value.product_type,
+                        rank.partition_key,
+                        rank.field_id,
+                        rank.rank,
+                        rank.tie_count,
+                        rank.value.value,
+                        rank.policy_id,
+                    ),
+                    [],
+                ).append(rank)
+        emitted_ties: set[tuple[object, ...]] = set()
         for index, rank in enumerate(ranks):
             rank_evidence_ids = (
                 *(
@@ -316,13 +344,37 @@ class EvidenceBuilder:
                 )
             )
             if rank.tie_count > 1:
+                tie_key = (
+                    rank.value.product_type,
+                    rank.partition_key,
+                    rank.field_id,
+                    rank.rank,
+                    rank.tie_count,
+                    rank.value.value,
+                    rank.policy_id,
+                )
+                if tie_key in emitted_ties:
+                    continue
+                emitted_ties.add(tie_key)
+                tie_evidence_ids = tuple(
+                    dict.fromkeys(
+                        evidence_id
+                        for tied_rank in tie_groups[tie_key]
+                        for evidence_id in _recorded_evidence_ids(
+                            items=(*direct, *derived),
+                            product_type=tied_rank.value.product_type,
+                            product_id=tied_rank.value.product_id,
+                            field_id=tied_rank.field_id,
+                        )
+                    )
+                )
                 summaries.append(
                     _summary(
                         summary_id=f"summary:tie:{index}",
                         kind=EvidenceSummaryKind.TIE,
                         included_count=rank.tie_count,
                         excluded_count=0,
-                        evidence_ids=rank_evidence_ids,
+                        evidence_ids=tie_evidence_ids,
                         policy_versions=(rank.policy_id,),
                         plan_hash=plan_hash,
                         version_hash=version_hash,
@@ -330,7 +382,6 @@ class EvidenceBuilder:
                         product_types=(rank.value.product_type,),
                         native_result_grains=(rank.native_result_grain,),
                         partition_key=rank.partition_key,
-                        product_id=rank.value.product_id,
                         metric_id=rank.field_id,
                         rank=rank.rank,
                         tie_count=rank.tie_count,

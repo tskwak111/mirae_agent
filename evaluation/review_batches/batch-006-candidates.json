@@ -1,0 +1,143 @@
+{
+  "batch_id": "006",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 77,
+  "prompt_version": "canonical-question-candidates-v9",
+  "prompt_sha256": "5298545197810cf05b7137f0097d0804072f95f1bea04d0b250791bc293e052b",
+  "generated_at": "2026-08-25T16:27:22Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-006-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DB72의 신용등급과 매수수익률은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-006-002",
+      "category": "lookup",
+      "question": "국내 ETF KR70000D0009의 최근 3개월간 수익률과 현재 판매 상태를 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-006-003",
+      "category": "lookup",
+      "question": "해외 ETF AAAAA.K의 오늘 하루 수익률과 해당 자산의 주요 투자 지역은 어디인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101401의 지난 1주간 수익률과 미래에셋증권을 통한 판매 가능 여부를 확인해주세요."
+    },
+    {
+      "candidate_id": "CQ-006-005",
+      "category": "screen",
+      "question": "2026년 7월 11일부터 2027년 7월 11일까지 만기가 남은 상태에서 매수 가능한 국내 채권은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-006",
+      "category": "screen",
+      "question": "최근 3개월 동안 수익률이 0% 미만이면서 현재 판매 중인 국내 ETF 중에서 ETN을 제외한 종목은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-007",
+      "category": "screen",
+      "question": "운용자산(AUM)이 5천만 달러 이상이고 총보수가 연 0.25% 이하인 해외 ETF나 ETN을 찾아주세요."
+    },
+    {
+      "candidate_id": "CQ-006-008",
+      "category": "screen",
+      "question": "지난 1주일 간 수익률이 1% 이상이었고 결제 통화가 원화(KRW)인 공모펀드를 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-006-009",
+      "category": "screen",
+      "question": "최근 6개월 수익률이 0%를 초과하면서 현재 판매 가능한 국내 ETN 종목을 찾습니다."
+    },
+    {
+      "candidate_id": "CQ-006-010",
+      "category": "rank",
+      "question": "2026년 7월 11일 기준으로 아직 상환되지 않았고 매수 가능한 국내 채권 중 가장 먼저 만기가 도래하는 상위 5개 종목은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-011",
+      "category": "rank",
+      "question": "최근 3개월 수익률이 가장 높은 국내 ETF 5개를 순위별로 나열해 주세요 (단, ETN은 제외합니다)."
+    },
+    {
+      "candidate_id": "CQ-006-012",
+      "category": "rank",
+      "question": "가장 최근에 1일 수익률이 낮았던 해외 ETF 5개를 지역별로 분류해 주세요 (ETN 제외)."
+    },
+    {
+      "candidate_id": "CQ-006-013",
+      "category": "rank",
+      "question": "최근 1주간 수익률이 가장 높았던 공모펀드 5개를 순위대로 알려주세요."
+    },
+    {
+      "candidate_id": "CQ-006-014",
+      "category": "compare",
+      "question": "국내채권 KR101501DA16과 KR350105G9C6 중 어느 종목의 만기가 더 빨리 돌아오나요?"
+    },
+    {
+      "candidate_id": "CQ-006-015",
+      "category": "compare",
+      "question": "국내 ETF KR7243880002와 KR7494310006의 최근 3개월 수익률을 비교해 주세요."
+    },
+    {
+      "candidate_id": "CQ-006-016",
+      "category": "compare",
+      "question": "공모펀드 KR5129470010과 KR5129470016의 최근 3개월 수익률 차이를 분석해 주세요."
+    },
+    {
+      "candidate_id": "CQ-006-017",
+      "category": "aggregate",
+      "question": "2026년 7월 11일 기준으로 유효한 만기를 가진 국내 채권들의 최소 매수수익률은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-018",
+      "category": "aggregate",
+      "question": "모든 공모펀드 중에서 최근 1주간 최고 수익률의 최대값은 몇 %인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드 중에서 최근 1개월 수익률이 가장 낮은 하위 4개 종목을 유형별로 구분해 주세요."
+    },
+    {
+      "candidate_id": "CQ-006-020",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF 중에서 총보수가 가장 높은 상위 4개 종목을 유형별로 나누어 주세요."
+    },
+    {
+      "candidate_id": "CQ-006-021",
+      "category": "clarification",
+      "question": "수익률이 안정적이며 운용규모가 큰 ETF 5개를 국내와 해외로 구분하여 제시해 주세요. 단, 구체적인 수익률 기간이나 복합적 우선순위는 언급하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-006-022",
+      "category": "quality",
+      "question": "매수 가능한 수량이 기록된 국내 채권의 원래 발행량 합계와 2026년 7월 11일 기준 실제 만기도래 검산 후 잔여 수량 합계의 차이는 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-006-023",
+      "category": "quality",
+      "question": "최근 1일간 수익률이 가장 낮았던 해외 ETF 5개 종목의 순위에서 동일 수익률 발생 시 처리 방식은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-006-024",
+      "category": "quality",
+      "question": "최근 1주간의 수익률 데이터가 누락된 공모펀드의 수는 몇 개인가요? itm_no 기준 중복 제거 후 계산해 주세요."
+    }
+  ]
+}

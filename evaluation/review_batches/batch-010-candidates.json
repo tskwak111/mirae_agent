@@ -1,0 +1,143 @@
+{
+  "batch_id": "010",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 125,
+  "prompt_version": "canonical-question-candidates-v13",
+  "prompt_sha256": "7cecd2662b9c7124e2e6cfa30eb505badeb1a1fe5ab0a06be409a82094dd1651",
+  "generated_at": "2026-08-25T16:29:29Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-010-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DE79의 만기일과 매수수익률 조회"
+    },
+    {
+      "candidate_id": "CQ-010-002",
+      "category": "lookup",
+      "question": "국내 ETF KR70000J0003의 연초이후 수익률과 추적오차 조회"
+    },
+    {
+      "candidate_id": "CQ-010-003",
+      "category": "lookup",
+      "question": "해외 ETF AAAD.K의 AUM과 총보수 조회"
+    },
+    {
+      "candidate_id": "CQ-010-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101501의 18개월 수익률과 5년 수익률 조회"
+    },
+    {
+      "candidate_id": "CQ-010-005",
+      "category": "screen",
+      "question": "매수수익률이 4% 이상이고 잔존일수가 730일 이상이며 매수가능수량이 양수인 국내채권 찾기"
+    },
+    {
+      "candidate_id": "CQ-010-006",
+      "category": "screen",
+      "question": "6개월 수익률이 0% 이하이고 판매 가능한 국내 ETF 찾기 (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-010-007",
+      "category": "screen",
+      "question": "AUM이 1억 USD 이상인 해외 ETN 찾기"
+    },
+    {
+      "candidate_id": "CQ-010-008",
+      "category": "screen",
+      "question": "18개월 수익률이 0% 미만이고 위험등급이 있는 공모펀드 찾기"
+    },
+    {
+      "candidate_id": "CQ-010-009",
+      "category": "screen",
+      "question": "총보수가 0% 초과이고 연초이후 수익률이 0% 초과인 국내 ETN 찾기"
+    },
+    {
+      "candidate_id": "CQ-010-010",
+      "category": "rank",
+      "question": "잔존일수가 730일 이상이고 2026-07-11 기준 매수 가능한 국내채권 중 매수수익률 높은 순으로 7개 조회"
+    },
+    {
+      "candidate_id": "CQ-010-011",
+      "category": "rank",
+      "question": "국내 ETF 중에서 연초이후 수익률이 가장 낮은 상위 7개 찾기 (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-010-012",
+      "category": "rank",
+      "question": "해외 ETF 중에서 총보수가 가장 높은 상위 7개 찾기 (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-010-013",
+      "category": "rank",
+      "question": "공모펀드 중에서 18개월 수익률이 가장 낮은 상위 7개 찾기"
+    },
+    {
+      "candidate_id": "CQ-010-014",
+      "category": "compare",
+      "question": "국내채권 KR101501DA16과 KR101501DD13의 신용등급 비교"
+    },
+    {
+      "candidate_id": "CQ-010-015",
+      "category": "compare",
+      "question": "국내 ETF KR7305080004와 KR7371160003의 추적오차 비교"
+    },
+    {
+      "candidate_id": "CQ-010-016",
+      "category": "compare",
+      "question": "공모펀드 KR5129470010과 KR5129470016의 2년 수익률 비교"
+    },
+    {
+      "candidate_id": "CQ-010-017",
+      "category": "aggregate",
+      "question": "거래통화가 USD인 해외 ETN들의 AUM 평균값 계산 (ETN 명시)"
+    },
+    {
+      "candidate_id": "CQ-010-018",
+      "category": "aggregate",
+      "question": "공모펀드들 중에서 18개월 수익률의 최대값 구하기"
+    },
+    {
+      "candidate_id": "CQ-010-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 1개월 수익률 평균을 각각 구분해서 계산"
+    },
+    {
+      "candidate_id": "CQ-010-020",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF의 AUM 합계를 통화별 및 유형별로 분류해 계산"
+    },
+    {
+      "candidate_id": "CQ-010-021",
+      "category": "clarification",
+      "question": "단기와 장기 수익률이 모두 우수한 공모펀드를 찾을 때 구체적인 단기/장기 기간을 명시하지 않은 상황 설명"
+    },
+    {
+      "candidate_id": "CQ-010-022",
+      "category": "quality",
+      "question": "5년 수익률 정보가 없는 공모펀드의 수 집계 (fund_item 번호 기준, 속성 행 제외)"
+    },
+    {
+      "candidate_id": "CQ-010-023",
+      "category": "quality",
+      "question": "해외 ETF의 AUM 평균값 산출 시 0으로 기록된 값과 결측치를 어떻게 처리할지 설명"
+    },
+    {
+      "candidate_id": "CQ-010-024",
+      "category": "quality",
+      "question": "국내 ETF의 원래 판매가능 상태와 현재(2026-07-11) 검증된 판매가능 상태 간의 차이점 분석"
+    }
+  ]
+}

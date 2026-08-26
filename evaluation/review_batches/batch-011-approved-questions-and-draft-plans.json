@@ -1,0 +1,775 @@
+{
+  "batch_id": "011",
+  "review_status": "human_approved_questions",
+  "reviewer": "곽태성",
+  "reviewed_at": "2026-08-26",
+  "source_question_packet_sha256": "19b7bd2a4da5f760938fed892b517d764042a96c109c0bda58c53d3898c51902",
+  "cases": [
+    {
+      "case_id": "CQ-011-001",
+      "category": "lookup",
+      "question": "국내채권 KR101501DE95의 매수가능수량과 신용등급 조회",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [
+          {
+            "text": "KR101501DE95",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "instrument",
+        "filters": [],
+        "metrics": [
+          "buyable_quantity",
+          "credit_rating"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-002",
+      "category": "lookup",
+      "question": "국내 ETN KRG500000671의 6개월 수익률과 AUM 조회",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "domestic_etn"
+        ],
+        "entities": [
+          {
+            "text": "KRG500000671",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "return_6m",
+          "aum"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-003",
+      "category": "lookup",
+      "question": "해외 ETN AMJB.K의 1일 수익률과 총보수 조회",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "overseas_etn"
+        ],
+        "entities": [
+          {
+            "text": "AMJB.K",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "return_1d",
+          "total_fee"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5010101802의 1개월 수익률과 1년 수익률 조회",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [
+          {
+            "text": "KR5010101802",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_1m",
+          "return_1y"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-005",
+      "category": "screen",
+      "question": "신용등급 AA+ 이상이고 잔존일수가 180일 이상이며 매수가능수량이 양수인 국내채권 찾기",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "instrument",
+        "filters": [
+          {
+            "field": "credit_rating",
+            "operator": "gte",
+            "value": "AA+"
+          },
+          {
+            "field": "remaining_days_at_as_of",
+            "operator": "gte",
+            "value": 180
+          },
+          {
+            "field": "buyable_quantity",
+            "operator": "gt",
+            "value": 0
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-006",
+      "category": "screen",
+      "question": "AUM이 1천억원 미만이고 판매 가능한 국내 ETF, ETN 제외한 상품 조회",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "aum",
+            "operator": "lt",
+            "value": 100000000000
+          },
+          {
+            "field": "saleable",
+            "operator": "eq",
+            "value": true
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-007",
+      "category": "screen",
+      "question": "총보수가 1% 이상인 해외 ETF, ETN 제외한 상품 찾기",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "total_fee",
+            "operator": "gte",
+            "value": 1
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-008",
+      "category": "screen",
+      "question": "거래통화가 USD이고 1년 수익률이 0% 이상 10% 이하인 공모펀드 조회",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [
+          {
+            "field": "currency",
+            "operator": "eq",
+            "value": "USD"
+          },
+          {
+            "field": "return_1y",
+            "operator": "between",
+            "value": [
+              0,
+              10
+            ]
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-009",
+      "category": "screen",
+      "question": "3개월 수익률이 0% 미만이고 총보수가 0% 초과인 국내 ETN을 조회해 주세요.",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_etn"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "return_3m",
+            "operator": "lt",
+            "value": 0
+          },
+          {
+            "field": "total_fee",
+            "operator": "gt",
+            "value": 0
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-010",
+      "category": "rank",
+      "question": "신용등급 AA+ 이상이고 2026-07-11 기준 매수 가능한 국내채권 중 매수수익률 높은 7개 순위",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "instrument",
+        "filters": [
+          {
+            "field": "credit_rating",
+            "operator": "gte",
+            "value": "AA+"
+          },
+          {
+            "field": "maturity_date",
+            "operator": "gte",
+            "value": "2026-07-11"
+          },
+          {
+            "field": "buyable_quantity",
+            "operator": "gt",
+            "value": 0
+          }
+        ],
+        "metrics": [
+          "buy_yield"
+        ],
+        "sort": [
+          {
+            "field": "buy_yield",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 7,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-011",
+      "category": "rank",
+      "question": "국내 ETN AUM 큰 7개 상품 조회, ETN 명시",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_etn"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "aum"
+        ],
+        "sort": [
+          {
+            "field": "aum",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 7,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-012",
+      "category": "rank",
+      "question": "거래통화가 USD인 해외 ETF 중 AUM 가장 작은 7개 찾기, ETN 제외",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "currency",
+            "operator": "eq",
+            "value": "USD"
+          }
+        ],
+        "metrics": [
+          "aum"
+        ],
+        "sort": [
+          {
+            "field": "aum",
+            "direction": "asc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 7,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-013",
+      "category": "rank",
+      "question": "공모펀드 1개월 수익률 낮은 순으로 7개 상품 나열",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_1m"
+        ],
+        "sort": [
+          {
+            "field": "return_1m",
+            "direction": "asc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 7,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-014",
+      "category": "compare",
+      "question": "국내채권 KR353601DE34와 KR354301GB84의 잔존일수 차이 비교",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [
+          {
+            "text": "KR353601DE34",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "KR354301GB84",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "instrument",
+        "filters": [],
+        "metrics": [
+          "remaining_days_at_as_of"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-015",
+      "category": "compare",
+      "question": "해외 ETF AAA와 AAEQ.O의 총보수를 비교해 주세요.",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [
+          {
+            "text": "AAA",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "AAEQ.O",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "total_fee"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-016",
+      "category": "compare",
+      "question": "공모펀드 KR5174430032와 KR5114450497의 최근 1개월 수익률 차이 분석",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [
+          {
+            "text": "KR5174430032",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "KR5114450497",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_1m"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-017",
+      "category": "aggregate",
+      "question": "판매 가능한 국내 ETN 수 집계, ETN 명시",
+      "plan": {
+        "intent": "aggregate",
+        "product_types": [
+          "domestic_etn"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "saleable",
+            "operator": "eq",
+            "value": true
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": {
+          "function": "count",
+          "field": null,
+          "group_by": []
+        },
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-018",
+      "category": "aggregate",
+      "question": "KRW 통화로 된 공모펀드들의 AUM 합계 계산",
+      "plan": {
+        "intent": "aggregate",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [
+          {
+            "field": "currency",
+            "operator": "eq",
+            "value": "KRW"
+          }
+        ],
+        "metrics": [
+          "aum"
+        ],
+        "sort": [],
+        "aggregation": {
+          "function": "sum",
+          "field": "aum",
+          "group_by": []
+        },
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-019",
+      "category": "cross_product",
+      "question": "매수가능수량 상위 4개의 국내채권과 AUM 상위 4개의 공모펀드를 유형별로 구분해 보여주세요.",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_bond",
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [
+          "buyable_quantity",
+          "aum"
+        ],
+        "sort": [
+          {
+            "field": "buyable_quantity",
+            "direction": "desc"
+          },
+          {
+            "field": "aum",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 4,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-020",
+      "category": "cross_product",
+      "question": "국내 ETN과 해외 ETN 중 총보수가 가장 높은 4개씩을 유형별로 나열",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_etn",
+          "overseas_etn"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [
+          "total_fee"
+        ],
+        "sort": [
+          {
+            "field": "total_fee",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 4,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-021",
+      "category": "clarification",
+      "question": "현재 살 수 있고 수익률이 좋은 ETF를 찾아주세요.",
+      "plan": {
+        "intent": "clarify",
+        "product_types": [],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": true,
+        "clarification_reason": "국내·해외 구분, 수익률 기간, 검증된 매수 가능 상태·수익률의 복합 우선순위가 지정되지 않았습니다."
+      }
+    },
+    {
+      "case_id": "CQ-011-022",
+      "category": "quality",
+      "question": "매수가능수량이 0으로 기록된 국내채권을 별도로 표시하되 매수 가능 리스트와 순위에서는 제외하고 경고 메시지 추가",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "instrument",
+        "filters": [
+          {
+            "field": "buyable_quantity",
+            "operator": "eq",
+            "value": 0
+          }
+        ],
+        "metrics": [
+          "buyable_quantity"
+        ],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-023",
+      "category": "quality",
+      "question": "해외 ETF AUM 하위 순위에서 발견되는 0값과 결측치, 동일 순위를 분리해서 표시",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "aum"
+        ],
+        "sort": [
+          {
+            "field": "aum",
+            "direction": "asc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-011-024",
+      "category": "quality",
+      "question": "1개월 수익률 정보가 없는 공모펀드 수를 itm_no 상품번호 기준으로 중복 없이 집계하고 속성 행 수는 제외해 주세요.",
+      "plan": {
+        "intent": "aggregate",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-07-11",
+        "result_grain": "fund_item",
+        "filters": [
+          {
+            "field": "return_1m",
+            "operator": "is_missing"
+          }
+        ],
+        "metrics": [],
+        "sort": [],
+        "aggregation": {
+          "function": "count",
+          "field": null,
+          "group_by": []
+        },
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    }
+  ]
+}

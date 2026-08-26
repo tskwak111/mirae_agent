@@ -161,31 +161,51 @@ class PolicyEngine:
                         raise ValueError("policy metric projection differs")
                     if projection.metric_id is None:
                         continue
+                    metric_value: Decimal | str | None
+                    sort_value: Decimal | int | str | None = None
+                    if (
+                        projection.value_type == "ordinal_rating"
+                        and bundle.validated_plan.plan.intent is Intent.SCREEN_RANK
+                    ):
+                        rating = (
+                            self._ratings.resolve(item.value) if type(item.value) is str else None
+                        )
+                        metric_value = rating.normalized_value if rating is not None else None
+                        sort_value = (
+                            -rating.ordinal
+                            if rating is not None and rating.ordinal is not None
+                            else None
+                        )
+                    else:
+                        metric_value = (
+                            item.value
+                            if type(item.value) is Decimal
+                            else Decimal(item.value)
+                            if type(item.value) is int
+                            else None
+                        )
                     metric_values.append(
                         MetricValue(
                             metric_id=projection.metric_id,
                             product_type=row.product_type,
                             product_id=row.product_id,
-                            value=(
-                                item.value
-                                if type(item.value) is Decimal
-                                else Decimal(item.value)
-                                if type(item.value) is int
-                                else None
-                            ),
+                            value=metric_value,
                             quality_status=item.quality_status,
                             currency=currency.value
                             if currency is not None and type(currency.value) is str
                             else None,
+                            sort_value=sort_value,
                         )
                     )
-        requested_period = None
-        if metric_values and all(
-            self._partitioner._metrics[value.metric_id].comparability_group
-            == "historical_total_return"
-            for value in metric_values
-        ):
-            requested_period = self._partitioner._metrics[metric_values[0].metric_id].period
+        requested_period = next(
+            (
+                self._partitioner._metrics[value.metric_id].period
+                for value in metric_values
+                if self._partitioner._metrics[value.metric_id].comparability_group
+                == "historical_total_return"
+            ),
+            None,
+        )
         operation = (
             Operation.RANK
             if bundle.validated_plan.plan.intent is Intent.SCREEN_RANK

@@ -24,10 +24,11 @@ class MetricValue(_FrozenModel):
     metric_id: str
     product_type: ProductType
     product_id: str
-    value: Decimal | None
+    value: Decimal | str | None
     quality_status: str
     currency: str | None = None
     period: str | None = None
+    sort_value: Decimal | int | str | None = None
 
 
 class MetricPolicyResult(_FrozenModel):
