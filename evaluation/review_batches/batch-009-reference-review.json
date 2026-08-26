@@ -73,9 +73,26 @@
             "sign": null,
             "text": "- domestic_bond KR101501DE61 product_name: 국민주택1종채권 24-06",
             "value": "국민주택1종채권 24-06"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR101501DE61:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR101501DE61:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR101501DE61",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR101501DE61 credit_rating: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR101501DE61 product_id: KR101501DE61\n- domestic_bond KR101501DE61 product_name: 국민주택1종채권 24-06"
+        "text": "2026-07-11 제공 스냅샷 기준\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR101501DE61 product_id: KR101501DE61\n- domestic_bond KR101501DE61 product_name: 국민주택1종채권 24-06\n- domestic_bond KR101501DE61 credit_rating: 제공 데이터에서 값을 확인할 수 없습니다."
       },
       "case_id": "CQ-009-001",
       "category": "lookup",
@@ -1117,9 +1134,60 @@
             "sign": null,
             "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
             "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101405:product_id",
+            "evidence_ids": [
+              "public_fund:KR5010101405:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101405",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101405 product_id: KR5010101405",
+            "value": "KR5010101405"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101405:return_3m",
+            "evidence_ids": [
+              "public_fund:KR5010101405:return_3m"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101405",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101405 return_3m: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5010101405:return_5y",
+            "evidence_ids": [
+              "public_fund:KR5010101405:return_5y"
+            ],
+            "field_id": "return_5y",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5010101405",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5010101405 return_5y: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- public_fund KR5010101405 product_id: KR5010101405\n- public_fund KR5010101405 return_3m: 제공 데이터에서 값을 확인할 수 없습니다.\n- public_fund KR5010101405 return_5y: 제공 데이터에서 값을 확인할 수 없습니다."
       },
       "case_id": "CQ-009-004",
       "category": "lookup",
@@ -1163,7 +1231,59 @@
           "as_of_date",
           "inputs"
         ],
-        "direct": [],
+        "direct": [
+          [
+            "public_fund:KR5010101405:product_id",
+            "public_fund",
+            "KR5010101405",
+            "product_id",
+            "KR5010101405",
+            "KR5010101405",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            336,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5010101405:return_3m",
+            "public_fund",
+            "KR5010101405",
+            "return_3m",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.return_3m",
+            "1.0.0",
+            0,
+            336,
+            "fd_mm3_ern_r",
+            9,
+            "I",
+            null
+          ],
+          [
+            "public_fund:KR5010101405:return_5y",
+            "public_fund",
+            "KR5010101405",
+            "return_5y",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.return_5y",
+            "1.0.0",
+            0,
+            336,
+            "fd_yr5_ern_r",
+            17,
+            "Q",
+            null
+          ]
+        ],
         "direct_fields": [
           "evidence_id",
           "product_type",
@@ -1195,7 +1315,15 @@
           "검증된 매수 가능 여부는 지원하지 않습니다.",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
-        "sources": [],
+        "sources": [
+          {
+            "source_checksum": "140d1ef0cec918d0b3f7c52c107cb123395594eb089b0cd70bb305709b0f44eb",
+            "source_file": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
+            "source_sheet": "datarows",
+            "source_snapshot_date": "2026-07-11",
+            "source_table": "PRFD01N001"
+          }
+        ],
         "summaries": [
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
@@ -1252,7 +1380,7 @@
         "candidate_counts": {
           "eligible": 1,
           "raw": 1,
-          "returned": 0
+          "returned": 1
         },
         "correlation_id": "trace-51020d94b2797815",
         "intent": "lookup",
@@ -1274,7 +1402,7 @@
             "native_result_grain": "fund_item",
             "partition_key": "public_fund",
             "product_type": "public_fund",
-            "returned": 0
+            "returned": 1
           }
         ],
         "tools": [
@@ -1319,6 +1447,65 @@
             "sign": null,
             "text": "2026-07-11 제공 스냅샷 기준",
             "value": "2026-07-11 제공 스냅샷 기준"
+          },
+          {
+            "claim_id": "claim:summary:summary:count",
+            "evidence_ids": [
+              "summary:count"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": "positive",
+            "text": "원천 기록 기준 상품 개수: 28",
+            "value": 28
+          },
+          {
+            "claim_id": "claim:summary:summary:state-validated:domestic_bond",
+            "evidence_ids": [
+              "summary:state-validated:domestic_bond"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-validated:domestic_bond",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "상태 검증 후 상품 개수: 1",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:summary:summary:state-difference:domestic_bond",
+            "evidence_ids": [
+              "summary:state-difference:domestic_bond"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-difference:domestic_bond",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "원천 기록과 상태 검증 개수 차이: 27",
+            "value": 27
           },
           {
             "claim_id": "claim:limitation:1",
@@ -1402,9 +1589,349 @@
             "sign": "positive",
             "text": "- domestic_bond KR356101DDC8 remaining_days_at_as_of: 173",
             "value": 173
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350102GC90:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350102GC90:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350102GC90",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350102GC90 product_id: KR350102GC90",
+            "value": "KR350102GC90"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350102GC90:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350102GC90:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350102GC90",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350102GC90 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350102GC90:buyable_quantity",
+            "evidence_ids": [
+              "domestic_bond:KR350102GC90:buyable_quantity"
+            ],
+            "field_id": "buyable_quantity",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350102GC90",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350102GC90 buyable_quantity: 92955000",
+            "value": "92955000"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350102GC90:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350102GC90:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350102GC90",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- domestic_bond KR350102GC90 remaining_days_at_as_of: -313",
+            "value": -313
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103GA26:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350103GA26:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103GA26",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350103GA26 product_id: KR350103GA26",
+            "value": "KR350103GA26"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103GA26:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350103GA26:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103GA26",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350103GA26 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103GA26:buyable_quantity",
+            "evidence_ids": [
+              "domestic_bond:KR350103GA26:buyable_quantity"
+            ],
+            "field_id": "buyable_quantity",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103GA26",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350103GA26 buyable_quantity: 95000",
+            "value": "95000"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103GA26:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350103GA26:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103GA26",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- domestic_bond KR350103GA26 remaining_days_at_as_of: -508",
+            "value": -508
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350104GC56:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350104GC56:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350104GC56",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350104GC56 product_id: KR350104GC56",
+            "value": "KR350104GC56"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350104GC56:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350104GC56:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350104GC56",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350104GC56 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350104GC56:buyable_quantity",
+            "evidence_ids": [
+              "domestic_bond:KR350104GC56:buyable_quantity"
+            ],
+            "field_id": "buyable_quantity",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350104GC56",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350104GC56 buyable_quantity: 82633000",
+            "value": "82633000"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350104GC56:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350104GC56:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350104GC56",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- domestic_bond KR350104GC56 remaining_days_at_as_of: -433",
+            "value": -433
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC14:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC14:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC14",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105GC14 product_id: KR350105GC14",
+            "value": "KR350105GC14"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC14:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC14:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC14",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105GC14 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC14:buyable_quantity",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC14:buyable_quantity"
+            ],
+            "field_id": "buyable_quantity",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC14",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350105GC14 buyable_quantity: 6000",
+            "value": "6000"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC14:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC14:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC14",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- domestic_bond KR350105GC14 remaining_days_at_as_of: -547",
+            "value": -547
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC89:product_id",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC89:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC89",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105GC89 product_id: KR350105GC89",
+            "value": "KR350105GC89"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC89:credit_rating",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC89:credit_rating"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC89",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": null,
+            "text": "- domestic_bond KR350105GC89 credit_rating: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC89:buyable_quantity",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC89:buyable_quantity"
+            ],
+            "field_id": "buyable_quantity",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC89",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350105GC89 buyable_quantity: 24967000",
+            "value": "24967000"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350105GC89:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350105GC89:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350105GC89",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- domestic_bond KR350105GC89 remaining_days_at_as_of: -341",
+            "value": -341
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA\n- domestic_bond KR356101DDC8 buyable_quantity: 1699000\n- domestic_bond KR356101DDC8 remaining_days_at_as_of: 173"
+        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 28\n상태 검증 후 상품 개수: 1\n원천 기록과 상태 검증 개수 차이: 27\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA\n- domestic_bond KR356101DDC8 buyable_quantity: 1699000\n- domestic_bond KR356101DDC8 remaining_days_at_as_of: 173\n- domestic_bond KR350102GC90 product_id: KR350102GC90\n- domestic_bond KR350102GC90 credit_rating: AAA\n- domestic_bond KR350102GC90 buyable_quantity: 92955000\n- domestic_bond KR350102GC90 remaining_days_at_as_of: -313\n- domestic_bond KR350103GA26 product_id: KR350103GA26\n- domestic_bond KR350103GA26 credit_rating: AAA\n- domestic_bond KR350103GA26 buyable_quantity: 95000\n- domestic_bond KR350103GA26 remaining_days_at_as_of: -508\n- domestic_bond KR350104GC56 product_id: KR350104GC56\n- domestic_bond KR350104GC56 credit_rating: AAA\n- domestic_bond KR350104GC56 buyable_quantity: 82633000\n- domestic_bond KR350104GC56 remaining_days_at_as_of: -433\n- domestic_bond KR350105GC14 product_id: KR350105GC14\n- domestic_bond KR350105GC14 credit_rating: AAA\n- domestic_bond KR350105GC14 buyable_quantity: 6000\n- domestic_bond KR350105GC14 remaining_days_at_as_of: -547\n- domestic_bond KR350105GC89 product_id: KR350105GC89\n- domestic_bond KR350105GC89 credit_rating: AAA\n- domestic_bond KR350105GC89 buyable_quantity: 24967000\n- domestic_bond KR350105GC89 remaining_days_at_as_of: -341"
       },
       "case_id": "CQ-009-005",
       "category": "screen",
@@ -1458,6 +1985,111 @@
               [
                 0,
                 9087,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ],
+          [
+            "domestic_bond:KR350102GC90:remaining_days_at_as_of",
+            "domestic_bond",
+            "KR350102GC90",
+            "remaining_days_at_as_of",
+            -313,
+            "valid",
+            "bond.remaining_days_at_as_of",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                3933,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ],
+          [
+            "domestic_bond:KR350103GA26:remaining_days_at_as_of",
+            "domestic_bond",
+            "KR350103GA26",
+            "remaining_days_at_as_of",
+            -508,
+            "valid",
+            "bond.remaining_days_at_as_of",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                3979,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ],
+          [
+            "domestic_bond:KR350104GC56:remaining_days_at_as_of",
+            "domestic_bond",
+            "KR350104GC56",
+            "remaining_days_at_as_of",
+            -433,
+            "valid",
+            "bond.remaining_days_at_as_of",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                4038,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ],
+          [
+            "domestic_bond:KR350105GC14:remaining_days_at_as_of",
+            "domestic_bond",
+            "KR350105GC14",
+            "remaining_days_at_as_of",
+            -547,
+            "valid",
+            "bond.remaining_days_at_as_of",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                4080,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ],
+          [
+            "domestic_bond:KR350105GC89:remaining_days_at_as_of",
+            "domestic_bond",
+            "KR350105GC89",
+            "remaining_days_at_as_of",
+            -341,
+            "valid",
+            "bond.remaining_days_at_as_of",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                4086,
                 "MAT_DT",
                 15,
                 "O",
@@ -1529,6 +2161,261 @@
             27,
             "AA",
             null
+          ],
+          [
+            "domestic_bond:KR350102GC90:product_id",
+            "domestic_bond",
+            "KR350102GC90",
+            "product_id",
+            "KR350102GC90",
+            "KR350102GC90",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            3933,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350102GC90:credit_rating",
+            "domestic_bond",
+            "KR350102GC90",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            3933,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350102GC90:buyable_quantity",
+            "domestic_bond",
+            "KR350102GC90",
+            "buyable_quantity",
+            "92955000",
+            "92955000",
+            "valid",
+            "bond.buyable_quantity",
+            "1.0.0",
+            0,
+            3933,
+            "BUYABLE_QUANTITY",
+            27,
+            "AA",
+            null
+          ],
+          [
+            "domestic_bond:KR350103GA26:product_id",
+            "domestic_bond",
+            "KR350103GA26",
+            "product_id",
+            "KR350103GA26",
+            "KR350103GA26",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            3979,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350103GA26:credit_rating",
+            "domestic_bond",
+            "KR350103GA26",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            3979,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350103GA26:buyable_quantity",
+            "domestic_bond",
+            "KR350103GA26",
+            "buyable_quantity",
+            "95000",
+            "95000",
+            "valid",
+            "bond.buyable_quantity",
+            "1.0.0",
+            0,
+            3979,
+            "BUYABLE_QUANTITY",
+            27,
+            "AA",
+            null
+          ],
+          [
+            "domestic_bond:KR350104GC56:product_id",
+            "domestic_bond",
+            "KR350104GC56",
+            "product_id",
+            "KR350104GC56",
+            "KR350104GC56",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4038,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350104GC56:credit_rating",
+            "domestic_bond",
+            "KR350104GC56",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4038,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350104GC56:buyable_quantity",
+            "domestic_bond",
+            "KR350104GC56",
+            "buyable_quantity",
+            "82633000",
+            "82633000",
+            "valid",
+            "bond.buyable_quantity",
+            "1.0.0",
+            0,
+            4038,
+            "BUYABLE_QUANTITY",
+            27,
+            "AA",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC14:product_id",
+            "domestic_bond",
+            "KR350105GC14",
+            "product_id",
+            "KR350105GC14",
+            "KR350105GC14",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4080,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC14:credit_rating",
+            "domestic_bond",
+            "KR350105GC14",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4080,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC14:buyable_quantity",
+            "domestic_bond",
+            "KR350105GC14",
+            "buyable_quantity",
+            "6000",
+            "6000",
+            "valid",
+            "bond.buyable_quantity",
+            "1.0.0",
+            0,
+            4080,
+            "BUYABLE_QUANTITY",
+            27,
+            "AA",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC89:product_id",
+            "domestic_bond",
+            "KR350105GC89",
+            "product_id",
+            "KR350105GC89",
+            "KR350105GC89",
+            "valid",
+            "bond.product_id",
+            "1.0.0",
+            0,
+            4086,
+            "PD_NO",
+            1,
+            "A",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC89:credit_rating",
+            "domestic_bond",
+            "KR350105GC89",
+            "credit_rating",
+            "AAA",
+            "AAA",
+            "valid",
+            "bond.credit_rating",
+            "1.0.0",
+            0,
+            4086,
+            "CRD_GRD",
+            39,
+            "AM",
+            null
+          ],
+          [
+            "domestic_bond:KR350105GC89:buyable_quantity",
+            "domestic_bond",
+            "KR350105GC89",
+            "buyable_quantity",
+            "24967000",
+            "24967000",
+            "valid",
+            "bond.buyable_quantity",
+            "1.0.0",
+            0,
+            4086,
+            "BUYABLE_QUANTITY",
+            27,
+            "AA",
+            null
           ]
         ],
         "direct_fields": [
@@ -1592,7 +2479,7 @@
             "summary_id": "summary:count",
             "tie_count": null,
             "validated_plan_sha256": "e89f166764dda806e83874b3b8ce5b603ce1d434d11fd3385c5656733a7826c2",
-            "value": null,
+            "value": 28,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -1618,6 +2505,62 @@
             "validated_plan_sha256": "e89f166764dda806e83874b3b8ce5b603ce1d434d11fd3385c5656733a7826c2",
             "value": null,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 27,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-validated:domestic_bond",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-validated:domestic_bond",
+            "tie_count": null,
+            "validated_plan_sha256": "e89f166764dda806e83874b3b8ce5b603ce1d434d11fd3385c5656733a7826c2",
+            "value": 1,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 27,
+            "group_values": [],
+            "included_count": 1,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-difference:domestic_bond",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-difference:domestic_bond",
+            "tie_count": null,
+            "validated_plan_sha256": "e89f166764dda806e83874b3b8ce5b603ce1d434d11fd3385c5656733a7826c2",
+            "value": 27,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           }
         ]
       },
@@ -1626,7 +2569,7 @@
         "candidate_counts": {
           "eligible": 1,
           "raw": 28,
-          "returned": 1
+          "returned": 6
         },
         "correlation_id": "trace-95231fcb5bff29a1",
         "intent": "screen",
@@ -1648,7 +2591,7 @@
             "native_result_grain": "instrument",
             "partition_key": "domestic_bond",
             "product_type": "domestic_bond",
-            "returned": 1
+            "returned": 6
           }
         ],
         "tools": [
@@ -2393,24 +3336,277 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
-            "claim_id": "claim:no-result",
-            "evidence_ids": [
-              "summary:count"
-            ],
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
             "field_id": null,
             "group_values": [],
-            "kind": "text",
+            "kind": "limitation",
             "native_result_grains": [],
             "partition_key": null,
             "product_id": null,
             "product_type": null,
             "product_types": [],
             "sign": null,
-            "text": "지정한 조건을 충족하는 상품을 찾지 못했습니다.",
-            "value": null
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAA:product_id",
+            "evidence_ids": [
+              "overseas_etf:AAA:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAA",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAA product_id: AAA",
+            "value": "AAA"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAA:region",
+            "evidence_ids": [
+              "overseas_etf:AAA:region"
+            ],
+            "field_id": "region",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAA",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAA region: United States of America",
+            "value": "United States of America"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAA:return_1d",
+            "evidence_ids": [
+              "overseas_etf:AAA:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAA",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etf AAA return_1d: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAA.K:product_id",
+            "evidence_ids": [
+              "overseas_etf:AAAA.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAA.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAA.K product_id: AAAA.K",
+            "value": "AAAA.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAA.K:region",
+            "evidence_ids": [
+              "overseas_etf:AAAA.K:region"
+            ],
+            "field_id": "region",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAA.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAA.K region: United States of America",
+            "value": "United States of America"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAA.K:return_1d",
+            "evidence_ids": [
+              "overseas_etf:AAAA.K:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAA.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etf AAAA.K return_1d: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAC.K:product_id",
+            "evidence_ids": [
+              "overseas_etf:AAAC.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAC.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAC.K product_id: AAAC.K",
+            "value": "AAAC.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAC.K:region",
+            "evidence_ids": [
+              "overseas_etf:AAAC.K:region"
+            ],
+            "field_id": "region",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAC.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAC.K region: United States of America",
+            "value": "United States of America"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAC.K:return_1d",
+            "evidence_ids": [
+              "overseas_etf:AAAC.K:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAC.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etf AAAC.K return_1d: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAD.K:product_id",
+            "evidence_ids": [
+              "overseas_etf:AAAD.K:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAD.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAD.K product_id: AAAD.K",
+            "value": "AAAD.K"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAD.K:region",
+            "evidence_ids": [
+              "overseas_etf:AAAD.K:region"
+            ],
+            "field_id": "region",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAD.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAAD.K region: United States of America",
+            "value": "United States of America"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAAD.K:return_1d",
+            "evidence_ids": [
+              "overseas_etf:AAAD.K:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAAD.K",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etf AAAD.K return_1d: 0.000000",
+            "value": "0.000000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAEQ.O:product_id",
+            "evidence_ids": [
+              "overseas_etf:AAEQ.O:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAEQ.O",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAEQ.O product_id: AAEQ.O",
+            "value": "AAEQ.O"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAEQ.O:region",
+            "evidence_ids": [
+              "overseas_etf:AAEQ.O:region"
+            ],
+            "field_id": "region",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAEQ.O",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- overseas_etf AAEQ.O region: United States of America",
+            "value": "United States of America"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:AAEQ.O:return_1d",
+            "evidence_ids": [
+              "overseas_etf:AAEQ.O:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AAEQ.O",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etf AAEQ.O return_1d: 0.000000",
+            "value": "0.000000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n지정한 조건을 충족하는 상품을 찾지 못했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n- overseas_etf AAA product_id: AAA\n- overseas_etf AAA region: United States of America\n- overseas_etf AAA return_1d: 0.000000\n- overseas_etf AAAA.K product_id: AAAA.K\n- overseas_etf AAAA.K region: United States of America\n- overseas_etf AAAA.K return_1d: 0.000000\n- overseas_etf AAAC.K product_id: AAAC.K\n- overseas_etf AAAC.K region: United States of America\n- overseas_etf AAAC.K return_1d: 0.000000\n- overseas_etf AAAD.K product_id: AAAD.K\n- overseas_etf AAAD.K region: United States of America\n- overseas_etf AAAD.K return_1d: 0.000000\n- overseas_etf AAEQ.O product_id: AAEQ.O\n- overseas_etf AAEQ.O region: United States of America\n- overseas_etf AAEQ.O return_1d: 0.000000"
       },
       "case_id": "CQ-009-007",
       "category": "screen",
@@ -2457,7 +3653,263 @@
           "as_of_date",
           "inputs"
         ],
-        "direct": [],
+        "direct": [
+          [
+            "overseas_etf:AAA:product_id",
+            "overseas_etf",
+            "AAA",
+            "product_id",
+            "AAA",
+            "AAA",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            3818,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etf:AAA:region",
+            "overseas_etf",
+            "AAA",
+            "region",
+            "United States of America",
+            "United States of America",
+            "valid",
+            "overseas_listed.region",
+            "1.0.0",
+            0,
+            3818,
+            "wu_inv_rgn",
+            48,
+            "AV",
+            null
+          ],
+          [
+            "overseas_etf:AAA:return_1d",
+            "overseas_etf",
+            "AAA",
+            "return_1d",
+            "0.000000",
+            "0.000000",
+            "recorded_zero",
+            "overseas_listed.return_1d",
+            "1.0.0",
+            0,
+            3818,
+            "du_er_1d",
+            17,
+            "Q",
+            null
+          ],
+          [
+            "overseas_etf:AAAA.K:product_id",
+            "overseas_etf",
+            "AAAA.K",
+            "product_id",
+            "AAAA.K",
+            "AAAA.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            3844,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etf:AAAA.K:region",
+            "overseas_etf",
+            "AAAA.K",
+            "region",
+            "United States of America",
+            "United States of America",
+            "valid",
+            "overseas_listed.region",
+            "1.0.0",
+            0,
+            3844,
+            "wu_inv_rgn",
+            48,
+            "AV",
+            null
+          ],
+          [
+            "overseas_etf:AAAA.K:return_1d",
+            "overseas_etf",
+            "AAAA.K",
+            "return_1d",
+            "0.000000",
+            "0.000000",
+            "recorded_zero",
+            "overseas_listed.return_1d",
+            "1.0.0",
+            0,
+            3844,
+            "du_er_1d",
+            17,
+            "Q",
+            null
+          ],
+          [
+            "overseas_etf:AAAC.K:product_id",
+            "overseas_etf",
+            "AAAC.K",
+            "product_id",
+            "AAAC.K",
+            "AAAC.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            430,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etf:AAAC.K:region",
+            "overseas_etf",
+            "AAAC.K",
+            "region",
+            "United States of America",
+            "United States of America",
+            "valid",
+            "overseas_listed.region",
+            "1.0.0",
+            0,
+            430,
+            "wu_inv_rgn",
+            48,
+            "AV",
+            null
+          ],
+          [
+            "overseas_etf:AAAC.K:return_1d",
+            "overseas_etf",
+            "AAAC.K",
+            "return_1d",
+            "0.000000",
+            "0.000000",
+            "recorded_zero",
+            "overseas_listed.return_1d",
+            "1.0.0",
+            0,
+            430,
+            "du_er_1d",
+            17,
+            "Q",
+            null
+          ],
+          [
+            "overseas_etf:AAAD.K:product_id",
+            "overseas_etf",
+            "AAAD.K",
+            "product_id",
+            "AAAD.K",
+            "AAAD.K",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            1810,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etf:AAAD.K:region",
+            "overseas_etf",
+            "AAAD.K",
+            "region",
+            "United States of America",
+            "United States of America",
+            "valid",
+            "overseas_listed.region",
+            "1.0.0",
+            0,
+            1810,
+            "wu_inv_rgn",
+            48,
+            "AV",
+            null
+          ],
+          [
+            "overseas_etf:AAAD.K:return_1d",
+            "overseas_etf",
+            "AAAD.K",
+            "return_1d",
+            "0.000000",
+            "0.000000",
+            "recorded_zero",
+            "overseas_listed.return_1d",
+            "1.0.0",
+            0,
+            1810,
+            "du_er_1d",
+            17,
+            "Q",
+            null
+          ],
+          [
+            "overseas_etf:AAEQ.O:product_id",
+            "overseas_etf",
+            "AAEQ.O",
+            "product_id",
+            "AAEQ.O",
+            "AAEQ.O",
+            "valid",
+            "overseas_listed.product_id",
+            "1.0.0",
+            0,
+            3791,
+            "pd_itm_no",
+            32,
+            "AF",
+            null
+          ],
+          [
+            "overseas_etf:AAEQ.O:region",
+            "overseas_etf",
+            "AAEQ.O",
+            "region",
+            "United States of America",
+            "United States of America",
+            "valid",
+            "overseas_listed.region",
+            "1.0.0",
+            0,
+            3791,
+            "wu_inv_rgn",
+            48,
+            "AV",
+            null
+          ],
+          [
+            "overseas_etf:AAEQ.O:return_1d",
+            "overseas_etf",
+            "AAEQ.O",
+            "return_1d",
+            "0.000000",
+            "0.000000",
+            "recorded_zero",
+            "overseas_listed.return_1d",
+            "1.0.0",
+            0,
+            3791,
+            "du_er_1d",
+            17,
+            "Q",
+            null
+          ]
+        ],
         "direct_fields": [
           "evidence_id",
           "product_type",
@@ -2485,16 +3937,25 @@
           "source_applicable_date"
         ],
         "material_policy_limitations": [
-          "2026-07-11 제공 스냅샷 기준"
+          "2026-07-11 제공 스냅샷 기준",
+          "검증된 매수 가능 여부는 지원하지 않습니다."
         ],
-        "sources": [],
+        "sources": [
+          {
+            "source_checksum": "3cec19043f742771e0016d56fe806f19ad78f4295d1ae59192740a78feb2253b",
+            "source_file": "data/PREF02N001_overseas_etf_20260711_datarows.xlsx",
+            "source_sheet": "datarows",
+            "source_snapshot_date": "2026-07-11",
+            "source_table": "PREF02N001"
+          }
+        ],
         "summaries": [
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [],
             "excluded_count": 0,
             "group_values": [],
-            "included_count": 0,
+            "included_count": 3937,
             "kind": "count",
             "metric_id": null,
             "native_result_grains": [],
@@ -2518,16 +3979,17 @@
       "trace": {
         "as_of_date": "2026-07-11",
         "candidate_counts": {
-          "eligible": 0,
-          "raw": 0,
-          "returned": 0
+          "eligible": 3937,
+          "raw": 3937,
+          "returned": 5
         },
         "correlation_id": "trace-671aebd7a7263942",
         "intent": "screen",
         "latency_ms": {},
         "policy_ids": [
           "state:1.1.0",
-          "metric:1.0.0"
+          "metric:1.0.0",
+          "literal:region-ko-us:1.0.0"
         ],
         "product_types": [
           "overseas_etf"
@@ -2536,13 +3998,13 @@
         "segments": [
           {
             "candidate_counts": {
-              "eligible": 0,
-              "raw": 0
+              "eligible": 3937,
+              "raw": 3937
             },
             "native_result_grain": "listed_product",
             "partition_key": "overseas_etf",
             "product_type": "overseas_etf",
-            "returned": 0
+            "returned": 5
           }
         ],
         "tools": [
@@ -2590,6 +4052,21 @@
           },
           {
             "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -2859,7 +4336,7 @@
             "value": "높은 위험"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n- public_fund KR510302038M product_id: KR510302038M\n- public_fund KR510302038M return_3m: 22.26\n- public_fund KR510302038M risk_grade: 높은 위험\n- public_fund KR510302050M product_id: KR510302050M\n- public_fund KR510302050M return_3m: 30.01\n- public_fund KR510302050M risk_grade: 높은 위험\n- public_fund KR510402002M product_id: KR510402002M\n- public_fund KR510402002M return_3m: 53.32\n- public_fund KR510402002M risk_grade: 매우 높은 위험\n- public_fund KR510502010M product_id: KR510502010M\n- public_fund KR510502010M return_3m: 45.83\n- public_fund KR510502010M risk_grade: 높은 위험\n- public_fund KR510502050M product_id: KR510502050M\n- public_fund KR510502050M return_3m: 9.01\n- public_fund KR510502050M risk_grade: 높은 위험"
+        "text": "2026-07-11 제공 스냅샷 기준\n결측 지표값은 순위에서 제외했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n- public_fund KR510302038M product_id: KR510302038M\n- public_fund KR510302038M return_3m: 22.26\n- public_fund KR510302038M risk_grade: 높은 위험\n- public_fund KR510302050M product_id: KR510302050M\n- public_fund KR510302050M return_3m: 30.01\n- public_fund KR510302050M risk_grade: 높은 위험\n- public_fund KR510402002M product_id: KR510402002M\n- public_fund KR510402002M return_3m: 53.32\n- public_fund KR510402002M risk_grade: 매우 높은 위험\n- public_fund KR510502010M product_id: KR510502010M\n- public_fund KR510502010M return_3m: 45.83\n- public_fund KR510502010M risk_grade: 높은 위험\n- public_fund KR510502050M product_id: KR510502050M\n- public_fund KR510502050M return_3m: 9.01\n- public_fund KR510502050M risk_grade: 높은 위험"
       },
       "case_id": "CQ-009-008",
       "category": "screen",
@@ -3190,6 +4667,7 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
           "검증된 매수 가능 여부는 지원하지 않습니다."
         ],
         "sources": [
@@ -5152,6 +6630,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_1m:included",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_1m:included"
+            ],
+            "field_id": "return_1m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_1m:included] return_1m 포함 개수: 1103",
+            "value": 1103
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_1m:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_1m:missing"
+            ],
+            "field_id": "return_1m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_1m:missing] return_1m 결측 개수: 36",
+            "value": 36
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_1m:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_1m:zero"
+            ],
+            "field_id": "return_1m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_1m:zero] return_1m 0값 개수: 8",
+            "value": 8
+          },
+          {
             "claim_id": "claim:summary:summary:partition:0",
             "evidence_ids": [
               "summary:partition:0"
@@ -5321,6 +6862,21 @@
           },
           {
             "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -5573,7 +7129,7 @@
             "value": "38.03"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics]: 7건\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7243880002 return_1m: 50.760000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7367760006 return_1m: 41.010000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7380340000 return_1m: 40.020000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7475300000 return_1m: 38.650000000000000000 (4위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR70167A0001 return_1m: 38.510000000000000000 (5위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7395270002 return_1m: 38.310000000000000000 (6위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7395160005 return_1m: 38.030000000000000000 (7위)\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_1m: 50.76\n- domestic_etf KR7367760006 product_id: KR7367760006\n- domestic_etf KR7367760006 return_1m: 41.01\n- domestic_etf KR7380340000 product_id: KR7380340000\n- domestic_etf KR7380340000 return_1m: 40.02\n- domestic_etf KR7475300000 product_id: KR7475300000\n- domestic_etf KR7475300000 return_1m: 38.65\n- domestic_etf KR70167A0001 product_id: KR70167A0001\n- domestic_etf KR70167A0001 return_1m: 38.51\n- domestic_etf KR7395270002 product_id: KR7395270002\n- domestic_etf KR7395270002 return_1m: 38.31\n- domestic_etf KR7395160005 product_id: KR7395160005\n- domestic_etf KR7395160005 return_1m: 38.03"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_etf/listed_product [policy:domestic_etf.return_1m:included] return_1m 포함 개수: 1103\ndomestic_etf/listed_product [policy:domestic_etf.return_1m:missing] return_1m 결측 개수: 36\ndomestic_etf/listed_product [policy:domestic_etf.return_1m:zero] return_1m 0값 개수: 8\n분할 domestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics]: 7건\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7243880002 return_1m: 50.760000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7367760006 return_1m: 41.010000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7380340000 return_1m: 40.020000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7475300000 return_1m: 38.650000000000000000 (4위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR70167A0001 return_1m: 38.510000000000000000 (5위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7395270002 return_1m: 38.310000000000000000 (6위)\ndomestic_etf/listed_product [historical_total_return:None:1m:same_period_and_compatible_source_semantics] KR7395160005 return_1m: 38.030000000000000000 (7위)\n결측 지표값은 순위에서 제외했습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_1m: 50.76\n- domestic_etf KR7367760006 product_id: KR7367760006\n- domestic_etf KR7367760006 return_1m: 41.01\n- domestic_etf KR7380340000 product_id: KR7380340000\n- domestic_etf KR7380340000 return_1m: 40.02\n- domestic_etf KR7475300000 product_id: KR7475300000\n- domestic_etf KR7475300000 return_1m: 38.65\n- domestic_etf KR70167A0001 product_id: KR70167A0001\n- domestic_etf KR70167A0001 return_1m: 38.51\n- domestic_etf KR7395270002 product_id: KR7395270002\n- domestic_etf KR7395270002 return_1m: 38.31\n- domestic_etf KR7395160005 product_id: KR7395160005\n- domestic_etf KR7395160005 return_1m: 38.03"
       },
       "case_id": "CQ-009-011",
       "category": "rank",
@@ -5884,6 +7440,7 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
         "sources": [
@@ -5942,6 +7499,90 @@
             "tie_count": null,
             "validated_plan_sha256": "217078e9509380fea62dc0633967addaca705db8be1ef5c8bf453b184bfbbe6c",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 36,
+            "group_values": [],
+            "included_count": 1103,
+            "kind": "count",
+            "metric_id": "return_1m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_1m:included",
+            "tie_count": null,
+            "validated_plan_sha256": "217078e9509380fea62dc0633967addaca705db8be1ef5c8bf453b184bfbbe6c",
+            "value": 1103,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 36,
+            "group_values": [],
+            "included_count": 1103,
+            "kind": "count",
+            "metric_id": "return_1m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_1m:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "217078e9509380fea62dc0633967addaca705db8be1ef5c8bf453b184bfbbe6c",
+            "value": 36,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 36,
+            "group_values": [],
+            "included_count": 1103,
+            "kind": "count",
+            "metric_id": "return_1m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_1m:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_1m:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "217078e9509380fea62dc0633967addaca705db8be1ef5c8bf453b184bfbbe6c",
+            "value": 8,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -6251,6 +7892,69 @@
             "sign": null,
             "text": "2026-07-11 제공 스냅샷 기준",
             "value": "2026-07-11 제공 스냅샷 기준"
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:overseas_etn:total_fee:included",
+            "evidence_ids": [
+              "summary:policy:overseas_etn:total_fee:included"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "positive",
+            "text": "overseas_etn/listed_product [policy:overseas_etf.total_fee:included] total_fee 포함 개수: 8",
+            "value": 8
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:overseas_etn:total_fee:missing",
+            "evidence_ids": [
+              "summary:policy:overseas_etn:total_fee:missing"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "zero",
+            "text": "overseas_etn/listed_product [policy:overseas_etf.total_fee:missing] total_fee 결측 개수: 0",
+            "value": 0
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:overseas_etn:total_fee:zero",
+            "evidence_ids": [
+              "summary:policy:overseas_etn:total_fee:zero"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "sign": "positive",
+            "text": "overseas_etn/listed_product [policy:overseas_etf.total_fee:zero] total_fee 0값 개수: 51",
+            "value": 51
           },
           {
             "claim_id": "claim:summary:summary:partition:0",
@@ -7136,7 +8840,7 @@
             "value": "0.000000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMJB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMUB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] ATMP.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCX.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCZ.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BERZ.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BULZ.K total_fee: 0E-18\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] VYLD.K total_fee: 0.850000000000000000 (1위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKD.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] FNGU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] NRGD.K total_fee: 0.950000000000000000 (2위)\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다.\n- overseas_etn VYLD.K product_id: VYLD.K\n- overseas_etn VYLD.K total_fee: 0.850000\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn AIQU.K product_id: AIQU.K\n- overseas_etn AIQU.K total_fee: 0.950000\n- overseas_etn BNKD.K product_id: BNKD.K\n- overseas_etn BNKD.K total_fee: 0.950000\n- overseas_etn BNKU.K product_id: BNKU.K\n- overseas_etn BNKU.K total_fee: 0.950000\n- overseas_etn FNGU.K product_id: FNGU.K\n- overseas_etn FNGU.K total_fee: 0.950000\n- overseas_etn NRGD.K product_id: NRGD.K\n- overseas_etn NRGD.K total_fee: 0.950000\n- overseas_etn AMJB.K product_id: AMJB.K\n- overseas_etn AMJB.K total_fee: 0.000000\n- overseas_etn AMUB.K product_id: AMUB.K\n- overseas_etn AMUB.K total_fee: 0.000000\n- overseas_etn ATMP.K product_id: ATMP.K\n- overseas_etn ATMP.K total_fee: 0.000000\n- overseas_etn BDCX.K product_id: BDCX.K\n- overseas_etn BDCX.K total_fee: 0.000000\n- overseas_etn BDCZ.K product_id: BDCZ.K\n- overseas_etn BDCZ.K total_fee: 0.000000\n- overseas_etn BERZ.K product_id: BERZ.K\n- overseas_etn BERZ.K total_fee: 0.000000\n- overseas_etn BULZ.K product_id: BULZ.K\n- overseas_etn BULZ.K total_fee: 0.000000"
+        "text": "2026-07-11 제공 스냅샷 기준\noverseas_etn/listed_product [policy:overseas_etf.total_fee:included] total_fee 포함 개수: 8\noverseas_etn/listed_product [policy:overseas_etf.total_fee:missing] total_fee 결측 개수: 0\noverseas_etn/listed_product [policy:overseas_etf.total_fee:zero] total_fee 0값 개수: 51\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 8건\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMJB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] AMUB.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] ATMP.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCX.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BDCZ.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BERZ.K total_fee: 0E-18\n제공 데이터 기록값 overseas_etn/listed_product [recorded:overseas_etf.total_fee:none] BULZ.K total_fee: 0E-18\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] VYLD.K total_fee: 0.850000000000000000 (1위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQD.K total_fee: 0.950000000000000000 (2위)\n해당 지표 값이 동일해 공동순위입니다.\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] AIQU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKD.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] BNKU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] FNGU.K total_fee: 0.950000000000000000 (2위)\noverseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat] NRGD.K total_fee: 0.950000000000000000 (2위)\n제공 데이터 기록값\n비교 가능 기준\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n기록된 0값은 비교 가능 기준에서 제외했으며, 실제 무보수인지는 검증되지 않았습니다.\n- overseas_etn VYLD.K product_id: VYLD.K\n- overseas_etn VYLD.K total_fee: 0.850000\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn AIQU.K product_id: AIQU.K\n- overseas_etn AIQU.K total_fee: 0.950000\n- overseas_etn BNKD.K product_id: BNKD.K\n- overseas_etn BNKD.K total_fee: 0.950000\n- overseas_etn BNKU.K product_id: BNKU.K\n- overseas_etn BNKU.K total_fee: 0.950000\n- overseas_etn FNGU.K product_id: FNGU.K\n- overseas_etn FNGU.K total_fee: 0.950000\n- overseas_etn NRGD.K product_id: NRGD.K\n- overseas_etn NRGD.K total_fee: 0.950000\n- overseas_etn AMJB.K product_id: AMJB.K\n- overseas_etn AMJB.K total_fee: 0.000000\n- overseas_etn AMUB.K product_id: AMUB.K\n- overseas_etn AMUB.K total_fee: 0.000000\n- overseas_etn ATMP.K product_id: ATMP.K\n- overseas_etn ATMP.K total_fee: 0.000000\n- overseas_etn BDCX.K product_id: BDCX.K\n- overseas_etn BDCX.K total_fee: 0.000000\n- overseas_etn BDCZ.K product_id: BDCZ.K\n- overseas_etn BDCZ.K total_fee: 0.000000\n- overseas_etn BERZ.K product_id: BERZ.K\n- overseas_etn BERZ.K total_fee: 0.000000\n- overseas_etn BULZ.K product_id: BULZ.K\n- overseas_etn BULZ.K total_fee: 0.000000"
       },
       "case_id": "CQ-009-012",
       "category": "rank",
@@ -7751,6 +9455,90 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 51,
+            "group_values": [],
+            "included_count": 8,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:overseas_etn:total_fee:included",
+            "tie_count": null,
+            "validated_plan_sha256": "99512760e795c70adaedd53092171f946363c5fc62c82df9d39de45f82e3e383",
+            "value": 8,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 51,
+            "group_values": [],
+            "included_count": 8,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:overseas_etn:total_fee:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "99512760e795c70adaedd53092171f946363c5fc62c82df9d39de45f82e3e383",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 51,
+            "group_values": [],
+            "included_count": 8,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:overseas_etf.total_fee:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "overseas_etn"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:overseas_etn:total_fee:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "99512760e795c70adaedd53092171f946363c5fc62c82df9d39de45f82e3e383",
+            "value": 51,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
               "overseas_etn:VYLD.K:product_id",
               "overseas_etn:AIQD.K:product_id",
@@ -8287,6 +10075,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_5y:included",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_5y:included"
+            ],
+            "field_id": "return_5y",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_5y:included] return_5y 포함 개수: 5579",
+            "value": 5579
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_5y:missing",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_5y:missing"
+            ],
+            "field_id": "return_5y",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_5y:missing] return_5y 결측 개수: 5558",
+            "value": 5558
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_5y:zero",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_5y:zero"
+            ],
+            "field_id": "return_5y",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_5y:zero] return_5y 0값 개수: 78",
+            "value": 78
+          },
+          {
             "claim_id": "claim:summary:summary:partition:0",
             "evidence_ids": [
               "summary:partition:0"
@@ -8454,11 +10305,26 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:4",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
             "value": "검증된 매수 가능 여부는 지원하지 않습니다."
           },
           {
-            "claim_id": "claim:limitation:4",
+            "claim_id": "claim:limitation:5",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -8643,7 +10509,7 @@
             "value": "-81.15"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 public_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics]: 5건\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5513400011 return_5y: -99.950000000000000000 (1위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5311791011 return_5y: -96.320000000000000000 (2위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5170450021 return_5y: -81.740000000000000000 (3위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR517602029M return_5y: -81.270000000000000000 (4위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5170450020 return_5y: -81.150000000000000000 (5위)\n제공 데이터 기록값\n비교 가능 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- public_fund KR5513400011 product_id: KR5513400011\n- public_fund KR5513400011 return_5y: -99.95\n- public_fund KR5311791011 product_id: KR5311791011\n- public_fund KR5311791011 return_5y: -96.32\n- public_fund KR5170450021 product_id: KR5170450021\n- public_fund KR5170450021 return_5y: -81.74\n- public_fund KR517602029M product_id: KR517602029M\n- public_fund KR517602029M return_5y: -81.27\n- public_fund KR5170450020 product_id: KR5170450020\n- public_fund KR5170450020 return_5y: -81.15"
+        "text": "2026-07-11 제공 스냅샷 기준\npublic_fund/fund_item [policy:public_fund.return_5y:included] return_5y 포함 개수: 5579\npublic_fund/fund_item [policy:public_fund.return_5y:missing] return_5y 결측 개수: 5558\npublic_fund/fund_item [policy:public_fund.return_5y:zero] return_5y 0값 개수: 78\n분할 public_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics]: 5건\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5513400011 return_5y: -99.950000000000000000 (1위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5311791011 return_5y: -96.320000000000000000 (2위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5170450021 return_5y: -81.740000000000000000 (3위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR517602029M return_5y: -81.270000000000000000 (4위)\npublic_fund/fund_item [historical_total_return:None:5y:same_period_and_compatible_source_semantics] KR5170450020 return_5y: -81.150000000000000000 (5위)\n제공 데이터 기록값\n비교 가능 기준\n결측 지표값은 순위에서 제외했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- public_fund KR5513400011 product_id: KR5513400011\n- public_fund KR5513400011 return_5y: -99.95\n- public_fund KR5311791011 product_id: KR5311791011\n- public_fund KR5311791011 return_5y: -96.32\n- public_fund KR5170450021 product_id: KR5170450021\n- public_fund KR5170450021 return_5y: -81.74\n- public_fund KR517602029M product_id: KR517602029M\n- public_fund KR517602029M return_5y: -81.27\n- public_fund KR5170450020 product_id: KR5170450020\n- public_fund KR5170450020 return_5y: -81.15"
       },
       "case_id": "CQ-009-013",
       "category": "rank",
@@ -8888,6 +10754,7 @@
           "2026-07-11 제공 스냅샷 기준",
           "제공 데이터 기록값",
           "비교 가능 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
           "검증된 매수 가능 여부는 지원하지 않습니다.",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
@@ -8947,6 +10814,90 @@
             "tie_count": null,
             "validated_plan_sha256": "27b7afce6abf2fe75611f86a22d00d24c248588ab7773ae1a77f12979cb663c1",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 5559,
+            "group_values": [],
+            "included_count": 5579,
+            "kind": "count",
+            "metric_id": "return_5y",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_5y:included",
+            "tie_count": null,
+            "validated_plan_sha256": "27b7afce6abf2fe75611f86a22d00d24c248588ab7773ae1a77f12979cb663c1",
+            "value": 5579,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 5559,
+            "group_values": [],
+            "included_count": 5579,
+            "kind": "count",
+            "metric_id": "return_5y",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_5y:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "27b7afce6abf2fe75611f86a22d00d24c248588ab7773ae1a77f12979cb663c1",
+            "value": 5558,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 5559,
+            "group_values": [],
+            "included_count": 5579,
+            "kind": "count",
+            "metric_id": "return_5y",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_5y:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_5y:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "27b7afce6abf2fe75611f86a22d00d24c248588ab7773ae1a77f12979cb663c1",
+            "value": 78,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -9200,6 +11151,23 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:value:comparison:41c46b25c0e998af5f702a09ed57b71c20b29edc1d0106e69612e83325170778:maturity_date_difference",
+            "evidence_ids": [
+              "comparison:41c46b25c0e998af5f702a09ed57b71c20b29edc1d0106e69612e83325170778:maturity_date_difference"
+            ],
+            "field_id": "maturity_date_difference",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350901G671",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- domestic_bond KR350901G671의 만기일이 KR350105G9C6보다 579일 늦습니다.",
+            "value": 579
+          },
+          {
             "claim_id": "claim:value:domestic_bond:KR350105G9C6:product_id",
             "evidence_ids": [
               "domestic_bond:KR350105G9C6:product_id"
@@ -9268,7 +11236,7 @@
             "value": "2031-07-21"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 maturity_date: 2029-12-19\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 maturity_date: 2031-07-21"
+        "text": "2026-07-11 제공 스냅샷 기준\n- domestic_bond KR350901G671의 만기일이 KR350105G9C6보다 579일 늦습니다.\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 maturity_date: 2029-12-19\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 maturity_date: 2031-07-21"
       },
       "case_id": "CQ-009-014",
       "category": "compare",
@@ -9302,7 +11270,37 @@
       },
       "question": "국내채권 KR350105G9C6와 KR350901G671 중 어느 쪽의 만기일이 더 늦나요?",
       "retrieved_context": {
-        "derived": [],
+        "derived": [
+          [
+            "comparison:41c46b25c0e998af5f702a09ed57b71c20b29edc1d0106e69612e83325170778:maturity_date_difference",
+            "domestic_bond",
+            "KR350901G671",
+            "maturity_date_difference",
+            579,
+            "valid",
+            "comparison.maturity_date_difference",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                4072,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ],
+              [
+                0,
+                4978,
+                "MAT_DT",
+                15,
+                "O",
+                null
+              ]
+            ]
+          ]
+        ],
         "derived_fields": [
           "evidence_id",
           "product_type",
@@ -9560,6 +11558,23 @@
             "value": "검증된 매수 가능 여부는 지원하지 않습니다."
           },
           {
+            "claim_id": "claim:value:comparison:d525a3950b2c1a183be25125b21463bd479e9e213bcd179b56f38d92f05181f2:total_fee_difference",
+            "evidence_ids": [
+              "comparison:d525a3950b2c1a183be25125b21463bd479e9e213bcd179b56f38d92f05181f2:total_fee_difference"
+            ],
+            "field_id": "total_fee_difference",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "AIQD.K",
+            "product_type": "overseas_etn",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- overseas_etn AIQD.K과 NRGD.K의 total_fee 차이는 0입니다.",
+            "value": "0.000000"
+          },
+          {
             "claim_id": "claim:value:overseas_etn:AIQD.K:product_id",
             "evidence_ids": [
               "overseas_etn:AIQD.K:product_id"
@@ -9628,7 +11643,7 @@
             "value": "0.950000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 2건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn NRGD.K product_id: NRGD.K\n- overseas_etn NRGD.K total_fee: 0.950000"
+        "text": "2026-07-11 제공 스냅샷 기준\n분할 overseas_etn/listed_product [annual_fee:None:annual_source_convention:same_definition_with_source_caveat]: 2건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- overseas_etn AIQD.K과 NRGD.K의 total_fee 차이는 0입니다.\n- overseas_etn AIQD.K product_id: AIQD.K\n- overseas_etn AIQD.K total_fee: 0.950000\n- overseas_etn NRGD.K product_id: NRGD.K\n- overseas_etn NRGD.K total_fee: 0.950000"
       },
       "case_id": "CQ-009-015",
       "category": "compare",
@@ -9662,7 +11677,37 @@
       },
       "question": "해외 상장 ETN NRGD.K와 AIQD.K의 총 보수 비용을 비교해주세요.",
       "retrieved_context": {
-        "derived": [],
+        "derived": [
+          [
+            "comparison:d525a3950b2c1a183be25125b21463bd479e9e213bcd179b56f38d92f05181f2:total_fee_difference",
+            "overseas_etn",
+            "AIQD.K",
+            "total_fee_difference",
+            "0.000000",
+            "valid",
+            "comparison.total_fee_difference",
+            "1.0.0",
+            "2026-07-11",
+            [
+              [
+                0,
+                1119,
+                "cu_charge_rt",
+                2,
+                "B",
+                null
+              ],
+              [
+                0,
+                63,
+                "cu_charge_rt",
+                2,
+                "B",
+                null
+              ]
+            ]
+          ]
+        ],
         "derived_fields": [
           "evidence_id",
           "product_type",
@@ -9944,9 +11989,77 @@
             "sign": null,
             "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
             "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:product_id",
+            "evidence_ids": [
+              "public_fund:KR5114420158:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5114420158 product_id: KR5114420158",
+            "value": "KR5114420158"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:return_1y",
+            "evidence_ids": [
+              "public_fund:KR5114420158:return_1y"
+            ],
+            "field_id": "return_1y",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5114420158 return_1y: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:product_id",
+            "evidence_ids": [
+              "public_fund:KR5138490078:product_id"
+            ],
+            "field_id": "product_id",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5138490078",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5138490078 product_id: KR5138490078",
+            "value": "KR5138490078"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:return_1y",
+            "evidence_ids": [
+              "public_fund:KR5138490078:return_1y"
+            ],
+            "field_id": "return_1y",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5138490078",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- public_fund KR5138490078 return_1y: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- public_fund KR5114420158 product_id: KR5114420158\n- public_fund KR5114420158 return_1y: 제공 데이터에서 값을 확인할 수 없습니다.\n- public_fund KR5138490078 product_id: KR5138490078\n- public_fund KR5138490078 return_1y: 제공 데이터에서 값을 확인할 수 없습니다."
       },
       "case_id": "CQ-009-016",
       "category": "compare",
@@ -9993,7 +12106,76 @@
           "as_of_date",
           "inputs"
         ],
-        "direct": [],
+        "direct": [
+          [
+            "public_fund:KR5114420158:product_id",
+            "public_fund",
+            "KR5114420158",
+            "product_id",
+            "KR5114420158",
+            "KR5114420158",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            2,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5114420158:return_1y",
+            "public_fund",
+            "KR5114420158",
+            "return_1y",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.return_1y",
+            "1.0.0",
+            0,
+            2,
+            "fd_yr1_ern_r",
+            14,
+            "N",
+            null
+          ],
+          [
+            "public_fund:KR5138490078:product_id",
+            "public_fund",
+            "KR5138490078",
+            "product_id",
+            "KR5138490078",
+            "KR5138490078",
+            "valid",
+            "public_fund.fund_item_id",
+            "1.0.0",
+            0,
+            3,
+            "itm_no",
+            26,
+            "Z",
+            null
+          ],
+          [
+            "public_fund:KR5138490078:return_1y",
+            "public_fund",
+            "KR5138490078",
+            "return_1y",
+            "",
+            null,
+            "missing_blank",
+            "public_fund.return_1y",
+            "1.0.0",
+            0,
+            3,
+            "fd_yr1_ern_r",
+            14,
+            "N",
+            null
+          ]
+        ],
         "direct_fields": [
           "evidence_id",
           "product_type",
@@ -10025,7 +12207,15 @@
           "검증된 매수 가능 여부는 지원하지 않습니다.",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
-        "sources": [],
+        "sources": [
+          {
+            "source_checksum": "140d1ef0cec918d0b3f7c52c107cb123395594eb089b0cd70bb305709b0f44eb",
+            "source_file": "data/PRFD01N001_public_funds_20260711_datarows.xlsx",
+            "source_sheet": "datarows",
+            "source_snapshot_date": "2026-07-11",
+            "source_table": "PRFD01N001"
+          }
+        ],
         "summaries": [
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
@@ -10082,7 +12272,7 @@
         "candidate_counts": {
           "eligible": 2,
           "raw": 2,
-          "returned": 0
+          "returned": 2
         },
         "correlation_id": "trace-55ca38babef94750",
         "intent": "compare",
@@ -10104,7 +12294,7 @@
             "native_result_grain": "fund_item",
             "partition_key": "public_fund",
             "product_type": "public_fund",
-            "returned": 0
+            "returned": 2
           }
         ],
         "tools": [
@@ -10151,6 +12341,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:aum:included",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:aum:included"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.aum:included] aum 포함 개수: 1136",
+            "value": 1136
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:aum:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:aum:missing"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.aum:missing] aum 결측 개수: 3",
+            "value": 3
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:aum:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:aum:zero"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "zero",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.aum:zero] aum 0값 개수: 0",
+            "value": 0
+          },
+          {
             "claim_id": "claim:summary:summary:aggregate:0",
             "evidence_ids": [
               "summary:aggregate:0"
@@ -10187,7 +12440,7 @@
             "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_etf/listed_product [aum:KRW:snapshot:same_currency_or_fixed_fx] aum 평균: 439370244339.2632042253521127\n일부 지표값은 비교 가능 기준에서 제외했습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_etf/listed_product [policy:domestic_etf.aum:included] aum 포함 개수: 1136\ndomestic_etf/listed_product [policy:domestic_etf.aum:missing] aum 결측 개수: 3\ndomestic_etf/listed_product [policy:domestic_etf.aum:zero] aum 0값 개수: 0\ndomestic_etf/listed_product [aum:KRW:snapshot:same_currency_or_fixed_fx] aum 평균: 439370244339.2632042253521127\n일부 지표값은 비교 가능 기준에서 제외했습니다."
       },
       "case_id": "CQ-009-017",
       "category": "aggregate",
@@ -10491,6 +12744,90 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3,
+            "group_values": [],
+            "included_count": 1136,
+            "kind": "count",
+            "metric_id": "aum",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:aum:included",
+            "tie_count": null,
+            "validated_plan_sha256": "9adada591e345b2b43ea00f1586c0dce866218a22cece0625ca2d9d875a1575f",
+            "value": 1136,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3,
+            "group_values": [],
+            "included_count": 1136,
+            "kind": "count",
+            "metric_id": "aum",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:aum:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "9adada591e345b2b43ea00f1586c0dce866218a22cece0625ca2d9d875a1575f",
+            "value": 3,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3,
+            "group_values": [],
+            "included_count": 1136,
+            "kind": "count",
+            "metric_id": "aum",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.aum:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:aum:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "9adada591e345b2b43ea00f1586c0dce866218a22cece0625ca2d9d875a1575f",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
               "domestic_etf:KR7301410007:product_id",
               "domestic_etf:KR7422260000:product_id",
@@ -10526,15 +12863,10 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
-              "domestic_etf:KR7301410007:product_id",
               "domestic_etf:KR7301410007:aum",
-              "domestic_etf:KR7422260000:product_id",
               "domestic_etf:KR7422260000:aum",
-              "domestic_etf:KR7306520008:product_id",
               "domestic_etf:KR7306520008:aum",
-              "domestic_etf:KR7412560005:product_id",
               "domestic_etf:KR7412560005:aum",
-              "domestic_etf:KR7253240006:product_id",
               "domestic_etf:KR7253240006:aum"
             ],
             "excluded_count": 65,
@@ -10637,6 +12969,86 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:count",
+            "evidence_ids": [
+              "summary:count"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": "positive",
+            "text": "원천 기록 기준 상품 개수: 254",
+            "value": 254
+          },
+          {
+            "claim_id": "claim:summary:summary:state-validated:domestic_bond",
+            "evidence_ids": [
+              "summary:state-validated:domestic_bond"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-validated:domestic_bond",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "상태 검증 후 상품 개수: 254",
+            "value": 254
+          },
+          {
+            "claim_id": "claim:summary:summary:state-difference:domestic_bond",
+            "evidence_ids": [
+              "summary:state-difference:domestic_bond"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-difference:domestic_bond",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "zero",
+            "text": "원천 기록과 상태 검증 개수 차이: 0",
+            "value": 0
+          },
+          {
+            "claim_id": "claim:summary:summary:source-aggregate:domestic_bond:buy_yield",
+            "evidence_ids": [
+              "summary:source-aggregate:domestic_bond:buy_yield"
+            ],
+            "field_id": "buy_yield",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "source-recorded:domestic_bond:buy_yield",
+            "product_id": null,
+            "product_type": "domestic_bond",
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "domestic_bond/instrument [source-recorded:domestic_bond:buy_yield] 원천 기록 기준 buy_yield 최댓값: 5.146000000000000000",
+            "value": "5.146000000000000000"
+          },
+          {
             "claim_id": "claim:summary:summary:aggregate:0",
             "evidence_ids": [
               "summary:aggregate:0"
@@ -10654,11 +13066,11 @@
               "domestic_bond"
             ],
             "sign": "positive",
-            "text": "domestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] buy_yield 최댓값: 5.146000000000000000",
+            "text": "domestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] 상태 검증 후 buy_yield 최댓값: 5.146000000000000000",
             "value": "5.146000000000000000"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] buy_yield 최댓값: 5.146000000000000000"
+        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 254\n상태 검증 후 상품 개수: 254\n원천 기록과 상태 검증 개수 차이: 0\ndomestic_bond/instrument [source-recorded:domestic_bond:buy_yield] 원천 기록 기준 buy_yield 최댓값: 5.146000000000000000\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] 상태 검증 후 buy_yield 최댓값: 5.146000000000000000"
       },
       "case_id": "CQ-009-018",
       "category": "aggregate",
@@ -11113,7 +13525,89 @@
             "summary_id": "summary:count",
             "tie_count": null,
             "validated_plan_sha256": "a565227ead0dafa550e0d40529f6ccb199074c91738b8510a9118d26c6a9d90a",
-            "value": null,
+            "value": 254,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 254,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-validated:domestic_bond",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-validated:domestic_bond",
+            "tie_count": null,
+            "validated_plan_sha256": "a565227ead0dafa550e0d40529f6ccb199074c91738b8510a9118d26c6a9d90a",
+            "value": 254,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 254,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "state-difference:domestic_bond",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-difference:domestic_bond",
+            "tie_count": null,
+            "validated_plan_sha256": "a565227ead0dafa550e0d40529f6ccb199074c91738b8510a9118d26c6a9d90a",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 254,
+            "kind": "aggregate",
+            "metric_id": "buy_yield",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "source-recorded:domestic_bond:buy_yield",
+            "policy_versions": [
+              "source-recorded:buy_yield:max"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:source-aggregate:domestic_bond:buy_yield",
+            "tie_count": null,
+            "validated_plan_sha256": "a565227ead0dafa550e0d40529f6ccb199074c91738b8510a9118d26c6a9d90a",
+            "value": "5.146000000000000000",
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -11153,26 +13647,11 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [
-              "domestic_bond:KR2077012B75:product_id",
               "domestic_bond:KR2077012B75:buy_yield",
-              "domestic_bond:KR2077012B75:maturity_date",
-              "domestic_bond:KR2077012B75:buyable_quantity",
-              "domestic_bond:KR2022022C45:product_id",
               "domestic_bond:KR2022022C45:buy_yield",
-              "domestic_bond:KR2022022C45:maturity_date",
-              "domestic_bond:KR2022022C45:buyable_quantity",
-              "domestic_bond:KR101501DB72:product_id",
               "domestic_bond:KR101501DB72:buy_yield",
-              "domestic_bond:KR101501DB72:maturity_date",
-              "domestic_bond:KR101501DB72:buyable_quantity",
-              "domestic_bond:KR2022022CA3:product_id",
               "domestic_bond:KR2022022CA3:buy_yield",
-              "domestic_bond:KR2022022CA3:maturity_date",
-              "domestic_bond:KR2022022CA3:buyable_quantity",
-              "domestic_bond:KR2077012F14:product_id",
-              "domestic_bond:KR2077012F14:buy_yield",
-              "domestic_bond:KR2077012F14:maturity_date",
-              "domestic_bond:KR2077012F14:buyable_quantity"
+              "domestic_bond:KR2077012F14:buy_yield"
             ],
             "excluded_count": 0,
             "group_values": [],
@@ -11272,6 +13751,132 @@
             "sign": null,
             "text": "2026-07-11 제공 스냅샷 기준",
             "value": "2026-07-11 제공 스냅샷 기준"
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_3m:included",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_3m:included"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_3m:included] return_3m 포함 개수: 1065",
+            "value": 1065
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_3m:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_3m:missing"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_3m:missing] return_3m 결측 개수: 74",
+            "value": 74
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_3m:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_3m:zero"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_3m:zero] return_3m 0값 개수: 4",
+            "value": 4
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:included",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:included"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:included] return_3m 포함 개수: 7497",
+            "value": 7497
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:missing",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:missing"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:missing] return_3m 결측 개수: 3641",
+            "value": 3641
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:zero",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:zero"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:zero] return_3m 0값 개수: 310",
+            "value": 310
           },
           {
             "claim_id": "claim:summary:summary:partition:0",
@@ -11495,11 +14100,26 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
             "value": "검증된 매수 가능 여부는 지원하지 않습니다."
           },
           {
-            "claim_id": "claim:limitation:2",
+            "claim_id": "claim:limitation:3",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -11786,7 +14406,7 @@
             "value": "144.07"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics]: 4건\n분할 public_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics]: 4건\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7243880002 return_3m: 350.190000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7423920008 return_3m: 213.560000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7494310006 return_3m: 177.720000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7367760006 return_3m: 158.860000000000000000 (4위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470016 return_3m: 144.210000000000000000 (1위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470015 return_3m: 144.190000000000000000 (2위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470013 return_3m: 144.120000000000000000 (3위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470010 return_3m: 144.070000000000000000 (4위)\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_3m: 350.19\n- domestic_etf KR7423920008 product_id: KR7423920008\n- domestic_etf KR7423920008 return_3m: 213.56\n- domestic_etf KR7494310006 product_id: KR7494310006\n- domestic_etf KR7494310006 return_3m: 177.72\n- domestic_etf KR7367760006 product_id: KR7367760006\n- domestic_etf KR7367760006 return_3m: 158.86\n- public_fund KR5129470016 product_id: KR5129470016\n- public_fund KR5129470016 return_3m: 144.21\n- public_fund KR5129470015 product_id: KR5129470015\n- public_fund KR5129470015 return_3m: 144.19\n- public_fund KR5129470013 product_id: KR5129470013\n- public_fund KR5129470013 return_3m: 144.12\n- public_fund KR5129470010 product_id: KR5129470010\n- public_fund KR5129470010 return_3m: 144.07"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_etf/listed_product [policy:domestic_etf.return_3m:included] return_3m 포함 개수: 1065\ndomestic_etf/listed_product [policy:domestic_etf.return_3m:missing] return_3m 결측 개수: 74\ndomestic_etf/listed_product [policy:domestic_etf.return_3m:zero] return_3m 0값 개수: 4\npublic_fund/fund_item [policy:public_fund.return_3m:included] return_3m 포함 개수: 7497\npublic_fund/fund_item [policy:public_fund.return_3m:missing] return_3m 결측 개수: 3641\npublic_fund/fund_item [policy:public_fund.return_3m:zero] return_3m 0값 개수: 310\n분할 domestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics]: 4건\n분할 public_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics]: 4건\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7243880002 return_3m: 350.190000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7423920008 return_3m: 213.560000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7494310006 return_3m: 177.720000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR7367760006 return_3m: 158.860000000000000000 (4위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470016 return_3m: 144.210000000000000000 (1위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470015 return_3m: 144.190000000000000000 (2위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470013 return_3m: 144.120000000000000000 (3위)\npublic_fund/fund_item [historical_total_return:None:3m:same_period_and_compatible_source_semantics] KR5129470010 return_3m: 144.070000000000000000 (4위)\n결측 지표값은 순위에서 제외했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_3m: 350.19\n- domestic_etf KR7423920008 product_id: KR7423920008\n- domestic_etf KR7423920008 return_3m: 213.56\n- domestic_etf KR7494310006 product_id: KR7494310006\n- domestic_etf KR7494310006 return_3m: 177.72\n- domestic_etf KR7367760006 product_id: KR7367760006\n- domestic_etf KR7367760006 return_3m: 158.86\n- public_fund KR5129470016 product_id: KR5129470016\n- public_fund KR5129470016 return_3m: 144.21\n- public_fund KR5129470015 product_id: KR5129470015\n- public_fund KR5129470015 return_3m: 144.19\n- public_fund KR5129470013 product_id: KR5129470013\n- public_fund KR5129470013 return_3m: 144.12\n- public_fund KR5129470010 product_id: KR5129470010\n- public_fund KR5129470010 return_3m: 144.07"
       },
       "case_id": "CQ-009-019",
       "category": "cross_product",
@@ -12132,6 +14752,7 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
           "검증된 매수 가능 여부는 지원하지 않습니다.",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
@@ -12198,6 +14819,174 @@
             "tie_count": null,
             "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 74,
+            "group_values": [],
+            "included_count": 1065,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_3m:included",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 1065,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 74,
+            "group_values": [],
+            "included_count": 1065,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_3m:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 74,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 74,
+            "group_values": [],
+            "included_count": 1065,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_3m:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_3m:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 4,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 7497,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:included",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 7497,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 7497,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 3641,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 7497,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "b7191a248ae43c26346a2d6312df5e52c9e8d86714ab6bcf4813f66491f8af48",
+            "value": 310,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -12579,6 +15368,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_ytd:included",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_ytd:included"
+            ],
+            "field_id": "return_ytd",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_ytd:included] return_ytd 포함 개수: 1046",
+            "value": 1046
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_ytd:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_ytd:missing"
+            ],
+            "field_id": "return_ytd",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_ytd:missing] return_ytd 결측 개수: 93",
+            "value": 93
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:return_ytd:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:return_ytd:zero"
+            ],
+            "field_id": "return_ytd",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.return_ytd:zero] return_ytd 0값 개수: 1",
+            "value": 1
+          },
+          {
             "claim_id": "claim:summary:summary:partition:0",
             "evidence_ids": [
               "summary:partition:0"
@@ -12800,11 +15652,26 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "데이터 품질 정책 경고: source quantity remains positive after maturity",
             "value": "데이터 품질 정책 경고: source quantity remains positive after maturity"
           },
           {
-            "claim_id": "claim:limitation:2",
+            "claim_id": "claim:limitation:3",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -12819,7 +15686,7 @@
             "value": "데이터 품질 정책 경고: validated buyability requires a valid maturity date"
           },
           {
-            "claim_id": "claim:limitation:3",
+            "claim_id": "claim:limitation:4",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -13106,7 +15973,7 @@
             "value": "328.74"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return]: 4건\n분할 domestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics]: 4건\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6157181C34 buy_yield: 5.146000000000000000 (1위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6138041C26 buy_yield: 4.700000000000000000 (2위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6138041B92 buy_yield: 4.260000000000000000 (3위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6042662G24 buy_yield: 4.002000000000000000 (4위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7243880002 return_ytd: 701.690000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7494310006 return_ytd: 508.100000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7488080003 return_ytd: 430.430000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7123320004 return_ytd: 328.740000000000000000 (4위)\n데이터 품질 정책 경고: source quantity remains positive after maturity\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR6157181C34 product_id: KR6157181C34\n- domestic_bond KR6157181C34 buy_yield: 5.146\n- domestic_bond KR6138041C26 product_id: KR6138041C26\n- domestic_bond KR6138041C26 buy_yield: 4.7\n- domestic_bond KR6138041B92 product_id: KR6138041B92\n- domestic_bond KR6138041B92 buy_yield: 4.26\n- domestic_bond KR6042662G24 product_id: KR6042662G24\n- domestic_bond KR6042662G24 buy_yield: 4.002\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_ytd: 701.69\n- domestic_etf KR7494310006 product_id: KR7494310006\n- domestic_etf KR7494310006 return_ytd: 508.10\n- domestic_etf KR7488080003 product_id: KR7488080003\n- domestic_etf KR7488080003 return_ytd: 430.43\n- domestic_etf KR7123320004 product_id: KR7123320004\n- domestic_etf KR7123320004 return_ytd: 328.74"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_etf/listed_product [policy:domestic_etf.return_ytd:included] return_ytd 포함 개수: 1046\ndomestic_etf/listed_product [policy:domestic_etf.return_ytd:missing] return_ytd 결측 개수: 93\ndomestic_etf/listed_product [policy:domestic_etf.return_ytd:zero] return_ytd 0값 개수: 1\n분할 domestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return]: 4건\n분할 domestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics]: 4건\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6157181C34 buy_yield: 5.146000000000000000 (1위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6138041C26 buy_yield: 4.700000000000000000 (2위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6138041B92 buy_yield: 4.260000000000000000 (3위)\ndomestic_bond/instrument [bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return] KR6042662G24 buy_yield: 4.002000000000000000 (4위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7243880002 return_ytd: 701.690000000000000000 (1위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7494310006 return_ytd: 508.100000000000000000 (2위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7488080003 return_ytd: 430.430000000000000000 (3위)\ndomestic_etf/listed_product [historical_total_return:None:ytd:same_period_and_compatible_source_semantics] KR7123320004 return_ytd: 328.740000000000000000 (4위)\n결측 지표값은 순위에서 제외했습니다.\n데이터 품질 정책 경고: source quantity remains positive after maturity\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- domestic_bond KR6157181C34 product_id: KR6157181C34\n- domestic_bond KR6157181C34 buy_yield: 5.146\n- domestic_bond KR6138041C26 product_id: KR6138041C26\n- domestic_bond KR6138041C26 buy_yield: 4.7\n- domestic_bond KR6138041B92 product_id: KR6138041B92\n- domestic_bond KR6138041B92 buy_yield: 4.26\n- domestic_bond KR6042662G24 product_id: KR6042662G24\n- domestic_bond KR6042662G24 buy_yield: 4.002\n- domestic_etf KR7243880002 product_id: KR7243880002\n- domestic_etf KR7243880002 return_ytd: 701.69\n- domestic_etf KR7494310006 product_id: KR7494310006\n- domestic_etf KR7494310006 return_ytd: 508.10\n- domestic_etf KR7488080003 product_id: KR7488080003\n- domestic_etf KR7488080003 return_ytd: 430.43\n- domestic_etf KR7123320004 product_id: KR7123320004\n- domestic_etf KR7123320004 return_ytd: 328.74"
       },
       "case_id": "CQ-009-020",
       "category": "cross_product",
@@ -13457,6 +16324,7 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
           "데이터 품질 정책 경고: source quantity remains positive after maturity",
           "데이터 품질 정책 경고: validated buyability requires a valid maturity date",
           "일부 지표값은 비교 가능 기준에서 제외했습니다."
@@ -13524,6 +16392,90 @@
             "tie_count": null,
             "validated_plan_sha256": "43067678ab52007ca6be6726675553d4b15507c1294f3ac90983fa193209e407",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 93,
+            "group_values": [],
+            "included_count": 1046,
+            "kind": "count",
+            "metric_id": "return_ytd",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_ytd:included",
+            "tie_count": null,
+            "validated_plan_sha256": "43067678ab52007ca6be6726675553d4b15507c1294f3ac90983fa193209e407",
+            "value": 1046,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 93,
+            "group_values": [],
+            "included_count": 1046,
+            "kind": "count",
+            "metric_id": "return_ytd",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_ytd:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "43067678ab52007ca6be6726675553d4b15507c1294f3ac90983fa193209e407",
+            "value": 93,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 93,
+            "group_values": [],
+            "included_count": 1046,
+            "kind": "count",
+            "metric_id": "return_ytd",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.return_ytd:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:return_ytd:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "43067678ab52007ca6be6726675553d4b15507c1294f3ac90983fa193209e407",
+            "value": 1,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -14029,6 +16981,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:domestic_bond:credit_rating:included",
+            "evidence_ids": [
+              "summary:policy:domestic_bond:credit_rating:included"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "domestic_bond/instrument [policy:bond.credit_rating:included] credit_rating 포함 개수: 50",
+            "value": 50
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_bond:credit_rating:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_bond:credit_rating:missing"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "zero",
+            "text": "domestic_bond/instrument [policy:bond.credit_rating:missing] credit_rating 결측 개수: 0",
+            "value": 0
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_bond:credit_rating:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_bond:credit_rating:zero"
+            ],
+            "field_id": "credit_rating",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "zero",
+            "text": "domestic_bond/instrument [policy:bond.credit_rating:zero] credit_rating 0값 개수: 0",
+            "value": 0
+          },
+          {
             "claim_id": "claim:summary:summary:partition:0",
             "evidence_ids": [
               "summary:partition:0"
@@ -14183,11 +17198,41 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
+            "value": "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:3",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
             "value": "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다."
           },
           {
-            "claim_id": "claim:limitation:2",
+            "claim_id": "claim:limitation:4",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -14202,7 +17247,7 @@
             "value": "데이터 품질 정책 경고: validated buyability requires a valid maturity date"
           },
           {
-            "claim_id": "claim:limitation:3",
+            "claim_id": "claim:limitation:5",
             "evidence_ids": [],
             "field_id": null,
             "group_values": [],
@@ -14387,7 +17432,7 @@
             "value": "AAA"
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n분할 domestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade]: 8건\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR350105G9C6 credit_rating: AAA (1위)\n해당 지표 값이 동일해 공동순위입니다.\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR350901G671 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR353601DE34 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR356101DDC8 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR356101DE16 credit_rating: AAA (1위)\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 credit_rating: AAA\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA\n- domestic_bond KR353601DE34 product_id: KR353601DE34\n- domestic_bond KR353601DE34 credit_rating: AAA\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA\n- domestic_bond KR356101DE16 product_id: KR356101DE16\n- domestic_bond KR356101DE16 credit_rating: AAA"
+        "text": "2026-07-11 제공 스냅샷 기준\ndomestic_bond/instrument [policy:bond.credit_rating:included] credit_rating 포함 개수: 50\ndomestic_bond/instrument [policy:bond.credit_rating:missing] credit_rating 결측 개수: 0\ndomestic_bond/instrument [policy:bond.credit_rating:zero] credit_rating 0값 개수: 0\n분할 domestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade]: 8건\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR350105G9C6 credit_rating: AAA (1위)\n해당 지표 값이 동일해 공동순위입니다.\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR350901G671 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR353601DE34 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR356101DDC8 credit_rating: AAA (1위)\ndomestic_bond/instrument [bond_credit_rating:None:None:not_equivalent_to_fund_risk_grade] KR356101DE16 credit_rating: AAA (1위)\n신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.\n결측 지표값은 순위에서 제외했습니다.\n동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.\n데이터 품질 정책 경고: validated buyability requires a valid maturity date\n데이터 품질 정책 경고: source quantity remains positive after maturity\n- domestic_bond KR350105G9C6 product_id: KR350105G9C6\n- domestic_bond KR350105G9C6 credit_rating: AAA\n- domestic_bond KR350901G671 product_id: KR350901G671\n- domestic_bond KR350901G671 credit_rating: AAA\n- domestic_bond KR353601DE34 product_id: KR353601DE34\n- domestic_bond KR353601DE34 credit_rating: AAA\n- domestic_bond KR356101DDC8 product_id: KR356101DDC8\n- domestic_bond KR356101DDC8 credit_rating: AAA\n- domestic_bond KR356101DE16 product_id: KR356101DE16\n- domestic_bond KR356101DE16 credit_rating: AAA"
       },
       "case_id": "CQ-009-022",
       "category": "quality",
@@ -14635,6 +17680,8 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
+          "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
+          "결측 지표값은 순위에서 제외했습니다.",
           "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 요청한 표시 개수까지만 제시했습니다.",
           "데이터 품질 정책 경고: validated buyability requires a valid maturity date",
           "데이터 품질 정책 경고: source quantity remains positive after maturity"
@@ -14695,6 +17742,90 @@
             "tie_count": null,
             "validated_plan_sha256": "49abdbe530fd991eb315c6a0c0eaa89898aa5194f78f039f8c229f188470c4c0",
             "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 50,
+            "kind": "count",
+            "metric_id": "credit_rating",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_bond:credit_rating:included",
+            "tie_count": null,
+            "validated_plan_sha256": "49abdbe530fd991eb315c6a0c0eaa89898aa5194f78f039f8c229f188470c4c0",
+            "value": 50,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 50,
+            "kind": "count",
+            "metric_id": "credit_rating",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_bond:credit_rating:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "49abdbe530fd991eb315c6a0c0eaa89898aa5194f78f039f8c229f188470c4c0",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 0,
+            "group_values": [],
+            "included_count": 50,
+            "kind": "count",
+            "metric_id": "credit_rating",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "policy:bond.credit_rating:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_bond:credit_rating:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "49abdbe530fd991eb315c6a0c0eaa89898aa5194f78f039f8c229f188470c4c0",
+            "value": 0,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -14788,7 +17919,7 @@
             "summary_id": "summary:tie:0",
             "tie_count": 8,
             "validated_plan_sha256": "49abdbe530fd991eb315c6a0c0eaa89898aa5194f78f039f8c229f188470c4c0",
-            "value": "AAA",
+            "value": -1,
             "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
           },
           {
@@ -14997,6 +18128,111 @@
             "value": 984
           },
           {
+            "claim_id": "claim:summary:summary:state-validated:domestic_etf",
+            "evidence_ids": [
+              "summary:state-validated:domestic_etf"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "state-validated:domestic_etf",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "상태 검증 후 상품 개수: 924",
+            "value": 924
+          },
+          {
+            "claim_id": "claim:summary:summary:state-difference:domestic_etf",
+            "evidence_ids": [
+              "summary:state-difference:domestic_etf"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "state-difference:domestic_etf",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "원천 기록과 상태 검증 개수 차이: 60",
+            "value": 60
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:included",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:included"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "zero",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.total_fee:included] total_fee 포함 개수: 0",
+            "value": 0
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:missing"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.total_fee:missing] total_fee 결측 개수: 924",
+            "value": 924
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:zero"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "zero",
+            "text": "domestic_etf/listed_product [policy:domestic_etf.total_fee:zero] total_fee 0값 개수: 0",
+            "value": 0
+          },
+          {
             "claim_id": "claim:summary:summary:aggregate:0",
             "evidence_ids": [
               "summary:aggregate:0"
@@ -15016,9 +18252,39 @@
             "sign": "positive",
             "text": "domestic_etf/listed_product [count:listed_product:domestic_etf] 상태 검증 후 상품 개수: 924",
             "value": 924
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 984\ndomestic_etf/listed_product [count:listed_product:domestic_etf] 상태 검증 후 상품 개수: 924"
+        "text": "2026-07-11 제공 스냅샷 기준\n원천 기록 기준 상품 개수: 984\n상태 검증 후 상품 개수: 924\n원천 기록과 상태 검증 개수 차이: 60\ndomestic_etf/listed_product [policy:domestic_etf.total_fee:included] total_fee 포함 개수: 0\ndomestic_etf/listed_product [policy:domestic_etf.total_fee:missing] total_fee 결측 개수: 924\ndomestic_etf/listed_product [policy:domestic_etf.total_fee:zero] total_fee 0값 개수: 0\ndomestic_etf/listed_product [count:listed_product:domestic_etf] 상태 검증 후 상품 개수: 924\n결측 지표값은 순위에서 제외했습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다."
       },
       "case_id": "CQ-009-023",
       "category": "quality",
@@ -15262,7 +18528,9 @@
           "source_applicable_date"
         ],
         "material_policy_limitations": [
-          "2026-07-11 제공 스냅샷 기준"
+          "2026-07-11 제공 스냅샷 기준",
+          "결측 지표값은 순위에서 제외했습니다.",
+          "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
         "sources": [
           {
@@ -15277,7 +18545,7 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [],
-            "excluded_count": 60,
+            "excluded_count": 984,
             "group_values": [],
             "included_count": 924,
             "kind": "count",
@@ -15301,7 +18569,7 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [],
-            "excluded_count": 60,
+            "excluded_count": 984,
             "group_values": [],
             "included_count": 924,
             "kind": "exclusion",
@@ -15324,18 +18592,147 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [
-              "domestic_etf:KR70000D0009:product_id",
-              "domestic_etf:KR70000D0009:total_fee",
-              "domestic_etf:KR70000H0005:product_id",
-              "domestic_etf:KR70000H0005:total_fee",
-              "domestic_etf:KR70000J0003:product_id",
-              "domestic_etf:KR70000J0003:total_fee",
-              "domestic_etf:KR70000Y0004:product_id",
-              "domestic_etf:KR70000Y0004:total_fee",
-              "domestic_etf:KR70000Z0003:product_id",
-              "domestic_etf:KR70000Z0003:total_fee"
+            "evidence_ids": [],
+            "excluded_count": 60,
+            "group_values": [],
+            "included_count": 924,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "listed_product"
             ],
+            "partition_key": "state-validated:domestic_etf",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-validated:domestic_etf",
+            "tie_count": null,
+            "validated_plan_sha256": "fe273b78bbff5ab79f0ce1fc325cc25e8021e5374aee2e447e1264b21d426f13",
+            "value": 924,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 60,
+            "group_values": [],
+            "included_count": 924,
+            "kind": "count",
+            "metric_id": null,
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "state-difference:domestic_etf",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:state-difference:domestic_etf",
+            "tie_count": null,
+            "validated_plan_sha256": "fe273b78bbff5ab79f0ce1fc325cc25e8021e5374aee2e447e1264b21d426f13",
+            "value": 60,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 924,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:total_fee:included",
+            "tie_count": null,
+            "validated_plan_sha256": "fe273b78bbff5ab79f0ce1fc325cc25e8021e5374aee2e447e1264b21d426f13",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 924,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:total_fee:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "fe273b78bbff5ab79f0ce1fc325cc25e8021e5374aee2e447e1264b21d426f13",
+            "value": 924,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 924,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "total_fee",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:domestic_etf:total_fee:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "fe273b78bbff5ab79f0ce1fc325cc25e8021e5374aee2e447e1264b21d426f13",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
             "excluded_count": 60,
             "group_values": [],
             "included_count": 924,
@@ -15436,6 +18833,69 @@
             "value": "2026-07-11 제공 스냅샷 기준"
           },
           {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:included",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:included"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:included",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "zero",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:included] return_3m 포함 개수: 0",
+            "value": 0
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:missing",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:missing"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:missing] return_3m 결측 개수: 3641",
+            "value": 3641
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:public_fund:return_3m:zero",
+            "evidence_ids": [
+              "summary:policy:public_fund:return_3m:zero"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "zero",
+            "text": "public_fund/fund_item [policy:public_fund.return_3m:zero] return_3m 0값 개수: 0",
+            "value": 0
+          },
+          {
             "claim_id": "claim:summary:summary:aggregate:0",
             "evidence_ids": [
               "summary:aggregate:0"
@@ -15468,11 +18928,41 @@
             "product_type": null,
             "product_types": [],
             "sign": null,
+            "text": "결측 지표값은 순위에서 제외했습니다.",
+            "value": "결측 지표값은 순위에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
             "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
             "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:3",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
           }
         ],
-        "text": "2026-07-11 제공 스냅샷 기준\npublic_fund/fund_item [count:fund_item:public_fund] 상품 개수: 3641\n검증된 매수 가능 여부는 지원하지 않습니다."
+        "text": "2026-07-11 제공 스냅샷 기준\npublic_fund/fund_item [policy:public_fund.return_3m:included] return_3m 포함 개수: 0\npublic_fund/fund_item [policy:public_fund.return_3m:missing] return_3m 결측 개수: 3641\npublic_fund/fund_item [policy:public_fund.return_3m:zero] return_3m 0값 개수: 0\npublic_fund/fund_item [count:fund_item:public_fund] 상품 개수: 3641\n결측 지표값은 순위에서 제외했습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다."
       },
       "case_id": "CQ-009-024",
       "category": "quality",
@@ -15717,7 +19207,9 @@
         ],
         "material_policy_limitations": [
           "2026-07-11 제공 스냅샷 기준",
-          "검증된 매수 가능 여부는 지원하지 않습니다."
+          "결측 지표값은 순위에서 제외했습니다.",
+          "검증된 매수 가능 여부는 지원하지 않습니다.",
+          "일부 지표값은 비교 가능 기준에서 제외했습니다."
         ],
         "sources": [
           {
@@ -15732,7 +19224,7 @@
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
             "evidence_ids": [],
-            "excluded_count": 0,
+            "excluded_count": 3641,
             "group_values": [],
             "included_count": 3641,
             "kind": "count",
@@ -15755,18 +19247,115 @@
           },
           {
             "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
-            "evidence_ids": [
-              "public_fund:KR5010101401:product_id",
-              "public_fund:KR5010101401:return_3m",
-              "public_fund:KR5010101402:product_id",
-              "public_fund:KR5010101402:return_3m",
-              "public_fund:KR5010101404:product_id",
-              "public_fund:KR5010101404:return_3m",
-              "public_fund:KR5010101405:product_id",
-              "public_fund:KR5010101405:return_3m",
-              "public_fund:KR5010101501:product_id",
-              "public_fund:KR5010101501:return_3m"
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 3641,
+            "kind": "exclusion",
+            "metric_id": null,
+            "native_result_grains": [],
+            "partition_key": null,
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
             ],
+            "product_id": null,
+            "product_types": [],
+            "rank": null,
+            "summary_id": "summary:exclusion",
+            "tie_count": null,
+            "validated_plan_sha256": "fb9c6d69a648b1d29bb14558b73283042927aaa1cc125637dd5bfda4ec90c281",
+            "value": null,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:included",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:included",
+            "tie_count": null,
+            "validated_plan_sha256": "fb9c6d69a648b1d29bb14558b73283042927aaa1cc125637dd5bfda4ec90c281",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:missing",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:missing",
+            "tie_count": null,
+            "validated_plan_sha256": "fb9c6d69a648b1d29bb14558b73283042927aaa1cc125637dd5bfda4ec90c281",
+            "value": 3641,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
+            "excluded_count": 3641,
+            "group_values": [],
+            "included_count": 0,
+            "kind": "count",
+            "metric_id": "return_3m",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "policy:public_fund.return_3m:zero",
+            "policy_versions": [
+              "state:1.1.0",
+              "metric:1.0.0",
+              "answer:1.0.0"
+            ],
+            "product_id": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "rank": null,
+            "summary_id": "summary:policy:public_fund:return_3m:zero",
+            "tie_count": null,
+            "validated_plan_sha256": "fb9c6d69a648b1d29bb14558b73283042927aaa1cc125637dd5bfda4ec90c281",
+            "value": 0,
+            "version_bundle_sha256": "c84e6eed457e24f82b08302a5dacca5638f4181ffa5f7b34b71eba5ab3ca8161"
+          },
+          {
+            "artifact_manifest_hash": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+            "evidence_ids": [],
             "excluded_count": 0,
             "group_values": [],
             "included_count": 3641,

@@ -53,3 +53,24 @@ def test_dual_lens_labels_appear_only_when_policy_difference_is_material() -> No
 
     assert DualLensPolicy().labels(zero) == ("recorded", "comparison_valid")
     assert DualLensPolicy().labels(nonzero) == ()
+
+
+def test_overseas_aum_zero_is_rank_excluded_but_aggregate_included() -> None:
+    from finproof.domain.query_plan import ProductType
+    from finproof.quality import MetricPolicy, MetricValue, Operation
+
+    zero = MetricValue(
+        metric_id="overseas_etf.aum",
+        product_type=ProductType.OVERSEAS_ETF,
+        product_id="ZERO",
+        value=Decimal("0"),
+        quality_status="recorded_zero",
+        currency="USD",
+    )
+
+    ranked = MetricPolicy().apply(Operation.RANK, (zero,))
+    aggregated = MetricPolicy().apply(Operation.AGGREGATE, (zero,))
+
+    assert ranked.recorded_values == (zero,)
+    assert ranked.comparison_valid_values == ()
+    assert aggregated.comparison_valid_values == (zero,)

@@ -373,6 +373,11 @@ def _expected_values(
             ValueType.NULL
             if raw_value is None
             else _SYNTHETIC_VALUE_TYPES.get((product_type, field_id, str(item.get("rule_id"))))
+            or _comparison_difference_value_type(
+                field_id=field_id,
+                rule_id=str(item.get("rule_id")),
+                raw_value=raw_value,
+            )
             or _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
         )
         values.append(
@@ -384,6 +389,21 @@ def _expected_values(
             )
         )
     return tuple(values)
+
+
+def _comparison_difference_value_type(
+    *,
+    field_id: str,
+    rule_id: str,
+    raw_value: object,
+) -> ValueType | None:
+    if not field_id.endswith("_difference") or rule_id != f"comparison.{field_id}":
+        return None
+    if type(raw_value) is int:
+        return ValueType.INTEGER
+    if type(raw_value) is str:
+        return ValueType.DECIMAL
+    raise ValueError("comparison difference value type differs")
 
 
 def _validate_trace(plan: QueryPlan, trace: ExecutionTrace, artifact: Mapping[str, str]) -> None:

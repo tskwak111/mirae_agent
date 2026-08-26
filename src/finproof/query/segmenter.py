@@ -52,7 +52,7 @@ class ExecutionBundleBuilder:
                 native_result_grain=_NATIVE_GRAIN[product_type],
                 filters=(
                     *(
-                        clause
+                        _canonical_filter_literal(clause, product_type=product_type)
                         for clause in original.filters
                         if (clause.field, product_type) in self._fields.projections
                     ),
@@ -139,6 +139,38 @@ class ExecutionBundleBuilder:
             )
             for index, (key, product_types) in enumerate(groups.items(), start=1)
         )
+
+
+def execution_literal_policy_ids(bundle: ExecutionBundle) -> tuple[str, ...]:
+    """Return deterministic identities for reviewed literal bindings used by execution."""
+    if type(bundle) is not ExecutionBundle:
+        raise TypeError("literal policy input differs")
+    original = bundle.validated_plan.plan.filters
+    return (
+        ("literal:region-ko-us:1.0.0",)
+        if any(clause.field == "region" and clause.value == "미국" for clause in original)
+        and any(
+            clause.field == "region" and clause.value == "United States of America"
+            for segment in bundle.segments
+            for clause in segment.filters
+        )
+        else ()
+    )
+
+
+def _canonical_filter_literal(
+    clause: FilterClause,
+    *,
+    product_type: ProductType,
+) -> FilterClause:
+    if (
+        product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
+        and clause.field == "region"
+        and clause.operator is FilterOperator.EQ
+        and clause.value == "미국"
+    ):
+        return clause.model_copy(update={"value": "United States of America"})
+    return clause
 
 
 _NATIVE_GRAIN = {

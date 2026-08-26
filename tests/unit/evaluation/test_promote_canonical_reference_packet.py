@@ -272,6 +272,38 @@ def test_promotes_approved_synthetic_integer_evidence(tmp_path: Path) -> None:
     assert difference.value == 90
 
 
+def test_types_generic_comparison_difference_evidence_without_registry_fields() -> None:
+    from finproof.evaluation.models import ValueType
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    values = module._expected_values(  # type: ignore[attr-defined]
+        (
+            {
+                "product_type": "domestic_etf",
+                "product_id": "ETF-1",
+                "field_id": "return_3m_difference",
+                "value": "0.14",
+                "rule_id": "comparison.return_3m_difference",
+            },
+            {
+                "product_type": "domestic_bond",
+                "product_id": "BOND-1",
+                "field_id": "maturity_date_difference",
+                "value": 579,
+                "rule_id": "comparison.maturity_date_difference",
+            },
+        ),
+        FieldRegistry.from_bundle(RegistryBundle.from_package()),
+    )
+
+    assert tuple(value.value_type for value in values) == (
+        ValueType.DECIMAL,
+        ValueType.INTEGER,
+    )
+
+
 def test_promotes_batch_five_approved_boundaries(tmp_path: Path) -> None:
     repository = tmp_path / "repository"
     review = repository / "evaluation/review_batches"

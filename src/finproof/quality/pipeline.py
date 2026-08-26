@@ -54,6 +54,7 @@ class AggregatePolicyResult(BaseModel):
     excluded_count: int
     policy_id: str
     evidence_requirements: tuple[str, ...]
+    product_ids: tuple[str, ...] = ()
 
 
 class RankPolicyResult(BaseModel):
@@ -83,6 +84,8 @@ class PolicyExecutionResult(BaseModel):
     aggregates: tuple[AggregatePolicyResult, ...]
     ranks: tuple[RankPolicyResult, ...]
     warnings: tuple[str, ...]
+    source_rows: tuple[PolicyRow, ...] = ()
+    metric_values: tuple[MetricValue, ...] = ()
 
 
 class PolicyEngine:
@@ -102,6 +105,7 @@ class PolicyEngine:
         if type(raw) is not RawExecutionResult or type(bundle) is not ExecutionBundle:
             raise TypeError("policy pipeline inputs differ")
         included: list[PolicyRow] = []
+        source_rows: list[PolicyRow] = []
         excluded_filter = 0
         excluded_state = 0
         warnings: list[str] = []
@@ -137,15 +141,23 @@ class PolicyEngine:
                         as_of=bundle.validated_plan.plan.as_of_date,
                     )
                 warnings.extend(state.warnings)
+                policy_row = PolicyRow(raw=row, state=state)
+                source_rows.append(policy_row)
                 if not state.eligible:
                     excluded_state += 1
                     continue
-                included.append(PolicyRow(raw=row, state=state))
+                included.append(policy_row)
                 by_field = {item.field_id: item for item in row.values}
                 currency = by_field.get("currency")
                 metric_field_ids = dict.fromkeys(
                     (
                         *segment.metrics,
+                        *(
+                            clause.field
+                            for clause in segment.filters
+                            if clause.operator
+                            in {FilterOperator.IS_MISSING, FilterOperator.IS_NOT_MISSING}
+                        ),
                         *(
                             (segment.aggregation.field,)
                             if segment.aggregation is not None
@@ -292,24 +304,15 @@ class PolicyEngine:
             selected_partitions.append(
                 partition.model_copy(update={"selected_values": selected_values})
             )
-        field_segments = tuple(
-            segment
-            for segment in bundle.segments
-            if not any(
-                self._fields.projection(field_id, segment.product_type).metric_id is not None
-                for field_id in segment.metrics
-            )
-            or (
-                operation is Operation.DISPLAY
-                and any(
-                    self._fields.projection(field_id, segment.product_type).value_type
-                    not in {"decimal", "integer"}
+        field_segments = (
+            bundle.segments
+            if operation is Operation.DISPLAY
+            else tuple(
+                segment
+                for segment in bundle.segments
+                if not any(
+                    self._fields.projection(field_id, segment.product_type).metric_id is not None
                     for field_id in segment.metrics
-                )
-                and not any(
-                    value.product_type is segment.product_type
-                    for partition in selected_partitions
-                    for value in partition.values
                 )
             )
         )
@@ -433,6 +436,7 @@ class PolicyEngine:
                             ),
                             policy_id=policy_id,
                             evidence_requirements=("value", "quality", "count"),
+                            product_ids=tuple(row.raw.product_id for row in group_rows),
                         )
                     )
                 if segment.sort and segment.sort[0].field == aggregation.field:
@@ -457,6 +461,8 @@ class PolicyEngine:
             aggregates=tuple(aggregates),
             ranks=tuple(rank_results),
             warnings=tuple(dict.fromkeys((*warnings, *metric_policy.warnings))),
+            source_rows=tuple(source_rows),
+            metric_values=tuple(metric_values),
         )
 
 

@@ -26,10 +26,11 @@ from finproof.domain.query_plan import (
     QueryPlan,
     ResultGrain,
     SortDirection,
+    SortSpec,
     TopKScope,
 )
 from finproof.domain.values import DerivedValue
-from finproof.quality import MetricValue, PolicyExecutionResult, RankPolicyResult
+from finproof.quality import MetricValue, PolicyExecutionResult, PolicyRow, RankPolicyResult
 from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
 
@@ -68,6 +69,9 @@ class EvidenceBuilder:
         for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
         recorded_values = _fit_recorded_values(selected, recorded_values)
+        source_only_rows = _bounded_source_rows(plan=original, policy_result=policy_result)
+        for row in source_only_rows:
+            selected[(row.raw.product_type, row.raw.product_id)] = None
 
         field_ids = tuple(
             dict.fromkeys(
@@ -116,16 +120,16 @@ class EvidenceBuilder:
         derived = tuple(item for record in records for item in record.derived)
         derived = (
             *derived,
-            *_remaining_days_difference(
+            *_comparison_evidence(
                 plan=original,
-                items=derived,
+                items=(*direct, *derived),
+                allowed_identities={
+                    (row.raw.product_type, row.raw.product_id)
+                    for row in policy_result.included_rows
+                },
                 rule_version=repository._session.versions.answer_policy_version,
             ),
         )
-        evidence_ids = (
-            *(item.evidence_id for item in direct),
-            *(item.evidence_id for item in derived),
-        )[:100]
         facts = repository._session.versions.runtime_facts()
         plan_hash = _hash(original.model_dump(mode="json"))
         version_hash = _hash(facts)
@@ -144,17 +148,19 @@ class EvidenceBuilder:
             + policy_result.excluded_state_count
             + policy_result.excluded_metric_count
         )
+        source_lens = _requests_source_lens(original, policy_result=policy_result)
         source_count = (
-            len(policy_result.included_rows) + policy_result.excluded_state_count
-            if original.intent is Intent.AGGREGATE
-            and original.aggregation is not None
-            and original.aggregation.function is AggregationFunction.COUNT
-            and not original.aggregation.group_by
-            and policy_result.excluded_state_count
+            (
+                len(policy_result.source_rows)
+                if policy_result.source_rows
+                else len(policy_result.included_rows) + policy_result.excluded_state_count
+            )
+            if source_lens
             else None
         )
         native_grains = {
-            row.raw.product_type: row.raw.native_result_grain for row in policy_result.included_rows
+            row.raw.product_type: row.raw.native_result_grain
+            for row in (*policy_result.source_rows, *policy_result.included_rows)
         }
         summaries = [
             _summary(
@@ -184,6 +190,29 @@ class EvidenceBuilder:
                     artifact_hash=artifact_hash,
                 )
             )
+        summaries.extend(
+            _source_lens_summaries(
+                plan=original,
+                policy_result=policy_result,
+                source_only_rows=source_only_rows,
+                items=(*direct, *derived),
+                policy_versions=policy_versions,
+                plan_hash=plan_hash,
+                version_hash=version_hash,
+                artifact_hash=artifact_hash,
+            )
+        )
+        summaries.extend(
+            _metric_population_summaries(
+                plan=original,
+                policy_result=policy_result,
+                repository=repository,
+                policy_versions=policy_versions,
+                plan_hash=plan_hash,
+                version_hash=version_hash,
+                artifact_hash=artifact_hash,
+            )
+        )
         if (
             original.intent is Intent.SCREEN_RANK
             and original.top_k_scope is TopKScope.PER_PRODUCT_TYPE
@@ -267,7 +296,14 @@ class EvidenceBuilder:
                 )
             )
         for index, value in enumerate(recorded_values):
-            field_id = original.sort[0].field
+            sort = _recorded_value_sort(
+                plan=original,
+                value=value,
+                repository=repository,
+            )
+            if sort is None:
+                raise ValueError("recorded rank metric differs")
+            field_id = sort.field
             recorded_evidence_ids = _recorded_evidence_ids(
                 items=(*direct, *derived),
                 product_type=value.product_type,
@@ -296,18 +332,9 @@ class EvidenceBuilder:
         tie_groups: dict[tuple[object, ...], list[RankPolicyResult]] = {}
         for rank in ranks:
             if rank.tie_count > 1:
-                tie_groups.setdefault(
-                    (
-                        rank.value.product_type,
-                        rank.partition_key,
-                        rank.field_id,
-                        rank.rank,
-                        rank.tie_count,
-                        rank.value.value,
-                        rank.policy_id,
-                    ),
-                    [],
-                ).append(rank)
+                tie_groups.setdefault(_rank_tie_key(rank, scope=original.top_k_scope), []).append(
+                    rank
+                )
         emitted_ties: set[tuple[object, ...]] = set()
         for index, rank in enumerate(ranks):
             rank_evidence_ids = (
@@ -344,15 +371,7 @@ class EvidenceBuilder:
                 )
             )
             if rank.tie_count > 1:
-                tie_key = (
-                    rank.value.product_type,
-                    rank.partition_key,
-                    rank.field_id,
-                    rank.rank,
-                    rank.tie_count,
-                    rank.value.value,
-                    rank.policy_id,
-                )
+                tie_key = _rank_tie_key(rank, scope=original.top_k_scope)
                 if tie_key in emitted_ties:
                     continue
                 emitted_ties.add(tie_key)
@@ -368,6 +387,10 @@ class EvidenceBuilder:
                         )
                     )
                 )
+                tied_ranks = tie_groups[tie_key]
+                tied_product_types = tuple(
+                    dict.fromkeys(item.value.product_type for item in tied_ranks)
+                )
                 summaries.append(
                     _summary(
                         summary_id=f"summary:tie:{index}",
@@ -375,27 +398,42 @@ class EvidenceBuilder:
                         included_count=rank.tie_count,
                         excluded_count=0,
                         evidence_ids=tie_evidence_ids,
-                        policy_versions=(rank.policy_id,),
+                        policy_versions=tuple(dict.fromkeys(item.policy_id for item in tied_ranks)),
                         plan_hash=plan_hash,
                         version_hash=version_hash,
                         artifact_hash=artifact_hash,
-                        product_types=(rank.value.product_type,),
-                        native_result_grains=(rank.native_result_grain,),
+                        product_types=tied_product_types,
+                        native_result_grains=tuple(
+                            native_grains[item] for item in tied_product_types
+                        ),
                         partition_key=rank.partition_key,
                         metric_id=rank.field_id,
                         rank=rank.rank,
                         tie_count=rank.tie_count,
-                        value=rank.value.value,
+                        value=_rank_tie_identity(rank.value),
                     )
                 )
         for index, aggregate in enumerate(policy_result.aggregates):
+            aggregate_field_ids = tuple(
+                dict.fromkeys(
+                    (
+                        *((aggregate.field_id,) if aggregate.field_id is not None else ()),
+                        *(item.field_id for item in aggregate.group_values),
+                    )
+                )
+            )
             summaries.append(
                 _summary(
                     summary_id=f"summary:aggregate:{index}",
                     kind=EvidenceSummaryKind.AGGREGATE,
                     included_count=aggregate.included_count,
                     excluded_count=aggregate.excluded_count,
-                    evidence_ids=evidence_ids,
+                    evidence_ids=_aggregate_evidence_ids(
+                        items=(*direct, *derived),
+                        product_type=aggregate.product_type,
+                        product_ids=aggregate.product_ids,
+                        field_ids=aggregate_field_ids,
+                    ),
                     policy_versions=(aggregate.policy_id,),
                     plan_hash=plan_hash,
                     version_hash=version_hash,
@@ -435,10 +473,32 @@ class EvidenceBuilder:
                 "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 "
                 "제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
             )
+            if _requires_rating_policy_disclosure(original)
+            else ()
+        )
+        incomplete_comparison = (
+            ("상태 검증을 통과한 비교값이 2개 미만이어 비교 결론을 제공하지 않습니다.",)
+            if original.intent is Intent.COMPARE
+            and policy_result.excluded_state_count
+            and len(policy_result.included_rows) < 2
+            else ()
+        )
+        missing_rank = (
+            ("결측 지표값은 순위에서 제외했습니다.",)
             if any(
-                item.field == "credit_rating"
-                and item.operator in {FilterOperator.GTE, FilterOperator.LTE}
-                for item in original.filters
+                clause.operator in {FilterOperator.IS_MISSING, FilterOperator.IS_NOT_MISSING}
+                for clause in original.filters
+            )
+            or (
+                original.intent is Intent.SCREEN_RANK
+                and any(
+                    summary.kind is EvidenceSummaryKind.COUNT
+                    and summary.partition_key is not None
+                    and summary.partition_key.endswith(":missing")
+                    and type(summary.value) is int
+                    and summary.value > 0
+                    for summary in summaries
+                )
             )
             else ()
         )
@@ -448,6 +508,8 @@ class EvidenceBuilder:
                     "2026-07-11 제공 스냅샷 기준",
                     *dual_lens_labels,
                     *rating_limitations,
+                    *incomplete_comparison,
+                    *missing_rank,
                     *(
                         (
                             "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 "
@@ -457,6 +519,10 @@ class EvidenceBuilder:
                         else ()
                     ),
                     *_cross_currency_limitations(currencies),
+                    *_direct_recorded_zero_limitations(
+                        direct,
+                        existing_warnings=policy_result.warnings,
+                    ),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
             )
@@ -467,6 +533,276 @@ class EvidenceBuilder:
             summaries=tuple(summaries),
             material_policy_limitations=limitations,
         )
+
+
+def _requests_source_lens(plan: QueryPlan, *, policy_result: PolicyExecutionResult) -> bool:
+    explicit_state_aggregate = bool(
+        plan.intent is Intent.AGGREGATE
+        and any(clause.field in {"buyable_quantity", "saleable"} for clause in plan.filters)
+    )
+    return explicit_state_aggregate or bool(
+        policy_result.excluded_state_count
+        and (
+            plan.intent is Intent.COMPARE
+            or (
+                plan.intent is Intent.AGGREGATE
+                and plan.aggregation is not None
+                and plan.aggregation.function is AggregationFunction.COUNT
+                and not plan.aggregation.group_by
+            )
+            or any(clause.field in {"buyable_quantity", "saleable"} for clause in plan.filters)
+        )
+    )
+
+
+def _source_aggregate(
+    function: AggregationFunction,
+    values: tuple[Decimal, ...],
+) -> Decimal | int | None:
+    if not values:
+        return None
+    if function is AggregationFunction.MIN:
+        return min(values)
+    if function is AggregationFunction.MAX:
+        return max(values)
+    if function is AggregationFunction.SUM:
+        return sum(values, Decimal(0))
+    if function is AggregationFunction.AVG:
+        return sum(values, Decimal(0)) / len(values)
+    if function is AggregationFunction.COUNT:
+        return len(values)
+    raise ValueError("source aggregate function differs")
+
+
+def _bounded_source_rows(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+) -> tuple[PolicyRow, ...]:
+    if not _requests_source_lens(plan, policy_result=policy_result):
+        return ()
+    included = {(row.raw.product_type, row.raw.product_id) for row in policy_result.included_rows}
+    source_only = tuple(
+        row
+        for row in policy_result.source_rows
+        if (row.raw.product_type, row.raw.product_id) not in included
+    )
+    if plan.intent is Intent.AGGREGATE:
+        return ()
+    return source_only[: plan.top_k]
+
+
+def _source_lens_summaries(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+    source_only_rows: tuple[PolicyRow, ...],
+    items: tuple[DirectEvidence[object] | DerivedEvidence[object], ...],
+    policy_versions: tuple[str, ...],
+    plan_hash: str,
+    version_hash: str,
+    artifact_hash: str,
+) -> tuple[EvidenceSummary, ...]:
+    if not _requests_source_lens(plan, policy_result=policy_result):
+        return ()
+    summaries: list[EvidenceSummary] = []
+    for product_type in plan.product_types:
+        source_rows = tuple(
+            row for row in policy_result.source_rows if row.raw.product_type is product_type
+        )
+        included_rows = tuple(
+            row for row in policy_result.included_rows if row.raw.product_type is product_type
+        )
+        if not source_rows:
+            continue
+        grain = source_rows[0].raw.native_result_grain
+        summaries.extend(
+            (
+                _summary(
+                    summary_id=f"summary:state-validated:{product_type.value}",
+                    kind=EvidenceSummaryKind.COUNT,
+                    included_count=len(included_rows),
+                    excluded_count=len(source_rows) - len(included_rows),
+                    evidence_ids=(),
+                    partition_key=f"state-validated:{product_type.value}",
+                    value=len(included_rows),
+                    policy_versions=policy_versions,
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(product_type,),
+                    native_result_grains=(grain,),
+                ),
+                _summary(
+                    summary_id=f"summary:state-difference:{product_type.value}",
+                    kind=EvidenceSummaryKind.COUNT,
+                    included_count=len(included_rows),
+                    excluded_count=len(source_rows) - len(included_rows),
+                    evidence_ids=(),
+                    partition_key=f"state-difference:{product_type.value}",
+                    value=len(source_rows) - len(included_rows),
+                    policy_versions=policy_versions,
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(product_type,),
+                    native_result_grains=(grain,),
+                ),
+            )
+        )
+        if plan.aggregation is not None and plan.aggregation.field is not None:
+            field_id = plan.aggregation.field
+            values = tuple(
+                Decimal(item.value) if type(item.value) is int else item.value
+                for row in source_rows
+                for item in row.raw.values
+                if item.field_id == field_id and type(item.value) in {Decimal, int}
+            )
+            numeric_values = tuple(cast(Decimal, item) for item in values)
+            summaries.append(
+                _summary(
+                    summary_id=f"summary:source-aggregate:{product_type.value}:{field_id}",
+                    kind=EvidenceSummaryKind.AGGREGATE,
+                    included_count=len(numeric_values),
+                    excluded_count=len(source_rows) - len(numeric_values),
+                    evidence_ids=(),
+                    partition_key=f"source-recorded:{product_type.value}:{field_id}",
+                    metric_id=field_id,
+                    value=_source_aggregate(plan.aggregation.function, numeric_values),
+                    policy_versions=(
+                        f"source-recorded:{field_id}:{plan.aggregation.function.value}",
+                    ),
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(product_type,),
+                    native_result_grains=(grain,),
+                )
+            )
+    for index, row in enumerate(source_only_rows):
+        by_field = {item.field_id: item for item in row.raw.values}
+        for field_id in plan.metrics:
+            item = by_field[field_id]
+            summaries.append(
+                _summary(
+                    summary_id=f"summary:source-recorded:{index}:{field_id}",
+                    kind=EvidenceSummaryKind.RECORDED,
+                    included_count=1,
+                    excluded_count=0,
+                    evidence_ids=_recorded_evidence_ids(
+                        items=items,
+                        product_type=row.raw.product_type,
+                        product_id=row.raw.product_id,
+                        field_id=field_id,
+                    ),
+                    policy_versions=("source-recorded:state:1.0.0",),
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(row.raw.product_type,),
+                    native_result_grains=(row.raw.native_result_grain,),
+                    partition_key=f"source-recorded:{row.raw.product_type.value}",
+                    product_id=row.raw.product_id,
+                    metric_id=field_id,
+                    value=item.value,
+                )
+            )
+    return tuple(summaries)
+
+
+def _metric_population_summaries(
+    *,
+    plan: QueryPlan,
+    policy_result: PolicyExecutionResult,
+    repository: EvidenceRepository,
+    policy_versions: tuple[str, ...],
+    plan_hash: str,
+    version_hash: str,
+    artifact_hash: str,
+) -> tuple[EvidenceSummary, ...]:
+    explicit_fields = {
+        clause.field
+        for clause in plan.filters
+        if clause.operator in {FilterOperator.IS_MISSING, FilterOperator.IS_NOT_MISSING}
+    }
+    valid_identities = {
+        (value.product_type, value.product_id, value.metric_id)
+        for value in policy_result.metric_policy.comparison_valid_values
+    }
+    grouped: dict[tuple[ProductType, str, str], list[MetricValue]] = {}
+    for value in policy_result.metric_values:
+        field_id = next(
+            (
+                field
+                for field in (
+                    *plan.metrics,
+                    *(
+                        (plan.aggregation.field,)
+                        if plan.aggregation and plan.aggregation.field
+                        else ()
+                    ),
+                    *(clause.field for clause in plan.filters),
+                )
+                if (field, value.product_type) in repository._fields.projections
+                and repository._fields.projection(field, value.product_type).metric_id
+                == value.metric_id
+            ),
+            None,
+        )
+        if field_id is not None:
+            grouped.setdefault((value.product_type, field_id, value.metric_id), []).append(value)
+    for field_id in explicit_fields:
+        for product_type in plan.product_types:
+            if (field_id, product_type) not in repository._fields.projections:
+                continue
+            metric_id = repository._fields.projection(field_id, product_type).metric_id
+            if metric_id is not None:
+                grouped.setdefault((product_type, field_id, metric_id), [])
+    summaries: list[EvidenceSummary] = []
+    for (product_type, field_id, metric_id), values in grouped.items():
+        missing = sum(value.value is None for value in values)
+        zero = sum(value.value == 0 for value in values)
+        if not (
+            field_id in explicit_fields
+            or (plan.intent in {Intent.SCREEN_RANK, Intent.AGGREGATE} and (missing or zero))
+        ):
+            continue
+        included = sum(
+            (value.product_type, value.product_id, value.metric_id) in valid_identities
+            for value in values
+        )
+        grain = next(
+            (
+                row.raw.native_result_grain
+                for row in (*policy_result.source_rows, *policy_result.included_rows)
+                if row.raw.product_type is product_type
+            ),
+            _native_grain(product_type),
+        )
+        for population, count in (
+            ("included", included),
+            ("missing", missing),
+            ("zero", zero),
+        ):
+            summaries.append(
+                _summary(
+                    summary_id=f"summary:policy:{product_type.value}:{field_id}:{population}",
+                    kind=EvidenceSummaryKind.COUNT,
+                    included_count=included,
+                    excluded_count=len(values) - included,
+                    evidence_ids=(),
+                    policy_versions=policy_versions,
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=(product_type,),
+                    native_result_grains=(grain,),
+                    partition_key=f"policy:{metric_id}:{population}",
+                    metric_id=field_id,
+                    value=count,
+                )
+            )
+    return tuple(summaries)
 
 
 def _summary(
@@ -544,30 +880,96 @@ def _bounded_recorded_values(
 ) -> tuple[MetricValue, ...]:
     if plan.intent is not Intent.SCREEN_RANK or not plan.sort:
         return ()
-    sort = plan.sort[0]
-    grouped: dict[tuple[ProductType | None, str | None], list[MetricValue]] = {}
+    grouped: dict[
+        tuple[ProductType | None, str | None, str, SortDirection],
+        list[MetricValue],
+    ] = {}
     for value in policy_result.metric_policy.recorded_values:
-        if (
-            value in policy_result.metric_policy.comparison_valid_values
-            or value.value != 0
-            or repository._fields.projection(sort.field, value.product_type).metric_id
-            != value.metric_id
-        ):
+        sort = _recorded_value_sort(plan=plan, value=value, repository=repository)
+        if sort is None:
             continue
         key = (
             value.product_type if plan.top_k_scope is TopKScope.PER_PRODUCT_TYPE else None,
             value.currency,
+            sort.field,
+            sort.direction,
         )
         grouped.setdefault(key, []).append(value)
+    valid = set(policy_result.metric_policy.comparison_valid_values)
     return tuple(
         value
-        for values in grouped.values()
+        for (*_, direction), values in grouped.items()
         for value in sorted(
             values,
-            key=lambda item: (item.value or Decimal(0), item.product_id),
-            reverse=sort.direction is SortDirection.DESC,
+            key=lambda item: (_rank_tie_identity(item), item.product_id),
+            reverse=direction is SortDirection.DESC,
         )[: plan.top_k]
+        if value not in valid and value.value == 0
     )
+
+
+def _recorded_value_sort(
+    *,
+    plan: QueryPlan,
+    value: MetricValue,
+    repository: EvidenceRepository,
+) -> SortSpec | None:
+    for sort in plan.sort:
+        try:
+            projection = repository._fields.projection(sort.field, value.product_type)
+        except ValueError:
+            continue
+        if projection.metric_id == value.metric_id:
+            return sort
+    return None
+
+
+def _rank_tie_identity(value: MetricValue) -> Decimal | int | str:
+    identity = value.sort_value if value.sort_value is not None else value.value
+    if type(identity) in {Decimal, int, str}:
+        return cast(Decimal | int | str, identity)
+    raise ValueError("rank identity differs")
+
+
+def _rank_tie_key(
+    rank: RankPolicyResult,
+    *,
+    scope: TopKScope,
+) -> tuple[object, ...]:
+    return (
+        rank.value.product_type if scope is TopKScope.PER_PRODUCT_TYPE else None,
+        rank.partition_key,
+        rank.field_id,
+        rank.rank,
+        rank.tie_count,
+        _rank_tie_identity(rank.value),
+    )
+
+
+def _native_grain(product_type: ProductType) -> ResultGrain:
+    if product_type is ProductType.DOMESTIC_BOND:
+        return ResultGrain.INSTRUMENT
+    if product_type is ProductType.PUBLIC_FUND:
+        return ResultGrain.FUND_ITEM
+    return ResultGrain.LISTED_PRODUCT
+
+
+def _aggregate_evidence_ids(
+    *,
+    items: tuple[DirectEvidence[object] | DerivedEvidence[object], ...],
+    product_type: ProductType,
+    product_ids: tuple[str, ...],
+    field_ids: tuple[str, ...],
+) -> tuple[str, ...]:
+    identities = set(product_ids)
+    fields = set(field_ids)
+    return tuple(
+        item.evidence_id
+        for item in items
+        if item.product_type is product_type
+        and item.product_id in identities
+        and item.field_id in fields
+    )[:100]
 
 
 def _fit_recorded_values(
@@ -647,6 +1049,122 @@ def _remaining_days_difference(
                 inputs=(*first.value.inputs, *second.value.inputs),
             ),
         ),
+    )
+
+
+def _comparison_difference(
+    first: Decimal | int | date | None,
+    second: Decimal | int | date | None,
+) -> Decimal | int | None:
+    if first is None or second is None:
+        return None
+    if type(first) is date and type(second) is date:
+        return abs((second - first).days)
+    if type(first) is Decimal and type(second) is Decimal:
+        return abs(second - first)
+    if type(first) is int and type(second) is int:
+        return abs(second - first)
+    return None
+
+
+def _comparison_evidence(
+    *,
+    plan: QueryPlan,
+    items: tuple[DirectEvidence[object] | DerivedEvidence[object], ...],
+    allowed_identities: set[tuple[ProductType, str]],
+    rule_version: str,
+) -> tuple[DerivedEvidence[object], ...]:
+    if plan.intent is not Intent.COMPARE or len(plan.metrics) != 1:
+        return ()
+    metric_id = plan.metrics[0]
+    values = tuple(
+        item
+        for item in items
+        if item.field_id == metric_id
+        and item.product_id is not None
+        and (item.product_type, item.product_id) in allowed_identities
+        and item.value.quality_status
+        in {QualityStatus.VALID, QualityStatus.RECORDED_ZERO, QualityStatus.CONSTANT_METRIC}
+    )
+    if len(values) != 2 or values[0].product_type is not values[1].product_type:
+        return ()
+    first, second = values
+    first_value = (
+        first.value.normalized_value if isinstance(first, DirectEvidence) else first.value.value
+    )
+    second_value = (
+        second.value.normalized_value if isinstance(second, DirectEvidence) else second.value.value
+    )
+    difference = _comparison_difference(
+        cast(Decimal | int | date | None, first_value),
+        cast(Decimal | int | date | None, second_value),
+    )
+    if difference is None or first.product_id is None or second.product_id is None:
+        return ()
+    later = bool(second_value > first_value)  # type: ignore[operator]
+    selected = second if later else first
+    selected_id = selected.product_id
+    if selected_id is None:
+        return ()
+    inputs = tuple(
+        locator
+        for item in values
+        for locator in (
+            (item.value.source,) if isinstance(item, DirectEvidence) else item.value.inputs
+        )
+    )
+    identity = "\0".join(
+        (first.product_type.value, first.product_id, second.product_id, f"{metric_id}_difference")
+    )
+    return (
+        DerivedEvidence[object](
+            evidence_id=f"comparison:{sha256(identity.encode()).hexdigest()}:{metric_id}_difference",
+            product_type=first.product_type,
+            product_id=selected_id,
+            field_id=f"{metric_id}_difference",
+            value=DerivedValue[object](
+                value=difference,
+                quality_status=QualityStatus.VALID,
+                rule_id=f"comparison.{metric_id}_difference",
+                rule_version=rule_version,
+                as_of_date=plan.as_of_date,
+                inputs=inputs,
+            ),
+        ),
+    )
+
+
+def _requires_rating_policy_disclosure(plan: QueryPlan) -> bool:
+    return bool(
+        (plan.intent is Intent.SCREEN_RANK and "credit_rating" in plan.metrics)
+        or any(
+            clause.field == "credit_rating"
+            and clause.operator
+            in {
+                FilterOperator.GTE,
+                FilterOperator.LTE,
+                FilterOperator.IS_NOT_MISSING,
+            }
+            for clause in plan.filters
+        )
+    )
+
+
+def _direct_recorded_zero_limitations(
+    items: tuple[DirectEvidence[object], ...],
+    *,
+    existing_warnings: tuple[str, ...],
+) -> tuple[str, ...]:
+    if "recorded zero excluded from comparison" in existing_warnings:
+        return ()
+    return (
+        ("기록된 0값은 실제 0인지 검증되지 않았습니다.",)
+        if any(
+            item.value.normalized_value == 0
+            and item.value.quality_status is QualityStatus.RECORDED_ZERO_UNVERIFIED
+            for item in items
+        )
+        else ()
     )
 
 

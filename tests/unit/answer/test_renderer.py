@@ -65,6 +65,60 @@ def test_recommendation_request_renders_conditions_matching_candidates() -> None
     session._close()
 
 
+def test_renderer_projects_requested_null_as_grounded_field_unavailable_claim() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import Intent, ProductType
+    from finproof.evidence import ClaimVerifier
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("buy_yield",),
+                ),
+            )
+        )[0]
+        .direct[0]
+    )
+    direct = direct.model_copy(
+        update={
+            "value": direct.value.model_copy(
+                update={
+                    "raw_value": None,
+                    "normalized_value": None,
+                    "quality_status": "missing_blank",
+                }
+            )
+        }
+    )
+    evidence = EvidenceBundle(
+        direct=(direct,), derived=(), summaries=(), material_policy_limitations=()
+    )
+    plan = _plan().model_copy(update={"intent": Intent.COMPARE, "metrics": ("buy_yield",)})
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-null", question="매수수익률을 비교해줘"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    assert "buy_yield: 제공 데이터에서 값을 확인할 수 없습니다." in draft.text
+    unavailable = next(claim for claim in draft.claims if claim.field_id == "buy_yield")
+    assert unavailable.value is None
+    assert unavailable.evidence_ids == (direct.evidence_id,)
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    session._close()
+
+
 def test_renderer_keeps_same_product_id_separate_across_product_types() -> None:
     from tests.unit.evidence.test_builder import _bond_evidence_session
 

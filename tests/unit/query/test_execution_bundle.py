@@ -138,6 +138,28 @@ def test_clause_distribution_targets_only_registered_product_types_and_zero_targ
         )
 
 
+def test_overseas_region_korean_us_literal_binds_to_official_value_with_policy_id() -> None:
+    from finproof.query.segmenter import execution_literal_policy_ids
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        filters=(FilterClause(field="region", operator=FilterOperator.EQ, value="미국"),),
+        product_types=(ProductType.OVERSEAS_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+    ).model_copy(update={"metrics": ()})
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert plan.filters[0].value == "미국"
+    assert bundle.segments[0].filters[0].value == "United States of America"
+    assert execution_literal_policy_ids(bundle) == ("literal:region-ko-us:1.0.0",)
+
+
 def test_global_scope_requires_one_compatible_partition_for_rank_and_aggregate() -> None:
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     validator = SemanticValidator(fields)

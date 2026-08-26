@@ -25,6 +25,7 @@ from finproof.query import (
     SemanticValidator,
     ValidationContext,
 )
+from finproof.query.segmenter import execution_literal_policy_ids
 from finproof.runtime.session import RuntimeArtifactSession
 from finproof.storage.repositories.evidence import EvidenceRepository
 from finproof.storage.repositories.products import RawExecutionResult, RawFieldValue
@@ -263,6 +264,7 @@ class AnswerService:
                     (
                         f"state:{self._session.versions.state_rule_version}",
                         f"metric:{self._session.versions.metric_registry_version}",
+                        *execution_literal_policy_ids(bundle),
                         *(item.policy_id for item in policy_result.ranks),
                         *(item.policy_id for item in policy_result.aggregates),
                     )

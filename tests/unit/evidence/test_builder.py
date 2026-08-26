@@ -814,6 +814,44 @@ def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
     )
     assert recorded_values == (recorded_zero,)
 
+    descending = _bounded_recorded_values(
+        plan=plan.plan.model_copy(
+            update={
+                "sort": (SortSpec(field="buy_yield", direction=SortDirection.DESC),),
+                "top_k": 1,
+            }
+        ),
+        policy_result=policy.model_copy(
+            update={
+                "metric_policy": policy.metric_policy.model_copy(
+                    update={
+                        "recorded_values": (
+                            recorded_zero,
+                            recorded_zero.model_copy(
+                                update={
+                                    "product_id": "VALID-HIGH",
+                                    "value": Decimal("5"),
+                                    "quality_status": "valid",
+                                }
+                            ),
+                        ),
+                        "comparison_valid_values": (
+                            recorded_zero.model_copy(
+                                update={
+                                    "product_id": "VALID-HIGH",
+                                    "value": Decimal("5"),
+                                    "quality_status": "valid",
+                                }
+                            ),
+                        ),
+                    }
+                )
+            }
+        ),
+        repository=EvidenceRepository(session),
+    )
+    assert descending == ()
+
     evidence = EvidenceBuilder().build(
         plan=plan,
         policy_result=policy,
@@ -833,6 +871,80 @@ def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
         "실제 무보수" in item and "검증되지 않았" in item
         for item in evidence.material_policy_limitations
     )
+    session._close()
+
+
+def test_recorded_zero_lens_uses_each_product_types_compatible_sort() -> None:
+    """A heterogeneous rank must not apply one product type's field to another."""
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.evidence.builder import _bounded_recorded_values
+    from finproof.quality import PolicyExecutionResult
+    from finproof.quality.metric_policy import MetricPolicyResult, MetricValue
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    bond_zero = MetricValue(
+        metric_id="bond.buy_yield",
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="BOND-ZERO",
+        value=Decimal("0"),
+        quality_status="recorded_zero_unverified",
+    )
+    etf_zero = MetricValue(
+        metric_id="domestic_etf.total_fee",
+        product_type=ProductType.DOMESTIC_ETF,
+        product_id="ETF-ZERO",
+        value=Decimal("0"),
+        quality_status="recorded_zero_unverified",
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=2,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(bond_zero, etf_zero),
+            comparison_valid_values=(),
+            excluded_count=2,
+            warnings=("recorded zero excluded from comparison",),
+        ),
+        dual_lens_labels=("recorded", "comparison_valid"),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=("recorded zero excluded from comparison",),
+    )
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "product_types": (
+                ProductType.DOMESTIC_BOND,
+                ProductType.DOMESTIC_ETF,
+            ),
+            "metrics": ("buy_yield", "total_fee"),
+            "sort": (
+                SortSpec(field="buy_yield", direction=SortDirection.ASC),
+                SortSpec(field="total_fee", direction=SortDirection.ASC),
+            ),
+            "top_k": 1,
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+
+    assert _bounded_recorded_values(
+        plan=plan,
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    ) == (bond_zero, etf_zero)
     session._close()
 
 
@@ -912,7 +1024,13 @@ def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
     from tests.unit.query.test_semantic_validator import _plan
 
     from finproof.domain.execution import ValidatedQueryPlan
-    from finproof.domain.query_plan import FilterClause, FilterOperator
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        SortDirection,
+        SortSpec,
+    )
     from finproof.evidence import EvidenceBuilder
     from finproof.quality import PolicyExecutionResult
     from finproof.quality.metric_policy import MetricPolicyResult
@@ -949,6 +1067,25 @@ def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
     assert any(
         "대표 정규화 등급" in item and "미평가" in item and "복수 평가기관" in item
         for item in evidence.material_policy_limitations
+    )
+    rank_plan = plan.model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "filters": (
+                FilterClause(field="credit_rating", operator=FilterOperator.IS_NOT_MISSING),
+            ),
+            "metrics": ("credit_rating",),
+            "sort": (SortSpec(field="credit_rating", direction=SortDirection.DESC),),
+        }
+    )
+    rank_evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(plan=rank_plan, resolutions=(), context=()),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+    assert any(
+        "레지스트리 순서" in item and "미평가" in item and "불일치" in item
+        for item in rank_evidence.material_policy_limitations
     )
     session._close()
 
@@ -1039,6 +1176,234 @@ def test_compare_builder_and_renderer_expose_evidenced_remaining_days_difference
     assert len(difference.value.inputs) == 2
     assert "KR101501DD47의 기준일 잔존일수가 KR101501DD13보다 90일 깁니다." in draft.text
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    session._close()
+
+
+def test_generic_comparison_difference_supports_decimal_and_date_and_rejects_one_value() -> None:
+    from tests.unit.answer.test_renderer import _plan
+
+    from finproof.domain.query_plan import Intent, ProductType
+    from finproof.evidence.builder import _comparison_difference, _comparison_evidence
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    assert _comparison_difference(Decimal("144.07"), Decimal("144.21")) == Decimal("0.14")
+    assert _comparison_difference(date(2029, 12, 19), date(2031, 7, 21)) == 579
+    assert _comparison_difference(Decimal("1"), None) is None
+
+    session, _ = _bond_evidence_session()
+    template = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("buy_yield",),
+                ),
+            )
+        )[0]
+        .direct[0]
+    )
+    direct = tuple(
+        template.model_copy(
+            update={
+                "evidence_id": f"domestic_bond:{product_id}:buy_yield",
+                "product_id": product_id,
+                "value": template.value.model_copy(update={"normalized_value": value}),
+            }
+        )
+        for product_id, value in (("B1", Decimal("2.843")), ("B2", Decimal("2.934")))
+    )
+    comparison = _comparison_evidence(
+        plan=_plan().model_copy(
+            update={"intent": Intent.COMPARE, "metrics": ("buy_yield",), "top_k": 2}
+        ),
+        items=direct,
+        allowed_identities={(ProductType.DOMESTIC_BOND, "B1"), (ProductType.DOMESTIC_BOND, "B2")},
+        rule_version="1.0.0",
+    )
+    assert comparison[0].product_id == "B2"
+    assert comparison[0].value.value == Decimal("0.091")
+    session._close()
+
+
+def test_tie_identity_uses_sort_value_and_aggregate_evidence_is_scoped() -> None:
+    from finproof.domain.query_plan import ProductType, ResultGrain, TopKScope
+    from finproof.evidence.builder import (
+        _aggregate_evidence_ids,
+        _rank_tie_identity,
+        _rank_tie_key,
+    )
+    from finproof.quality import MetricValue, RankPolicyResult
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    aa = MetricValue(
+        metric_id="bond.credit_rating",
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="AA",
+        value="AA",
+        quality_status="valid",
+        sort_value=-5,
+    )
+    aa_zero = aa.model_copy(update={"product_id": "AA0", "value": "AA0"})
+    assert _rank_tie_identity(aa) == _rank_tie_identity(aa_zero) == -5
+    first = RankPolicyResult(
+        value=aa,
+        native_result_grain=ResultGrain.INSTRUMENT,
+        partition_key="global-rating",
+        field_id="credit_rating",
+        rank=1,
+        tie_count=2,
+        policy_id="bond.credit_rating:rank",
+        evidence_requirements=("value", "quality", "tie"),
+    )
+    second = first.model_copy(
+        update={
+            "value": aa_zero.model_copy(update={"product_type": ProductType.PUBLIC_FUND}),
+            "native_result_grain": ResultGrain.FUND_ITEM,
+            "policy_id": "fund.risk_grade:rank",
+        }
+    )
+    assert _rank_tie_key(first, scope=TopKScope.GLOBAL) == _rank_tie_key(
+        second, scope=TopKScope.GLOBAL
+    )
+
+    session, _ = _bond_evidence_session()
+    records = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("buy_yield", "product_id"),
+            ),
+        )
+    )
+    direct = records[0].direct
+    foreign = direct[0].model_copy(
+        update={
+            "evidence_id": "public_fund:F1:return_3m",
+            "product_type": ProductType.PUBLIC_FUND,
+            "product_id": "F1",
+            "field_id": "return_3m",
+        }
+    )
+    assert _aggregate_evidence_ids(
+        items=(*direct, foreign),
+        product_type=ProductType.DOMESTIC_BOND,
+        product_ids=("KR0000000001",),
+        field_ids=("buy_yield",),
+    ) == ("domestic_bond:KR0000000001:buy_yield",)
+    session._close()
+
+
+def test_explicit_state_lens_and_zero_missing_population_remain_visible() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        AggregationFunction,
+        AggregationSpec,
+        FilterClause,
+        FilterOperator,
+        Intent,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.evidence.builder import _requests_source_lens
+    from finproof.quality import PolicyExecutionResult
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+    )
+    state_plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "filters": (FilterClause(field="saleable", operator=FilterOperator.EQ, value=True),),
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT, field=None, group_by=()
+            ),
+        }
+    )
+    assert _requests_source_lens(state_plan, policy_result=policy)
+
+    missing_plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "filters": (FilterClause(field="buy_yield", operator=FilterOperator.IS_MISSING),),
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT, field=None, group_by=()
+            ),
+        }
+    )
+    session, _ = _bond_evidence_session()
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(plan=missing_plan, resolutions=(), context=()),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+    missing = next(
+        item for item in evidence.summaries if item.partition_key == "policy:bond.buy_yield:missing"
+    )
+    assert missing.value == 0
+    assert any(
+        "결측 지표값" in item and "순위에서 제외" in item
+        for item in evidence.material_policy_limitations
+    )
+    session._close()
+
+
+def test_direct_unverified_zero_warning_is_emitted_without_comparison_warning_duplication() -> None:
+    from finproof.domain.quality import QualityStatus
+    from finproof.domain.query_plan import ProductType
+    from finproof.evidence.builder import _direct_recorded_zero_limitations
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session(buy_yield="0")
+    item = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("buy_yield",),
+                ),
+            )
+        )[0]
+        .direct[0]
+    )
+    item = item.model_copy(
+        update={
+            "value": item.value.model_copy(
+                update={"quality_status": QualityStatus.RECORDED_ZERO_UNVERIFIED}
+            )
+        }
+    )
+    warning = _direct_recorded_zero_limitations((item,), existing_warnings=())
+    assert len(warning) == 1
+    assert "0값" in warning[0]
+    assert "검증되지 않" in warning[0]
+    assert (
+        _direct_recorded_zero_limitations(
+            (item,), existing_warnings=("recorded zero excluded from comparison",)
+        )
+        == ()
+    )
     session._close()
 
 

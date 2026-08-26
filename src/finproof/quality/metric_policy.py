@@ -53,15 +53,7 @@ class MetricPolicy:
         valid = (
             recorded
             if operation in {Operation.DISPLAY, Operation.FILTER}
-            else tuple(
-                value
-                for value in recorded
-                if type(value) is MetricValue
-                and value.quality_status in {"valid", "recorded_zero", "constant_metric"}
-                and not (
-                    value.value == 0 and "unverified" in self._metrics[value.metric_id].zero_policy
-                )
-            )
+            else tuple(value for value in recorded if self._valid(value, operation=operation))
         )
         return MetricPolicyResult(
             recorded_values=recorded,
@@ -81,3 +73,13 @@ class MetricPolicy:
             if len(values) != len(valid)
             else (),
         )
+
+    def _valid(self, value: MetricValue, *, operation: Operation) -> bool:
+        metric = self._metrics[value.metric_id]
+        if value.quality_status not in {"valid", "recorded_zero", "constant_metric"}:
+            return False
+        if value.value != 0:
+            return True
+        if "unverified" in metric.zero_policy:
+            return False
+        return not (operation is Operation.RANK and "positive" in metric.ranking_policy)
