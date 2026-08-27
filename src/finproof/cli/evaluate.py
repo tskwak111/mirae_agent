@@ -10,6 +10,9 @@ from datetime import date
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
+from typing import Protocol
+
+from pydantic import ValidationError
 
 from finproof.core.errors import FinProofError
 from finproof.core.settings import Settings
@@ -23,7 +26,16 @@ from finproof.domain.query_plan import (
     ResultGrain,
 )
 from finproof.entity import EntityIndex, EntityResolver
+from finproof.evaluation.adversarial import (
+    AdversarialCase,
+    AdversarialObservation,
+    AdversarialRunner,
+    AdversarialService,
+    RobustnessReport,
+    load_adversarial_cases,
+)
 from finproof.evaluation.loader import load_golden_cases
+from finproof.evaluation.metamorphic import MetamorphicKind
 from finproof.evaluation.models import (
     ExpectedAggregate,
     ExpectedValue,
@@ -36,8 +48,10 @@ from finproof.evaluation.models import (
     ValueType,
     native_result_grain,
 )
+from finproof.evaluation.paraphrases import ParaphraseRules, generate_rule_paraphrases
 from finproof.evaluation.runner import (
     EvaluationMode,
+    EvaluationReport,
     EvaluationRunner,
     EvaluationService,
     ReplayVersions,
@@ -64,25 +78,71 @@ def run_evaluation(
     mode: EvaluationMode,
     *,
     repository_root: Path | None = None,
-    service: EvaluationService | None = None,
+    service: RobustnessService | None = None,
 ) -> None:
     root = repository_root or Path(__file__).resolve().parents[3]
     try:
-        if suite != "canonical":
+        if suite not in {"canonical", "robustness"}:
             raise ValueError("unknown evaluation suite")
-        paths = tuple(sorted((root / "evaluation" / "canonical").glob("*.jsonl")))
-        cases = load_golden_cases(paths)
+        if suite == "canonical":
+            cases = load_golden_cases(
+                tuple(sorted((root / "evaluation" / "canonical").glob("*.jsonl")))
+            )
+        else:
+            quality, paraphrases = _robustness_cases(root)
+            cases = (*quality, *paraphrases)
         if service is not None:
-            report = EvaluationRunner(mode=mode).run(cases, service)
+            report = _run_suite(suite, root, mode, cases, service)
         else:
             with _open_local_service(Settings(repository_root=root)) as local_service:
-                report = EvaluationRunner(mode=mode).run(cases, local_service)
+                report = _run_suite(suite, root, mode, cases, local_service)
         output.parent.mkdir(parents=True, exist_ok=True)
         temporary = output.with_name(f".{output.name}.tmp")
         temporary.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
         temporary.replace(output)
     except (OSError, ValueError, TypeError) as error:
-        raise FinProofError("canonical evaluation could not be completed") from error
+        raise FinProofError(f"{suite} evaluation could not be completed") from error
+
+
+class RobustnessService(EvaluationService, AdversarialService, Protocol):
+    pass
+
+
+def _run_suite(
+    suite: str,
+    root: Path,
+    mode: EvaluationMode,
+    cases: Sequence[GoldenCase],
+    service: RobustnessService,
+) -> EvaluationReport | RobustnessReport:
+    evaluation = EvaluationRunner(mode=mode).run(cases, service)
+    if suite == "canonical":
+        return evaluation
+    quality_count = sum(case.category.value == "quality" for case in cases)
+    return RobustnessReport(
+        evaluation=evaluation,
+        adversarial=AdversarialRunner().run(
+            load_adversarial_cases(root / "evaluation" / "adversarial_cases.jsonl"),
+            service,
+        ),
+        quality_case_count=quality_count,
+        paraphrase_case_count=len(cases) - quality_count,
+        metamorphic_relations=tuple(kind.value for kind in MetamorphicKind),
+    )
+
+
+def _robustness_cases(root: Path) -> tuple[tuple[GoldenCase, ...], tuple[GoldenCase, ...]]:
+    canonical_root = root / "evaluation" / "canonical"
+    quality = load_golden_cases((canonical_root / "quality.jsonl",))
+    canonical = load_golden_cases(tuple(sorted(canonical_root.glob("*.jsonl"))))
+    rules = ParaphraseRules.load(root / "evaluation" / "paraphrase_rules.yaml")
+    by_rule: dict[str, GoldenCase] = {}
+    for case in canonical:
+        for derived in generate_rule_paraphrases(case, rules):
+            by_rule.setdefault(derived.transformation_id, derived)
+    if len(by_rule) != len(rules.rules):
+        raise ValueError("every paraphrase rule requires a canonical application")
+    return quality, tuple(by_rule[rule.rule_id] for rule in rules.rules)
 
 
 class _LocalEvaluationService:
@@ -141,6 +201,26 @@ class _LocalEvaluationService:
             planned.plan,
         )
         return _observed(case, planned.plan, result, planned.latency_ms)
+
+    def observe_adversarial(self, case: AdversarialCase) -> AdversarialObservation:
+        try:
+            request = PlanningRequest.start(
+                question=case.question,
+                request_id=case.case_id,
+                as_of_date=date(2026, 7, 11),
+                execution_mode=self._session.versions.execution_mode,
+                deadline_seconds=15.0,
+            )
+            answer_request = AnswerRequest(question_id=case.case_id, question=case.question)
+        except ValidationError:
+            return AdversarialObservation(rejected=True)
+        planned = self._loop.run_until_complete(self._planner.plan(request))
+        result = self._answer_service.answer_plan(answer_request, planned.plan)
+        return AdversarialObservation(
+            plan=planned.plan,
+            validated=True,
+            answer=result.answer,
+        )
 
 
 @contextmanager

@@ -96,6 +96,19 @@ async def test_rule_fallback_plain_etf_top_k_excludes_etn() -> None:
 
 
 @pytest.mark.asyncio
+async def test_rule_fallback_separates_cross_currency_aum_rank() -> None:
+    result = await _planner().plan(
+        _request(
+            "국내 ETF와 해외 ETF의 AUM 상위 5개를 하나의 순위로 합치지 말고 "
+            "통화별로 분리해 보여 주세요."
+        )
+    )
+
+    assert result.plan.intent is Intent.SCREEN_RANK
+    assert result.plan.top_k_scope is TopKScope.PER_PRODUCT_TYPE
+
+
+@pytest.mark.asyncio
 async def test_rule_fallback_current_uses_frozen_snapshot_assumption() -> None:
     result = await _planner().plan(_request("현재 국내 ETF만 보여줘"))
 

@@ -112,7 +112,11 @@ def _parse(question: str, as_of_date: date) -> QueryPlan:
     normalized = " ".join(question.split())
     products = _products(normalized)
     top_k = _top_k(normalized)
-    top_k_scope = TopKScope.PER_PRODUCT_TYPE if "각각" in normalized else TopKScope.GLOBAL
+    top_k_scope = (
+        TopKScope.PER_PRODUCT_TYPE
+        if any(term in normalized for term in ("각각", "통화별", "유형별"))
+        else TopKScope.GLOBAL
+    )
 
     if any(term in normalized for term in ("무조건", "추천", "사야")):
         terminal_products = _ALL_REVIEWED_PRODUCTS if "상품" in normalized else products

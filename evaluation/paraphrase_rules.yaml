@@ -1,0 +1,30 @@
+version: "1.0.0"
+rules:
+  - rule_id: condition-order-two-filters
+    pattern: "^(?P<left>.+?)이고 (?P<right>.+?)(?P<tail>인 .+)$"
+    replacement: "\\g<right>이고 \\g<left>\\g<tail>"
+  - rule_id: condition-order-rank-filter
+    pattern: "^수익률이 좋고 AUM이 큰 국내 ETF 5개를 알려주세요[.]?$"
+    replacement: "AUM이 큰 국내 ETF 중 수익률이 좋은 상품 5개를 알려주세요"
+  - rule_id: honorific
+    pattern: "알려주세요[.]?$"
+    replacement: "알려줘"
+  - rule_id: top-k-wording
+    pattern: "상위\\s+(\\d+)개"
+    replacement: "\\g<1>개"
+  - rule_id: descending-synonym
+    pattern: "가장 높은"
+    replacement: "내림차순인"
+  - rule_id: ascending-synonym
+    pattern: "가장 낮은"
+    replacement: "오름차순인"
+  - rule_id: exact-voo-name
+    pattern: "(?<![A-Z0-9.])VOO(?![A-Z0-9.])"
+    replacement: "Vanguard S&P 500 ETF VOO"
+    preserve_numeric_tokens: false
+  - rule_id: whitespace
+    pattern: " "
+    replacement: "  "
+  - rule_id: reviewed-typo
+    pattern: "수익률"
+    replacement: "수익율"

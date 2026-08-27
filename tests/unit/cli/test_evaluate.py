@@ -25,6 +25,20 @@ def test_parser_accepts_canonical_evaluate_command() -> None:
     }
 
 
+def test_parser_accepts_robustness_evaluate_command() -> None:
+    args = _parser().parse_args(
+        [
+            "evaluate",
+            "--suite",
+            "robustness",
+            "--output",
+            "artifacts/evaluation/robustness.json",
+        ]
+    )
+
+    assert args.suite == "robustness"
+
+
 def test_evaluate_dispatches_exact_suite_mode_and_output(
     tmp_path: Path,
     capsys: object,

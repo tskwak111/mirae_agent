@@ -8,7 +8,9 @@ import pytest
 pytestmark = [pytest.mark.source_contract, pytest.mark.slow]
 
 
-def test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes() -> None:
+def test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes(
+    tmp_path: Path,
+) -> None:
     from finproof.core.settings import Settings
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.builder import build_complete_for_session
@@ -24,8 +26,8 @@ def test_official_exact_link_profile_is_47_371_and_frozen_pair_bytes() -> None:
         repository_root=repository_root,
         source_root=source_root,
         data_dir=source_root / "data",
-        artifact_dir=repository_root / "artifacts",
-        database_path=repository_root / "artifacts/finproof.duckdb",
+        artifact_dir=tmp_path / "artifacts",
+        database_path=tmp_path / "artifacts/finproof.duckdb",
         artifact_build_config_path=repository_root / "config/artifact_build.yaml",
         expected_artifact_contract_path=(repository_root / "config/expected_phase1_artifacts.json"),
     )

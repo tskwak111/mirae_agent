@@ -232,6 +232,35 @@ def test_global_targetless_count_has_one_native_grain_partition() -> None:
     assert bundle.comparison_partitions[0].product_types == (ProductType.DOMESTIC_BOND,)
 
 
+def test_global_targetless_count_ignores_non_aggregate_display_metric_partition() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.PUBLIC_FUND,),
+        result_grain=ResultGrain.FUND_ITEM,
+    ).model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": ("risk_grade",),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT,
+                field=None,
+                group_by=(),
+            ),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert bundle.segments[0].metrics == ("risk_grade",)
+    assert len(bundle.comparison_partitions) == 1
+    assert bundle.comparison_partitions[0].compatibility_key == "count:fund_item:public_fund"
+
+
 def test_per_product_type_scope_records_each_required_compatibility_split() -> None:
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     plan = _plan(
