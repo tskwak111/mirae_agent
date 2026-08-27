@@ -21,14 +21,14 @@
       "fallback_enabled": true,
       "structured_outputs_enabled": false,
       "configuration_sha256": "b42be0c9a7b0612f8f72d8268ecb9304e1d3598d86b41ac9e0ee44ebc53191ba",
-      "code_commit": "925fde1d43646c9a3bd5168c3af1749a90d02a3e",
+      "code_commit": "c252b704b8b41cbcda9deb11c0bbc5f004e4061d",
       "environment": {
         "python": "3.12.13",
         "implementation": "cpython",
         "platform": "macOS-26.6.1-arm64-arm-64bit"
       },
-      "started_at": "2026-08-27T05:33:52.393497Z",
-      "ended_at": "2026-08-27T05:34:08.272440Z",
+      "started_at": "2026-08-27T13:31:36.874063Z",
+      "ended_at": "2026-08-27T13:31:54.642605Z",
       "case_checksum": "e6df0b37930c1cfd928a8ddfda8d4660e8cbba42c2fb99ba07db0a1f474252c2",
       "mode": "end-to-end"
     },
@@ -120,9 +120,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 585,
-          "mean_ms": 585.0,
-          "p95_ms": 585
+          "total_ms": 552,
+          "mean_ms": 552.0,
+          "p95_ms": 552
         },
         "failures": [
           "missing evidence: summary:tie:1",
@@ -218,9 +218,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 719,
-          "mean_ms": 719.0,
-          "p95_ms": 719
+          "total_ms": 631,
+          "mean_ms": 631.0,
+          "p95_ms": 631
         },
         "failures": [
           "missing evidence: summary:tie:1",
@@ -317,9 +317,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 958,
-          "mean_ms": 958.0,
-          "p95_ms": 958
+          "total_ms": 1052,
+          "mean_ms": 1052.0,
+          "p95_ms": 1052
         },
         "failures": [
           "metrics differs",
@@ -411,9 +411,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 851,
-          "mean_ms": 851.0,
-          "p95_ms": 851
+          "total_ms": 869,
+          "mean_ms": 869.0,
+          "p95_ms": 869
         },
         "failures": [
           "required concept missing: 기록된 0값은 비교 가능 기준에서 제외했습니다."
@@ -513,9 +513,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 947,
-          "mean_ms": 947.0,
-          "p95_ms": 947
+          "total_ms": 873,
+          "mean_ms": 873.0,
+          "p95_ms": 873
         },
         "failures": [
           "intent differs",
@@ -613,9 +613,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 40,
-          "mean_ms": 40.0,
-          "p95_ms": 40
+          "total_ms": 42,
+          "mean_ms": 42.0,
+          "p95_ms": 42
         },
         "failures": [
           "clarification_reason differs",
@@ -743,9 +743,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 39,
-          "mean_ms": 39.0,
-          "p95_ms": 39
+          "total_ms": 41,
+          "mean_ms": 41.0,
+          "p95_ms": 41
         },
         "failures": [
           "intent differs",
@@ -932,9 +932,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 38,
-          "mean_ms": 38.0,
-          "p95_ms": 38
+          "total_ms": 39,
+          "mean_ms": 39.0,
+          "p95_ms": 39
         },
         "failures": [
           "intent differs",
@@ -1128,9 +1128,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 705,
-          "mean_ms": 705.0,
-          "p95_ms": 705
+          "total_ms": 1125,
+          "mean_ms": 1125.0,
+          "p95_ms": 1125
         },
         "failures": [
           "intent differs",
@@ -1256,9 +1256,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 1016,
-          "mean_ms": 1016.0,
-          "p95_ms": 1016
+          "total_ms": 1192,
+          "mean_ms": 1192.0,
+          "p95_ms": 1192
         },
         "failures": []
       },
@@ -1348,9 +1348,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 57,
-          "mean_ms": 57.0,
-          "p95_ms": 57
+          "total_ms": 106,
+          "mean_ms": 106.0,
+          "p95_ms": 106
         },
         "failures": [
           "clarification_reason differs",
@@ -1444,9 +1444,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 43,
-          "mean_ms": 43.0,
-          "p95_ms": 43
+          "total_ms": 42,
+          "mean_ms": 42.0,
+          "p95_ms": 42
         },
         "failures": [
           "product_types differs",
@@ -1541,9 +1541,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 521,
-          "mean_ms": 521.0,
-          "p95_ms": 521
+          "total_ms": 499,
+          "mean_ms": 499.0,
+          "p95_ms": 499
         },
         "failures": [
           "missing evidence: summary:tie:1",
@@ -1639,9 +1639,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 469,
-          "mean_ms": 469.0,
-          "p95_ms": 469
+          "total_ms": 468,
+          "mean_ms": 468.0,
+          "p95_ms": 468
         },
         "failures": [
           "missing evidence: summary:tie:1",
@@ -1771,9 +1771,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 40,
-          "mean_ms": 40.0,
-          "p95_ms": 40
+          "total_ms": 46,
+          "mean_ms": 46.0,
+          "p95_ms": 46
         },
         "failures": [
           "intent differs",
@@ -1935,9 +1935,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 40,
-          "mean_ms": 40.0,
-          "p95_ms": 40
+          "total_ms": 41,
+          "mean_ms": 41.0,
+          "p95_ms": 41
         },
         "failures": [
           "intent differs",
@@ -2061,9 +2061,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 615,
-          "mean_ms": 615.0,
-          "p95_ms": 615
+          "total_ms": 640,
+          "mean_ms": 640.0,
+          "p95_ms": 640
         },
         "failures": []
       },
@@ -2197,9 +2197,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 37,
-          "mean_ms": 37.0,
-          "p95_ms": 37
+          "total_ms": 43,
+          "mean_ms": 43.0,
+          "p95_ms": 43
         },
         "failures": [
           "intent differs",
@@ -2326,9 +2326,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 963,
-          "mean_ms": 963.0,
-          "p95_ms": 963
+          "total_ms": 1124,
+          "mean_ms": 1124.0,
+          "p95_ms": 1124
         },
         "failures": []
       },
@@ -2461,9 +2461,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 37,
-          "mean_ms": 37.0,
-          "p95_ms": 37
+          "total_ms": 41,
+          "mean_ms": 41.0,
+          "p95_ms": 41
         },
         "failures": [
           "intent differs",
@@ -2613,9 +2613,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 313,
-          "mean_ms": 313.0,
-          "p95_ms": 313
+          "total_ms": 312,
+          "mean_ms": 312.0,
+          "p95_ms": 312
         },
         "failures": [
           "intent differs",
@@ -2718,9 +2718,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 567,
-          "mean_ms": 567.0,
-          "p95_ms": 567
+          "total_ms": 584,
+          "mean_ms": 584.0,
+          "p95_ms": 584
         },
         "failures": []
       },
@@ -2854,9 +2854,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 39,
-          "mean_ms": 39.0,
-          "p95_ms": 39
+          "total_ms": 38,
+          "mean_ms": 38.0,
+          "p95_ms": 38
         },
         "failures": [
           "intent differs",
@@ -3022,9 +3022,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 328,
-          "mean_ms": 328.0,
-          "p95_ms": 328
+          "total_ms": 315,
+          "mean_ms": 315.0,
+          "p95_ms": 315
         },
         "failures": [
           "intent differs",
@@ -3196,9 +3196,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 39,
-          "mean_ms": 39.0,
-          "p95_ms": 39
+          "total_ms": 36,
+          "mean_ms": 36.0,
+          "p95_ms": 36
         },
         "failures": [
           "intent differs",
@@ -3360,9 +3360,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 378,
-          "mean_ms": 378.0,
-          "p95_ms": 378
+          "total_ms": 338,
+          "mean_ms": 338.0,
+          "p95_ms": 338
         },
         "failures": [
           "intent differs",
@@ -3520,9 +3520,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 40,
-          "mean_ms": 40.0,
-          "p95_ms": 40
+          "total_ms": 38,
+          "mean_ms": 38.0,
+          "p95_ms": 38
         },
         "failures": [
           "intent differs",
@@ -3698,9 +3698,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 40,
-          "mean_ms": 40.0,
-          "p95_ms": 40
+          "total_ms": 38,
+          "mean_ms": 38.0,
+          "p95_ms": 38
         },
         "failures": [
           "intent differs",
@@ -3859,9 +3859,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 333,
-          "mean_ms": 333.0,
-          "p95_ms": 333
+          "total_ms": 315,
+          "mean_ms": 315.0,
+          "p95_ms": 315
         },
         "failures": [
           "intent differs",
@@ -4013,9 +4013,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 39,
-          "mean_ms": 39.0,
-          "p95_ms": 39
+          "total_ms": 36,
+          "mean_ms": 36.0,
+          "p95_ms": 36
         },
         "failures": [
           "intent differs",
@@ -4170,9 +4170,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 359,
-          "mean_ms": 359.0,
-          "p95_ms": 359
+          "total_ms": 395,
+          "mean_ms": 395.0,
+          "p95_ms": 395
         },
         "failures": [
           "metrics differs",
@@ -4349,9 +4349,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 400,
-          "mean_ms": 400.0,
-          "p95_ms": 400
+          "total_ms": 409,
+          "mean_ms": 409.0,
+          "p95_ms": 409
         },
         "failures": [
           "intent differs",
@@ -4541,9 +4541,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 38,
-          "mean_ms": 38.0,
-          "p95_ms": 38
+          "total_ms": 41,
+          "mean_ms": 41.0,
+          "p95_ms": 41
         },
         "failures": [
           "intent differs",
@@ -4715,9 +4715,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 37,
-          "mean_ms": 37.0,
-          "p95_ms": 37
+          "total_ms": 43,
+          "mean_ms": 43.0,
+          "p95_ms": 43
         },
         "failures": [
           "intent differs",
@@ -4852,9 +4852,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 475,
-          "mean_ms": 475.0,
-          "p95_ms": 475
+          "total_ms": 542,
+          "mean_ms": 542.0,
+          "p95_ms": 542
         },
         "failures": [
           "intent differs",
@@ -4960,9 +4960,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 482,
-          "mean_ms": 482.0,
-          "p95_ms": 482
+          "total_ms": 584,
+          "mean_ms": 584.0,
+          "p95_ms": 584
         },
         "failures": [
           "intent differs",
@@ -5112,9 +5112,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 42,
-          "mean_ms": 42.0,
-          "p95_ms": 42
+          "total_ms": 61,
+          "mean_ms": 61.0,
+          "p95_ms": 61
         },
         "failures": [
           "intent differs",
@@ -5247,9 +5247,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 570,
-          "mean_ms": 570.0,
-          "p95_ms": 570
+          "total_ms": 836,
+          "mean_ms": 836.0,
+          "p95_ms": 836
         },
         "failures": []
       },
@@ -5383,9 +5383,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 39,
-          "mean_ms": 39.0,
-          "p95_ms": 39
+          "total_ms": 59,
+          "mean_ms": 59.0,
+          "p95_ms": 59
         },
         "failures": [
           "intent differs",
@@ -5539,9 +5539,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 41,
-          "mean_ms": 41.0,
-          "p95_ms": 41
+          "total_ms": 51,
+          "mean_ms": 51.0,
+          "p95_ms": 51
         },
         "failures": [
           "intent differs",
@@ -5648,9 +5648,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 131,
-          "mean_ms": 131.0,
-          "p95_ms": 131
+          "total_ms": 220,
+          "mean_ms": 220.0,
+          "p95_ms": 220
         },
         "failures": []
       },
@@ -5777,9 +5777,9 @@
         },
         "latency": {
           "count": 1,
-          "total_ms": 786,
-          "mean_ms": 786.0,
-          "p95_ms": 786
+          "total_ms": 1336,
+          "mean_ms": 1336.0,
+          "p95_ms": 1336
         },
         "failures": [
           "intent differs",
@@ -6840,9 +6840,9 @@
     },
     "latency": {
       "count": 42,
-      "total_ms": 14236,
-      "mean_ms": 338.95238095238096,
-      "p95_ms": 958
+      "total_ms": 16093,
+      "mean_ms": 383.1666666666667,
+      "p95_ms": 1125
     }
   },
   "adversarial": {
