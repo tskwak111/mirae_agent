@@ -1,11 +1,11 @@
 """Deterministic, denominator-preserving golden-case scoring."""
 
 from collections.abc import Sequence
-from math import ceil
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from finproof.domain.query_plan import FilterClause
+from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.models import (
     ExpectedAggregate,
     ExpectedValue,
@@ -36,26 +36,6 @@ class ProductScore(_FrozenModel):
     order_accuracy: float = Field(ge=0, le=1)
     order_numerator: int = Field(ge=0)
     order_denominator: int = Field(ge=0)
-
-
-class LatencySummary(_FrozenModel):
-    count: int = Field(ge=0)
-    total_ms: int = Field(ge=0)
-    mean_ms: float
-    p95_ms: int
-
-    @classmethod
-    def from_milliseconds(cls, samples: Sequence[int]) -> "LatencySummary":
-        if not samples or any(type(sample) is not int or sample < 0 for sample in samples):
-            raise ValueError("latency samples must be nonempty nonnegative integers")
-        ordered = sorted(samples)
-        total = sum(ordered)
-        return cls(
-            count=len(ordered),
-            total_ms=total,
-            mean_ms=total / len(ordered),
-            p95_ms=ordered[ceil(len(ordered) * 0.95) - 1],
-        )
 
 
 class CaseScore(_FrozenModel):
