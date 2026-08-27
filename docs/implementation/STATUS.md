@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-27 — Phase 4 Task 1 is closed at 265 reviewed canonical
-cases. The batches 006–011 promotion review returned Critical 0 / Important 0 and
-the final Task 1 full gate passed. Phase 4 Task 2 has not started.
+**Last updated:** 2026-08-27 — Phase 4 Task 2 is closed. The bounded correction and
+independent re-review returned Critical 0 / Important 0, and the final Task 2 full
+gate passed.
 
 ## Frozen baseline
 
@@ -54,7 +54,7 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 - [x] Task 1: canonical golden set and scoring harness — harness complete; 265 reviewed
   canonical cases committed (24 cases in each of batches 001–011 plus 1 official
   clarification case)
-- [ ] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
+- [x] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
 - [ ] Task 4: competition compliance and independent review closure
 - [ ] Task 5: clean-room reproduction, immutable release manifest, and submission freeze
@@ -62,9 +62,8 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 2: implement the paraphrase, metamorphic, differential, quality, and
-adversarial suites from the frozen Phase 4 plan.** Stop after the Task 1 closure in
-this checkpoint; Task 2 has not started.
+**Phase 4 Task 3: implement ablation, latency, load, resilience, and soak measurement
+from the frozen Phase 4 plan.** Task 3 has not started.
 
 ## Phase 4 Task 1 batch-001 checkpoint
 
@@ -252,6 +251,40 @@ this checkpoint; Task 2 has not started.
   inside the validated cache.
 - Phase 4 Task 1 therefore closes at 265 reviewed cases. Exact next task is Phase 4
   Task 2; it is intentionally not started in this checkpoint.
+
+## Phase 4 Task 2 closure
+
+- Implementation checkpoint: `5522406` (`test: harden FinProof language and policy
+  behavior`). The one bounded correction is `c252b70` (`fix: verify adversarial
+  answer boundaries`); `a0e9b6c` binds the generated robustness report to the
+  reviewed correction commit.
+- Focused RED→GREEN covered paraphrase invariance and numeric-token preservation,
+  seven metamorphic relation kinds, all 17 frozen critical regressions, 11
+  adversarial scenarios, targetless global counts, and explicit currency/product
+  partition wording. The direct REDs were the incompatible-partition count error,
+  a `global` rather than `per_product_type` fallback plan, and acceptance of unsafe
+  untraced answer text. Their focused selectors passed after the minimum changes;
+  the related evaluation/differential/property/planner/query aggregate passed 93
+  tests with one known warning.
+- `finproof evaluate --suite robustness` ran in deterministic fallback-only mode
+  against the validated official artifact. The committed report records 42 evaluated
+  quality/paraphrase cases, 11/11 adversarial cases, and all seven metamorphic relation
+  definitions. Low canonical fallback scores are retained as Task 3/4 evidence and
+  backlog rather than hidden or promoted to a Task 2 threshold.
+- The first full gate exposed one test-fixture collision with the newly planned
+  `artifacts/evaluation/robustness.json`; isolating that fixture in `tmp_path` passed
+  its focused selector. The final corrected-candidate gate reported Ruff format/check
+  clean; clean non-incremental and standard mypy clean across 298 source files; pytest
+  2,875 passed, 8 expected skips, and 5 known warnings in 10,371.73 seconds; source
+  audit 145,393 rows at snapshot `2026-07-11`; and handoff 61 required files, 9
+  official inputs, and 41,384,928 source bytes.
+- The first independent review returned Critical 0 / Important 3. Root adjudication
+  rejected one runner expansion outside the frozen Task 2 contract and corrected the
+  two direct issues: adversarial trace/claim validation and report commit binding.
+  The bounded re-review closed at Critical 0 / Important 0. No official question or
+  blocker remains; expected skips/warnings and low fallback-only scores remain visible.
+- Exact next task is Phase 4 Task 3: ablation, latency, load, resilience, and soak
+  measurement. It is intentionally not started in this checkpoint.
 
 ## Phase 1 Task 5 design and plan record
 
