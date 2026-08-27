@@ -1,0 +1,34 @@
+{
+  "variant": "A_direct_hcx_over_retrieved_rows",
+  "case_checksum": "2fdb9ed535dc6980f30266965d96dd17155c36a6543a7a0898a6b4d2c6b86066",
+  "code_commit": "7a606c098f7cf403ab75123a95c52dae1cbc685a",
+  "artifact_version": "59d8b566b7f3e8986b5c46ae2bebfe2325e7ae12d29ba5d663299fb5ebded236",
+  "configuration_sha256": "3e96d7f5bf5dd27c55c629642f5508b602bb5cd8de0d96d66ea32acf3964e3ec",
+  "prompt_version": "phase3-planner-v1+ablation-direct-answer.v1",
+  "planner_model": "HCX-007",
+  "environment": {
+    "python": "3.12.13",
+    "implementation": "cpython",
+    "platform": "macOS-26.6.1-arm64-arm-64bit"
+  },
+  "case_count": 265,
+  "product_set_f1": 0.09069767441860466,
+  "order_accuracy": 0.0,
+  "numeric_exact_match": 0.004201680672268907,
+  "evidence_coverage": 0.0,
+  "limitation_accuracy": 0.007575757575757576,
+  "repeat_stability": 0.9547169811320755,
+  "latency": {
+    "count": 530,
+    "success_count": 530,
+    "failure_count": 0,
+    "total_ms": 2859713.0,
+    "mean_ms": 5395.684905660378,
+    "p95_ms": 15043.0,
+    "stage_mean_ms": {},
+    "stage_p95_ms": {}
+  },
+  "prompt_tokens": 108015,
+  "completion_tokens": 94401,
+  "error_count": 263
+}
