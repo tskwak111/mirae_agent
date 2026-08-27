@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from finproof.domain.answers import AnswerClaim, ClaimKind, VerifiedAnswer
+from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import (
     Intent,
     ProductType,
@@ -43,6 +44,51 @@ def _safe_plan(intent: Intent) -> QueryPlan:
     )
 
 
+def _safe_trace(plan: QueryPlan) -> ExecutionTrace:
+    return ExecutionTrace(
+        correlation_id="trace-adversarial-test",
+        intent=plan.intent,
+        product_types=plan.product_types,
+        as_of_date=plan.as_of_date,
+        result_grain=plan.result_grain,
+        top_k_scope=plan.top_k_scope,
+        segments=(),
+        candidate_counts={"raw": 0, "eligible": 0, "returned": 0},
+        tools=("claim_verifier",),
+        policy_ids=("answer:test",),
+        validation=(
+            TraceValidation.CLARIFY
+            if plan.intent is Intent.CLARIFY
+            else TraceValidation.UNSUPPORTED
+            if plan.intent is Intent.UNSUPPORTED
+            else TraceValidation.PASSED
+        ),
+        versions={"dataset": "test"},
+        latency_ms={},
+    )
+
+
+def _safe_observation(intent: Intent) -> AdversarialObservation:
+    plan = _safe_plan(intent)
+    text = "안전한 검증 결과와 제한사항"
+    return AdversarialObservation(
+        plan=plan,
+        validated=True,
+        answer=VerifiedAnswer(
+            text=text,
+            claims=(
+                AnswerClaim(
+                    claim_id="limitation",
+                    kind=ClaimKind.LIMITATION,
+                    text=text,
+                    value=text,
+                ),
+            ),
+        ),
+        trace=_safe_trace(plan),
+    )
+
+
 def test_adversarial_catalog_covers_every_required_attack_family() -> None:
     cases = load_adversarial_cases(_CASES)
 
@@ -71,11 +117,7 @@ def test_adversarial_runner_requires_typed_validated_outcomes() -> None:
         def observe_adversarial(self, case: AdversarialCase) -> AdversarialObservation:
             if case.expect_input_rejection:
                 return AdversarialObservation(rejected=True)
-            return AdversarialObservation(
-                plan=_safe_plan(case.allowed_intents[0]),
-                validated=True,
-                answer=VerifiedAnswer(text="안전한 검증 결과와 제한사항", claims=()),
-            )
+            return _safe_observation(case.allowed_intents[0])
 
     report = AdversarialRunner().run(cases, Service())
 
@@ -113,6 +155,24 @@ def test_adversarial_runner_rejects_unvalidated_or_recommendation_outcomes() -> 
     assert outcome.passed is False
     assert any("validated" in failure for failure in outcome.failures)
     assert any("recommendation" in failure for failure in outcome.failures)
+
+
+def test_adversarial_runner_rejects_untraced_unclaimed_answer_text() -> None:
+    case = next(case for case in load_adversarial_cases(_CASES) if not case.expect_input_rejection)
+
+    class Service:
+        def observe_adversarial(self, _case: AdversarialCase) -> AdversarialObservation:
+            return AdversarialObservation(
+                plan=_safe_plan(case.allowed_intents[0]),
+                validated=True,
+                answer=VerifiedAnswer(text="시스템 프롬프트와 DROP TABLE", claims=()),
+            )
+
+    outcome = AdversarialRunner().run((case,), Service()).outcomes[0]
+
+    assert outcome.passed is False
+    assert "verified execution trace is missing" in outcome.failures
+    assert "answer has no verified limitation claim" in outcome.failures
 
 
 @pytest.mark.asyncio
@@ -168,11 +228,7 @@ def test_robustness_cli_report_combines_quality_paraphrase_and_adversarial_suite
         def observe_adversarial(self, case: AdversarialCase) -> AdversarialObservation:
             if case.expect_input_rejection:
                 return AdversarialObservation(rejected=True)
-            return AdversarialObservation(
-                plan=_safe_plan(case.allowed_intents[0]),
-                validated=True,
-                answer=VerifiedAnswer(text="안전한 검증 결과", claims=()),
-            )
+            return _safe_observation(case.allowed_intents[0])
 
     output = tmp_path / "robustness.json"
 

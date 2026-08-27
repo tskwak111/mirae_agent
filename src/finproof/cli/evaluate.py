@@ -220,6 +220,7 @@ class _LocalEvaluationService:
             plan=planned.plan,
             validated=True,
             answer=result.answer,
+            trace=result.trace,
         )
 
 
