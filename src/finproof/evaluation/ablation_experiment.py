@@ -8,6 +8,8 @@ import platform
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
+from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 from time import monotonic
@@ -16,32 +18,30 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from finproof.cli.evaluate import (
     _observed,
-    _observed_aggregates,
-    _observed_products,
     _observed_values,
-    _rows,
     _typed_value,
 )
 from finproof.core.settings import Settings
 from finproof.domain.answers import AnswerRequest
-from finproof.domain.evidence import EvidenceBundle
 from finproof.domain.execution import ExecutionSegment
-from finproof.domain.query_plan import Intent, ProductType, QueryPlan
+from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
 from finproof.entity import EntityIndex, EntityResolver
 from finproof.evaluation.ablation import AblationMeasurement, AblationVariant
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import (
+    AggregateGroupValue,
     GoldenCase,
+    ObservedAggregate,
     ObservedCase,
     ObservedSegment,
     ObservedValue,
     ProductIdentity,
+    ValueType,
     native_result_grain,
 )
 from finproof.evaluation.runner import _code_commit
 from finproof.evaluation.scoring import CaseScore, RatioScore, score_case
-from finproof.evidence import EvidenceBuilder, serialize_evidence_context
 from finproof.planner.hcx_client import HcxClient, create_hcx_http_client
 from finproof.planner.json_planner import StrictJsonPlanner
 from finproof.planner.models import HcxMessage, HcxRequest, HcxResponse
@@ -64,7 +64,6 @@ from finproof.query import (
 )
 from finproof.runtime import RuntimeArtifactSession, open_runtime_artifact_session
 from finproof.service import AnswerService
-from finproof.storage.repositories.evidence import EvidenceRepository
 from finproof.storage.repositories.products import RawExecutionResult
 
 _DIRECT_PROMPT_VERSION = "ablation-direct-answer.v1"
@@ -124,8 +123,6 @@ class _Experiment:
         self._segmenter = ExecutionBundleBuilder(fields)
         self._executor = QueryExecutor(self.session)
         self._policy = PolicyEngine()
-        self._evidence = EvidenceBuilder()
-        self._evidence_repository = EvidenceRepository(self.session)
         self._answer = AnswerService(self.session)
         self._validator = LocalPlanValidator(
             SemanticValidator(fields),
@@ -203,11 +200,6 @@ class _Experiment:
                         case,
                         planned.plan,
                         policy,
-                        self._evidence.build(
-                            plan=planned.validated_plan,
-                            policy_result=policy,
-                            repository=self._evidence_repository,
-                        ),
                         policy_latency,
                     ),
                     latency_ms=policy_latency,
@@ -532,22 +524,153 @@ def _policy_observation(
     case: GoldenCase,
     plan: QueryPlan,
     policy: PolicyExecutionResult,
-    evidence: EvidenceBundle,
     latency_ms: int,
 ) -> ObservedCase:
-    payload = json.loads(serialize_evidence_context(evidence))
-    direct = _rows(payload, "direct")
-    derived = _rows(payload, "derived")
-    summaries = tuple(value for value in payload.get("summaries", ()) if isinstance(value, Mapping))
-    limitations = payload.get("material_policy_limitations", ())
+    selected_rows = tuple(row.raw for row in policy.selected_rows)
+    products = (
+        ()
+        if plan.intent is Intent.AGGREGATE
+        else tuple(
+            dict.fromkeys(
+                ProductIdentity(
+                    product_type=rank.value.product_type,
+                    native_result_grain=rank.native_result_grain,
+                    product_id=rank.value.product_id,
+                )
+                for rank in sorted(
+                    policy.ranks,
+                    key=lambda value: (value.rank, value.value.product_id),
+                )
+            )
+        )
+        if policy.ranks
+        else tuple(
+            dict.fromkeys(
+                ProductIdentity(
+                    product_type=row.product_type,
+                    native_result_grain=row.native_result_grain,
+                    product_id=row.product_id,
+                )
+                for row in selected_rows
+            )
+        )
+    )
+    values = [
+        {
+            "product_id": row.product_id,
+            "field_id": value.field_id,
+            "value": value.value,
+        }
+        for row in selected_rows
+        for value in row.values
+    ]
+    values.extend(
+        {
+            "product_id": rank.value.product_id,
+            "field_id": rank.field_id,
+            "value": rank.value.value,
+        }
+        for rank in policy.ranks
+    )
     return ObservedCase(
         plan=plan,
-        products=_observed_products(plan, (*direct, *derived), summaries),
-        values=_observed_values(case.expected_result.values, (*direct, *derived), summaries),
-        aggregates=_observed_aggregates(case.expected_result.aggregates, summaries),
-        limitation_present=bool(limitations) or bool(policy.warnings),
+        products=products,
+        values=_observed_values(case.expected_result.values, values, ()),
+        aggregates=_policy_aggregates(case, plan, policy),
+        limitation_present=bool(
+            policy.warnings
+            or policy.metric_policy.warnings
+            or policy.dual_lens_labels
+            or any(partition.caveats for partition in policy.partitions)
+        ),
         latency_ms=(latency_ms,),
     )
+
+
+def _policy_aggregates(
+    case: GoldenCase,
+    plan: QueryPlan,
+    policy: PolicyExecutionResult,
+) -> tuple[ObservedAggregate, ...]:
+    aggregation = plan.aggregation
+    if aggregation is None:
+        return ()
+    observed: list[ObservedAggregate] = []
+    for result in policy.aggregates:
+        expectation = next(
+            (
+                item
+                for item in case.expected_result.aggregates
+                if item.function is aggregation.function
+                and item.field_id == result.field_id
+                and item.product_type is result.product_type
+                and item.native_result_grain is result.native_result_grain
+                and item.partition_key == result.partition_key
+                and len(item.group_values) == len(result.group_values)
+                and all(
+                    expected.field_id == actual.field_id
+                    and expected.value == _typed_value(expected.value_type, actual.value)
+                    for expected, actual in zip(
+                        item.group_values,
+                        result.group_values,
+                        strict=True,
+                    )
+                )
+            ),
+            None,
+        )
+        value_type = (
+            expectation.value_type
+            if expectation is not None
+            else _aggregate_value_type(aggregation.function, result.value)
+        )
+        groups = (
+            expectation.group_values
+            if expectation is not None
+            else tuple(
+                AggregateGroupValue(
+                    field_id=value.field_id,
+                    value_type=_value_type(value.value),
+                    value=_typed_value(_value_type(value.value), value.value),
+                )
+                for value in result.group_values
+            )
+        )
+        observed.append(
+            ObservedAggregate(
+                function=aggregation.function,
+                field_id=result.field_id,
+                product_type=result.product_type,
+                native_result_grain=result.native_result_grain,
+                partition_key=result.partition_key,
+                group_values=groups,
+                value_type=value_type,
+                value=_typed_value(value_type, result.value),
+            )
+        )
+    return tuple(observed)
+
+
+def _aggregate_value_type(function: AggregationFunction, value: object) -> ValueType:
+    if value is None:
+        return ValueType.NULL
+    if function is AggregationFunction.COUNT:
+        return ValueType.INTEGER
+    return ValueType.DECIMAL
+
+
+def _value_type(value: object) -> ValueType:
+    if value is None:
+        return ValueType.NULL
+    if type(value) is bool:
+        return ValueType.BOOLEAN
+    if type(value) is int:
+        return ValueType.INTEGER
+    if type(value) is Decimal:
+        return ValueType.DECIMAL
+    if type(value) is date:
+        return ValueType.DATE
+    return ValueType.TEXT
 
 
 def _direct_request(model_name: str, case: GoldenCase, raw: RawExecutionResult) -> HcxRequest:

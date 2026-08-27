@@ -9,10 +9,12 @@ from finproof.evaluation.ablation import (
     AblationVariant,
     main,
 )
-from finproof.evaluation.ablation_experiment import _approved_plans
+from finproof.evaluation.ablation_experiment import _approved_plans, _policy_observation
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase
+from finproof.quality import PolicyExecutionResult
+from finproof.quality.metric_policy import MetricPolicyResult
 
 
 def _measurement(
@@ -173,3 +175,32 @@ def test_ablation_experiment_loads_an_approved_plan_for_every_canonical_case() -
     plans = _approved_plans(Path.cwd(), cases)
 
     assert set(plans) == {case.case_id for case in cases}
+
+
+def test_domain_policy_observation_does_not_require_the_evidence_stage() -> None:
+    cases = load_golden_cases((Path("evaluation/canonical/clarification.jsonl"),))
+    case = cases[0]
+    plan = _approved_plans(Path.cwd(), cases)[case.case_id]
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(),
+            comparison_valid_values=(),
+            excluded_count=0,
+            warnings=(),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=("policy limitation",),
+    )
+
+    observed = _policy_observation(case, plan, policy, 12)
+
+    assert observed.limitation_present
+    assert observed.latency_ms == (12,)
