@@ -2,12 +2,14 @@ from pathlib import Path
 
 import pytest
 
+import finproof.evaluation.ablation as ablation
 from finproof.evaluation.ablation import (
     AblationMeasurement,
     AblationRunner,
     AblationVariant,
     main,
 )
+from finproof.evaluation.ablation_experiment import _approved_plans
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase
@@ -117,3 +119,57 @@ def test_ablation_command_validates_raw_variant_measurements(tmp_path: Path) -> 
         == 0
     )
     assert len(output.read_text(encoding="utf-8")) > 0
+
+
+def test_ablation_command_can_produce_then_validate_raw_measurements(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cases = load_golden_cases(tuple(sorted(Path("evaluation/canonical").glob("*.jsonl"))))
+    measurement_dir = tmp_path / "raw"
+    output = tmp_path / "ablation.json"
+    observed: list[tuple[Path, Path, int]] = []
+
+    def produce_raw_measurements(
+        repository_root: Path,
+        destination: Path,
+        *,
+        artifact_dir: Path,
+        repeats: int,
+    ) -> None:
+        observed.append((repository_root, artifact_dir, repeats))
+        destination.mkdir()
+        for variant in AblationVariant:
+            (destination / f"{variant.name}.json").write_text(
+                _measurement(variant, len(cases), suite_checksum(cases)).model_dump_json(),
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(ablation, "produce_raw_measurements", produce_raw_measurements)
+
+    assert (
+        main(
+            [
+                "--repository-root",
+                str(Path.cwd()),
+                "--measurement-dir",
+                str(measurement_dir),
+                "--output",
+                str(output),
+                "--produce",
+                "--artifact-dir",
+                str(tmp_path / "official-artifacts"),
+                "--repeats",
+                "2",
+            ]
+        )
+        == 0
+    )
+    assert observed == [(Path.cwd(), tmp_path / "official-artifacts", 2)]
+
+
+def test_ablation_experiment_loads_an_approved_plan_for_every_canonical_case() -> None:
+    cases = load_golden_cases(tuple(sorted(Path("evaluation/canonical").glob("*.jsonl"))))
+
+    plans = _approved_plans(Path.cwd(), cases)
+
+    assert set(plans) == {case.case_id for case in cases}

@@ -5,9 +5,10 @@ import asyncio
 import json
 import sys
 from collections.abc import Callable, Mapping
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from time import perf_counter
 from typing import Annotated, Self, cast
 
 import httpx
@@ -54,6 +55,7 @@ class SoakObservation(_FrozenModel):
     question_type: str
     status_code: int | None
     response_schema_valid: bool
+    request_succeeded: bool
     answer_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     version_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     drift_detected: bool
@@ -64,6 +66,7 @@ class SoakReport(_FrozenModel):
     configuration_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     started_at: datetime
     updated_at: datetime
+    active_seconds: Annotated[float, Field(ge=0, allow_inf_nan=False)]
     cycles_completed: int = Field(ge=0)
     failure_count: int = Field(ge=0)
     drift_count: int = Field(ge=0)
@@ -87,16 +90,26 @@ class SoakRunner:
         *,
         transport: httpx.AsyncBaseTransport | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        active_clock: Callable[[], float] = perf_counter,
     ) -> None:
         self._load_runner = LoadRunner(transport=transport)
         self._clock = clock
+        self._active_clock = active_clock
 
     async def run(self, config: SoakConfig) -> SoakReport:
         identity = _configuration_sha256(config)
         report = self._resume(config.report_path, identity)
-        deadline = report.started_at + timedelta(seconds=config.duration_seconds)
+        active_started = self._active_clock()
+        initial_active_seconds = report.active_seconds
+
+        def active_seconds() -> float:
+            return min(
+                config.duration_seconds,
+                initial_active_seconds + self._active_clock() - active_started,
+            )
+
         case_by_id = {case.case_id: case for case in config.cases}
-        while self._clock() < deadline and (
+        while active_seconds() < config.duration_seconds and (
             config.max_cycles is None or report.cycles_completed < config.max_cycles
         ):
             load = await self._load_runner.run(
@@ -117,7 +130,10 @@ class SoakRunner:
                 deterministic = case_by_id[sample.case_id].deterministic
                 baseline_key = (
                     f"{sample.case_id}:{sample.version_sha256}"
-                    if deterministic and sample.version_sha256 and sample.answer_sha256
+                    if sample.request_succeeded
+                    and deterministic
+                    and sample.version_sha256
+                    and sample.answer_sha256
                     else None
                 )
                 drift = bool(
@@ -134,6 +150,7 @@ class SoakRunner:
                         question_type=sample.question_type,
                         status_code=sample.status_code,
                         response_schema_valid=sample.response_schema_valid,
+                        request_succeeded=sample.request_succeeded,
                         answer_sha256=sample.answer_sha256,
                         version_sha256=sample.version_sha256,
                         drift_detected=drift,
@@ -143,8 +160,9 @@ class SoakRunner:
             report = report.model_copy(
                 update={
                     "updated_at": self._clock(),
+                    "active_seconds": active_seconds(),
                     "cycles_completed": cycle,
-                    "failure_count": sum(not item.response_schema_valid for item in observations),
+                    "failure_count": sum(not item.request_succeeded for item in observations),
                     "drift_count": sum(item.drift_detected for item in observations),
                     "baseline_answers": baselines,
                     "observations": tuple(observations),
@@ -152,11 +170,23 @@ class SoakRunner:
             )
             _write_atomic(config.report_path, report)
             if (
-                self._clock() < deadline
+                active_seconds() < config.duration_seconds
                 and (config.max_cycles is None or cycle < config.max_cycles)
                 and config.interval_seconds
             ):
-                await asyncio.sleep(config.interval_seconds)
+                await asyncio.sleep(
+                    min(
+                        config.interval_seconds,
+                        config.duration_seconds - active_seconds(),
+                    )
+                )
+                report = report.model_copy(
+                    update={
+                        "active_seconds": active_seconds(),
+                        "updated_at": self._clock(),
+                    }
+                )
+                _write_atomic(config.report_path, report)
         return report
 
     def _resume(self, path: Path, identity: str) -> SoakReport:
@@ -170,6 +200,7 @@ class SoakRunner:
             configuration_sha256=identity,
             started_at=now,
             updated_at=now,
+            active_seconds=0,
             cycles_completed=0,
             failure_count=0,
             drift_count=0,

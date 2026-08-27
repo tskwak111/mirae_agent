@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from finproof.domain.execution import ExecutionTrace
+from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.evaluation.latency import LatencySample, LatencySummary
 from finproof.evaluation.loader import load_golden_cases
 
@@ -73,6 +73,7 @@ class LoadSample(_FrozenModel):
     total_ms: Annotated[float, Field(ge=0, allow_inf_nan=False)]
     stage_ms: Mapping[str, Annotated[float, Field(ge=0, allow_inf_nan=False)]]
     response_schema_valid: bool
+    request_succeeded: bool
     answer_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     version_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     error_category: str | None = None
@@ -109,24 +110,28 @@ class LoadRunner:
         async def next_request() -> tuple[int, LoadCase] | None:
             nonlocal index
             async with index_lock:
-                if (config.max_requests is not None and index >= config.max_requests) or (
-                    config.max_requests is None and self._clock() >= deadline
+                if self._clock() >= deadline or (
+                    config.max_requests is not None and index >= config.max_requests
                 ):
                     return None
                 current = index
                 index += 1
                 return current, next(case_cycle)
 
-        async def throttle() -> None:
+        async def throttle() -> bool:
             nonlocal next_start
             if config.rate_per_second == 0:
-                return
+                return self._clock() < deadline
             async with rate_lock:
                 now = self._clock()
-                wait_seconds = max(0.0, next_start - now)
-                next_start = max(now, next_start) + 1 / config.rate_per_second
+                scheduled_start = max(now, next_start)
+                if scheduled_start >= deadline:
+                    return False
+                wait_seconds = scheduled_start - now
+                next_start = scheduled_start + 1 / config.rate_per_second
             if wait_seconds:
                 await asyncio.sleep(wait_seconds)
+            return self._clock() < deadline
 
         async with httpx.AsyncClient(
             base_url=config.base_url,
@@ -138,7 +143,8 @@ class LoadRunner:
             async def worker() -> None:
                 while request := await next_request():
                     request_index, case = request
-                    await throttle()
+                    if not await throttle():
+                        return
                     samples.append(await self._request(client, request_index, case))
 
             await asyncio.gather(*(worker() for _ in range(config.concurrency)))
@@ -149,7 +155,7 @@ class LoadRunner:
                 LatencySample(
                     total_ms=sample.total_ms,
                     stage_ms=sample.stage_ms,
-                    succeeded=sample.status_code == 200 and sample.response_schema_valid,
+                    succeeded=sample.request_succeeded,
                 )
                 for sample in ordered
             )
@@ -183,10 +189,11 @@ class LoadRunner:
                 total_ms=(self._clock() - started) * 1_000,
                 stage_ms={},
                 response_schema_valid=False,
+                request_succeeded=False,
                 error_category=type(error).__name__,
             )
         total_ms = (self._clock() - started) * 1_000
-        valid, answer_hash, version_hash, stages = _safe_response_measurement(
+        valid, succeeded, answer_hash, version_hash, stages = _safe_response_measurement(
             response, request_id, case.question
         )
         return LoadSample(
@@ -197,9 +204,16 @@ class LoadRunner:
             total_ms=total_ms,
             stage_ms=stages,
             response_schema_valid=valid,
+            request_succeeded=succeeded,
             answer_sha256=answer_hash,
             version_sha256=version_hash,
-            error_category=None if response.status_code == 200 and valid else "invalid_response",
+            error_category=(
+                None
+                if succeeded
+                else "safe_failure"
+                if response.status_code == 200 and valid
+                else "invalid_response"
+            ),
         )
 
 
@@ -217,7 +231,7 @@ def _safe_response_measurement(
     response: httpx.Response,
     request_id: str,
     question: str,
-) -> tuple[bool, str | None, str | None, dict[str, float]]:
+) -> tuple[bool, bool, str | None, str | None, dict[str, float]]:
     try:
         payload = response.json()
         if (
@@ -228,20 +242,26 @@ def _safe_response_measurement(
             or payload["question_id"] != request_id
             or payload["question"] != question
         ):
-            return False, None, None, {}
+            return False, False, None, None, {}
         trace = ExecutionTrace.model_validate_json(payload["think_trace"], strict=True)
         stages = trace.latency_ms
         if set(stages) != _STAGES or not all(
             type(value) in {int, float} and value >= 0 and math.isfinite(value)
             for value in stages.values()
         ):
-            return False, None, None, {}
+            return False, False, None, None, {}
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-        return False, None, None, {}
+        return False, False, None, None, {}
     version_hash = sha256(
         json.dumps(trace.versions, separators=(",", ":"), sort_keys=True).encode()
     ).hexdigest()
-    return True, sha256(payload["answer"].encode()).hexdigest(), version_hash, dict(stages)
+    return (
+        True,
+        trace.validation is not TraceValidation.SAFE_FAILURE,
+        sha256(payload["answer"].encode()).hexdigest(),
+        version_hash,
+        dict(stages),
+    )
 
 
 def reviewed_benchmark_mix(repository_root: Path) -> tuple[LoadCase, ...]:

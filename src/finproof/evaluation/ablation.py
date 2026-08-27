@@ -107,6 +107,24 @@ def _identity(result: AblationMeasurement) -> tuple[object, ...]:
     )
 
 
+def produce_raw_measurements(
+    repository_root: Path,
+    destination: Path,
+    *,
+    artifact_dir: Path,
+    repeats: int,
+) -> None:
+    """Run the evaluation-only experiment and write one raw file per variant."""
+    from finproof.evaluation.ablation_experiment import produce_raw_measurements as produce
+
+    produce(
+        repository_root,
+        destination,
+        artifact_dir=artifact_dir,
+        repeats=repeats,
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate and bind raw A-E ablation results")
     parser.add_argument("--repository-root", type=Path, default=Path.cwd())
@@ -120,9 +138,21 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         default=Path("artifacts/evaluation/ablation.json"),
     )
+    parser.add_argument("--produce", action="store_true")
+    parser.add_argument("--artifact-dir", type=Path, default=Path("artifacts"))
+    parser.add_argument("--repeats", type=int, default=2)
     args = parser.parse_args(argv)
     repository_root: Path = args.repository_root
     measurement_dir: Path = args.measurement_dir
+    if args.produce:
+        if args.repeats < 2:
+            parser.error("--repeats must be at least 2")
+        produce_raw_measurements(
+            repository_root,
+            measurement_dir,
+            artifact_dir=args.artifact_dir,
+            repeats=args.repeats,
+        )
     cases = load_golden_cases(
         tuple(sorted((repository_root / "evaluation" / "canonical").glob("*.jsonl")))
     )

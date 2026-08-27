@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -60,10 +61,18 @@ async def test_soak_runner_resumes_and_detects_drift_only_within_one_version(
         )
 
     first = await runner.run(config(1))
+    stale = first.model_copy(
+        update={
+            "started_at": datetime(2000, 1, 1, tzinfo=UTC),
+            "updated_at": datetime(2000, 1, 1, tzinfo=UTC),
+        }
+    )
+    report_path.write_text(stale.model_dump_json(), encoding="utf-8")
     resumed = await runner.run(config(2))
 
     assert first.cycles_completed == 1
     assert resumed.cycles_completed == 2
+    assert resumed.active_seconds < 60
     assert resumed.drift_count == 1
     assert len(resumed.observations) == 2
     assert SoakReport.model_validate_json(report_path.read_text()) == resumed

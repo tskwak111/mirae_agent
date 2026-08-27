@@ -86,3 +86,52 @@ async def test_load_runner_counts_http_and_schema_failures_without_response_body
     assert not report.samples[0].response_schema_valid
     assert report.samples[0].answer_sha256 is None
     assert "secret internal stack trace" not in report.model_dump_json()
+
+
+@pytest.mark.asyncio
+async def test_load_runner_does_not_start_rate_limited_work_after_deadline() -> None:
+    requests = 0
+
+    def response(request: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return _response(request)
+
+    config = LoadConfig(
+        base_url="http://test",
+        cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup"),),
+        concurrency=2,
+        rate_per_second=20,
+        duration_seconds=0.01,
+        max_requests=2,
+    )
+
+    report = await LoadRunner(transport=httpx.MockTransport(response)).run(config)
+
+    assert report.request_count == requests == 1
+
+
+@pytest.mark.asyncio
+async def test_load_runner_counts_schema_valid_safe_failure_as_failed_request() -> None:
+    def safe_failure(request: httpx.Request) -> httpx.Response:
+        response = _response(request)
+        payload = response.json()
+        trace = json.loads(payload["think_trace"])
+        trace["validation"] = "safe_failure"
+        payload["think_trace"] = json.dumps(trace)
+        return httpx.Response(200, json=payload)
+
+    config = LoadConfig(
+        base_url="http://test",
+        cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup"),),
+        duration_seconds=60,
+        max_requests=1,
+    )
+
+    report = await LoadRunner(transport=httpx.MockTransport(safe_failure)).run(config)
+
+    assert report.success_count == 0
+    assert report.failure_count == 1
+    assert report.samples[0].response_schema_valid
+    assert not report.samples[0].request_succeeded
+    assert report.samples[0].error_category == "safe_failure"
