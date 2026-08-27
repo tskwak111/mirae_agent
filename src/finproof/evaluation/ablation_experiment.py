@@ -27,7 +27,7 @@ from finproof.domain.execution import ExecutionSegment
 from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
 from finproof.entity import EntityIndex, EntityResolver
 from finproof.evaluation.ablation import AblationMeasurement, AblationVariant
-from finproof.evaluation.latency import LatencySummary
+from finproof.evaluation.latency import LatencySample, LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import (
     AggregateGroupValue,
@@ -373,7 +373,7 @@ def _measurement(
     identity: Mapping[str, object],
 ) -> AblationMeasurement:
     scores: list[CaseScore] = []
-    latency: list[int] = []
+    latency: list[LatencySample] = []
     prompt_tokens = completion_tokens = 0
     errors = 0
     limitation_numerator = limitation_denominator = 0
@@ -384,7 +384,9 @@ def _measurement(
             update={"repeat_signatures": tuple(_signature(run.observation) for run in runs)}
         )
         scores.append(score_case(case, observation))
-        latency.extend(run.latency_ms for run in runs)
+        latency.extend(
+            LatencySample(total_ms=run.latency_ms, succeeded=not run.error) for run in runs
+        )
         prompt_tokens += sum(run.prompt_tokens for run in runs)
         completion_tokens += sum(run.completion_tokens for run in runs)
         errors += int(any(run.error for run in runs))
@@ -413,7 +415,7 @@ def _measurement(
             1.0 if limitation_denominator == 0 else limitation_numerator / limitation_denominator
         ),
         repeat_stability=_aggregate_ratio(scores, "repeat_stability"),
-        latency=LatencySummary.from_milliseconds(latency),
+        latency=LatencySummary.from_samples(latency),
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         error_count=errors,

@@ -9,10 +9,17 @@ from finproof.evaluation.ablation import (
     AblationVariant,
     main,
 )
-from finproof.evaluation.ablation_experiment import _approved_plans, _policy_observation
+from finproof.evaluation.ablation_experiment import (
+    _approved_plans,
+    _CaseRun,
+    _policy_observation,
+)
+from finproof.evaluation.ablation_experiment import (
+    _measurement as _experiment_measurement,
+)
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
-from finproof.evaluation.models import GoldenCase
+from finproof.evaluation.models import GoldenCase, ObservedCase
 from finproof.quality import PolicyExecutionResult
 from finproof.quality.metric_policy import MetricPolicyResult
 
@@ -204,3 +211,32 @@ def test_domain_policy_observation_does_not_require_the_evidence_stage() -> None
 
     assert observed.limitation_present
     assert observed.latency_ms == (12,)
+
+
+def test_ablation_measurement_counts_failed_latency_samples() -> None:
+    case = load_golden_cases((Path("evaluation/canonical/clarification.jsonl"),))[0]
+    failed = _CaseRun(
+        observation=ObservedCase(latency_ms=(15_000,)),
+        latency_ms=15_000,
+        prompt_tokens=10,
+        completion_tokens=5,
+        error=True,
+    )
+
+    measurement = _experiment_measurement(
+        AblationVariant.B_CONSTRAINED_PLAN,
+        (case,),
+        {case.case_id: (failed, failed)},
+        {
+            "case_checksum": suite_checksum((case,)),
+            "code_commit": "a" * 40,
+            "artifact_version": "artifact-v1",
+            "configuration_sha256": "b" * 64,
+            "prompt_version": "prompt-v1",
+            "planner_model": "HCX-007",
+            "environment": {"python": "3.12"},
+        },
+    )
+
+    assert measurement.latency.success_count == 0
+    assert measurement.latency.failure_count == 2
