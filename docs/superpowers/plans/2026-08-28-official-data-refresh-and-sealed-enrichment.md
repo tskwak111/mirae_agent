@@ -700,9 +700,16 @@ git commit -m "feat: add sealed holdings coverage"
 
 ### Task 8: Add constituent filtering, coverage evidence, and overseas 1Y pruning
 
+**Implementation gate:** This Task changes public validation, execution, evidence, and
+dependency-construction contracts. Obtain an independent plan review reporting
+`Critical 0 / Important 0` on this corrected Task before writing any RED or modifying
+production code.
+
 **Files:**
 
 - Modify: `config/field_registry.yaml`
+- Modify: `config/planner_catalog.yaml`
+- Modify: `src/finproof/entity/__init__.py`
 - Modify: `src/finproof/entity/models.py`
 - Create: `src/finproof/entity/holding_resolver.py`
 - Modify: `src/finproof/query/fields.py`
@@ -711,30 +718,177 @@ git commit -m "feat: add sealed holdings coverage"
 - Modify: `src/finproof/query/ast.py`
 - Modify: `src/finproof/query/compiler.py`
 - Modify: `src/finproof/domain/execution.py`
+- Modify: `src/finproof/domain/evidence.py`
 - Modify: `src/finproof/storage/repositories/evidence.py`
+- Modify: `src/finproof/quality/pipeline.py`
 - Modify: `src/finproof/evidence/builder.py`
+- Modify: `src/finproof/evidence/serializer.py`
+- Modify: `src/finproof/evidence/verifier.py`
+- Modify: `src/finproof/answer/renderer.py`
+- Modify: `src/finproof/api/dependencies.py`
+- Modify: `src/finproof/planner/service.py`
+- Modify: `src/finproof/planner/prompts.py`
+- Modify: `src/finproof/service/answer_service.py`
+- Modify: `src/finproof/cli/evaluate.py`
+- Modify: `src/finproof/evaluation/ablation_experiment.py`
+- Create: `tests/unit/entity/test_holding_resolution.py`
+- Modify: `tests/unit/query/test_field_registry.py`
+- Modify: `tests/unit/query/test_semantic_validator.py`
+- Modify: `tests/unit/query/test_execution_bundle.py`
+- Modify: `tests/unit/query/test_sql_compiler.py`
+- Modify: `tests/security/test_query_injection.py`
+- Create: `tests/integration/query/test_holding_executor.py`
 - Create: `tests/integration/query/test_cross_product_holding_query.py`
-- Add/modify focused entity/query/evidence/security tests
+- Modify: `tests/integration/query/test_executor.py`
+- Modify: `tests/integration/planner/test_planner_service.py`
+- Modify: `tests/integration/service/test_answer_service.py`
+- Modify: `tests/integration/api/test_answer_endpoint.py`
+- Modify: `tests/contract/test_runtime_registry_resources.py`
+- Modify: `tests/unit/cli/test_evaluate.py`
+- Modify: `tests/unit/evaluation/test_ablation.py`
+- Modify: `tests/unit/planner/test_prompts.py`
+- Modify: `tests/unit/quality/test_pipeline_order.py`
+- Modify: `tests/unit/registry/test_registry_loader.py`
+- Modify: `tests/unit/domain/test_evidence_models.py`
+- Modify: `tests/unit/evidence/test_builder.py`
+- Create: `tests/unit/evidence/test_serializer.py`
+- Modify: `tests/unit/evidence/test_claim_verifier.py`
+- Modify: `tests/unit/answer/test_renderer.py`
 
-**Contract:** `holding_constituent` supports only `eq` with one resolved constituent ID. SQL is one parameterized correlated `EXISTS` per native segment.
+**Interfaces:**
 
-- [ ] **Step 1: Write resolver/registry REDs**
+- `HoldingResolutionCandidate` preserves `constituent_identifier`,
+  `constituent_identifier_type`, and `display_name` from the admitted snapshot.
+- `HoldingResolutionResult` contains one optional selected candidate and at most five
+  deterministic candidates.
+- `ResolutionBundle` retains the existing product-entity `results` and adds the separate
+  typed field `holding_constituent: HoldingResolutionResult | None = None`. The default
+  keeps unrelated existing constructors source-compatible. If a plan contains a
+  `holding_constituent` filter, every production construction boundary must supply a
+  resolver, and semantic validation rejects `None`, unresolved, multiple, or malformed
+  holding resolution. A holding result never enters the product-entity result tuple.
+- `HoldingConstituentFilter` is a small strict frozen model containing both
+  `constituent_identifier` and `constituent_identifier_type`.
+  `ExecutionSegment.holding_constituent_filter: HoldingConstituentFilter | None = None`
+  carries it independently from scalar `filters` while preserving unrelated constructors.
+- `ExecutionLimitationCode(StrEnum)` is a closed code set containing only
+  `OVERSEAS_RETURN_1Y_UNAVAILABLE = "overseas_return_1y_unavailable"` in this Task.
+  `ExecutionBundle.limitations: tuple[ExecutionLimitationCode, ...] = ()` passes unchanged
+  to `PolicyExecutionResult.limitations: tuple[ExecutionLimitationCode, ...] = ()`.
+  `EvidenceBuilder` maps the code to one fixed reviewed answer phrase; the enum contains no
+  display text and this Task creates no generic warning or limitation model.
+- `EvidenceBundle` adds bounded
+  `holding_records: tuple[HoldingRecordEvidenceRef, ...] = ()` and
+  `holding_coverage: tuple[HoldingCoverageEvidenceRef, ...] = ()`. Defaults preserve
+  unrelated constructors. These references bind already validated canonical holding and
+  coverage records; they do not create a generic evidence framework.
+
+**Contract:** The field registry fixes `holding_constituent` product applicability to
+exactly `domestic_etf`, `domestic_etn`, `overseas_etf`, `overseas_etn`, and `public_fund`
+and declares only the `eq` operator. One plan contains either zero or exactly one
+`holding_constituent` filter; semantic validation rejects two or more. If the filter is
+present and `product_types` contains `domestic_bond` anywhere, reject the whole plan. Do
+not silently prune the bond segment or execute it unfiltered. `FieldRegistry` has one
+explicit special case for this relation field and does not create native-table projections
+for it; do not add a generic relation registry or compiler framework.
+
+Resolution order is exact admitted constituent identifier, unique normalized exact name,
+otherwise bounded clarification. An exact identifier string selects only when it maps to
+exactly one distinct `(constituent_identifier, constituent_identifier_type)` pair. The
+same identifier string under different identifier types is ambiguous and never selects
+automatically. Only repeated rows for the same pair are deduplicated. A normalized exact
+name likewise selects only when all matches reduce to one distinct identifier/type pair;
+otherwise return deterministic bounded ambiguity with at most five candidates. Fuzzy
+similarity never selects a constituent.
+
+Each selected native product segment among the five allowed holding product types compiles
+independently to one parameterized correlated
+`EXISTS` against `silver_product_holding`. It exactly correlates
+`owner_product_type` and the outer native owner product ID and binds both
+`constituent_identifier` and `constituent_identifier_type`. It never interpolates values
+or unions incompatible product tables. The relation is absent from
+`ExecutionSegment.filters`, native projections, and policy scalar filters. ETN segments
+retain the predicate and therefore return zero rows under unavailable coverage instead of
+silently returning unfiltered products.
+
+Adding the field increments `field_registry.yaml` from the Task 7 issued version to
+`1.3.0`. `planner_catalog.yaml` increments to `1.2.0` and adds the exact aliases
+`구성종목`, `보유종목`, and `편입종목` for `holding_constituent`. The planner prompt increments
+to `phase4-planner-v3` and instructs HCX to emit these phrases as one scalar `eq`
+`holding_constituent` filter, never as a product entity, tuple, fuzzy match, sort, or
+aggregation. It permits that filter only for the five allowed holding product types,
+emits it at most once, and never combines it with `domestic_bond`. Repository,
+editable-install, and clean-wheel runtime resources must expose the same reviewed registry
+bytes and issued versions.
+
+- [ ] **Step 1: Write resolver, registry, semantic, and construction-boundary REDs**
 
 ```python
-def test_holding_constituent_supports_only_eq(field_registry) -> None:
-    field = field_registry.require("holding_constituent")
+from finproof.domain.query_plan import FilterOperator
+from finproof.query.fields import FieldRegistry as QueryFieldRegistry
+from finproof.registry.loader import RegistryBundle
+
+
+def test_holding_constituent_supports_only_eq_without_native_projection() -> None:
+    registries = RegistryBundle.from_package()
+    field = registries.fields.entries["holding_constituent"]
     assert field.operators == (FilterOperator.EQ,)
+    query_fields = QueryFieldRegistry.from_bundle(registries)
+    assert all(
+        key[0] != "holding_constituent" for key in query_fields.projections
+    )
 ```
 
-Resolution order is exact admitted ID, unique normalized exact name, otherwise bounded clarification.
+Add focused tests proving an exact identifier selects only one distinct identifier/type
+pair, repeated rows deduplicate only for that same pair, the same identifier string under
+different identifier types remains ambiguous, a normalized exact name selects only one
+distinct pair, and every multi-pair ambiguity is deterministic and bounded to five
+candidates. Also prove no fuzzy automatic selection and unresolved behavior over the
+official zero-row holding relation. Semantic REDs prove exact applicability to the five
+allowed holding product types, zero-or-one filter cardinality, rejection of two filters,
+and whole-plan rejection whenever a holding filter and `domestic_bond` coexist. They also
+prove a holding query rejects missing, unresolved, multiple, and malformed resolution
+while unrelated queries remain source-compatible through the `None` default. Caller REDs
+prove `api/dependencies.py`, `planner/service.py`,
+`service/answer_service.py`, `cli/evaluate.py`, and
+`evaluation/ablation_experiment.py` all construct or receive the holding resolver and pass
+the separate typed resolution. Registry/prompt REDs prove the `1.3.0` field registry,
+`1.2.0` planner catalog, three exact aliases, scalar `eq` relation-filter instruction,
+five-type applicability, at-most-one/bond-exclusion prompt rules,
+`phase4-planner-v3` identity/checksum, and repository/package resource equality. The
+clean-wheel install test is reserved for the single Step 9 aggregate.
 
-- [ ] **Step 2: Run RED and implement resolver/segment contract**
+Run the REDs separately and record the expected failures: the holding types, resolver,
+relation-field special case, typed bundle field, and production wiring do not exist.
 
 ```bash
-uv run pytest tests/unit/entity/test_holding_resolution.py tests/unit/query/test_field_registry.py tests/unit/query/test_semantic_validator.py tests/unit/query/test_execution_bundle.py -q
+uv run pytest tests/unit/entity/test_holding_resolution.py tests/unit/query/test_field_registry.py tests/unit/query/test_semantic_validator.py -q
+uv run pytest tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py -q -k 'holding or alias or version or checksum'
+uv run pytest tests/contract/test_runtime_registry_resources.py::test_repository_and_package_registry_bytes_are_identical -q
+uv run pytest tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py -q -k holding
 ```
 
-- [ ] **Step 3: Write SQL/security REDs and implement `EXISTS`**
+- [ ] **Step 2: Implement the minimum resolver, registry exception, and caller wiring**
+
+Reuse `normalize_product_text` from `src/finproof/entity/normalization.py`, the
+deterministic ordering used by `EntityResolver`, and
+the existing runtime-session query pattern. Export the resolver and types through
+`entity/__init__.py`. Add only the explicit `holding_constituent` projection exception.
+Increment the two registry versions, add only the three reviewed holding aliases, and
+update the closed planner rule and prompt identity so HCX emits one scalar `eq` relation
+filter rather than a product entity.
+Wire one holding resolver through every listed production constructor. Require it only
+when the plan contains the relation filter; semantic validation converts the selected
+candidate into a strict `HoldingConstituentFilter` and rejects every unresolved shape.
+
+```bash
+uv run pytest tests/unit/entity/test_holding_resolution.py tests/unit/query/test_field_registry.py tests/unit/query/test_semantic_validator.py -q
+uv run pytest tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py -q -k 'holding or alias or version or checksum'
+uv run pytest tests/contract/test_runtime_registry_resources.py::test_repository_and_package_registry_bytes_are_identical -q
+uv run pytest tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py -q -k holding
+```
+
+- [ ] **Step 3: Write relation-separation and SQL/security REDs**
 
 ```python
 def test_holding_filter_compiles_parameterized_exists(compiler, segment) -> None:
@@ -742,44 +896,213 @@ def test_holding_filter_compiles_parameterized_exists(compiler, segment) -> None
     assert "EXISTS" in compiled.sql
     assert "silver_product_holding" in compiled.sql
     assert "삼성전자" not in compiled.sql
-    assert compiled.parameters[-1] == "KR7005930003"
+    assert compiled.parameters[-2:] == ("KR7005930003", "ISIN")
 ```
+
+Prove the typed relation is absent from scalar filters and native projections, the policy
+engine never reapplies it as a row-value predicate, and the compiler exactly constrains
+owner type, outer owner ID, constituent identifier, and identifier type. Prove injected
+payloads appear only in parameters, no union is emitted, and ETN retains `EXISTS` and
+returns no rows rather than becoming unfiltered.
+
+Run RED and record the expected failures: `ExecutionSegment` has no typed relation and the
+compiler emits no four-part holding correlation.
 
 ```bash
-uv run pytest tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py tests/integration/query/test_holding_executor.py -q
+uv run pytest tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py tests/integration/query/test_holding_executor.py tests/unit/quality/test_pipeline_order.py -q
 ```
 
-- [ ] **Step 4: Write and close overseas 1Y segment-pruning RED**
+- [ ] **Step 4: Implement the minimum typed relation and correlated `EXISTS`**
 
-For a domestic ETF + overseas ETF + public fund one-year-return plan, preserve domestic/public segments, omit overseas, and attach an explicit limitation. A single overseas one-year request remains unsupported.
+Add `HoldingConstituentFilter` and carry it only on `ExecutionSegment`. Exclude the
+relation from `QueryAst` native projection collection, ordinary filter compilation,
+policy scalar matching, and ordinary evidence field lookup. Reuse closed table specs,
+native owner-ID projections, and deterministic parameter ordering; do not introduce a
+generic relation abstraction.
 
 ```bash
-uv run pytest tests/unit/query/test_execution_bundle.py tests/integration/query/test_executor.py -q -k 'overseas and return_1y'
+uv run pytest tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py tests/integration/query/test_holding_executor.py tests/unit/quality/test_pipeline_order.py -q
 ```
 
-- [ ] **Step 5: Bind coverage/evidence limitations**
+- [ ] **Step 5: Write and close overseas 1Y limitation transport RED**
 
-Prove positive holdings evidence contains owner, exact crosswalk, holding, coverage, metric, rank/partition, and version facts; partial/unavailable coverage cannot yield a negative/exhaustive claim.
+For a domestic ETF + overseas ETF + public-fund `return_1y` plan, preserve the compatible
+domestic ETF/public-fund global rank, omit the overseas segment, and create a typed
+`ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE`. Prove it travels without loss
+through `ExecutionBundle`,
+`PolicyExecutionResult`, `EvidenceBuilder`, serializer, renderer, and verifier. A single
+overseas-only one-year request remains unsupported.
+
+Run RED and record the expected failures: the overseas segment is retained without a
+metric, and no typed execution limitation path exists. Implement only
+the closed enum value, default-empty pass-through tuples, its fixed reviewed answer-text
+mapping, and the pruning rule; do not create a generic warning or limitation model.
 
 ```bash
-uv run pytest tests/unit/evidence/test_builder.py tests/unit/evidence/test_claim_verifier.py -q -k holding
+uv run pytest tests/unit/query/test_execution_bundle.py tests/integration/query/test_executor.py tests/unit/quality/test_pipeline_order.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/answer/test_renderer.py tests/unit/evidence/test_claim_verifier.py -q -k 'overseas and return_1y'
 ```
 
-- [ ] **Step 6: Write and close the cross-product end-to-end RED**
+- [ ] **Step 6: Write holding/coverage evidence and snapshot REDs**
 
-One organizer-shaped domestic ETF + overseas ETF + public-fund constituent query must produce independent native-grain segments, one parameterized correlated `EXISTS` per supported segment, the declared `top_k_scope`, no union over incompatible schemas, and coverage-qualified results. The test must include a positive partial-coverage match and an unavailable product type, and prove neither becomes an unsupported negative or exhaustive claim.
+Add focused REDs proving each positive owner binds official owner evidence, exact owner
+crosswalk, one or more canonical holding rows, the exact owner coverage row, displayed
+metric evidence, rank/partition facts, and artifact/registry versions. For every positive
+owner, reparse canonical `record_json` through the existing `HoldingRecord` and
+`HoldingCoverageRecord` models and reject owner, identifier, generation, source, or count
+mismatches.
+
+For an unavailable product type that returns no product row, require one bounded coverage
+summary containing product type, `unavailable` state, and official owner count. This
+summary grounds the material limitation without inventing a negative holding fact. Prove
+partial coverage means “rank among evidenced positive matches,” and partial/unavailable
+coverage cannot yield a negative or exhaustive claim. Prove serializer exposes the typed
+references in `retrieved_context` only as explicit bounded `evidence_context.v3`. For an
+evidence bundle with empty holding/coverage references, serialization must remain
+byte-identical `evidence_context.v2`. Existing evaluation artifacts and goldens are not
+modified. Renderer and verifier require matching evidence or coverage-summary IDs only for
+new holding candidate/rank claims and new holding/coverage/overseas-pruning material
+limitations; this Task does not retroactively redesign unrelated existing limitations.
+
+Add a focused RED asserting the builder reuses the already issued
+`answer_policy.yaml` `snapshot_assumption` value and never owns a new snapshot literal.
+Record the expected failures: `EvidenceBundle` lacks the bounded defaulted references,
+the serializer has no v3 branch, and the builder still owns the obsolete snapshot string.
+
+```bash
+uv run pytest tests/unit/domain/test_evidence_models.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/evidence/test_claim_verifier.py tests/unit/answer/test_renderer.py -q -k 'holding or coverage or snapshot'
+```
+
+- [ ] **Step 7: Implement the minimum typed evidence binding**
+
+Add bounded, default-empty `HoldingRecordEvidenceRef` and
+`HoldingCoverageEvidenceRef` tuples to `EvidenceBundle`. Reuse canonical holding models,
+existing evidence IDs, summaries, version hashes, and material-limitation enforcement.
+Emit v3 only when either new reference tuple is non-empty; otherwise preserve the exact v2
+payload bytes. Expose only these fields through the existing serializer and scoped
+renderer/verifier paths. Load the snapshot assumption from the issued answer-policy
+registry instead of hardcoding a replacement string. Do not introduce a second evidence
+graph or duplicate holding schema.
+
+```bash
+uv run pytest tests/unit/domain/test_evidence_models.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/evidence/test_claim_verifier.py tests/unit/answer/test_renderer.py -q -k 'holding or coverage or snapshot'
+```
+
+- [ ] **Step 8: Write and close the synthetic cross-product E2E RED**
+
+The official contract remains exactly zero `silver_product_holding` rows and 31,492
+`silver_product_holding_coverage` rows. Do not rebuild or modify the official artifacts,
+expected counts, evaluation artifacts, or goldens. Use one bounded synthetic runtime
+fixture containing a domestic ETF positive partial match, a public-fund positive partial
+match, and unavailable domestic ETN coverage.
+
+Run two organizer-shaped requests through that fixture. The constituent request proves
+independent domestic ETF, public-fund, and domestic ETN native-grain segments, one
+four-part parameterized correlated `EXISTS` per segment, no incompatible union, and
+domestic ETN zero-row fail-closed coverage evidence. The mixed `return_1y` request proves
+the domestic ETF and public-fund positive partial matches form the actual compatible
+global one-year rank while the overseas ETF segment is pruned with
+`OVERSEAS_RETURN_1Y_UNAVAILABLE`. Both requests prove partial/unavailable coverage never
+becomes an unsupported negative or exhaustive claim and reuse the issued snapshot
+assumption.
+
+Run RED and record the expected missing end-to-end contract, implement only bounded
+fixture support, then require GREEN.
 
 ```bash
 uv run pytest tests/integration/query/test_cross_product_holding_query.py -q
 ```
 
-- [ ] **Step 7: Run bundle aggregate, commit, and review**
+- [ ] **Step 9: Run one Task 8 aggregate and verification bundle**
 
 ```bash
-uv run pytest tests/unit/entity tests/unit/query tests/security/test_query_injection.py tests/integration/query tests/unit/evidence -q
-git add config/field_registry.yaml src/finproof/entity/models.py src/finproof/entity/holding_resolver.py src/finproof/query src/finproof/domain/execution.py src/finproof/storage/repositories/evidence.py src/finproof/evidence tests/unit/entity tests/unit/query tests/security/test_query_injection.py tests/integration/query tests/unit/evidence
+uv run pytest tests/unit/entity tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py -q
+uv run ruff format --check src/finproof/entity src/finproof/query src/finproof/domain/execution.py src/finproof/domain/evidence.py src/finproof/storage/repositories/evidence.py src/finproof/quality/pipeline.py src/finproof/evidence src/finproof/answer/renderer.py src/finproof/api/dependencies.py src/finproof/planner/service.py src/finproof/planner/prompts.py src/finproof/service/answer_service.py src/finproof/cli/evaluate.py src/finproof/evaluation/ablation_experiment.py tests/unit/entity tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py
+uv run ruff check src/finproof/entity src/finproof/query src/finproof/domain/execution.py src/finproof/domain/evidence.py src/finproof/storage/repositories/evidence.py src/finproof/quality/pipeline.py src/finproof/evidence src/finproof/answer/renderer.py src/finproof/api/dependencies.py src/finproof/planner/service.py src/finproof/planner/prompts.py src/finproof/service/answer_service.py src/finproof/cli/evaluate.py src/finproof/evaluation/ablation_experiment.py tests/unit/entity tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py
+uv run mypy --no-incremental src/finproof/entity src/finproof/query src/finproof/domain/execution.py src/finproof/domain/evidence.py src/finproof/storage/repositories/evidence.py src/finproof/quality/pipeline.py src/finproof/evidence src/finproof/answer/renderer.py src/finproof/api/dependencies.py src/finproof/planner/service.py src/finproof/planner/prompts.py src/finproof/service/answer_service.py src/finproof/cli/evaluate.py src/finproof/evaluation/ablation_experiment.py tests/unit/entity tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py
+uv run python tools/audit_source_data.py --check
+uv run python tools/verify_handoff.py
+git diff --check
+```
+
+Do not run another official full artifact build in Task 8.
+The clean-wheel resource check appears only in the aggregate command above and runs once.
+
+**Acceptance criteria:**
+
+- Every production construction path supplies the separate typed holding resolution for
+  holding queries; unrelated `ResolutionBundle` constructors remain compatible through
+  the `None` default.
+- Registry and prompt resources expose field registry `1.3.0`, planner catalog `1.2.0`,
+  the three exact holding aliases, the scalar `eq` relation-filter rule, and
+  `phase4-planner-v3`. The field and prompt allow exactly the five holding product types,
+  at most one holding filter, and no bond combination. Repository, editable, and
+  clean-wheel bytes and issued versions match exactly.
+- Resolver selection requires one distinct constituent identifier/type pair for either an
+  exact identifier or normalized exact name. Same-string/different-type matches and every
+  other multi-pair result remain deterministic bounded ambiguity; only repeated rows for
+  the same pair deduplicate.
+- Semantic validation rejects missing, unresolved, multiple, malformed, or raw-name
+  holding execution inputs, two or more holding filters, and the entire plan whenever a
+  holding filter coexists with `domestic_bond`; it never silently prunes or executes an
+  unfiltered bond segment.
+- The strict execution relation preserves both constituent identifier and identifier
+  type and never enters scalar filters, native projections, or policy scalar matching.
+- Every selected native segment among `domestic_etf`, `domestic_etn`, `overseas_etf`,
+  `overseas_etn`, and `public_fund`, including either ETN type, retains one exact four-part
+  parameterized correlated `EXISTS`; no value interpolation or incompatible union exists.
+- ETN/unavailable coverage fails closed and is never rendered as unfiltered, negative, or
+  complete coverage.
+- Mixed overseas `return_1y` preserves the compatible domestic ETF/public-fund global
+  rank, prunes overseas, and carries its typed limitation through execution, policy,
+  evidence, serialization, rendering, and verification. Overseas-only remains
+  unsupported.
+- Positive matches bind official owner, exact crosswalk, canonical holding, canonical
+  coverage, metric, rank/partition, and version evidence. No-row unavailable types have a
+  bounded type/state/count coverage summary grounding their limitation.
+- New holding candidate/rank claims and new holding/coverage/overseas-pruning material
+  limitations reference matching evidence or coverage summaries and pass fail-closed
+  claim verification; unrelated existing limitations retain their current contract.
+- Non-holding evidence serialization remains byte-identical `evidence_context.v2`; only
+  non-empty holding/coverage references produce bounded, lossless `evidence_context.v3`.
+  Task 8 does not modify evaluation artifacts or goldens.
+- Builder and rendered output reuse the issued answer-policy `snapshot_assumption` and own
+  no replacement snapshot literal.
+- Synthetic domestic ETF and public-fund positive partial matches prove the compatible
+  global 1Y rank; domestic ETN proves unavailable fail-closed and overseas ETF proves 1Y
+  pruning. Official holding count 0 and coverage count 31,492 remain unchanged, and no
+  official full build runs.
+- Every Step 9 command has fresh observed GREEN output before commit.
+
+**Stop conditions:**
+
+- Stop if the active manifest/checksum or refreshed 13-table counts differ, including
+  `silver_product_holding = 0` or `silver_product_holding_coverage = 31,492`.
+- Stop if repository, editable-install, or clean-wheel registry resources differ in bytes
+  or issued versions.
+- Stop if `holding_constituent` applicability differs from the exact five allowed product
+  types, if more than one relation filter can pass validation, or if any bond-containing
+  holding plan is pruned or executed instead of rejected as a whole.
+- Stop if Task 7 changes the reviewed holding/coverage schema or canonical model
+  interfaces; correct and independently re-review this plan before implementation.
+- Stop if any owner or constituent match requires name-only, fuzzy, or non-admitted
+  identifier linkage.
+- Stop if one identifier string mapped to multiple identifier types, or one normalized
+  name mapped to multiple distinct identifier/type pairs, is selected automatically.
+- Stop if positive ETN holdings or non-unavailable ETN coverage appear.
+- Stop if coverage is missing, duplicated, inconsistent with its holding generation, or
+  insufficient to distinguish evidenced positives from exhaustive coverage.
+- Stop if overseas 1Y requires an unapproved source, metric, or comparability rule.
+- Stop on any unexplained focused failure, source audit failure, or evidence mismatch.
+
+- [ ] **Step 10: Commit the exact Task 8 paths and request independent code review**
+
+```bash
+git add config/field_registry.yaml config/planner_catalog.yaml src/finproof/entity/__init__.py src/finproof/entity/models.py src/finproof/entity/holding_resolver.py src/finproof/query src/finproof/domain/execution.py src/finproof/domain/evidence.py src/finproof/storage/repositories/evidence.py src/finproof/quality/pipeline.py src/finproof/evidence src/finproof/answer/renderer.py src/finproof/api/dependencies.py src/finproof/planner/service.py src/finproof/planner/prompts.py src/finproof/service/answer_service.py src/finproof/cli/evaluate.py src/finproof/evaluation/ablation_experiment.py tests/unit/entity/test_holding_resolution.py tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py
 git commit -m "feat: query sealed constituent evidence"
 ```
+
+Obtain an independent code review before Task 9. Do not broaden the implementation beyond
+the files and contracts above.
 
 ---
 
