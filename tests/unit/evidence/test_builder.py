@@ -4,18 +4,39 @@ import json
 from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
-from pathlib import Path
 from typing import Self
 
 import pytest
 from tests.helpers.source_rows import source_row
-from tests.integration.query.test_executor import _session
 
 from finproof.data.artifacts.serialization import canonical_record_json
-from finproof.data.normalization.bonds import normalize_bond
+from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
 from finproof.domain.bonds import BondInstrument
-from finproof.registry.rating import RatingRegistry
 from finproof.runtime.session import RuntimeArtifactSession
+
+
+def _candidate_registry_session(connection: object) -> RuntimeArtifactSession:
+    from tests.helpers.query_runtime import verified_artifacts
+
+    from finproof.core.settings import ExecutionMode
+    from finproof.core.versions import VersionBundle
+    from finproof.registry.loader import RegistryBundle
+    from finproof.registry.resources import REGISTRY_RESOURCE_NAMES, registry_resource_bytes
+
+    payloads = {name: registry_resource_bytes(name) for name in REGISTRY_RESOURCE_NAMES}
+    payloads["datasets.yaml"] = payloads["datasets.yaml"].replace(b"2026-08-24", b"2026-07-11", 1)
+    registries = RegistryBundle._from_resource_bytes(payloads)
+    verified = verified_artifacts()
+    return RuntimeArtifactSession._issue(
+        connection=connection,  # type: ignore[arg-type]
+        verified=verified,
+        registries=registries,
+        versions=VersionBundle.from_runtime(
+            verified=verified,
+            registries=registries,
+            execution_mode=ExecutionMode.EVALUATION,
+        ),
+    )
 
 
 def test_evidence_and_answer_skeleton_exposes_exact_interfaces() -> None:
@@ -59,10 +80,10 @@ def test_final_product_claims_use_complete_source_cell_lineage() -> None:
     assert evidence.product_type is ProductType.DOMESTIC_BOND
     assert evidence.value.source.source_table == "PRBD01N001"
     assert evidence.value.source.source_row_number == 77
-    assert evidence.value.source.source_column_name == "BUY_YIELD"
+    assert evidence.value.source.source_column_name == "buy_yield"
     assert evidence.value.source.source_column_letter
     assert evidence.value.source.source_checksum
-    assert evidence.value.source.source_snapshot_date == date(2026, 7, 11)
+    assert evidence.value.source.source_snapshot_date == date(2026, 8, 24)
     session._close()
 
 
@@ -88,8 +109,8 @@ def test_derived_claims_bind_formula_inputs_rule_and_as_of() -> None:
     assert evidence.value == record.remaining_days_at_as_of
     assert evidence.value.rule_id == "bond.remaining_days_at_as_of"
     assert evidence.value.rule_version
-    assert evidence.value.as_of_date == date(2026, 7, 11)
-    assert tuple(item.source_column_name for item in evidence.value.inputs) == ("MAT_DT",)
+    assert evidence.value.as_of_date == date(2026, 8, 22)
+    assert tuple(item.source_column_name for item in evidence.value.inputs) == ("mat_dt",)
     session._close()
 
 
@@ -112,7 +133,7 @@ def test_public_fund_evidence_restores_canonical_nested_lineage() -> None:
 
         def close(self) -> None: ...
 
-    session = _session(Connection())  # type: ignore[arg-type]
+    session = _candidate_registry_session(Connection())
 
     record = EvidenceRepository(session).fetch_final_record_evidence(
         (
@@ -1628,7 +1649,7 @@ def test_context_serialization_is_stable_json_safe_size_bounded_and_contains_no_
     assert direct["normalized_value"] == "2.25"
     derived = dict(zip(payload["derived_fields"], payload["derived"][0], strict=True))
     source = payload["sources"][derived["inputs"][0][0]]
-    assert derived["as_of_date"] == "2026-07-11"
+    assert derived["as_of_date"] == "2026-08-22"
     assert source["source_file"]
     assert source["source_sheet"]
     assert source["source_checksum"]
@@ -1661,7 +1682,7 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
                 EvidenceLookup(
                     product_type=ProductType.DOMESTIC_BOND,
                     product_ids=("KR0000000001",),
-                    field_ids=("buy_yield", "buyable_quantity"),
+                    field_ids=("buy_yield", "maturity_date"),
                 ),
             )
         )[0]
@@ -1697,8 +1718,8 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
         dict(zip(payload["direct_fields"], item, strict=True)) for item in payload["direct"]
     )
     expected_values = {
-        "buy_yield": ("2.25", "2.25", "BUY_YIELD"),
-        "buyable_quantity": ("10", "10", "BUYABLE_QUANTITY"),
+        "buy_yield": ("2.25", "2.25", "buy_yield"),
+        "maturity_date": ("20270822", "2027-08-22", "mat_dt"),
     }
     assert {item["evidence_id"] for item in direct_records} == {item.evidence_id for item in direct}
     assert all(
@@ -1706,7 +1727,7 @@ def test_valid_top_k_50_evidence_and_claim_boundary_serializes() -> None:
         and payload["sources"][item["source"]]["source_file"]
         and payload["sources"][item["source"]]["source_sheet"]
         and payload["sources"][item["source"]]["source_checksum"]
-        and payload["sources"][item["source"]]["source_snapshot_date"] == "2026-07-11"
+        and payload["sources"][item["source"]]["source_snapshot_date"] == "2026-08-24"
         and (item["raw_value"], item["normalized_value"], item["source_column_name"])
         == expected_values[item["field_id"]]
         and item["quality_status"] == "valid"
@@ -2173,7 +2194,12 @@ def test_nonmetric_date_screen_rank_emits_competition_ranks_tie_and_boundary_war
     session._close()
 
 
-def test_recorded_zero_buyable_source_lens_warns_it_is_not_buyability_evidence() -> None:
+def test_purchaseability_evidence_is_identical_for_different_raw_quantities() -> None:
+    from tests.helpers.query_runtime import verified_artifacts
+
+    from finproof.core.settings import ExecutionMode
+    from finproof.core.versions import VersionBundle
+    from finproof.domain.evidence import EvidenceBundle
     from finproof.domain.execution import ValidatedQueryPlan
     from finproof.domain.query_plan import (
         FilterClause,
@@ -2188,47 +2214,18 @@ def test_recorded_zero_buyable_source_lens_warns_it_is_not_buyability_evidence()
     from finproof.quality import PolicyExecutionResult, PolicyRow
     from finproof.quality.metric_policy import MetricPolicyResult
     from finproof.quality.state import StateEvaluation
+    from finproof.registry.loader import RegistryBundle
+    from finproof.registry.resources import REGISTRY_RESOURCE_NAMES, registry_resource_bytes
+    from finproof.runtime.session import RuntimeArtifactSession
     from finproof.storage import RawFieldValue, RawProductRow
     from finproof.storage.repositories.evidence import EvidenceRepository
 
-    source = PolicyRow(
-        raw=RawProductRow(
-            product_type=ProductType.DOMESTIC_BOND,
-            native_result_grain=ResultGrain.INSTRUMENT,
-            product_id="KR0000000001",
-            values=(
-                RawFieldValue(field_id="product_id", value="KR0000000001", quality_status="valid"),
-                RawFieldValue(
-                    field_id="buyable_quantity",
-                    value=Decimal("0"),
-                    quality_status="recorded_zero",
-                ),
-            ),
-        ),
-        state=StateEvaluation(product_id="KR0000000001", eligible=False, state_ids=(), warnings=()),
-    )
-    policy = PolicyExecutionResult(
-        included_rows=(),
-        excluded_filter_count=0,
-        excluded_state_count=1,
-        excluded_metric_count=0,
-        metric_policy=MetricPolicyResult(
-            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
-        ),
-        dual_lens_labels=(),
-        selected_rows=(),
-        partitions=(),
-        aggregates=(),
-        ranks=(),
-        warnings=(),
-        source_rows=(source,),
-    )
     plan = ValidatedQueryPlan._issue(
         plan=QueryPlan(
             intent=Intent.SCREEN,
             product_types=(ProductType.DOMESTIC_BOND,),
             entities=(),
-            as_of_date=date(2026, 7, 11),
+            as_of_date=date(2026, 8, 22),
             result_grain=ResultGrain.INSTRUMENT,
             filters=(
                 FilterClause(
@@ -2237,7 +2234,7 @@ def test_recorded_zero_buyable_source_lens_warns_it_is_not_buyability_evidence()
                     value=Decimal("0"),
                 ),
             ),
-            metrics=("buyable_quantity",),
+            metrics=(),
             sort=(),
             aggregation=None,
             top_k=5,
@@ -2248,38 +2245,101 @@ def test_recorded_zero_buyable_source_lens_warns_it_is_not_buyability_evidence()
         resolutions=(),
         context=(),
     )
-    session, _ = _bond_evidence_session(buyable_quantity="0")
-    evidence = EvidenceBuilder().build(
-        plan=plan,
-        policy_result=policy,
-        repository=EvidenceRepository(session),
+    payloads = {name: registry_resource_bytes(name) for name in REGISTRY_RESOURCE_NAMES}
+    payloads["datasets.yaml"] = payloads["datasets.yaml"].replace(b"2026-08-24", b"2026-07-11", 1)
+    registries = RegistryBundle._from_resource_bytes(payloads)
+    verified = verified_artifacts()
+    versions = VersionBundle.from_runtime(
+        verified=verified,
+        registries=registries,
+        execution_mode=ExecutionMode.EVALUATION,
     )
 
-    assert (
-        "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 "
-        "제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다."
-        in evidence.material_policy_limitations
+    class Connection:
+        def close(self) -> None: ...
+
+    session = RuntimeArtifactSession._issue(
+        connection=Connection(),
+        verified=verified,
+        registries=registries,
+        versions=versions,
     )
+    repository = EvidenceRepository(session)
+
+    def evidence_for(quantity: int) -> EvidenceBundle:
+        row = PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                product_id="KR0000000001",
+                values=(
+                    RawFieldValue(
+                        field_id="product_id",
+                        value="KR0000000001",
+                        quality_status="valid",
+                    ),
+                    RawFieldValue(
+                        field_id="buyable_quantity",
+                        value=quantity,
+                        quality_status="valid",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(
+                product_id="KR0000000001",
+                eligible=False,
+                state_ids=(),
+                warnings=(),
+            ),
+        )
+        policy = PolicyExecutionResult(
+            included_rows=(),
+            excluded_filter_count=0,
+            excluded_state_count=1,
+            excluded_metric_count=0,
+            metric_policy=MetricPolicyResult(
+                recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+            ),
+            dual_lens_labels=(),
+            selected_rows=(),
+            partitions=(),
+            aggregates=(),
+            ranks=(),
+            warnings=(),
+            source_rows=(row,),
+        )
+        return EvidenceBuilder().build(
+            plan=plan,
+            policy_result=policy,
+            repository=repository,
+        )
+
+    zero = evidence_for(0)
+    large = evidence_for(999_999)
+    assert zero.model_dump(mode="json") == large.model_dump(mode="json")
+    count = next(summary for summary in zero.summaries if summary.summary_id == "summary:count")
+    assert count.value is None
     session._close()
 
 
 def _bond_evidence_session(
     *, buy_yield: str = "2.25", buyable_quantity: str = "10"
 ) -> tuple[RuntimeArtifactSession, BondInstrument]:
-    record = normalize_bond(
+    lot = normalize_bond_lot(
         source_row(
             "PRBD01N001",
             {
-                "PD_NO": "KR0000000001",
-                "BUY_YIELD": buy_yield,
-                "BUYABLE_QUANTITY": buyable_quantity,
-                "MAT_DT": "20270711",
+                "pd_no": "KR0000000001",
+                "buy_yield": buy_yield,
+                "buyable_quantity": buyable_quantity,
+                "mat_dt": "20270822",
+                "eval_price": "99",
             },
             excel_row=77,
-        ),
-        date(2026, 7, 11),
-        RatingRegistry.from_yaml(Path(__file__).resolve().parents[3] / "config/rating_scale.yaml"),
+        )
     ).record
+    assert lot is not None
+    record = project_bond_instrument((lot,), as_of=date(2026, 8, 22)).record
     assert isinstance(record, BondInstrument)
     bond = record
 
@@ -2292,4 +2352,4 @@ def _bond_evidence_session(
 
         def close(self) -> None: ...
 
-    return _session(Connection()), bond  # type: ignore[arg-type]
+    return _candidate_registry_session(Connection()), bond

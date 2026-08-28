@@ -56,3 +56,12 @@ def test_field_registry_maps_every_canonical_field_to_closed_table_spec_projecti
         column_names = {column.name for column in spec.columns}
         assert projection.column_name in column_names
         assert projection.quality_column_name in column_names
+
+
+def test_buyable_quantity_is_not_queryable_or_metric_registered() -> None:
+    from finproof.registry.loader import RegistryBundle
+
+    registries = RegistryBundle.from_package()
+
+    assert "buyable_quantity" not in registries.fields.entries
+    assert "bond.buyable_quantity" not in registries.metrics.entries

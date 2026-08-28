@@ -1,4 +1,4 @@
-version: "1.1.0"
+version: "1.2.0"
 targetless_aggregations: ["count"]
 fields:
   product_name:
@@ -31,11 +31,12 @@ fields:
     operators: ["eq", "in"]
     sortable: true
     aggregations: []
-  buyable_quantity:
-    metric_id: "bond.buyable_quantity"
-    operators: ["eq", "ne", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
+  issue_date:
+    product_types: ["domestic_bond"]
+    value_type: "date"
+    operators: ["eq", "gt", "gte", "lt", "lte", "between", "is_missing", "is_not_missing"]
     sortable: true
-    aggregations: ["sum"]
+    aggregations: []
   maturity_date:
     product_types: ["domestic_bond"]
     value_type: "date"

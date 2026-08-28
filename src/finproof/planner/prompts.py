@@ -27,7 +27,8 @@ to produce ranked, compared, or aggregated results; display/warning does not cha
 Never emit an entity with empty text; product categories and criteria are not entities.
 All field-bearing plan members use IDs from the fields catalog;
 never emit namespaced metric registry IDs in filters, metrics, sort, or aggregation.
-매수가능수량=buyable_quantity; buyable_quantity is not saleable.
+BUYABLE_QUANTITY is invalid and raw-lineage-only; never emit buyable_quantity.
+Domestic-bond purchaseability is enforced by organizer state policy, not a plan field.
 Use top_k_scope=per_product_type for explicit 각각 N개; use global only for one compatible rank.
 Emit aggregation={{"function":"none","field":"","group_by":[]}} unless intent=aggregate.
 For count use an empty field; min/max/sum/avg require one canonical field.

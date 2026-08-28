@@ -54,6 +54,67 @@ BOND_COLUMNS = (
     "CRD_GRD_DT",
 )
 
+REFRESHED_BOND_COLUMNS = (
+    "after_tax_yield",
+    "applied_yield",
+    "avg_annual_tax_yield",
+    "bdbns_abl_chnl_nm",
+    "bdbns_abl_chnl_tcd",
+    "bd_inrt_tcd",
+    "bd_intp_tcd",
+    "bd_knd",
+    "bd_ofr_tcd",
+    "bd_tisu_a",
+    "buyable_quantity",
+    "buy_yield",
+    "corp_after_tax_yield",
+    "corp_pretax_yield",
+    "cov",
+    "crd_grd",
+    "crd_grd_dt",
+    "curr_cd",
+    "depo_equiv_yield_154",
+    "depo_equiv_yield_495",
+    "dirty",
+    "dur",
+    "eval_price",
+    "exg_close_price",
+    "exg_close_price_base_dt",
+    "exg_close_yield",
+    "exrt_grte_ern_r",
+    "exrt_grte_ern_r_tcd",
+    "exrt_rpy_r",
+    "info_base_dt",
+    "info_seq",
+    "isu_bal_amt",
+    "isu_dt",
+    "mat_dt",
+    "ndy_applied_yield",
+    "ndy_cov",
+    "ndy_dirty",
+    "ndy_dur",
+    "ndy_eval_price",
+    "pd_abrv_eng_nm",
+    "pd_abrv_nm",
+    "pd_ctry_cd",
+    "pd_eng_nm",
+    "pd_exg_mkt",
+    "pd_nm",
+    "pd_no",
+    "pd_pbcm",
+    "pd_pen_tr_yn",
+    "pd_risk_gcd",
+    "pd_risk_nm",
+    "pd_std_info_update",
+    "pref_tax_yield",
+    "remaining_days",
+    "sale_yield_base_dt",
+    "srfc_irt",
+    "std_pd_mcls_nm",
+    "std_pd_scls_nm",
+    "trade_price",
+)
+
 DOMESTIC_LISTED_COLUMNS = (
     "cu_base_index",
     "cu_charge_etc_rt",
@@ -284,18 +345,36 @@ def source_row(
     columns: tuple[str, ...]
     defaults: Mapping[str, str]
     if table_id == "PRBD01N001":
-        columns = BOND_COLUMNS
-        defaults = {
-            "PD_NO": "KR0000000001",
-            "PD_NM": "테스트 채권",
-            "PD_ABRV_NM": "채권",
-            "CURR_CD": "KRW",
-            "BD_KND": "회사채",
-            "ISU_DT": "20200101",
-            "MAT_DT": "20270711",
-            "BUYABLE_QUANTITY": "1",
-            "REMAINING_DAYS": "365",
-        }
+        refreshed = bool(values and set(values) & set(REFRESHED_BOND_COLUMNS))
+        columns = REFRESHED_BOND_COLUMNS if refreshed else BOND_COLUMNS
+        defaults = (
+            {
+                "pd_no": "KR0000000001",
+                "pd_exg_mkt": "장내",
+                "info_base_dt": "20260822",
+                "info_seq": "1",
+                "pd_nm": "테스트 채권",
+                "pd_abrv_nm": "채권",
+                "curr_cd": "KRW",
+                "bd_knd": "회사채",
+                "isu_dt": "20200101",
+                "mat_dt": "20270711",
+                "buyable_quantity": "1",
+                "remaining_days": "365",
+            }
+            if refreshed
+            else {
+                "PD_NO": "KR0000000001",
+                "PD_NM": "테스트 채권",
+                "PD_ABRV_NM": "채권",
+                "CURR_CD": "KRW",
+                "BD_KND": "회사채",
+                "ISU_DT": "20200101",
+                "MAT_DT": "20270711",
+                "BUYABLE_QUANTITY": "1",
+                "REMAINING_DAYS": "365",
+            }
+        )
     elif table_id == "PREF01N001":
         columns = DOMESTIC_LISTED_COLUMNS
         defaults = {

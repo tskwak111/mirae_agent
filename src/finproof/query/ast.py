@@ -42,7 +42,7 @@ class QueryAst(_FrozenModel):
             )
         )
         if segment.product_type is ProductType.DOMESTIC_BOND:
-            field_ids.setdefault("buyable_quantity", None)
+            field_ids.setdefault("issue_date", None)
             field_ids.setdefault("maturity_date", None)
         if "aum" in field_ids:
             field_ids.setdefault("currency", None)

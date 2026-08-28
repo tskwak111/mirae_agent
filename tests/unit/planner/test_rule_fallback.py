@@ -117,6 +117,16 @@ async def test_rule_fallback_current_uses_frozen_snapshot_assumption() -> None:
 
 
 @pytest.mark.asyncio
+async def test_rule_fallback_purchaseable_bond_never_emits_quantity_clause() -> None:
+    result = await _planner().plan(_request("매수 가능한 국내채권을 보여줘"))
+
+    assert result.plan.intent is Intent.SCREEN
+    assert result.plan.product_types == (ProductType.DOMESTIC_BOND,)
+    assert result.plan.filters == ()
+    assert "buyable_quantity" not in result.plan.metrics
+
+
+@pytest.mark.asyncio
 async def test_rule_fallback_ambiguous_return_period_fails_closed() -> None:
     result = await _planner().plan(_request("수익률 높은 상품 알려줘"))
 

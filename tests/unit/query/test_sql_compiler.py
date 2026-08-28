@@ -38,7 +38,7 @@ def test_query_ast_accepts_one_native_segment_and_rejects_product_envelope() -> 
     assert tuple(item.field_id for item in ast.projections) == (
         "product_id",
         "buy_yield",
-        "buyable_quantity",
+        "issue_date",
         "maturity_date",
     )
 
@@ -193,7 +193,7 @@ def test_compiler_projects_aggregate_inputs_without_prepolicy_aggregation_or_top
         "product_id",
         "currency",
         "buy_yield",
-        "buyable_quantity",
+        "issue_date",
         "maturity_date",
     )
     assert '"currency"' in compiled.sql

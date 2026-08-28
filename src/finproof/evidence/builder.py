@@ -538,10 +538,6 @@ class EvidenceBuilder:
                         direct,
                         existing_warnings=policy_result.warnings,
                     ),
-                    *_recorded_zero_buyability_limitations(
-                        plan=original,
-                        policy_result=policy_result,
-                    ),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
             )
@@ -557,7 +553,7 @@ class EvidenceBuilder:
 def _requests_source_lens(plan: QueryPlan, *, policy_result: PolicyExecutionResult) -> bool:
     explicit_state_aggregate = bool(
         plan.intent is Intent.AGGREGATE
-        and any(clause.field in {"buyable_quantity", "saleable"} for clause in plan.filters)
+        and any(clause.field == "saleable" for clause in plan.filters)
     )
     return explicit_state_aggregate or bool(
         policy_result.excluded_state_count
@@ -569,7 +565,7 @@ def _requests_source_lens(plan: QueryPlan, *, policy_result: PolicyExecutionResu
                 and plan.aggregation.function is AggregationFunction.COUNT
                 and not plan.aggregation.group_by
             )
-            or any(clause.field in {"buyable_quantity", "saleable"} for clause in plan.filters)
+            or any(clause.field == "saleable" for clause in plan.filters)
         )
     )
 
@@ -716,33 +712,6 @@ def _sorts_before(
     descending: bool,
 ) -> bool:
     return bool(cast(Any, left) > right if descending else cast(Any, left) < right)
-
-
-def _recorded_zero_buyability_limitations(
-    *,
-    plan: QueryPlan,
-    policy_result: PolicyExecutionResult,
-) -> tuple[str, ...]:
-    requests_recorded_zero = any(
-        clause.field == "buyable_quantity"
-        and clause.operator is FilterOperator.EQ
-        and clause.value == 0
-        for clause in plan.filters
-    )
-    has_excluded_recorded_zero = any(
-        row.raw.product_type is ProductType.DOMESTIC_BOND
-        and not row.state.eligible
-        and _policy_row_value(row, "buyable_quantity") == 0
-        for row in policy_result.source_rows
-    )
-    return (
-        (
-            "원천에 기록된 매수 가능 수량 0인 채권은 검증된 매수 가능 결과와 순위에서 "
-            "제외했으며, 이 기록은 매수 가능함의 근거가 아닙니다.",
-        )
-        if requests_recorded_zero and has_excluded_recorded_zero
-        else ()
-    )
 
 
 def _source_aggregate(

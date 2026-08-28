@@ -1,23 +1,16 @@
-version: "1.1.0"
+version: "1.2.0"
 rules:
-  bond.source_buyable:
-    version: "1.0.0"
+  bond.purchasable_at_as_of:
+    version: "2.0.0"
     product_types: ["domestic_bond"]
-    description_ko: "제공 데이터상 매수가능수량이 양수"
-    conditions:
-      - field: "buyable_quantity"
-        operator: "gt"
-        value: 0
-  bond.validated_buyable_at_as_of:
-    version: "1.0.0"
-    product_types: ["domestic_bond"]
-    description_ko: "양수 수량이며 기준일에 만기 전"
-    all_of:
-      - rule: "bond.source_buyable"
+    description_ko: "미발행 또는 종료 근거가 없으면 구매 가능하다고 가정"
+    excludes:
+      - field: "issue_date"
+        operator: "gt_as_of"
       - field: "maturity_date"
-        operator: "is_valid_date"
-      - field: "maturity_date"
-        operator: "gte_as_of"
+        operator: "lt_as_of"
+    missing_maturity_policy: "eligible_with_unverifiable_end_warning"
+    ignored_source_fields: ["buyable_quantity"]
   domestic_listed.active_at_as_of:
     version: "1.0.0"
     product_types: ["domestic_etf", "domestic_etn"]

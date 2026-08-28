@@ -1,7 +1,6 @@
 """Focused product-state policy tests."""
 
 from datetime import date
-from decimal import Decimal
 
 import pytest
 
@@ -90,7 +89,7 @@ def test_domestic_listed_state_honors_listing_period_and_open_end(
     assert StatePolicy().evaluate(product, as_of=date(2026, 7, 11)).eligible is expected
 
 
-def test_matured_positive_quantity_bond_is_source_buyable_not_validated_buyable() -> None:
+def test_ended_bond_is_not_purchasable_even_with_irrelevant_positive_quantity() -> None:
     from finproof.domain.query_plan import ProductType
     from finproof.quality import PolicyProduct, StatePolicy
     from finproof.storage import RawFieldValue
@@ -101,7 +100,12 @@ def test_matured_positive_quantity_bond_is_source_buyable_not_validated_buyable(
         values=(
             RawFieldValue(
                 field_id="buyable_quantity",
-                value=Decimal("10"),
+                value=10,
+                quality_status="valid",
+            ),
+            RawFieldValue(
+                field_id="issue_date",
+                value=date(2020, 1, 1),
                 quality_status="valid",
             ),
             RawFieldValue(
@@ -115,12 +119,10 @@ def test_matured_positive_quantity_bond_is_source_buyable_not_validated_buyable(
     result = StatePolicy().evaluate(product, as_of=date(2026, 7, 11))
 
     assert result.eligible is False
-    assert "source_buyable" in result.state_ids
-    assert "matured" in result.state_ids
-    assert "validated_buyable" not in result.state_ids
+    assert result.state_ids == ("ended",)
 
 
-def test_bond_maturing_on_as_of_date_remains_validated_buyable() -> None:
+def test_bond_maturing_on_as_of_date_remains_purchasable() -> None:
     from finproof.quality import PolicyProduct, StatePolicy
     from finproof.storage import RawFieldValue
 
@@ -128,11 +130,7 @@ def test_bond_maturing_on_as_of_date_remains_validated_buyable() -> None:
         product_type=ProductType.DOMESTIC_BOND,
         product_id="B1",
         values=(
-            RawFieldValue(
-                field_id="buyable_quantity",
-                value=Decimal("10"),
-                quality_status="valid",
-            ),
+            RawFieldValue(field_id="issue_date", value=date(2020, 1, 1), quality_status="valid"),
             RawFieldValue(
                 field_id="maturity_date",
                 value=date(2026, 7, 11),
@@ -144,11 +142,13 @@ def test_bond_maturing_on_as_of_date_remains_validated_buyable() -> None:
     result = StatePolicy().evaluate(product, as_of=date(2026, 7, 11))
 
     assert result.eligible is True
-    assert "validated_buyable" in result.state_ids
-    assert "matured" not in result.state_ids
+    assert result.state_ids == ("purchasable_assumed",)
 
 
-def test_positive_quantity_bond_with_missing_maturity_fails_closed_without_error() -> None:
+@pytest.mark.parametrize("quantity", [None, 0, 10])
+def test_bond_with_missing_maturity_uses_assumption_and_quantity_never_changes_result(
+    quantity: int | None,
+) -> None:
     from finproof.quality import PolicyProduct, StatePolicy
     from finproof.storage import RawFieldValue
 
@@ -159,7 +159,12 @@ def test_positive_quantity_bond_with_missing_maturity_fails_closed_without_error
             values=(
                 RawFieldValue(
                     field_id="buyable_quantity",
-                    value=Decimal("10"),
+                    value=quantity,
+                    quality_status="valid",
+                ),
+                RawFieldValue(
+                    field_id="issue_date",
+                    value=date(2020, 1, 1),
                     quality_status="valid",
                 ),
                 RawFieldValue(
@@ -172,9 +177,35 @@ def test_positive_quantity_bond_with_missing_maturity_fails_closed_without_error
         as_of=date(2026, 7, 11),
     )
 
+    assert result.eligible is True
+    assert result.state_ids == ("unknown_maturity", "purchasable_assumed")
+    assert result.warnings == ("bond end state is not source-verifiable",)
+
+
+def test_future_issue_date_excludes_bond_under_organizer_assumption() -> None:
+    from finproof.quality import PolicyProduct, StatePolicy
+    from finproof.storage import RawFieldValue
+
+    result = StatePolicy().evaluate(
+        PolicyProduct(
+            product_type=ProductType.DOMESTIC_BOND,
+            product_id="B1",
+            values=(
+                RawFieldValue(
+                    field_id="issue_date", value=date(2026, 7, 12), quality_status="valid"
+                ),
+                RawFieldValue(
+                    field_id="maturity_date",
+                    value=date(2027, 7, 11),
+                    quality_status="valid",
+                ),
+            ),
+        ),
+        as_of=date(2026, 7, 11),
+    )
+
     assert result.eligible is False
-    assert result.state_ids == ("source_buyable", "unknown_maturity")
-    assert result.warnings == ("validated buyability requires a valid maturity date",)
+    assert result.state_ids == ("not_yet_issued",)
 
 
 @pytest.mark.parametrize(

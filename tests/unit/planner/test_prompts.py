@@ -63,8 +63,8 @@ def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
     assert "Never emit an entity with empty text" in prompt.text
     assert "field-bearing plan members use IDs from the fields catalog" in prompt.text
     assert "never emit namespaced metric registry IDs" in prompt.text
-    assert "매수가능수량=buyable_quantity" in prompt.text
-    assert "buyable_quantity is not saleable" in prompt.text
+    assert "BUYABLE_QUANTITY" in prompt.text
+    assert "never emit buyable_quantity" in prompt.text
     compact_catalog = json.loads(
         prompt.text.split("\ncompact_catalog=", 1)[1].split("\nprovider_schema=", 1)[0]
     )

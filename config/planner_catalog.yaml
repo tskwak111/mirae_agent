@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 product_type_aliases:
   domestic_bond: ["국내채권", "채권", "원화채권"]
   domestic_etf: ["국내 ETF", "한국 ETF", "국내 상장 ETF"]

@@ -318,21 +318,8 @@ def _has_unreviewed_comparison_or_date(
     )
 
 
-def _filters(question: str, metric: str | None, as_of_date: date) -> tuple[FilterClause, ...]:
+def _filters(question: str, metric: str | None, _as_of_date: date) -> tuple[FilterClause, ...]:
     filters: list[FilterClause] = []
-    if "매수 가능" in question or "매수가능" in question:
-        filters.extend(
-            (
-                FilterClause(
-                    field="buyable_quantity", operator=FilterOperator.GT, value=Decimal(0)
-                ),
-                FilterClause(
-                    field="maturity_date",
-                    operator=FilterOperator.GTE,
-                    value=as_of_date.isoformat(),
-                ),
-            )
-        )
     rating = re.search(r"([A-Z]{1,3}[+-]?)\s*이상", question)
     if rating is not None:
         filters.append(

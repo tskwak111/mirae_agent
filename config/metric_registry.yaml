@@ -1,48 +1,29 @@
-version: "1.0.0"
+version: "1.1.0"
 metrics:
   bond.buy_yield:
     label_ko: "매수수익률"
     product_types: ["domestic_bond"]
     source_table: "PRBD01N001"
-    source_column: "BUY_YIELD"
+    source_column: "buy_yield"
     value_type: "decimal"
     unit: "percent"
     period: "yield_to_maturity_like_source_field"
     currency: null
     missing_policy: "unavailable"
     zero_policy: "recorded_zero"
-    display_policy: "display_valid_numeric_with_quote_date_warning"
+    display_policy: "display_selected_max_valid_lot_with_quote_date_warning"
     literal_filter_policy: "use_recorded_numeric"
     ranking_policy: "valid_numeric_only"
     aggregation_policy: "valid_numeric_with_included_count"
     tie_policy: "competition_rank"
     comparability_group: "bond_buy_yield"
     cross_product_policy: "not_equal_to_historical_period_return"
-    evidence_rule: "direct_source_cell"
-  bond.buyable_quantity:
-    label_ko: "매수가능수량"
-    product_types: ["domestic_bond"]
-    source_table: "PRBD01N001"
-    source_column: "BUYABLE_QUANTITY"
-    value_type: "decimal"
-    unit: "source_quantity"
-    period: null
-    currency: null
-    missing_policy: "unavailable"
-    zero_policy: "recorded_zero"
-    display_policy: "display_recorded"
-    literal_filter_policy: "use_recorded_numeric"
-    ranking_policy: "valid_numeric_only"
-    aggregation_policy: "sum_with_included_count"
-    tie_policy: "competition_rank"
-    comparability_group: "bond_quantity"
-    cross_product_policy: "same_metric_only"
-    evidence_rule: "direct_source_cell"
+    evidence_rule: "selected_sale_lot_source_cell"
   bond.remaining_days_at_as_of:
     label_ko: "기준일 잔존일수"
     product_types: ["domestic_bond"]
     source_table: "PRBD01N001"
-    source_column: "MAT_DT"
+    source_column: "mat_dt"
     derived_rule: "maturity_date_minus_as_of.v1"
     value_type: "integer"
     unit: "day"
@@ -62,21 +43,21 @@ metrics:
     label_ko: "신용등급"
     product_types: ["domestic_bond"]
     source_table: "PRBD01N001"
-    source_column: "CRD_GRD"
+    source_column: "crd_grd"
     value_type: "ordinal_rating"
     unit: null
     period: null
     currency: null
     missing_policy: "not_rated_does_not_pass_threshold"
     zero_policy: "not_applicable"
-    display_policy: "display_normalized_and_agency_raw_when_mixed"
+    display_policy: "display_source_rating"
     literal_filter_policy: "rating_registry_order"
     ranking_policy: "rated_only"
     aggregation_policy: "counts_by_grade"
     tie_policy: "competition_rank"
     comparability_group: "bond_credit_rating"
     cross_product_policy: "not_equivalent_to_fund_risk_grade"
-    evidence_rule: "direct_and_multi_agency_source"
+    evidence_rule: "direct_source_cell"
   domestic_etf.aum:
     label_ko: "순자산총액"
     product_types: ["domestic_etf", "domestic_etn"]

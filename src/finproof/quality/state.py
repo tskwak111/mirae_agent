@@ -1,7 +1,6 @@
 """Product-state eligibility policy."""
 
 from datetime import date
-from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -67,40 +66,26 @@ class StatePolicy:
                 warnings=(),
             )
         if product.product_type is ProductType.DOMESTIC_BOND:
-            quantity = values.get("buyable_quantity")
+            issue_date = values.get("issue_date")
             maturity = values.get("maturity_date")
-            source_buyable = type(quantity) is Decimal and quantity > 0
-            if type(maturity) is not date:
-                return StateEvaluation(
-                    product_id=product.product_id,
-                    eligible=False,
-                    state_ids=tuple(
-                        state
-                        for state, active in (
-                            ("source_buyable", source_buyable),
-                            ("unknown_maturity", True),
-                        )
-                        if active
-                    ),
-                    warnings=("validated buyability requires a valid maturity date",),
-                )
-            matured = maturity < as_of
-            validated_buyable = source_buyable and not matured
+            not_yet_issued = type(issue_date) is date and issue_date > as_of
+            ended = type(maturity) is date and maturity < as_of
+            unknown_maturity = type(maturity) is not date
+            purchasable = not not_yet_issued and not ended
             states = tuple(
                 state
                 for state, active in (
-                    ("source_buyable", source_buyable),
-                    ("matured", matured),
-                    ("validated_buyable", validated_buyable),
+                    ("not_yet_issued", not_yet_issued),
+                    ("ended", ended),
+                    ("unknown_maturity", unknown_maturity),
+                    ("purchasable_assumed", purchasable),
                 )
                 if active
             )
             return StateEvaluation(
                 product_id=product.product_id,
-                eligible=validated_buyable,
+                eligible=purchasable,
                 state_ids=states,
-                warnings=("source quantity remains positive after maturity",)
-                if source_buyable and matured
-                else (),
+                warnings=("bond end state is not source-verifiable",) if unknown_maturity else (),
             )
         raise ValueError("state policy is not implemented for product type")
