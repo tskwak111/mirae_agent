@@ -120,10 +120,10 @@ def _is_traversal(name: str) -> bool:
     return "\\" in name or path.is_absolute() or any(part in {"", ".", ".."} for part in path.parts)
 
 
-def inspect_archive(
+def _verified_payloads(
     archive: Path, *, expected: ArchiveSpec = OFFICIAL_ARCHIVE
-) -> tuple[AdmittedWorkbook, ...]:
-    """Verify one archive and return its admitted root workbooks in sealed order."""
+) -> tuple[tuple[AdmittedWorkbook, bytes], ...]:
+    """Read and validate the exact workbook payloads admitted from one archive."""
 
     if not archive.is_file():
         raise ArchiveAdmissionError("archive_missing", "archive is not a regular file")
@@ -160,7 +160,7 @@ def inspect_archive(
     if missing:
         raise ArchiveAdmissionError("missing_member", f"missing archive member: {missing[0]!r}")
 
-    admitted: list[AdmittedWorkbook] = []
+    admitted: list[tuple[AdmittedWorkbook, bytes]] = []
     with tempfile.TemporaryDirectory(prefix="finproof-archive-check-") as temporary:
         root = Path(temporary)
         for spec in expected.members:
@@ -183,30 +183,40 @@ def inspect_archive(
                     "missing_sheet", f"missing {spec.sheet_name!r}: {spec.member!r}"
                 )
             admitted.append(
-                AdmittedWorkbook(
-                    member=spec.member,
-                    size_bytes=spec.size_bytes,
-                    sha256=spec.sha256,
+                (
+                    AdmittedWorkbook(
+                        member=spec.member,
+                        size_bytes=spec.size_bytes,
+                        sha256=spec.sha256,
+                    ),
+                    payload,
                 )
             )
     return tuple(admitted)
 
 
+def inspect_archive(
+    archive: Path, *, expected: ArchiveSpec = OFFICIAL_ARCHIVE
+) -> tuple[AdmittedWorkbook, ...]:
+    """Verify one archive and return its admitted root workbooks in sealed order."""
+
+    return tuple(workbook for workbook, _ in _verified_payloads(archive, expected=expected))
+
+
 def admit_archive(
     archive: Path, target: Path, *, expected: ArchiveSpec = OFFICIAL_ARCHIVE
 ) -> tuple[AdmittedWorkbook, ...]:
-    """Verify an archive before atomically replacing a target workbook directory."""
+    """Verify one archive before atomically replacing a target workbook directory."""
 
-    admitted = inspect_archive(archive, expected=expected)
+    verified = _verified_payloads(archive, expected=expected)
     parent = target.parent.resolve()
     if not parent.is_dir():
         raise ArchiveAdmissionError("target_parent", "target parent directory is missing")
     with tempfile.TemporaryDirectory(prefix=f".{target.name}.admission-", dir=parent) as temporary:
         staged = Path(temporary) / target.name
         staged.mkdir()
-        with ZipFile(archive) as zip_file:
-            for workbook in admitted:
-                (staged / workbook.member).write_bytes(zip_file.read(workbook.member))
+        for workbook, payload in verified:
+            (staged / workbook.member).write_bytes(payload)
         backup = parent / f".{target.name}.admission-backup"
         if backup.exists():
             raise ArchiveAdmissionError("target_busy", "admission backup path already exists")
@@ -220,7 +230,7 @@ def admit_archive(
             raise ArchiveAdmissionError("target_replace", "staged replacement failed") from error
         if backup.exists():
             shutil.rmtree(backup)
-    return admitted
+    return tuple(workbook for workbook, _ in verified)
 
 
 def main(argv: list[str] | None = None) -> int:

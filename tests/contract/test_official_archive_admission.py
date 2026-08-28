@@ -1,4 +1,5 @@
 import hashlib
+import os
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +13,7 @@ from tools.admit_official_archive import (
     admit_archive,
     inspect_archive,
 )
+from tools.xlsx_stream import list_sheet_names
 
 from tests.helpers.xlsx import write_xlsx
 
@@ -136,6 +138,96 @@ def test_admit_archive_replaces_target_with_only_admitted_workbooks(
 
     assert tuple(item.member for item in admitted) == EXPECTED_MEMBERS
     assert tuple(path.name for path in sorted(target.iterdir())) == EXPECTED_MEMBERS
+
+
+@pytest.mark.parametrize(
+    ("mutation", "error_code"),
+    [
+        ("member_size", "member_size"),
+        ("member_sha256", "member_sha256"),
+        ("missing_sheet", "missing_sheet"),
+    ],
+)
+def test_archive_admission_rejects_exact_member_contract_failures(
+    tmp_path: Path,
+    mutation: str,
+    error_code: str,
+) -> None:
+    members = {name: _workbook_payload(tmp_path, name) for name in EXPECTED_MEMBERS}
+    archive = tmp_path / f"{mutation}.zip"
+    expected_members = dict(members)
+    if mutation == "member_size":
+        members[EXPECTED_MEMBERS[0]] += b"size"
+    elif mutation == "member_sha256":
+        payload = bytearray(members[EXPECTED_MEMBERS[0]])
+        payload[-1] ^= 1
+        members[EXPECTED_MEMBERS[0]] = bytes(payload)
+    else:
+        wrong_sheet = tmp_path / "wrong-sheet.xlsx"
+        write_xlsx(wrong_sheet, sheet_name="schema", rows=(("ID",), ("1",)))
+        members[EXPECTED_MEMBERS[0]] = wrong_sheet.read_bytes()
+        expected_members[EXPECTED_MEMBERS[0]] = members[EXPECTED_MEMBERS[0]]
+    _write_archive(archive, members)
+    expected = _spec(archive, expected_members)
+
+    with pytest.raises(ArchiveAdmissionError) as caught:
+        inspect_archive(archive, expected=expected)
+
+    assert caught.value.code == error_code
+
+
+def test_admit_archive_restores_target_bytes_when_staged_replacement_fails(
+    sealed_archive_fixture: SealedArchiveFixture,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "data"
+    target.mkdir()
+    (target / "old.xlsx").write_bytes(b"old")
+    original = {path.name: path.read_bytes() for path in target.iterdir()}
+    real_replace = os.replace
+
+    def fail_staged_replace(source: str | Path, destination: str | Path) -> None:
+        if Path(destination) == target and Path(source).name == target.name:
+            raise OSError("injected replacement failure")
+        real_replace(source, destination)
+
+    monkeypatch.setattr("tools.admit_official_archive.os.replace", fail_staged_replace)
+
+    with pytest.raises(ArchiveAdmissionError) as caught:
+        admit_archive(sealed_archive_fixture.archive, target, expected=sealed_archive_fixture.spec)
+
+    assert caught.value.code == "target_replace"
+    assert {path.name: path.read_bytes() for path in target.iterdir()} == original
+
+
+def test_admit_archive_stages_the_payload_validated_before_archive_path_mutates(
+    sealed_archive_fixture: SealedArchiveFixture,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "data"
+    validated_payload = ZipFile(sealed_archive_fixture.archive).read(EXPECTED_MEMBERS[0])
+    calls = 0
+
+    def mutate_archive_after_validation(path: Path) -> tuple[str, ...]:
+        nonlocal calls
+        sheets = list_sheet_names(path)
+        calls += 1
+        if calls == len(EXPECTED_MEMBERS):
+            _write_archive(
+                sealed_archive_fixture.archive,
+                dict.fromkeys(EXPECTED_MEMBERS, b"unverified"),
+            )
+        return sheets
+
+    monkeypatch.setattr(
+        "tools.admit_official_archive.list_sheet_names", mutate_archive_after_validation
+    )
+
+    admit_archive(sealed_archive_fixture.archive, target, expected=sealed_archive_fixture.spec)
+
+    assert (target / EXPECTED_MEMBERS[0]).read_bytes() == validated_payload
 
 
 @pytest.mark.parametrize("mutation", ["wrong_hash", "missing", "duplicate", "traversal", "extra"])
