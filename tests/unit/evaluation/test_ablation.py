@@ -31,7 +31,7 @@ from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
 from finproof.planner.hcx_client import HcxClient, HcxRateLimitError
-from finproof.planner.models import HcxRequest, HcxResponse, HcxUsage
+from finproof.planner.models import HcxMessage, HcxRequest, HcxResponse, HcxUsage
 from finproof.planner.rate_limits import HcxRateLimitSnapshot
 from finproof.planner.service import (
     HcxGenerator,
@@ -85,12 +85,18 @@ async def test_ablation_paces_hcx_calls_from_the_remaining_token_budget() -> Non
         sleeps.append(delay)
 
     generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
-    request = cast(HcxRequest, object())
+    request = HcxRequest.strict_json(
+        model_name="HCX-007",
+        messages=(HcxMessage(role="user", content="test"),),
+        max_completion_tokens=2_048,
+        temperature=0.0,
+        seed=17,
+    )
 
     await generator.run(lambda: generator.generate(request, "first"))
     await generator.run(lambda: generator.generate(request, "second"))
 
-    assert sleeps == [12.0]
+    assert sleeps == [13.2576]
 
 
 @pytest.mark.asyncio

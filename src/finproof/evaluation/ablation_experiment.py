@@ -102,7 +102,7 @@ class _RecordingGenerator:
     async def generate(self, request: HcxRequest, request_id: str) -> HcxResponse:
         response = await self._client.generate(request, request_id)
         self.responses.append(response)
-        self._pending_delay = _quota_delay_seconds(response)
+        self._pending_delay = _quota_delay_seconds(request, response)
         return response
 
     async def run[T](self, operation: Callable[[], Awaitable[T]]) -> T:
@@ -825,7 +825,7 @@ def _elapsed_ms(started: float) -> int:
     return max(0, int((monotonic() - started) * 1_000))
 
 
-def _quota_delay_seconds(response: HcxResponse) -> float:
+def _quota_delay_seconds(request: HcxRequest, response: HcxResponse) -> float:
     limits = response.rate_limits
     delays = [0.0]
     if limits.reset_requests_seconds is not None and limits.remaining_requests is not None:
@@ -835,7 +835,7 @@ def _quota_delay_seconds(response: HcxResponse) -> float:
             else limits.reset_requests_seconds / limits.remaining_requests
         )
     if limits.reset_tokens_seconds is not None and limits.remaining_tokens is not None:
-        used_tokens = response.usage.prompt_tokens + response.usage.completion_tokens
+        used_tokens = response.usage.prompt_tokens + request.max_completion_tokens
         delays.append(
             limits.reset_tokens_seconds
             if limits.remaining_tokens == 0
