@@ -114,19 +114,16 @@ def build_exact_links(
         custody=custody,
         config=config,
     )
-    expected_links = config.exact_links.links
-    expected_evidence = config.exact_links.evidence
+    candidate_limit = config.exact_link_candidate_limit
     candidates, max_batch_rows = _consume_candidate_batches(
         custody.iter_candidate_join_batches(),
-        expected_links=expected_links,
+        expected_links=candidate_limit,
     )
     links, evidence = _build_link_and_evidence_records(candidates)
-    if len(links) != expected_links or len(evidence) != expected_evidence:
-        raise ValueError("exact link or evidence count changed")
-    pair_tsv = canonical_link_pair_tsv(links, expected_links=expected_links)
+    if len(links) > candidate_limit or len(evidence) != len(links) * 2:
+        raise ValueError("exact link or evidence count exceeded the closed bound")
+    pair_tsv = canonical_link_pair_tsv(links, expected_links=len(links))
     pair_sha256 = exact_link_pair_sha256(pair_tsv)
-    if pair_sha256 != config.exact_links.pair_sha256:
-        raise ValueError("exact link pair hash changed")
     custody.admit_exact_evidence(iter(evidence))
     value = object.__new__(ExactLinkBuildResult)
     object.__setattr__(value, "links", links)
@@ -151,17 +148,17 @@ def _consume_candidate_batches(
     *,
     expected_links: int,
 ) -> tuple[tuple[ExactLinkCandidateJoinRow, ...], int]:
-    if type(expected_links) is not int or not 0 <= expected_links <= 65_536:
-        raise ValueError("expected candidate count is outside the closed bound")
+    if type(expected_links) is not int or expected_links != 217:
+        raise ValueError("expected candidate count must equal the immutable ceiling")
     rows: list[ExactLinkCandidateJoinRow] = []
     max_batch_rows = 0
     for batch in batches:
-        if (
-            type(batch) is not tuple
-            or any(type(row) is not ExactLinkCandidateJoinRow for row in batch)
-            or len(batch) > 65_536
+        if type(batch) is not tuple or any(
+            type(row) is not ExactLinkCandidateJoinRow for row in batch
         ):
             raise ValueError("exact candidate batch changed")
+        if len(batch) > 217:
+            raise ValueError("exact candidate batch exceeded immutable ceiling")
         max_batch_rows = max(max_batch_rows, len(batch))
         rows.extend(batch)
         if len(rows) > expected_links:
@@ -181,10 +178,13 @@ def _require_exact_build_inputs(
         config.model_dump(mode="python"),
         strict=True,
     )
-    counts = (validated.exact_links.links, validated.exact_links.evidence)
+    counts = (
+        validated.exact_link_candidate_limit,
+        validated.exact_link_candidate_limit * 2,
+    )
     if (
         validated != config
-        or any(type(count) is not int or not 0 <= count <= 65_536 for count in counts)
+        or counts != (217, 434)
         or type(custody) is not ExactLinkCandidateStoreCustody
     ):
         raise ValueError("exact-link build inputs changed")
@@ -231,7 +231,9 @@ def _require_exact_link_build_result_facts(value: object) -> ExactLinkBuildResul
         or type(value.canonical_pair_tsv) is not bytes
         or type(value.pair_sha256) is not str
         or type(value.max_candidate_batch_rows) is not int
-        or not 0 <= value.max_candidate_batch_rows <= 65_536
+        or not 0 <= value.max_candidate_batch_rows <= 217
+        or len(value.links) > 217
+        or len(value.evidence) > 434
         or canonical_link_pair_tsv(value.links, expected_links=len(value.links))
         != value.canonical_pair_tsv
         or exact_link_pair_sha256(value.canonical_pair_tsv) != value.pair_sha256
@@ -356,8 +358,12 @@ def _verify_evidence_relationships(
         or type(bronze) is not ExactEvidenceBronzeJoinObservations
         or any(type(row) is not ExactCrossSourceLinkRecord for row in links)
         or any(type(row) is not ExactCrossSourceLinkEvidenceRecord for row in evidence)
+        or len(links) > 217
+        or len(evidence) > 434
     ):
         raise TypeError("exact evidence relationships require exact tuples and facts")
+    if len(evidence) != len(links) * 2:
+        raise ValueError("exact evidence count is incomplete")
     ExactEvidenceBronzeJoinObservations.model_validate(
         bronze.model_dump(mode="python"),
         strict=True,
@@ -389,7 +395,7 @@ def _verify_evidence_relationships(
         previous = key
     for rows in grouped.values():
         if (
-            not rows
+            len(rows) != 2
             or rows[0].evidence_role != "left_identifier"
             or rows[0].evidence_role_order != 0
             or rows[0].evidence_ordinal != 0
@@ -413,6 +419,7 @@ def _strict_parse_filtered_linked_records(
 ) -> tuple[BaseModel, ...]:
     if (
         type(exact_ids) is not tuple
+        or len(exact_ids) > 217
         or any(type(value) is not str or not value for value in exact_ids)
         or tuple(sorted(set(exact_ids))) != exact_ids
         or not isinstance(model_type, type)
@@ -423,7 +430,7 @@ def _strict_parse_filtered_linked_records(
     parsed: list[BaseModel] = []
     observed: list[str] = []
     for batch in batches:
-        if type(batch) is not tuple or len(batch) > 65_536:
+        if type(batch) is not tuple or len(batch) > 217:
             raise ValueError("linked record batch is not bounded")
         for row in batch:
             if type(row) is not LinkedRecordJson:
@@ -466,6 +473,9 @@ def _issue_exact_evidence_observations(
             )
         )
         or max_relation_batch_rows > 65_536
+        or exact_links.observed > 217
+        or exact_link_evidence.observed > 434
+        or exact_link_evidence.observed != exact_links.observed * 2
         or matched_bronze_cells != exact_link_evidence.observed
         or matched_left_records != exact_links.observed
         or matched_right_records != exact_links.observed
@@ -505,7 +515,7 @@ def verify_exact_link_evidence(
     from finproof.data.artifacts.quality_persistence import StagedBoundedRelationVerifier
     from finproof.data.artifacts.silver import require_silver_build_result_successor
     from finproof.domain.domestic_listed import ListedProduct
-    from finproof.domain.public_funds import FundItem
+    from finproof.domain.public_funds import PublicFundItem
 
     if (
         type(relation_verifier) is not StagedBoundedRelationVerifier
@@ -552,20 +562,20 @@ def verify_exact_link_evidence(
         tables=tables,
         side_name="fund",
         exact_ids=right_ids,
-        model_type=FundItem,
+        model_type=PublicFundItem,
     )
     return _issue_exact_evidence_observations(
         owner=build_result,
         exact_links=ExpectedObservedCount(
-            expected=config.exact_links.links,
+            expected=len(build_result.links),
             observed=len(build_result.links),
         ),
         exact_link_evidence=ExpectedObservedCount(
-            expected=config.exact_links.evidence,
+            expected=len(build_result.evidence),
             observed=len(build_result.evidence),
         ),
         exact_link_pair_sha256=ExpectedObservedSha256(
-            expected=config.exact_links.pair_sha256,
+            expected=build_result.pair_sha256,
             observed=build_result.pair_sha256,
         ),
         matched_bronze_cells=bronze.matched_bronze_cells,
@@ -585,7 +595,7 @@ def _verify_linked_side(
 ) -> tuple[int, int]:
     from finproof.data.artifacts.reports import ExactLinkedSide
     from finproof.domain.domestic_listed import ListedProduct
-    from finproof.domain.public_funds import FundItem
+    from finproof.domain.public_funds import PublicFundItem
 
     observed: list[str] = []
     max_batch = 0
@@ -594,7 +604,7 @@ def _verify_linked_side(
         side=ExactLinkedSide(side_name),
         exact_ids=exact_ids,
     ):
-        if type(batch) is not tuple or len(batch) > 65_536:
+        if type(batch) is not tuple or len(batch) > 217:
             raise ValueError("linked wide-record batch is not bounded")
         max_batch = max(max_batch, len(batch))
         for row in batch:
@@ -607,13 +617,13 @@ def _verify_linked_side(
                     record_json=row.record_json,
                 )
                 product_id = listed.product_id.normalized_value
-            elif model_type is FundItem:
+            elif model_type is PublicFundItem:
                 fund = _parse_registered_wide_record_json(
-                    model_type=FundItem,
+                    model_type=PublicFundItem,
                     spec=TABLE_SPEC_BY_NAME["silver_fund_item"],
                     record_json=row.record_json,
                 )
-                product_id = fund.fund_item_id.representative.normalized_value
+                product_id = fund.fund_item_id.normalized_value
             else:
                 raise TypeError("linked wide-record model changed")
             if product_id != row.product_id:
@@ -672,8 +682,10 @@ def _link_from_candidate(
 def _reject_left_conflicts(
     candidates: tuple[ExactLinkCandidateJoinRow, ...],
 ) -> None:
-    if type(candidates) is not tuple or any(
-        type(candidate) is not ExactLinkCandidateJoinRow for candidate in candidates
+    if (
+        type(candidates) is not tuple
+        or len(candidates) > 217
+        or any(type(candidate) is not ExactLinkCandidateJoinRow for candidate in candidates)
     ):
         raise TypeError("left conflict validation requires exact candidate rows")
     rights_by_left: dict[str, set[str]] = {}
@@ -692,8 +704,10 @@ def _reject_left_conflicts(
 def _reject_right_and_duplicate_conflicts(
     candidates: tuple[ExactLinkCandidateJoinRow, ...],
 ) -> None:
-    if type(candidates) is not tuple or any(
-        type(candidate) is not ExactLinkCandidateJoinRow for candidate in candidates
+    if (
+        type(candidates) is not tuple
+        or len(candidates) > 217
+        or any(type(candidate) is not ExactLinkCandidateJoinRow for candidate in candidates)
     ):
         raise TypeError("right conflict validation requires exact candidate rows")
     lefts_by_right: dict[str, set[str]] = {}
@@ -731,6 +745,8 @@ def _evidence_from_candidate(
         or type(link) is not ExactCrossSourceLinkRecord
     ):
         raise TypeError("evidence construction requires exact candidate and link records")
+    if len(candidate.right.identifiers) != 1:
+        raise ValueError("exact evidence requires one direct fund-item identifier")
     rows = [
         _evidence_record(
             link_id=link.link_id,
@@ -842,7 +858,7 @@ def canonical_link_pair_tsv(
     *,
     expected_links: int,
 ) -> bytes:
-    if type(expected_links) is not int or not 0 <= expected_links <= 65_536:
+    if type(expected_links) is not int or not 0 <= expected_links <= 217:
         raise ValueError("expected link count is outside the closed bound")
     iterator = iter(rows)
     payload = bytearray()

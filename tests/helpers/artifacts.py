@@ -1,4 +1,4 @@
-"""Complete synthetic Task 5 artifact fixtures."""
+"""Complete synthetic refreshed artifact fixtures."""
 
 import hashlib
 from datetime import UTC, date, datetime
@@ -12,20 +12,20 @@ from finproof.data.artifacts.parquet_io import (
 )
 
 TABLES: Final[tuple[tuple[str, str, int], ...]] = (
-    ("bronze_source_column", "source_column", 207),
-    ("bronze_source_row", "source_row", 145_393),
-    ("bronze_source_cell", "source_cell", 6_401_851),
-    ("silver_bond_instrument", "instrument", 42_394),
-    ("silver_domestic_listed_product", "listed_product", 1_733),
-    ("silver_overseas_listed_product", "listed_product", 5_646),
-    ("silver_fund_item", "fund_item", 11_138),
-    ("silver_fund_item_attribute", "fund_attribute", 95_618),
-    ("silver_quality_issue", "quality_issue", 4),
-    ("gold_exact_cross_source_link", "exact_cross_source_link", 47),
+    ("bronze_source_column", "source_column", 251),
+    ("bronze_source_row", "source_row", 53_375),
+    ("bronze_source_cell", "source_cell", 2_828_505),
+    ("silver_bond_sale_lot", "bond_sale_lot", 21_882),
+    ("silver_bond_instrument", "instrument", 20_497),
+    ("silver_domestic_listed_product", "listed_product", 1_779),
+    ("silver_overseas_listed_product", "listed_product", 6_037),
+    ("silver_fund_item", "fund_item", 23_676),
+    ("silver_quality_issue", "quality_issue", 1),
+    ("gold_exact_cross_source_link", "exact_cross_source_link", 217),
     (
         "gold_exact_cross_source_link_evidence",
         "exact_cross_source_link_evidence",
-        371,
+        434,
     ),
 )
 
@@ -63,7 +63,13 @@ def artifact_staging_settings(repository_root: Path) -> Any:
         "rating_scale.yaml",
         "state_rules.yaml",
     ):
-        version = "1.1.0" if name == "state_rules.yaml" else "1.0.0"
+        version = (
+            "1.2.0"
+            if name == "state_rules.yaml"
+            else "1.1.0"
+            if name == "quality_rules.yaml"
+            else "1.0.0"
+        )
         (config_root / name).write_text(f"version: {version}\n", encoding="utf-8")
     schema_root = repository_root / "schemas"
     schema_root.mkdir()
@@ -125,7 +131,7 @@ def expected_contract_payload(*, json_compatible: bool = False) -> dict[str, Any
     logical_inputs_output: object = logical_inputs
     tables_output: object = tables
     reports_output: object = reports
-    dataset_version: object = date(2026, 7, 11)
+    dataset_version: object = date(2026, 8, 24)
     if json_compatible:
         logical_inputs_output = list(logical_inputs)
         tables_output = [
@@ -137,7 +143,7 @@ def expected_contract_payload(*, json_compatible: bool = False) -> dict[str, Any
             for table in tables
         ]
         reports_output = list(reports)
-        dataset_version = "2026-07-11"
+        dataset_version = "2026-08-24"
     return {
         "artifact_contract_version": "1.0.0",
         "artifact_set_id": "finproof-data-artifacts/v1",
@@ -149,7 +155,7 @@ def expected_contract_payload(*, json_compatible: bool = False) -> dict[str, Any
         "exact_link_pair_sha256": (
             "8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962"
         ),
-        "exact_link_evidence_count": 371,
+        "exact_link_evidence_count": 434,
     }
 
 
@@ -213,7 +219,7 @@ def manifest_payload() -> dict[str, Any]:
         "manifest_version": "1.0.0",
         "artifact_contract_version": "1.0.0",
         "artifact_set_id": "finproof-data-artifacts/v1",
-        "dataset_version": date(2026, 7, 11),
+        "dataset_version": date(2026, 8, 24),
         "persistence_timestamp": datetime(2026, 8, 15, tzinfo=UTC),
         "source_inputs": tuple(
             {
@@ -226,10 +232,10 @@ def manifest_payload() -> dict[str, Any]:
             for namespace, path, kind in INPUTS
         ),
         "versions": {
-            "dataset_version": date(2026, 7, 11),
+            "dataset_version": date(2026, 8, 24),
             "metric_registry_version": "1.0.0",
-            "state_rule_version": "1.1.0",
-            "quality_rule_version": "1.0.0",
+            "state_rule_version": "1.2.0",
+            "quality_rule_version": "1.1.0",
             "rating_rule_version": "1.0.0",
             "answer_policy_version": "1.0.0",
             "planner_version": "1.0.0",
@@ -503,21 +509,21 @@ def write_report_artifact_tree(
         for table in OFFICIAL_TABLE_IDS
     )
     silver_names = (
+        ("bond_sale_lot", "silver_bond_sale_lot"),
         ("bond_instrument", "silver_bond_instrument"),
         ("domestic_listed_product", "silver_domestic_listed_product"),
         ("overseas_listed_product", "silver_overseas_listed_product"),
         ("fund_item", "silver_fund_item"),
-        ("fund_item_attribute", "silver_fund_item_attribute"),
     )
     silver_tables = tuple(
         NamedExpectedObservedCount(
             name=cast(
                 Literal[
+                    "bond_sale_lot",
                     "bond_instrument",
                     "domestic_listed_product",
                     "overseas_listed_product",
                     "fund_item",
-                    "fund_item_attribute",
                 ],
                 name,
             ),
@@ -602,22 +608,18 @@ def write_report_artifact_tree(
         join_observations=observations,
         excluded_silver_records=tuple(
             ExcludedSilverCount(
-                grain=cast(
-                    Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
-                    grain,
-                ),
+                grain=cast(Literal["instrument", "listed_product", "fund_item"], grain),
                 count=count,
             )
             for grain, count in (
                 (
-                    "fund_attribute",
-                    source_tables[3].observed_rows
-                    - len(rows_by_table.get("silver_fund_item_attribute", ())),
+                    "fund_item",
+                    source_tables[3].observed_rows - len(rows_by_table.get("silver_fund_item", ())),
                 ),
                 (
                     "instrument",
                     source_tables[0].observed_rows
-                    - len(rows_by_table.get("silver_bond_instrument", ())),
+                    - len(rows_by_table.get("silver_bond_sale_lot", ())),
                 ),
                 (
                     "listed_product",

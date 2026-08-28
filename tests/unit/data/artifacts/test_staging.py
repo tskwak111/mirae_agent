@@ -1046,10 +1046,10 @@ def test_external_order_store_cp5_relation_inventory_is_exact_and_closed() -> No
 
     assert tuple(ExternalOrderRelation) == (
         ExternalOrderRelation.BRONZE_SOURCE_ROW,
-        ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+        ExternalOrderRelation.SILVER_BOND_SALE_LOT,
         ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
         ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
-        ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+        ExternalOrderRelation.SILVER_FUND_ITEM,
         ExternalOrderRelation.SILVER_QUALITY_ISSUE,
         ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE,
         ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
@@ -1103,9 +1103,13 @@ def test_external_order_store_typed_batch_insert_and_export_are_bounded(tmp_path
             limits=ExternalOrderStoreTestLimits(batch_rows=3, memory_limit_bytes=1 << 20),
         ) as store,
     ):
-        store.insert_batch(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT, rows=iter(rows))
+        store.insert_batch(
+            relation=ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT, rows=iter(rows)
+        )
         batches = tuple(
-            store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT)
+            store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
+            )
         )
 
     assert all(1 <= len(batch) <= 3 for batch in batches)
@@ -1143,12 +1147,10 @@ def test_external_order_store_preserves_numeric_and_string_key_order(tmp_path: P
         ) as session,
         session.open_external_order_store(config=config) as store,
     ):
-        store.insert_batch(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW, rows=rows)
+        store.insert_batch(relation=ExternalOrderRelation.SILVER_FUND_ITEM, rows=rows)
         ordered = tuple(
             row
-            for batch in store.iter_ordered_batches(
-                relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW
-            )
+            for batch in store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_FUND_ITEM)
             for row in batch
         )
 
@@ -1195,10 +1197,10 @@ def test_external_order_store_ordered_stream_survives_nested_candidate_insert(
         ) as store,
     ):
         store.insert_batch(
-            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+            relation=ExternalOrderRelation.SILVER_FUND_ITEM,
             rows=source_rows,
         )
-        batches = store.iter_ordered_batches(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW)
+        batches = store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_FUND_ITEM)
         first = next(batches)
         store.insert_batch(
             relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
@@ -1623,10 +1625,10 @@ def test_external_order_store_rejects_wrong_arity_bool_coercion_noncanonical_pay
 
     def insert_and_read(store: ExternalOrderStore) -> None:
         store.insert_batch(
-            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
+            relation=ExternalOrderRelation.SILVER_FUND_ITEM,
             rows=rows,
         )
-        tuple(store.iter_ordered_batches(relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW))
+        tuple(store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_FUND_ITEM))
 
     with (
         ArtifactBuildSession.initialize(
@@ -1780,19 +1782,16 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
     )
     from finproof.data.artifacts.table_specs import TABLE_SPECS
     from finproof.data.normalization.domestic_listed import normalize_domestic_listed
-    from finproof.data.normalization.public_funds import (
-        collapse_fund_items,
-        normalize_fund_attribute,
-    )
+    from finproof.data.normalization.public_funds import normalize_public_fund_item
     from tests.helpers.source_rows import source_row
 
     domestic_source = source_row("PREF01N001")
-    domestic_result = normalize_domestic_listed(domestic_source, date(2026, 7, 11))
+    domestic_result = normalize_domestic_listed(domestic_source, date(2026, 8, 24))
     assert domestic_result.record is not None
     domestic = domestic_result.record
-    fund_result = normalize_fund_attribute(source_row("PRFD01N001"))
+    fund_result = normalize_public_fund_item(source_row("PRFD01N001"))
     assert fund_result.record is not None
-    fund = collapse_fund_items((fund_result.record,)).items[0]
+    fund = fund_result.record
     cell = domestic_source.cell("pd_itm_no")
     bronze_cell = BronzeSourceCellRecord(
         source_table_order=1,
@@ -1814,7 +1813,7 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
         left_product_id=str(domestic.product_id.normalized_value),
         left_identifier_field="pd_itm_no",
         right_table="silver_fund_item",
-        right_product_id=str(fund.fund_item_id.representative.normalized_value),
+        right_product_id=str(fund.fund_item_id.normalized_value),
         right_identifier_field="ksd_itm_no",
         matched_raw_identifier=cell.raw_value,
         link_type="exact_identifier",
@@ -1841,8 +1840,8 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
     )
     rows_by_table = {
         "bronze_source_cell": (serialize_table_row(TABLE_SPECS[2], bronze_cell),),
-        "silver_domestic_listed_product": (serialize_table_row(TABLE_SPECS[4], domestic),),
-        "silver_fund_item": (serialize_table_row(TABLE_SPECS[6], fund),),
+        "silver_domestic_listed_product": (serialize_table_row(TABLE_SPECS[5], domestic),),
+        "silver_fund_item": (serialize_table_row(TABLE_SPECS[7], fund),),
         "gold_exact_cross_source_link": (serialize_table_row(TABLE_SPECS[9], link),),
         "gold_exact_cross_source_link_evidence": (serialize_table_row(TABLE_SPECS[10], evidence),),
     }
@@ -1892,7 +1891,7 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
             for batch in store.iter_join_batches(
                 operation=ExternalOrderJoinOperation.LINKED_FUND_RECORD_JSON,
                 tables=tables,
-                exact_ids=(str(fund.fund_item_id.representative.normalized_value),),
+                exact_ids=(str(fund.fund_item_id.normalized_value),),
             )
             for row in batch
         )
@@ -1911,7 +1910,7 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
         )
         assert fund_rows == (
             ExternalOrderJoinRow(
-                key=(str(fund.fund_item_id.representative.normalized_value),),
+                key=(str(fund.fund_item_id.normalized_value),),
                 values=(canonical_record_json(fund),),
             ),
         )
@@ -2384,7 +2383,7 @@ def test_candidate_custody_admits_exact_evidence_once_with_numeric_key_payload_o
     payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
         mode="python"
     )
-    payload["exact_links"]["evidence"] = 2
+    payload["exact_link_candidate_limit"] = 1
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
     evidence = tuple(
         ExactCrossSourceLinkEvidenceRecord(
@@ -2542,11 +2541,13 @@ def test_external_order_store_orders_bounded_single_pass_batches_without_materia
         ) as store,
     ):
         store.insert_batch(
-            relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+            relation=ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
             rows=rows,
         )
         batches = tuple(
-            store.iter_ordered_batches(relation=ExternalOrderRelation.SILVER_BOND_INSTRUMENT)
+            store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
+            )
         )
         assert all(1 <= len(batch) <= limits.batch_rows for batch in batches)
         assert tuple(row.key for batch in batches for row in batch) == tuple(

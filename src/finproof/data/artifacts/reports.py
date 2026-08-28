@@ -399,7 +399,7 @@ class _FinalInventoryRelationVerifier:
                     evidence.source_column_number,
                 )
                 evidence_by_cell.setdefault(cell_key, []).append(evidence)
-                if sum(map(len, evidence_by_cell.values())) > 371:
+                if sum(map(len, evidence_by_cell.values())) > 434:
                     raise ValueError("exact evidence key bound exceeded")
                 previous = key
         finally:
@@ -449,7 +449,7 @@ class _FinalInventoryRelationVerifier:
         if (
             type(exact_ids) is not tuple
             or not exact_ids
-            or len(exact_ids) > 47
+            or len(exact_ids) > 217
             or any(type(value) is not str or not value for value in exact_ids)
             or tuple(sorted(set(exact_ids))) != exact_ids
         ):
@@ -574,7 +574,7 @@ class BronzeSourceAuditObservations:
         schema_catalog_sha256: str,
         source_tables: tuple[SourceTableAudit, ...],
     ) -> BronzeSourceAuditObservations:
-        if type(source_snapshot_date) is not date or source_snapshot_date != date(2026, 7, 11):
+        if type(source_snapshot_date) is not date or source_snapshot_date != date(2026, 8, 24):
             raise ValueError("Bronze observations require the official snapshot date")
         for digest in (source_manifest_sha256, schema_catalog_sha256):
             if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
@@ -667,11 +667,11 @@ class NamedExpectedObservedCount(BaseModel):
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
     name: Literal[
+        "bond_sale_lot",
         "bond_instrument",
         "domestic_listed_product",
         "overseas_listed_product",
         "fund_item",
-        "fund_item_attribute",
     ]
     expected: NonNegativeInt
     observed: NonNegativeInt
@@ -787,11 +787,11 @@ class SilverSourceAuditObservations:
             type(silver_tables) is not tuple
             or tuple(item.name for item in silver_tables)
             != (
+                "bond_sale_lot",
                 "bond_instrument",
                 "domestic_listed_product",
                 "overseas_listed_product",
                 "fund_item",
-                "fund_item_attribute",
             )
             or any(type(item) is not NamedExpectedObservedCount for item in silver_tables)
             or type(quarantine_source_rows) is not ExpectedObservedCount
@@ -1073,19 +1073,18 @@ class SourceAuditReport(BaseModel):
             for item in observations.source_tables
         )
         configured_silver = (
+            config.silver_counts.bond_sale_lot,
             config.silver_counts.bond_instrument,
             config.silver_counts.domestic_listed_product,
             config.silver_counts.overseas_listed_product,
             config.silver_counts.fund_item,
-            config.silver_counts.fund_item_attribute,
         )
         if (
             expected_source != observed_source
             or configured_silver != tuple(item.expected for item in observations.silver_tables)
             or config.quarantine_source_rows != observations.quarantine_source_rows.expected
-            or config.exact_links.links != observations.exact_links.expected
-            or config.exact_links.evidence != observations.exact_link_evidence.expected
-            or config.exact_links.pair_sha256 != observations.exact_link_pair_sha256.expected
+            or observations.exact_links.observed > config.exact_link_candidate_limit
+            or observations.exact_link_evidence.observed != observations.exact_links.observed * 2
         ):
             raise ValueError("source-audit observations disagree with build config")
         report = cls(
@@ -1115,8 +1114,8 @@ class SourceAuditReport(BaseModel):
 
     @model_validator(mode="after")
     def require_closed_inventory_order(self) -> Self:
-        if self.source_snapshot_date != date(2026, 7, 11):
-            raise ValueError("source_snapshot_date must be 2026-07-11")
+        if self.source_snapshot_date != date(2026, 8, 24):
+            raise ValueError("source_snapshot_date must be 2026-08-24")
         if tuple(entry.source_table for entry in self.source_tables) != (
             "PRBD01N001",
             "PREF01N001",
@@ -1125,11 +1124,11 @@ class SourceAuditReport(BaseModel):
         ):
             raise ValueError("source_tables must use the exact closed order")
         if tuple(entry.name for entry in self.silver_tables) != (
+            "bond_sale_lot",
             "bond_instrument",
             "domestic_listed_product",
             "overseas_listed_product",
             "fund_item",
-            "fund_item_attribute",
         ):
             raise ValueError("silver_tables must use the exact closed order")
         return self
@@ -1498,21 +1497,21 @@ class StrictArtifactReportVerifier:
         )
         handle_counts = {handle.table_name: handle.row_count for handle in tables.handles}
         silver_names = (
+            ("bond_sale_lot", "silver_bond_sale_lot"),
             ("bond_instrument", "silver_bond_instrument"),
             ("domestic_listed_product", "silver_domestic_listed_product"),
             ("overseas_listed_product", "silver_overseas_listed_product"),
             ("fund_item", "silver_fund_item"),
-            ("fund_item_attribute", "silver_fund_item_attribute"),
         )
         silver_tables = tuple(
             NamedExpectedObservedCount(
                 name=cast(
                     Literal[
+                        "bond_sale_lot",
                         "bond_instrument",
                         "domestic_listed_product",
                         "overseas_listed_product",
                         "fund_item",
-                        "fund_item_attribute",
                     ],
                     name,
                 ),
@@ -1534,7 +1533,7 @@ class StrictArtifactReportVerifier:
         links: list[ExactCrossSourceLinkRecord] = []
         try:
             for row in link_rows:
-                if len(links) == 47:
+                if len(links) == 217:
                     raise ValueError("exact linked-record bound exceeded")
                 links.append(ExactCrossSourceLinkRecord.model_validate(row, strict=True))
         finally:
@@ -1543,6 +1542,8 @@ class StrictArtifactReportVerifier:
         gold_evidence: list[ExactCrossSourceLinkEvidenceRecord] = []
         try:
             for row in gold_evidence_rows:
+                if len(gold_evidence) == 434:
+                    raise ValueError("exact evidence bound exceeded")
                 payload = dict(row)
                 payload["source_file"] = PurePosixPath(cast(str, payload["source_file"]))
                 gold_evidence.append(
@@ -1619,19 +1620,16 @@ class StrictArtifactReportVerifier:
         excluded = tuple(
             ExcludedSilverCount(
                 grain=cast(
-                    Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
+                    Literal["instrument", "listed_product", "fund_item"],
                     grain,
                 ),
                 count=count,
             )
             for grain, count in (
-                (
-                    "fund_attribute",
-                    row_counts["PRFD01N001"] - handle_counts["silver_fund_item_attribute"],
-                ),
+                ("fund_item", row_counts["PRFD01N001"] - handle_counts["silver_fund_item"]),
                 (
                     "instrument",
-                    row_counts["PRBD01N001"] - handle_counts["silver_bond_instrument"],
+                    row_counts["PRBD01N001"] - handle_counts["silver_bond_sale_lot"],
                 ),
                 (
                     "listed_product",

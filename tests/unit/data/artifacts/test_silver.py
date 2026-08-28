@@ -35,14 +35,74 @@ def _silver_fixture_config(
     )
     payload = config.model_dump(mode="python")
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
     return ArtifactBuildConfig.model_validate(payload, strict=True)
+
+
+def test_refreshed_emitter_stages_bond_lots_by_parent_source_key_and_funds_directly(
+    tmp_path: Path,
+) -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildOptions
+    from finproof.data.artifacts.silver import SilverArtifactEmitter
+    from finproof.data.artifacts.staging import ArtifactBuildSession, ExternalOrderRelation
+    from finproof.domain.bonds import BondSaleLot
+    from finproof.domain.public_funds import PublicFundItem
+    from finproof.registry.rating import RatingRegistry
+    from tests.helpers.artifacts import artifact_build_input_identity
+    from tests.helpers.xlsx import write_complete_bronze_repository
+
+    versions = VersionBundle()
+    settings = write_complete_bronze_repository(tmp_path / "repository")
+    config = _silver_fixture_config(settings, versions)
+    registry = RatingRegistry.from_yaml(settings.repository_root / "config/rating_scale.yaml")
+    rows = (
+        source_row(
+            "PRBD01N001",
+            {
+                "pd_no": "KR0000000001",
+                "pd_exg_mkt": "장외",
+                "info_base_dt": "20260822",
+                "info_seq": "1",
+            },
+        ),
+        source_row(
+            "PRFD01N001",
+            {"itm_no": "KR5114601001", "ksd_itm_no": "KR7000000001"},
+        ),
+    )
+    with ArtifactBuildSession.initialize(
+        settings,
+        versions,
+        ArtifactBuildOptions(persistence_timestamp=datetime(2026, 8, 15, tzinfo=UTC)),
+        input_identity=artifact_build_input_identity(settings),
+    ) as session:
+        emitter = SilverArtifactEmitter.for_session(
+            session=session, config=config, versions=versions, rating_registry=registry
+        )
+        for row in rows:
+            emitter.consume(row)
+
+        bond = next(
+            emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_BOND_SALE_LOT
+            )
+        )[0]
+        fund = next(
+            emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_FUND_ITEM
+            )
+        )[0]
+        assert bond.key == ("KR0000000001", "장외", "20260822", "1", 2)
+        assert BondSaleLot.model_validate_json(bond.payload_json).source_row == rows[0]
+        assert fund.key == ("KR5114601001", 2)
+        assert PublicFundItem.model_validate_json(fund.payload_json).source_row == rows[1]
 
 
 def test_silver_emitter_factory_accepts_exact_live_session_and_held_rating_registry(
@@ -96,7 +156,7 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
         ArtifactBuildSession,
         ExternalOrderRelation,
     )
-    from finproof.data.normalization.bonds import normalize_bond
+    from finproof.data.normalization.bonds import normalize_bond_lot
     from finproof.data.normalization.domestic_listed import normalize_domestic_listed
     from finproof.data.normalization.overseas_listed import normalize_overseas_listed
     from finproof.registry.rating import RatingRegistry
@@ -111,12 +171,12 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
     )
     rows = (
         source_row("PREF02N001"),
-        source_row("PRBD01N001", {"PD_NO": "KR0000000002"}),
+        source_row("PRBD01N001", {"pd_no": "KR0000000002"}),
         source_row("PREF01N001", {"pd_itm_no": "KR7000000002"}),
     )
     expected = (
         normalize_overseas_listed(rows[0]),
-        normalize_bond(rows[1], versions.dataset_version, rating_registry),
+        normalize_bond_lot(rows[1], rating_registry),
         normalize_domestic_listed(rows[2], versions.dataset_version),
     )
     calls: list[tuple[str, object]] = []
@@ -125,11 +185,10 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
         calls.append(("overseas", row))
         return normalize_overseas_listed(row)
 
-    def wrapped_bond(row, as_of, registry):
-        assert as_of == versions.dataset_version
+    def wrapped_bond(row, registry):
         assert registry is rating_registry
         calls.append(("bond", row))
-        return normalize_bond(row, as_of, registry)
+        return normalize_bond_lot(row, registry)
 
     def wrapped_domestic(row, as_of):
         assert as_of == versions.dataset_version
@@ -137,7 +196,7 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
         return normalize_domestic_listed(row, as_of)
 
     monkeypatch.setattr(silver, "normalize_overseas_listed", wrapped_overseas)
-    monkeypatch.setattr(silver, "normalize_bond", wrapped_bond)
+    monkeypatch.setattr(silver, "normalize_bond_lot", wrapped_bond)
     monkeypatch.setattr(silver, "normalize_domestic_listed", wrapped_domestic)
 
     with ArtifactBuildSession.initialize(
@@ -162,7 +221,7 @@ def test_silver_emitter_uses_exact_nonfund_normalizers(
         ]
         relation_by_index = (
             ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
-            ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
+            ExternalOrderRelation.SILVER_BOND_SALE_LOT,
             ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
         )
         for relation, result in zip(relation_by_index, expected, strict=True):
@@ -273,18 +332,9 @@ def test_silver_emitter_stages_fund_representative_and_every_equal_ordered_locat
             {
                 "itm_no": "KR5114601001",
                 "ksd_itm_no": "KR7000000009",
-                "prfd_attr_cd": "A101",
+                "prfd_attr_cds": "A101,B101",
             },
             excel_row=2,
-        ),
-        source_row(
-            "PRFD01N001",
-            {
-                "itm_no": "KR5114601001",
-                "ksd_itm_no": "KR7000000009",
-                "prfd_attr_cd": "B101",
-            },
-            excel_row=3,
         ),
     )
     with ArtifactBuildSession.initialize(
@@ -303,17 +353,23 @@ def test_silver_emitter_stages_fund_representative_and_every_equal_ordered_locat
         )
         for row in rows:
             emitter.consume(row)
-        normalized_groups = tuple(emitter._iter_normalized_fund_groups())
-        assert len(normalized_groups) == 1
-        item = normalized_groups[0].items[0]
+        staged_items = tuple(
+            staged
+            for batch in emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_FUND_ITEM
+            )
+            for staged in batch
+        )
+        from finproof.domain.public_funds import PublicFundItem
+
+        item = PublicFundItem.model_validate_json(staged_items[0].payload_json)
         expected = FundExactLinkCandidate(
-            right_product_id=str(item.fund_item_id.representative.normalized_value),
-            identifiers=tuple(
+            right_product_id=str(item.fund_item_id.normalized_value),
+            identifiers=(
                 ExactLinkIdentifierSource(
-                    raw_identifier=item.ksd_id.representative.raw_value,
-                    locator=locator,
-                )
-                for locator in item.ksd_id.equivalent_sources
+                    raw_identifier=item.ksd_id.raw_value,
+                    locator=item.ksd_id.source,
+                ),
             ),
         )
         candidates = tuple(
@@ -326,12 +382,10 @@ def test_silver_emitter_stages_fund_representative_and_every_equal_ordered_locat
         assert len(candidates) == 1
         assert candidates[0].key == (
             "KR7000000009",
-            str(item.fund_item_id.representative.normalized_value),
+            str(item.fund_item_id.normalized_value),
         )
         assert candidates[0].payload_json == canonical_record_json(expected)
-        assert tuple(source.locator for source in expected.identifiers) == tuple(
-            item.ksd_id.equivalent_sources
-        )
+        assert tuple(source.locator for source in expected.identifiers) == (item.ksd_id.source,)
 
 
 def test_silver_emitter_retains_fund_item_but_skips_empty_exact_link_identifier_candidate(
@@ -353,7 +407,7 @@ def test_silver_emitter_retains_fund_item_but_skips_empty_exact_link_identifier_
         {
             "itm_no": "KR5114601001",
             "ksd_itm_no": "",
-            "prfd_attr_cd": "A101",
+            "prfd_attr_cds": "A101",
         },
         excel_row=2,
     )
@@ -373,7 +427,13 @@ def test_silver_emitter_retains_fund_item_but_skips_empty_exact_link_identifier_
         )
         emitter.consume(row)
 
-        groups = tuple(emitter._iter_normalized_fund_groups())
+        funds = tuple(
+            staged
+            for batch in emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_FUND_ITEM
+            )
+            for staged in batch
+        )
         candidates = tuple(
             staged
             for batch in emitter._order_store.iter_ordered_batches(
@@ -382,9 +442,7 @@ def test_silver_emitter_retains_fund_item_but_skips_empty_exact_link_identifier_
             for staged in batch
         )
 
-        assert len(groups) == 1
-        assert len(groups[0].items) == 1
-        assert groups[0].items[0].fund_item_id.representative.normalized_value == "KR5114601001"
+        assert len(funds) == 1
         assert candidates == ()
 
 
@@ -400,14 +458,14 @@ def test_issue_bearing_silver_build_uses_numeric_source_table_order_key_end_to_e
     from finproof.data.artifacts.staging import ArtifactBuildSession
     from finproof.registry.rating import RatingRegistry
     from tests.helpers.artifacts import artifact_build_input_identity
-    from tests.helpers.source_rows import BOND_COLUMNS
+    from tests.helpers.source_rows import REFRESHED_BOND_COLUMNS
     from tests.helpers.xlsx import write_complete_bronze_repository, write_xlsx
 
     versions = VersionBundle()
     settings = write_complete_bronze_repository(tmp_path / "repository")
-    issue_row = source_row("PRBD01N001", {"PD_NO": '"'})
+    issue_row = source_row("PRBD01N001", {"pd_no": '"'})
     workbook = settings.source_root / "data/PRBD01N001_data.xlsx"
-    write_xlsx(workbook, rows=(BOND_COLUMNS, issue_row.raw_payload))
+    write_xlsx(workbook, rows=(REFRESHED_BOND_COLUMNS, issue_row.raw_payload))
     manifest_path = settings.source_root / "input_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     entry = next(item for item in manifest["files"] if item.get("table_id") == "PRBD01N001")
@@ -419,6 +477,7 @@ def test_issue_bearing_silver_build_uses_numeric_source_table_order_key_end_to_e
     base_config = _silver_fixture_config(settings, versions)
     config_payload = base_config.model_dump(mode="python")
     config_payload["silver_counts"]["bond_instrument"] = 0
+    config_payload["silver_counts"]["bond_sale_lot"] = 0
     config_payload["quarantine_source_rows"] = 1
     config = ArtifactBuildConfig.model_validate(config_payload, strict=True)
     with ArtifactBuildSession.initialize(
@@ -452,7 +511,7 @@ def test_silver_emitter_consumes_each_row_once_only_after_bronze_enqueue(
     from finproof.data.artifacts.bronze import BronzeFanoutSink
     from finproof.data.artifacts.config import ArtifactBuildOptions
     from finproof.data.artifacts.staging import ArtifactBuildSession
-    from finproof.data.normalization.bonds import normalize_bond
+    from finproof.data.normalization.bonds import normalize_bond_lot
     from finproof.registry.rating import RatingRegistry
     from tests.helpers.artifacts import artifact_build_input_identity
     from tests.helpers.xlsx import write_complete_bronze_repository
@@ -463,7 +522,7 @@ def test_silver_emitter_consumes_each_row_once_only_after_bronze_enqueue(
     rating_registry = RatingRegistry.from_yaml(
         settings.repository_root / "config/rating_scale.yaml"
     )
-    row = source_row("PRBD01N001")
+    row = source_row("PRBD01N001", {"pd_no": "KR0000000001"})
     row_sink = type(
         "Sink", (), {"rows": [], "enqueue": lambda self, value: self.rows.append(value)}
     )()
@@ -472,15 +531,15 @@ def test_silver_emitter_consumes_each_row_once_only_after_bronze_enqueue(
     )()
     calls = 0
 
-    def wrapped(source, as_of, registry):
+    def wrapped(source, registry):
         nonlocal calls
         assert row_sink.rows
         assert len(cell_sink.rows) == len(row.cells)
         assert source is row
         calls += 1
-        return normalize_bond(source, as_of, registry)
+        return normalize_bond_lot(source, registry)
 
-    monkeypatch.setattr(silver, "normalize_bond", wrapped)
+    monkeypatch.setattr(silver, "normalize_bond_lot", wrapped)
     with ArtifactBuildSession.initialize(
         settings,
         versions,
@@ -525,10 +584,10 @@ def test_silver_emitter_stages_fund_keys_and_keeps_only_one_group_live(
         settings.repository_root / "config/rating_scale.yaml"
     )
     rows = (
-        source_row("PRFD01N001", {"itm_no": "KR5114601002", "prfd_attr_cd": "B"}, excel_row=5),
-        source_row("PRFD01N001", {"itm_no": "KR5114601001", "prfd_attr_cd": "A"}, excel_row=2),
-        source_row("PRFD01N001", {"itm_no": "KR5114601002", "prfd_attr_cd": "A"}, excel_row=4),
-        source_row("PRFD01N001", {"itm_no": "KR5114601001", "prfd_attr_cd": "B"}, excel_row=3),
+        source_row("PRFD01N001", {"itm_no": "KR5114601004", "prfd_attr_cds": "B"}, excel_row=5),
+        source_row("PRFD01N001", {"itm_no": "KR5114601001", "prfd_attr_cds": "A"}, excel_row=2),
+        source_row("PRFD01N001", {"itm_no": "KR5114601003", "prfd_attr_cds": "A"}, excel_row=4),
+        source_row("PRFD01N001", {"itm_no": "KR5114601002", "prfd_attr_cds": "B"}, excel_row=3),
     )
 
     with ArtifactBuildSession.initialize(
@@ -549,20 +608,25 @@ def test_silver_emitter_stages_fund_keys_and_keeps_only_one_group_live(
         ordered = tuple(
             row
             for batch in emitter._order_store.iter_ordered_batches(
-                relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW
+                relation=ExternalOrderRelation.SILVER_FUND_ITEM
             )
             for row in batch
         )
         assert tuple(row.key for row in ordered) == (
             ("KR5114601001", 2),
-            ("KR5114601001", 3),
-            ("KR5114601002", 4),
-            ("KR5114601002", 5),
+            ("KR5114601002", 3),
+            ("KR5114601003", 4),
+            ("KR5114601004", 5),
         )
-        expected_by_key = {
-            (row.cell("itm_no").raw_value, row.source_row_number): canonical_record_json(row)
-            for row in rows
-        }
+        from finproof.data.normalization.public_funds import normalize_public_fund_item
+
+        expected_by_key = {}
+        for source in rows:
+            normalized = normalize_public_fund_item(source)
+            assert normalized.record is not None
+            expected_by_key[(source.cell("itm_no").raw_value, source.source_row_number)] = (
+                canonical_record_json(normalized.record)
+            )
         assert tuple(row.payload_json for row in ordered) == tuple(
             expected_by_key[row.key]  # type: ignore[index]
             for row in ordered
@@ -659,11 +723,11 @@ def test_silver_finalize_drains_relations_and_extends_exact_set_from_three_to_ni
             "bronze_source_column",
             "bronze_source_row",
             "bronze_source_cell",
+            "silver_bond_sale_lot",
             "silver_bond_instrument",
             "silver_domestic_listed_product",
             "silver_overseas_listed_product",
             "silver_fund_item",
-            "silver_fund_item_attribute",
             "silver_quality_issue",
         )
 
@@ -1114,10 +1178,10 @@ def test_silver_instrumentation_has_exact_names_counts_and_bounds(tmp_path: Path
     )
     assert instrumentation.normalizer_call_counts == instrumentation.source_consume_counts
     assert tuple(item.name for item in instrumentation.staged_relation_rows) == (
-        "SILVER_BOND_INSTRUMENT",
+        "SILVER_BOND_SALE_LOT",
         "SILVER_DOMESTIC_LISTED_PRODUCT",
         "SILVER_OVERSEAS_LISTED_PRODUCT",
-        "PUBLIC_FUND_SOURCE_ROW",
+        "SILVER_FUND_ITEM",
         "SILVER_QUALITY_ISSUE",
     )
     assert 0 <= instrumentation.max_live_fund_group_rows <= 16
@@ -1167,7 +1231,6 @@ def test_silver_finalizer_accepts_unstaged_malformed_fund_row_backed_by_quality_
     )
     config_payload = _silver_fixture_config(settings, versions).model_dump(mode="python")
     config_payload["silver_counts"]["fund_item"] = 0
-    config_payload["silver_counts"]["fund_item_attribute"] = 0
     config_payload["quarantine_source_rows"] = 1
     config = ArtifactBuildConfig.model_validate(config_payload, strict=True)
 
@@ -1190,12 +1253,12 @@ def test_silver_finalizer_accepts_unstaged_malformed_fund_row_backed_by_quality_
 
     staged = {item.name: item.observed for item in result.instrumentation.staged_relation_rows}
     assert result.instrumentation.source_consume_counts[-1].observed == 1
-    assert staged["PUBLIC_FUND_SOURCE_ROW"] == 0
+    assert staged["SILVER_FUND_ITEM"] == 0
     assert staged["SILVER_QUALITY_ISSUE"] == 1
     assert result.quality_join_observations.total_issues == 1
     assert tuple(
         (item.grain, item.count) for item in result.quality_report.excluded_silver_records
-    ) == (("fund_attribute", 1),)
+    ) == (("fund_item", 1),)
 
 
 def test_silver_result_successor_validator_accepts_only_exact_registered_eleven_table_successor(

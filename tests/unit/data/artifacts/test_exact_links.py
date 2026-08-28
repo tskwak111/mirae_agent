@@ -35,7 +35,7 @@ def _source(*, table: str, column: str, row: int, raw: str) -> ExactLinkIdentifi
             source_column_number=1,
             source_column_letter="A",
             source_checksum="a" * 64,
-            source_snapshot_date=date(2026, 7, 11),
+            source_snapshot_date=date(2026, 8, 24),
             source_applicable_date=None,
         ),
     )
@@ -153,29 +153,87 @@ def test_exact_link_builder_rejects_one_right_to_multiple_lefts_before_output(
     }
 
 
-def test_exact_evidence_emits_one_left_and_all_contiguous_ordered_right_locators() -> None:
+def test_exact_evidence_emits_one_left_and_one_direct_right_locator() -> None:
     from finproof.data.artifacts.links import _evidence_from_candidate, _link_from_candidate
     from finproof.data.artifacts.serialization import ExactCrossSourceLinkEvidenceRecord
 
-    candidate = _candidate(right_rows=(2, 5, 9))
+    candidate = _candidate(right_rows=(5,))
     link = _link_from_candidate(candidate)
     evidence = _evidence_from_candidate(candidate, link)
 
-    assert len(evidence) == 4
+    assert len(evidence) == 2
     assert all(type(row) is ExactCrossSourceLinkEvidenceRecord for row in evidence)
     assert tuple(
         (row.evidence_role, row.evidence_role_order, row.evidence_ordinal) for row in evidence
     ) == (
         ("left_identifier", 0, 0),
         ("right_identifier", 1, 0),
-        ("right_identifier", 1, 1),
-        ("right_identifier", 1, 2),
     )
-    assert tuple(row.link_id for row in evidence) == (link.link_id,) * 4
-    assert tuple(row.raw_identifier for row in evidence) == (candidate.matched_raw_identifier,) * 4
+    assert tuple(row.link_id for row in evidence) == (link.link_id,) * 2
+    assert tuple(row.raw_identifier for row in evidence) == (candidate.matched_raw_identifier,) * 2
     assert evidence[0].source_column_name == "pd_itm_no"
-    assert tuple(row.source_row_number for row in evidence[1:]) == (2, 5, 9)
-    assert tuple(row.source_column_name for row in evidence[1:]) == ("ksd_itm_no",) * 3
+    assert evidence[1].source_row_number == 5
+    assert evidence[1].source_column_name == "ksd_itm_no"
+
+
+def test_exact_evidence_rejects_non_direct_fund_identifier_candidates() -> None:
+    from finproof.data.artifacts.links import _evidence_from_candidate, _link_from_candidate
+
+    candidate = _candidate(right_rows=(2, 5))
+
+    with pytest.raises(ValueError, match="direct fund-item identifier"):
+        _evidence_from_candidate(candidate, _link_from_candidate(candidate))
+
+
+def test_exact_link_ceiling_is_immutable_and_candidate_batches_close_at_217() -> None:
+    from finproof.data.artifacts.config import ArtifactBuildConfig
+    from finproof.data.artifacts.links import _consume_candidate_batches
+
+    with pytest.raises(ValueError, match="literal_error"):
+        ArtifactBuildConfig.model_validate(
+            {
+                "version": "1.0.0",
+                "artifact_contract_version": "1.0.0",
+                "artifact_set_id": "finproof-data-artifacts/v1",
+                "dataset_snapshot_date": date(2026, 8, 24),
+                "registry_versions": {
+                    "dataset": "1.0.0",
+                    "quality": "1.1.0",
+                    "rating": "1.0.0",
+                    "state": "1.2.0",
+                },
+                "sources": (),
+                "silver_counts": {
+                    "bond_sale_lot": 0,
+                    "bond_instrument": 0,
+                    "domestic_listed_product": 0,
+                    "overseas_listed_product": 0,
+                    "fund_item": 0,
+                },
+                "quarantine_source_rows": 0,
+                "exact_link_candidate_limit": 218,
+                "parquet": {
+                    "compression": "zstd",
+                    "compression_level": 9,
+                    "statistics": False,
+                    "row_group_size": 1,
+                    "data_page_size": 1,
+                    "writer_batch_rows": 1,
+                },
+                "staging": {"threads": 1, "memory_limit": "1GB"},
+            },
+            strict=True,
+        )
+
+    candidates = tuple(
+        _candidate(raw=f"RAW-{index}", left_id=f"L{index}", right_id=f"R{index}")
+        for index in range(218)
+    )
+    rows, maximum = _consume_candidate_batches((candidates[:217],), expected_links=217)
+    assert len(rows) == 217
+    assert maximum == 217
+    with pytest.raises(ValueError, match="exceeded"):
+        _consume_candidate_batches((candidates,), expected_links=217)
 
 
 @pytest.mark.parametrize(
@@ -201,7 +259,7 @@ def test_exact_evidence_rejects_missing_duplicate_reordered_role_ordinal_field_r
         _require_candidate_evidence,
     )
 
-    candidate = _candidate(right_rows=(2, 5))
+    candidate = _candidate()
     link = _link_from_candidate(candidate)
     valid = _evidence_from_candidate(candidate, link)
     if case == "missing":
@@ -209,20 +267,18 @@ def test_exact_evidence_rejects_missing_duplicate_reordered_role_ordinal_field_r
     elif case == "duplicate":
         invalid = (*valid, valid[-1])
     elif case == "reordered":
-        invalid = (valid[1], valid[0], valid[2])
+        invalid = (valid[1], valid[0])
     elif case == "role":
         invalid = (
             valid[0],
             valid[1].model_copy(update={"evidence_role": "left_identifier"}),
-            valid[2],
         )
     elif case == "ordinal":
-        invalid = (valid[0], valid[1].model_copy(update={"evidence_ordinal": 7}), valid[2])
+        invalid = (valid[0], valid[1].model_copy(update={"evidence_ordinal": 7}))
     elif case == "field":
         invalid = (
             valid[0],
             valid[1].model_copy(update={"source_column_name": "itm_no"}),
-            valid[2],
         )
     elif case == "raw":
         invalid = (valid[0].model_copy(update={"raw_identifier": "DIFFERENT"}), *valid[1:])
@@ -242,8 +298,8 @@ def test_reversed_candidates_produce_identical_order_ids_records_and_evidence() 
     from finproof.data.artifacts.links import _build_link_and_evidence_records
 
     candidates = (
-        _candidate(raw="RAW-B", left_id="L2", right_id="R2", right_rows=(4, 7)),
-        _candidate(raw="RAW-A", left_id="L1", right_id="R1", right_rows=(2, 3)),
+        _candidate(raw="RAW-B", left_id="L2", right_id="R2", right_rows=(4,)),
+        _candidate(raw="RAW-A", left_id="L1", right_id="R1", right_rows=(2,)),
     )
 
     forward = _build_link_and_evidence_records(candidates)
@@ -424,18 +480,13 @@ def test_exact_link_build_result_is_factory_only_provenance_bound_and_count_and_
     )
     config_payload = loaded.model_dump(mode="python")
     config_payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     config_payload["quarantine_source_rows"] = 0
-    config_payload["exact_links"] = {
-        "links": 1,
-        "evidence": 2,
-        "pair_sha256": hashlib.sha256(b"L1\tR1\n").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(config_payload, strict=True)
     candidate = _candidate(left_id="L1", right_id="R1")
 
@@ -494,7 +545,7 @@ def test_exact_link_build_result_is_factory_only_provenance_bound_and_count_and_
         assert len(result.links) == 1
         assert len(result.evidence) == 2
         assert result.canonical_pair_tsv == b"L1\tR1\n"
-        assert result.pair_sha256 == config.exact_links.pair_sha256
+        assert result.pair_sha256 == hashlib.sha256(b"L1\tR1\n").hexdigest()
         assert result.max_candidate_batch_rows == 1
         assert result._issuance.silver_result is silver_result
         assert result._issuance.custody is custody
@@ -514,11 +565,11 @@ def test_evidence_relation_is_bidirectionally_equal_to_bronze_cells_and_parent_l
     )
     from finproof.data.artifacts.reports import ExactEvidenceBronzeJoinObservations
 
-    candidate = _candidate(right_rows=(2, 3))
+    candidate = _candidate()
     links, evidence = _build_link_and_evidence_records((candidate,))
     observed = ExactEvidenceBronzeJoinObservations(
-        matched_bronze_cells=3,
-        max_batch_rows=3,
+        matched_bronze_cells=2,
+        max_batch_rows=2,
     )
     if case == "missing":
         evidence = evidence[:-1]
@@ -534,8 +585,8 @@ def test_evidence_relation_is_bidirectionally_equal_to_bronze_cells_and_parent_l
         )
     elif case == "bronze-count":
         observed = ExactEvidenceBronzeJoinObservations(
-            matched_bronze_cells=2,
-            max_batch_rows=2,
+            matched_bronze_cells=1,
+            max_batch_rows=1,
         )
     if case == "valid":
         assert (
@@ -592,17 +643,14 @@ def test_linked_fund_verifier_reuses_canonical_json_transport_and_physical_agree
         serialize_table_row,
     )
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-    from finproof.data.normalization.public_funds import (
-        collapse_fund_items,
-        normalize_fund_attribute,
-    )
-    from finproof.domain.public_funds import FundItem
+    from finproof.data.normalization.public_funds import normalize_public_fund_item
+    from finproof.domain.public_funds import PublicFundItem
     from tests.helpers.source_rows import source_row
 
-    normalized = normalize_fund_attribute(source_row("PRFD01N001"))
+    normalized = normalize_public_fund_item(source_row("PRFD01N001"))
     assert normalized.record is not None
-    fund = collapse_fund_items((normalized.record,)).items[0]
-    fund_id = str(fund.fund_item_id.representative.normalized_value)
+    fund = normalized.record
+    fund_id = str(fund.fund_item_id.normalized_value)
     record_json = canonical_record_json(fund)
 
     class Verifier:
@@ -626,7 +674,7 @@ def test_linked_fund_verifier_reuses_canonical_json_transport_and_physical_agree
         tables=object(),
         side_name="fund",
         exact_ids=(fund_id,),
-        model_type=FundItem,
+        model_type=PublicFundItem,
     ) == (1, 1)
     with pytest.raises(ValueError, match="canonical"):
         _verify_linked_side(
@@ -634,7 +682,7 @@ def test_linked_fund_verifier_reuses_canonical_json_transport_and_physical_agree
             tables=object(),
             side_name="fund",
             exact_ids=(fund_id,),
-            model_type=FundItem,
+            model_type=PublicFundItem,
         )
 
     spec = TABLE_SPEC_BY_NAME["silver_fund_item"]
@@ -658,15 +706,15 @@ def test_exact_evidence_observations_are_factory_only_owned_consistent_and_bound
     observed = _issue_exact_evidence_observations(
         owner=owner,
         exact_links=ExpectedObservedCount(expected=1, observed=1),
-        exact_link_evidence=ExpectedObservedCount(expected=3, observed=3),
+        exact_link_evidence=ExpectedObservedCount(expected=2, observed=2),
         exact_link_pair_sha256=ExpectedObservedSha256(
             expected="a" * 64,
             observed="a" * 64,
         ),
-        matched_bronze_cells=3,
+        matched_bronze_cells=2,
         matched_left_records=1,
         matched_right_records=1,
-        max_relation_batch_rows=3,
+        max_relation_batch_rows=2,
     )
 
     assert type(observed) is ExactEvidenceVerificationObservations
@@ -684,13 +732,36 @@ def test_exact_evidence_observations_are_factory_only_owned_consistent_and_bound
         ExactEvidenceVerificationObservations()
     with pytest.raises(TypeError):
         copy(observed)
+    maximum = _issue_exact_evidence_observations(
+        owner=owner,
+        exact_links=ExpectedObservedCount(expected=217, observed=217),
+        exact_link_evidence=ExpectedObservedCount(expected=434, observed=434),
+        exact_link_pair_sha256=observed.exact_link_pair_sha256,
+        matched_bronze_cells=434,
+        matched_left_records=217,
+        matched_right_records=217,
+        max_relation_batch_rows=434,
+    )
+    assert maximum.exact_links.observed == 217
+    assert maximum.exact_link_evidence.observed == 434
+    with pytest.raises(ValueError, match="inconsistent"):
+        _issue_exact_evidence_observations(
+            owner=owner,
+            exact_links=ExpectedObservedCount(expected=217, observed=217),
+            exact_link_evidence=ExpectedObservedCount(expected=435, observed=435),
+            exact_link_pair_sha256=observed.exact_link_pair_sha256,
+            matched_bronze_cells=435,
+            matched_left_records=217,
+            matched_right_records=217,
+            max_relation_batch_rows=435,
+        )
     with pytest.raises(ValueError, match="inconsistent"):
         _issue_exact_evidence_observations(
             owner=owner,
             exact_links=observed.exact_links,
             exact_link_evidence=observed.exact_link_evidence,
             exact_link_pair_sha256=observed.exact_link_pair_sha256,
-            matched_bronze_cells=3,
+            matched_bronze_cells=2,
             matched_left_records=1,
             matched_right_records=1,
             max_relation_batch_rows=65_537,

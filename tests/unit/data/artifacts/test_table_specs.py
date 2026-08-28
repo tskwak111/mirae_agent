@@ -72,6 +72,30 @@ def test_table_spec_module_skeleton_rejects_closed_registry_fixture() -> None:
     require_registered_table_spec(spec)
 
 
+def test_refreshed_silver_inventory_contains_lots_not_fund_attribute_rows() -> None:
+    from finproof.data.artifacts.table_specs import TABLE_SPECS
+
+    names = tuple(spec.table_name for spec in TABLE_SPECS)
+    assert len(names) == 11
+    assert "silver_bond_sale_lot" in names
+    assert "silver_fund_item_attribute" not in names
+
+
+def test_bond_sale_lot_physical_key_includes_original_row_lineage() -> None:
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+
+    spec = TABLE_SPEC_BY_NAME["silver_bond_sale_lot"]
+    assert spec.unique_key == (
+        "product_id",
+        "exchange_market",
+        "info_base_date",
+        "info_sequence",
+        "source_row_number",
+    )
+    assert spec.sort_key == spec.unique_key
+    assert "source_row_number" in spec.logical_projection
+
+
 @pytest.mark.parametrize(
     "case",
     [
@@ -197,11 +221,11 @@ def test_table_registry_has_exact_eleven_names_and_paths() -> None:
         "bronze_source_column",
         "bronze_source_row",
         "bronze_source_cell",
+        "silver_bond_sale_lot",
         "silver_bond_instrument",
         "silver_domestic_listed_product",
         "silver_overseas_listed_product",
         "silver_fund_item",
-        "silver_fund_item_attribute",
         "silver_quality_issue",
         "gold_exact_cross_source_link",
         "gold_exact_cross_source_link_evidence",
@@ -299,22 +323,9 @@ def test_bronze_explicit_specs_have_exact_columns_types_and_keys() -> None:
         assert spec.parquet_path == f"parquet/{name}.parquet"
 
 
-def test_fund_attribute_and_quality_specs_have_exact_columns_types_and_keys() -> None:
+def test_quality_spec_has_exact_columns_types_and_keys() -> None:
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 
-    attribute_columns = tuple(
-        _column_contract(name, "int64" if name == "source_row_number" else "string")
-        for name in (
-            "grain",
-            "fund_item_id",
-            "fund_item_id__quality_status",
-            "attribute_code",
-            "attribute_code__quality_status",
-            "attribute_code_raw",
-            "source_row_number",
-            "record_json",
-        )
-    )
     quality_columns = (
         *(
             _column_contract(name)
@@ -343,17 +354,6 @@ def test_fund_attribute_and_quality_specs_have_exact_columns_types_and_keys() ->
         _column_contract("record_json"),
     )
 
-    attribute = TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]
-    assert attribute.grain == "fund_attribute"
-    assert _observed_columns(attribute) == attribute_columns
-    assert attribute.unique_key == (
-        "fund_item_id",
-        "attribute_code",
-        "attribute_code_raw",
-        "source_row_number",
-    )
-    assert attribute.sort_key == attribute.unique_key
-
     quality = TABLE_SPEC_BY_NAME["silver_quality_issue"]
     assert quality.grain == "quality_issue"
     assert _observed_columns(quality) == quality_columns
@@ -368,10 +368,9 @@ def test_fund_attribute_and_quality_specs_have_exact_columns_types_and_keys() ->
         "issue_id",
     )
 
-    for spec in (attribute, quality):
-        assert spec.layer == "silver"
-        assert spec.logical_projection == tuple(column.name for column in spec.columns)
-        assert spec.parquet_path == f"parquet/{spec.table_name}.parquet"
+    assert quality.layer == "silver"
+    assert quality.logical_projection == tuple(column.name for column in quality.columns)
+    assert quality.parquet_path == "parquet/silver_quality_issue.parquet"
 
 
 def test_gold_specs_have_exact_columns_types_and_keys() -> None:
@@ -443,290 +442,59 @@ def test_gold_specs_have_exact_columns_types_and_keys() -> None:
         assert spec.parquet_path == f"parquet/{spec.table_name}.parquet"
 
 
-def test_bond_wide_spec_matches_independent_model_derivation() -> None:
-    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+def test_refreshed_wide_specs_match_registered_model_projections() -> None:
+    from pydantic import BaseModel
 
-    fields = (
-        ("product_id", "string", False),
-        ("name", "string", False),
-        ("short_name", "string", False),
-        ("currency", "string", False),
-        ("bond_kind_raw", "string", False),
-        ("issue_date", "date", False),
-        ("maturity_date", "date", False),
-        ("source_update_date", "date", False),
-        ("coupon_rate", "decimal", False),
-        ("buy_yield", "decimal", False),
-        ("buyable_quantity", "decimal", False),
-        ("source_remaining_days", "int64", False),
-        ("credit_rating", "string", False),
-        ("credit_rating_agencies_raw", "string", False),
-        ("credit_rating_date", "date", False),
-        ("duration", "decimal", False),
-        ("evaluation_price", "decimal", False),
-        ("remaining_days_at_as_of", "int64", True),
-        ("is_matured_at_as_of", "bool", True),
-        ("has_positive_buyable_quantity", "bool", True),
-        ("is_buyable_validated_at_as_of", "bool", True),
-    )
-    spec = TABLE_SPEC_BY_NAME["silver_bond_instrument"]
-
-    assert spec.grain == "instrument"
-    assert _observed_columns(spec) == _wide_columns(fields)
-    assert spec.unique_key == ("product_id",)
-    assert spec.sort_key == ("product_id",)
-    assert spec.logical_projection == tuple(column.name for column in spec.columns)
-
-
-def test_domestic_wide_spec_matches_independent_model_derivation() -> None:
-    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-
-    types = {
-        "listing_date": "date",
-        "listing_end_date": "date",
-        "sale_flag": "bool",
-        "suspension_flag": "bool",
-        "aum_primary": "decimal",
-        "aum_secondary": "decimal",
-        "total_fee": "decimal",
-        "tracking_error": "decimal",
-        "difference_rate": "decimal",
-        "return_1d": "decimal",
-        "return_1m": "decimal",
-        "return_3m": "decimal",
-        "return_6m": "decimal",
-        "return_1y": "decimal",
-        "return_ytd": "decimal",
-        "custom_update_date": "date",
-        "daily_update_at": "timestamp",
-        "weekly_update_date": "date",
-        "is_eligible_at_as_of": "bool",
-    }
-    names = (
-        "product_id",
-        "market_identifier",
-        "product_type",
-        "name",
-        "short_name",
-        "currency",
-        "listing_date",
-        "listing_end_date",
-        "sale_flag",
-        "suspension_flag",
-        "aum_primary",
-        "aum_secondary",
-        "total_fee",
-        "tracking_error",
-        "difference_rate",
-        "return_1d",
-        "return_1m",
-        "return_3m",
-        "return_6m",
-        "return_1y",
-        "return_ytd",
-        "risk_code",
-        "risk_name",
-        "base_index",
-        "manager",
-        "asset_type",
-        "region",
-        "custom_update_date",
-        "daily_update_at",
-        "weekly_update_date",
-        "is_eligible_at_as_of",
-    )
-    fields = tuple(
-        (name, types.get(name, "string"), name == "is_eligible_at_as_of") for name in names
-    )
-    spec = TABLE_SPEC_BY_NAME["silver_domestic_listed_product"]
-
-    assert spec.grain == "listed_product"
-    assert _observed_columns(spec) == _wide_columns(fields)
-    assert spec.unique_key == ("product_id",)
-    assert spec.sort_key == ("product_id",)
-
-
-def test_overseas_wide_spec_matches_independent_model_derivation() -> None:
-    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-
-    names = (
-        "base_index",
-        "total_fee",
-        "etn_flag_raw",
-        "manager",
-        "replication_method",
-        "index_tracking_flag_raw",
-        "inverse_short_flag_raw",
-        "leverage_factor",
-        "strategy",
-        "custom_update_date",
-        "daily_base_date_match_raw",
-        "daily_bid_price",
-        "close_price",
-        "close_price_base_date",
-        "daily_close_source",
-        "difference_rate_raw_metric",
-        "return_1d",
-        "daily_high_price",
-        "aum",
-        "last_nav",
-        "daily_low_price",
-        "nav_base_at",
-        "daily_open_price",
-        "daily_update_date",
-        "daily_value",
-        "daily_volume",
-        "ticker",
-        "source_currency_raw",
-        "exchange_market_code",
-        "product_type",
-        "isin",
-        "product_id",
-        "market_identifier",
-        "lipper_id",
-        "listing_date",
-        "listing_price",
-        "listed_share_count",
-        "market_code",
-        "name",
-        "sale_flag_raw",
-        "trading_currency",
-        "suspension_flag_raw",
-        "us_cik",
-        "realtime_market_price",
-        "realtime_market_volume",
-        "core_flag_raw",
-        "asset_type",
-        "region",
-        "weekly_update_date",
-    )
-    decimals = {
-        "total_fee",
-        "leverage_factor",
-        "daily_bid_price",
-        "close_price",
-        "difference_rate_raw_metric",
-        "return_1d",
-        "daily_high_price",
-        "aum",
-        "last_nav",
-        "daily_low_price",
-        "daily_open_price",
-        "daily_value",
-        "daily_volume",
-        "listing_price",
-        "listed_share_count",
-        "realtime_market_price",
-        "realtime_market_volume",
-    }
-    dates = {
-        "custom_update_date",
-        "close_price_base_date",
-        "daily_update_date",
-        "listing_date",
-        "weekly_update_date",
-    }
-    fields = tuple(
-        (
-            name,
-            "decimal"
-            if name in decimals
-            else "date"
-            if name in dates
-            else "timestamp"
-            if name == "nav_base_at"
-            else "string",
-            False,
-        )
-        for name in names
-    )
-    spec = TABLE_SPEC_BY_NAME["silver_overseas_listed_product"]
-
-    assert spec.grain == "listed_product"
-    assert _observed_columns(spec) == _wide_columns(fields)
-    assert spec.unique_key == ("product_id",)
-    assert spec.sort_key == ("product_id",)
-
-
-def test_fund_item_wide_spec_matches_independent_model_derivation() -> None:
-    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-
-    names = (
-        "benchmark_english_name",
-        "benchmark_name",
-        "currency",
-        "exchange_traded_flag_raw",
-        "establishment_country_code",
-        "region_description",
-        "return_18m",
-        "return_1m",
-        "return_3m",
-        "return_6m",
-        "net_assets",
-        "establishment_type_code",
-        "return_1w",
-        "return_1y",
-        "return_2y",
-        "return_3y",
-        "return_5y",
-        "foreign_base_price_flag_raw",
-        "fss_item_id",
-        "hedge_fund_flag_raw",
-        "interest_dividend_description",
-        "short_name",
-        "english_short_name",
-        "english_name",
-        "name",
-        "fund_item_id",
-        "kofia_classification_code",
-        "ksd_id",
-        "manager_item_id",
-        "offshore_fund_flag_raw",
-        "fund_type_raw",
-        "manager_external_code",
-        "overseas_fund_description",
-        "investor_type_description",
-        "professional_sale_control_code",
-        "private_fund_description",
-        "offering_type_description",
-        "family_candidate_key",
-        "sale_status_raw",
-        "standard_item_id",
-        "mirae_sale_flag_raw",
-        "trustee_external_code",
-        "risk_code",
-        "risk_name",
-    )
-    decimals = {
-        "return_18m",
-        "return_1m",
-        "return_3m",
-        "return_6m",
-        "net_assets",
-        "return_1w",
-        "return_1y",
-        "return_2y",
-        "return_3y",
-        "return_5y",
-    }
-    fields = tuple((name, "decimal" if name in decimals else "string", False) for name in names)
-    spec = TABLE_SPEC_BY_NAME["silver_fund_item"]
-
-    assert spec.grain == "fund_item"
-    assert _observed_columns(spec) == _wide_columns(fields)
-    assert spec.unique_key == ("fund_item_id",)
-    assert spec.sort_key == ("fund_item_id",)
-
-
-def test_derive_wide_columns_exact_signature_and_fund_contributing_rows_absence() -> None:
     from finproof.data.artifacts.table_specs import (
         TABLE_SPEC_BY_NAME,
         derive_wide_columns,
     )
-    from finproof.domain.bonds import BondInstrument
+    from finproof.domain.bonds import BondInstrument, BondSaleLot
     from finproof.domain.domestic_listed import ListedProduct
     from finproof.domain.overseas_listed import OverseasListedProduct
-    from finproof.domain.public_funds import FundItem
+    from finproof.domain.public_funds import PublicFundItem
+
+    cases: tuple[tuple[type[BaseModel], str, int, frozenset[str]], ...] = (
+        (
+            BondSaleLot,
+            "silver_bond_sale_lot",
+            43,
+            frozenset({"source_row", "source_key"}),
+        ),
+        (
+            BondInstrument,
+            "silver_bond_instrument",
+            43,
+            frozenset({"selected_lot_key", "field_sources", "buy_yield_range"}),
+        ),
+        (ListedProduct, "silver_domestic_listed_product", 201, frozenset()),
+        (OverseasListedProduct, "silver_overseas_listed_product", 100, frozenset()),
+        (
+            PublicFundItem,
+            "silver_fund_item",
+            94,
+            frozenset({"source_row", "attribute_codes"}),
+        ),
+    )
+    for model_type, table_name, column_count, json_only in cases:
+        spec = TABLE_SPEC_BY_NAME[table_name]
+        derived = derive_wide_columns(model_type)
+        assert derived == spec.columns
+        assert len(spec.columns) == column_count
+        assert spec.grain == model_type.model_fields["grain"].default
+        assert spec.logical_projection == tuple(column.name for column in spec.columns)
+        projected_names = tuple(column.name for column in spec.columns)
+        for field_name in model_type.model_fields:
+            if field_name != "grain" and field_name not in json_only:
+                assert field_name in projected_names
+
+    assert "source_row_number" in TABLE_SPEC_BY_NAME["silver_bond_sale_lot"].logical_projection
+
+
+def test_derive_wide_columns_exact_signature_and_json_only_fields_absent() -> None:
+    from finproof.data.artifacts.table_specs import derive_wide_columns
+    from finproof.domain.bonds import BondInstrument, BondSaleLot
+    from finproof.domain.public_funds import PublicFundItem
 
     parameters = tuple(signature(derive_wide_columns).parameters.values())
     assert len(parameters) == 1
@@ -734,25 +502,19 @@ def test_derive_wide_columns_exact_signature_and_fund_contributing_rows_absence(
     assert parameters[0].default is parameters[0].empty
     assert parameters[0].kind is parameters[0].POSITIONAL_OR_KEYWORD
 
-    registered = (
-        (BondInstrument, "silver_bond_instrument"),
-        (ListedProduct, "silver_domestic_listed_product"),
-        (OverseasListedProduct, "silver_overseas_listed_product"),
-        (FundItem, "silver_fund_item"),
-    )
-    for model_type, table_name in registered:
-        derived = derive_wide_columns(model_type)
-        assert derived == TABLE_SPEC_BY_NAME[table_name].columns
-        names = tuple(column.name for column in derived)
-        expected_fields = tuple(
-            name
-            for name in model_type.model_fields
-            if name != "grain" and not (model_type is FundItem and name == "contributing_rows")
-        )
-        for name in expected_fields:
-            assert name in names
+    bond_lot_names = tuple(column.name for column in derive_wide_columns(BondSaleLot))
+    assert "source_row" not in bond_lot_names
+    assert "source_key" not in bond_lot_names
+    assert "source_row_number" in bond_lot_names
 
-    assert "contributing_rows" not in tuple(column.name for column in derive_wide_columns(FundItem))
+    bond_names = tuple(column.name for column in derive_wide_columns(BondInstrument))
+    assert "selected_lot_key" not in bond_names
+    assert "field_sources" not in bond_names
+    assert "buy_yield_range" not in bond_names
+
+    fund_names = tuple(column.name for column in derive_wide_columns(PublicFundItem))
+    assert "source_row" not in fund_names
+    assert "attribute_codes" not in fund_names
 
 
 @pytest.mark.parametrize(
@@ -760,6 +522,7 @@ def test_derive_wide_columns_exact_signature_and_fund_contributing_rows_absence(
     [
         "foreign_base_model",
         "unregistered_shape",
+        "bond_lot_subclass",
         "bond_subclass",
         "domestic_subclass",
         "overseas_subclass",
@@ -774,10 +537,10 @@ def test_derive_wide_columns_rejects_foreign_unregistered_and_subclass_models(
     from pydantic import BaseModel, ConfigDict
 
     from finproof.data.artifacts.table_specs import derive_wide_columns
-    from finproof.domain.bonds import BondInstrument
+    from finproof.domain.bonds import BondInstrument, BondSaleLot
     from finproof.domain.domestic_listed import ListedProduct
     from finproof.domain.overseas_listed import OverseasListedProduct
-    from finproof.domain.public_funds import FundItem
+    from finproof.domain.public_funds import PublicFundItem
     from finproof.domain.values import NormalizedValue
 
     class ForeignWide(BaseModel):
@@ -795,10 +558,11 @@ def test_derive_wide_columns_rejects_foreign_unregistered_and_subclass_models(
     candidates = {
         "foreign_base_model": ForeignWide,
         "unregistered_shape": UnregisteredShape,
+        "bond_lot_subclass": type("BondLotSubclass", (BondSaleLot,), {}),
         "bond_subclass": type("BondSubclass", (BondInstrument,), {}),
         "domestic_subclass": type("DomesticSubclass", (ListedProduct,), {}),
         "overseas_subclass": type("OverseasSubclass", (OverseasListedProduct,), {}),
-        "fund_subclass": type("FundSubclass", (FundItem,), {}),
+        "fund_subclass": type("FundSubclass", (PublicFundItem,), {}),
     }
 
     with pytest.raises(TypeError, match="registered"):
@@ -822,7 +586,9 @@ def test_model_drift_guard_rejects_insert_remove_and_reorder(
         fields.pop("name")
     else:
         items = list(fields.items())
-        items[1], items[2] = items[2], items[1]
+        product_index = next(index for index, item in enumerate(items) if item[0] == "product_id")
+        name_index = next(index for index, item in enumerate(items) if item[0] == "name")
+        items[product_index], items[name_index] = items[name_index], items[product_index]
         fields = dict(items)
     monkeypatch.setattr(BondInstrument, "model_fields", fields)
 

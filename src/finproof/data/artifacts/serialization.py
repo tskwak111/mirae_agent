@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 from pathlib import PurePosixPath
-from typing import Literal
+from typing import Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -17,12 +17,12 @@ from finproof.data.artifacts.table_specs import (
     require_registered_spec,
     require_registered_table_spec,
 )
-from finproof.domain.bonds import BondInstrument
+from finproof.domain.bonds import BondInstrument, BondSaleLot
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.locators import SourceCellLocator
 from finproof.domain.overseas_listed import OverseasListedProduct
-from finproof.domain.public_funds import FundItem, FundItemAttribute, FundItemValue
-from finproof.domain.quality import DataQualityIssue, QualityStatus
+from finproof.domain.public_funds import PublicFundItem
+from finproof.domain.quality import DataQualityIssue
 from finproof.domain.source import SourceCell, SourceRow
 from finproof.domain.values import DerivedValue, NormalizedValue
 
@@ -98,7 +98,6 @@ class ExactCrossSourceLinkEvidenceRecord(_ExplicitArtifactRow):
 _EXPLICIT_MODEL_BY_SPEC_ID: dict[int, type[BaseModel]] = {
     id(TABLE_SPEC_BY_NAME["bronze_source_column"]): BronzeSourceColumnRecord,
     id(TABLE_SPEC_BY_NAME["bronze_source_cell"]): BronzeSourceCellRecord,
-    id(TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]): FundItemAttribute,
     id(TABLE_SPEC_BY_NAME["silver_quality_issue"]): DataQualityIssue,
     id(TABLE_SPEC_BY_NAME["gold_exact_cross_source_link"]): ExactCrossSourceLinkRecord,
     id(
@@ -109,7 +108,6 @@ _EXPLICIT_MODEL_BY_SPEC_ID: dict[int, type[BaseModel]] = {
 _EXPLICIT_MODEL_BY_TABLE_NAME: dict[str, type[BaseModel]] = {
     TABLE_SPEC_BY_NAME["bronze_source_column"].table_name: BronzeSourceColumnRecord,
     TABLE_SPEC_BY_NAME["bronze_source_cell"].table_name: BronzeSourceCellRecord,
-    TABLE_SPEC_BY_NAME["silver_fund_item_attribute"].table_name: FundItemAttribute,
     TABLE_SPEC_BY_NAME["silver_quality_issue"].table_name: DataQualityIssue,
     TABLE_SPEC_BY_NAME["gold_exact_cross_source_link"].table_name: ExactCrossSourceLinkRecord,
     TABLE_SPEC_BY_NAME[
@@ -118,10 +116,11 @@ _EXPLICIT_MODEL_BY_TABLE_NAME: dict[str, type[BaseModel]] = {
 }
 
 _WIDE_MODEL_BY_SPEC_ID: dict[int, type[BaseModel]] = {
+    id(TABLE_SPEC_BY_NAME["silver_bond_sale_lot"]): BondSaleLot,
     id(TABLE_SPEC_BY_NAME["silver_bond_instrument"]): BondInstrument,
     id(TABLE_SPEC_BY_NAME["silver_domestic_listed_product"]): ListedProduct,
     id(TABLE_SPEC_BY_NAME["silver_overseas_listed_product"]): OverseasListedProduct,
-    id(TABLE_SPEC_BY_NAME["silver_fund_item"]): FundItem,
+    id(TABLE_SPEC_BY_NAME["silver_fund_item"]): PublicFundItem,
 }
 
 
@@ -193,24 +192,11 @@ def validate_physical_row(spec: TableSpec, row: Mapping[str, object]) -> None:
 
 
 def _serialize_explicit(spec: TableSpec, value: BaseModel) -> Mapping[str, object]:
-    if type(value) is FundItemAttribute:
-        item = value.fund_item_id
-        attribute = value.attribute_code
-        row: dict[str, object] = {
-            "grain": value.grain,
-            "fund_item_id": item.normalized_value,
-            "fund_item_id__quality_status": item.quality_status.value,
-            "attribute_code": attribute.normalized_value,
-            "attribute_code__quality_status": attribute.quality_status.value,
-            "attribute_code_raw": attribute.raw_value,
-            "source_row_number": attribute.source.source_row_number,
-            "record_json": canonical_record_json(value),
-        }
-    elif type(value) is DataQualityIssue:
+    if type(value) is DataQualityIssue:
         if value.first_detected_at is None:
             raise ValueError("quality issue must already be persisted")
         source = value.source
-        row = {
+        row: dict[str, object] = {
             "issue_id": value.issue_id,
             "rule_id": value.rule_id,
             "rule_version": value.rule_version,
@@ -313,77 +299,33 @@ def _exact_source_locator(locator: object) -> SourceCellLocator:
     )
 
 
-def _exact_fund_item_python_payload(value: BaseModel) -> dict[str, object]:
-    if (
-        type(value) is not FundItem
-        or type(value.grain) is not str
-        or type(value.contributing_rows) is not tuple
-    ):
-        raise ValueError("physical model values do not match the frozen contract")
-    payload: dict[str, object] = {
-        "grain": value.grain,
-        "contributing_rows": tuple(_exact_source_row(row) for row in value.contributing_rows),
-    }
-    for name, field in FundItem.model_fields.items():
-        if name in {"grain", "contributing_rows"}:
-            continue
-        wrapper_type = field.annotation
-        wrapped = getattr(value, name)
-        if not isinstance(wrapper_type, type) or type(wrapped) is not wrapper_type:
-            raise ValueError("physical model values do not match the frozen contract")
-        if not isinstance(wrapped, FundItemValue):
-            raise ValueError("physical model values do not match the frozen contract")
-        representative_type = wrapper_type.model_fields["representative"].annotation
-        representative = wrapped.representative
-        if not isinstance(representative, NormalizedValue):
-            raise ValueError("physical model values do not match the frozen contract")
-        if (
-            not isinstance(representative_type, type)
-            or type(representative) is not representative_type
-            or type(representative.raw_value) is not str
-            or type(representative.quality_status) is not QualityStatus
-            or type(representative.rule_id) is not str
-            or type(representative.rule_version) is not str
-            or type(wrapped.equivalent_sources) is not tuple
-        ):
-            raise ValueError("physical model values do not match the frozen contract")
-        representative_source = _exact_source_locator(representative.source)
-        equivalent_sources = tuple(
-            _exact_source_locator(source) for source in wrapped.equivalent_sources
-        )
-        annotation = representative_type.model_fields["normalized_value"].annotation
-        expected_types = tuple(
-            arg for arg in getattr(annotation, "__args__", ()) if arg is not type(None)
-        )
-        normalized = representative.normalized_value
-        if normalized is not None and (
-            len(expected_types) != 1 or type(normalized) is not expected_types[0]
-        ):
-            raise ValueError("physical model values do not match the frozen contract")
-        rebuilt_representative = representative_type.model_validate(
-            {
-                field_name: getattr(representative, field_name)
-                for field_name in representative_type.model_fields
-            }
-            | {"source": representative_source},
-            strict=True,
-        )
-        payload[name] = wrapper_type.model_validate(
-            {
-                "representative": rebuilt_representative,
-                "equivalent_sources": equivalent_sources,
-            },
-            strict=True,
-        )
-    return payload
-
-
 def _revalidate_wide(model_type: type[BaseModel], value: BaseModel) -> BaseModel:
-    if model_type is FundItem:
-        validation_input: object = _exact_fund_item_python_payload(value)
-    else:
-        validation_input = value.model_dump(mode="python")
+    if model_type is PublicFundItem:
+        fund_value = cast(PublicFundItem, value)
+        _exact_source_row(fund_value.source_row)
+        if type(fund_value.attribute_codes) is not tuple or any(
+            type(code) is not str for code in fund_value.attribute_codes
+        ):
+            raise ValueError("physical model values do not match the frozen contract")
+        for name, field in PublicFundItem.model_fields.items():
+            if name in {"grain", "source_row", "attribute_codes"}:
+                continue
+            wrapped = getattr(fund_value, name)
+            if type(wrapped) is not field.annotation or not isinstance(wrapped, NormalizedValue):
+                raise ValueError("physical model values do not match the frozen contract")
+            _exact_source_locator(wrapped.source)
+            normalized_annotation = type(wrapped).model_fields["normalized_value"].annotation
+            expected_types = tuple(
+                item for item in get_args(normalized_annotation) if item is not type(None)
+            )
+            if not expected_types and isinstance(normalized_annotation, type):
+                expected_types = (normalized_annotation,)
+            if wrapped.normalized_value is not None and (
+                len(expected_types) != 1 or type(wrapped.normalized_value) is not expected_types[0]
+            ):
+                raise ValueError("physical model values do not match the frozen contract")
     dumped = value.model_dump(mode="python")
+    validation_input: object = value if model_type is PublicFundItem else dumped
     pending: list[object] = [dumped]
     while pending:
         item = pending.pop()
@@ -414,14 +356,16 @@ def serialize_table_row(spec: TableSpec, value: object) -> Mapping[str, object]:
             raise ValueError("registered spec and model pair do not match")
         validated = explicit_model.model_validate(value.model_dump(mode="python"), strict=True)
         return _serialize_explicit(spec, validated)
-    if isinstance(value, BondInstrument):
-        model_type: type[BaseModel] = BondInstrument
+    if isinstance(value, BondSaleLot):
+        model_type: type[BaseModel] = BondSaleLot
+    elif isinstance(value, BondInstrument):
+        model_type = BondInstrument
     elif isinstance(value, ListedProduct):
         model_type = ListedProduct
     elif isinstance(value, OverseasListedProduct):
         model_type = OverseasListedProduct
-    elif isinstance(value, FundItem):
-        model_type = FundItem
+    elif isinstance(value, PublicFundItem):
+        model_type = PublicFundItem
     else:
         raise NotImplementedError
     if type(value) is not model_type:
@@ -430,7 +374,17 @@ def serialize_table_row(spec: TableSpec, value: object) -> Mapping[str, object]:
     validated_value = _revalidate_wide(model_type, value)
     row: dict[str, object] = {"grain": getattr(validated_value, "grain")}  # noqa: B009
     for name in model_type.model_fields:
-        if name == "grain" or (model_type is FundItem and name == "contributing_rows"):
+        if name == "grain":
+            continue
+        if model_type is PublicFundItem and name in {"source_row", "attribute_codes"}:
+            continue
+        if model_type is BondSaleLot and name in {"source_row", "source_key"}:
+            continue
+        if model_type is BondInstrument and name in {
+            "selected_lot_key",
+            "field_sources",
+            "buy_yield_range",
+        }:
             continue
         wrapped = getattr(validated_value, name)
         if isinstance(wrapped, NormalizedValue):
@@ -440,11 +394,10 @@ def serialize_table_row(spec: TableSpec, value: object) -> Mapping[str, object]:
             row[name] = _physical_scalar(wrapped.value)
             row[f"{name}__quality_status"] = wrapped.quality_status.value
             row[f"{name}__as_of_date"] = wrapped.as_of_date
-        elif isinstance(wrapped, FundItemValue):
-            row[name] = _physical_scalar(wrapped.representative.normalized_value)
-            row[f"{name}__quality_status"] = wrapped.representative.quality_status.value
         else:
             raise TypeError("registered wide model contains an unsupported wrapper")
+    if model_type is BondSaleLot:
+        row["source_row_number"] = cast(BondSaleLot, validated_value).source_row.source_row_number
     row["record_json"] = canonical_record_json(validated_value)
     validate_physical_row(spec, row)
     return row
@@ -515,18 +468,6 @@ def logical_table_row(spec: TableSpec, row: Mapping[str, object]) -> Mapping[str
             raise ValueError("record_json and typed projection do not agree")
     if spec is TABLE_SPEC_BY_NAME["bronze_source_row"]:
         logical["loaded_at"] = None
-    elif spec is TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]:
-        record_json = row["record_json"]
-        if type(record_json) is not str:
-            raise ValueError("fund attribute record_json must be an exact string")
-        try:
-            parsed_attribute = FundItemAttribute.model_validate_json(record_json)
-        except ValidationError as exc:
-            raise ValueError("fund attribute record_json is invalid") from exc
-        if canonical_record_json(parsed_attribute) != record_json:
-            raise ValueError("fund attribute record_json must be canonical")
-        if dict(_serialize_explicit(spec, parsed_attribute)) != dict(row):
-            raise ValueError("fund attribute typed/JSON projection agreement is required")
     elif spec is TABLE_SPEC_BY_NAME["silver_quality_issue"]:
         record_json = row["record_json"]
         if type(record_json) is not str:

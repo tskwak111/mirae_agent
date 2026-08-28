@@ -12,10 +12,10 @@ from finproof.data.source_manifest import (
 )
 from tests.helpers.source_manifest import write_source_contract_fixture
 from tests.helpers.source_rows import (
-    BOND_COLUMNS,
     DOMESTIC_LISTED_COLUMNS,
     OVERSEAS_LISTED_COLUMNS,
     PUBLIC_FUND_COLUMNS,
+    REFRESHED_BOND_COLUMNS,
     source_row,
 )
 
@@ -24,7 +24,7 @@ REL_URI = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PACKAGE_REL_URI = "http://schemas.openxmlformats.org/package/2006/relationships"
 
 COMPLETE_BRONZE_COLUMNS = {
-    "PRBD01N001": BOND_COLUMNS,
+    "PRBD01N001": REFRESHED_BOND_COLUMNS,
     "PREF01N001": DOMESTIC_LISTED_COLUMNS,
     "PREF02N001": OVERSEAS_LISTED_COLUMNS,
     "PRFD01N001": PUBLIC_FUND_COLUMNS,
@@ -154,7 +154,10 @@ def write_complete_bronze_repository(repository_root: Path):
     payloads: dict[str, bytes] = {}
     for table_id, columns in COMPLETE_BRONZE_COLUMNS.items():
         workbook = repository_root / f"{table_id}.xlsx"
-        value = source_row(table_id)
+        value = source_row(
+            table_id,
+            {"pd_no": "KR0000000001"} if table_id == "PRBD01N001" else None,
+        )
         write_xlsx(workbook, rows=(columns, value.raw_payload))
         payloads[f"data/{table_id}_data.xlsx"] = workbook.read_bytes()
         workbook.unlink()

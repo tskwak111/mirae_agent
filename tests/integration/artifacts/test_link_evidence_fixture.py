@@ -1,7 +1,6 @@
 # mypy: disable-error-code="arg-type,attr-defined,no-untyped-def"
 """Gold exact-link persistence and verified-set extension integration contracts."""
 
-import hashlib
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
@@ -41,18 +40,13 @@ def _empty_link_stage(
         for source in payload["sources"]
     )
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 0,
-        "evidence": 0,
-        "pair_sha256": hashlib.sha256(b"").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
     with ArtifactBuildSession.initialize(
         settings,
@@ -123,18 +117,13 @@ def test_exact_gold_writers_use_only_registered_link_and_evidence_specs(
     )
     payload = loaded.model_dump(mode="python")
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 1,
-        "evidence": 2,
-        "pair_sha256": hashlib.sha256(b"L1\tR1\n").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
     locator = ExactLinkIdentifierSource(
         raw_identifier="MATCH",
@@ -147,7 +136,7 @@ def test_exact_gold_writers_use_only_registered_link_and_evidence_specs(
             source_column_number=1,
             source_column_letter="A",
             source_checksum="a" * 64,
-            source_snapshot_date=date(2026, 7, 11),
+            source_snapshot_date=date(2026, 8, 24),
             source_applicable_date=None,
         ),
     )
@@ -162,7 +151,7 @@ def test_exact_gold_writers_use_only_registered_link_and_evidence_specs(
             source_column_number=1,
             source_column_letter="A",
             source_checksum="b" * 64,
-            source_snapshot_date=date(2026, 7, 11),
+            source_snapshot_date=date(2026, 8, 24),
             source_applicable_date=None,
         ),
     )
@@ -273,18 +262,13 @@ def test_exact_gold_verification_extends_same_set_atomically_from_nine_to_eleven
     )
     payload = loaded.model_dump(mode="python")
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 1,
-        "evidence": 2,
-        "pair_sha256": hashlib.sha256(b"L1\tR1\n").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
     candidate = _candidate(raw="MATCH", left_id="L1", right_id="R1")
     with ArtifactBuildSession.initialize(

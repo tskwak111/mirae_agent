@@ -40,6 +40,7 @@ from finproof.data.artifacts.resources import artifact_manifest_schema_bytes
 from finproof.data.artifacts.safe_files import SafeFileReadError, read_held_regular_file
 
 NonNegativeInt = Annotated[int, Field(ge=0)]
+ExactLinkEvidenceCount = Annotated[int, Field(ge=0, le=434)]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
@@ -506,16 +507,16 @@ class ArtifactVersions(BaseModel):
 
     dataset_version: date
     metric_registry_version: Literal["1.0.0"]
-    state_rule_version: Literal["1.1.0"]
-    quality_rule_version: Literal["1.0.0"]
+    state_rule_version: Literal["1.2.0"]
+    quality_rule_version: Literal["1.1.0"]
     rating_rule_version: Literal["1.0.0"]
     answer_policy_version: Literal["1.0.0"]
     planner_version: Literal["1.0.0"]
 
     @model_validator(mode="after")
     def require_official_dataset_date(self) -> Self:
-        if self.dataset_version != date(2026, 7, 11):
-            raise ValueError("versions.dataset_version must be 2026-07-11")
+        if self.dataset_version != date(2026, 8, 24):
+            raise ValueError("versions.dataset_version must be 2026-08-24")
         return self
 
 
@@ -718,8 +719,8 @@ class ArtifactManifest(BaseModel):
 
     @model_validator(mode="after")
     def require_closed_inventories(self) -> Self:
-        if self.dataset_version != date(2026, 7, 11):
-            raise ValueError("dataset_version must be 2026-07-11")
+        if self.dataset_version != date(2026, 8, 24):
+            raise ValueError("dataset_version must be 2026-08-24")
         observed_inputs = tuple(
             (entry.namespace, entry.path, entry.kind) for entry in self.source_inputs
         )
@@ -794,11 +795,11 @@ _TABLE_IDENTITIES = {
     "bronze_source_column": ("bronze", "source_column"),
     "bronze_source_row": ("bronze", "source_row"),
     "bronze_source_cell": ("bronze", "source_cell"),
+    "silver_bond_sale_lot": ("silver", "bond_sale_lot"),
     "silver_bond_instrument": ("silver", "instrument"),
     "silver_domestic_listed_product": ("silver", "listed_product"),
     "silver_overseas_listed_product": ("silver", "listed_product"),
     "silver_fund_item": ("silver", "fund_item"),
-    "silver_fund_item_attribute": ("silver", "fund_attribute"),
     "silver_quality_issue": ("silver", "quality_issue"),
     "gold_exact_cross_source_link": ("gold", "exact_cross_source_link"),
     "gold_exact_cross_source_link_evidence": (
@@ -822,11 +823,11 @@ _VERIFIED_TABLE_ORDER = (
     "bronze_source_column",
     "bronze_source_row",
     "bronze_source_cell",
+    "silver_bond_sale_lot",
     "silver_bond_instrument",
     "silver_domestic_listed_product",
     "silver_overseas_listed_product",
     "silver_fund_item",
-    "silver_fund_item_attribute",
     "silver_quality_issue",
     "gold_exact_cross_source_link",
     "gold_exact_cross_source_link_evidence",
@@ -836,11 +837,11 @@ _VERIFIED_TABLE_GRAINS = (
     "source_column",
     "source_row",
     "source_cell",
+    "bond_sale_lot",
     "instrument",
     "listed_product",
     "listed_product",
     "fund_item",
-    "fund_attribute",
     "quality_issue",
     "exact_cross_source_link",
     "exact_cross_source_link_evidence",
@@ -1279,7 +1280,7 @@ class ReportVerificationResult(BaseModel):
 
     reports: tuple[ExpectedSemanticReport, ...]
     exact_link_pair_sha256: Sha256
-    exact_link_evidence_count: NonNegativeInt
+    exact_link_evidence_count: ExactLinkEvidenceCount
 
     @model_validator(mode="after")
     def require_exact_report_inventory(self) -> Self:
@@ -1317,12 +1318,12 @@ class ArtifactCoreVerificationResult(BaseModel):
     reports: tuple[ExpectedSemanticReport, ...]
     overall_manifest_logical_hash: Sha256
     exact_link_pair_sha256: Sha256
-    exact_link_evidence_count: NonNegativeInt
+    exact_link_evidence_count: ExactLinkEvidenceCount
 
     @model_validator(mode="after")
     def require_exact_logical_inventory(self) -> Self:
-        if self.dataset_version != date(2026, 7, 11):
-            raise ValueError("dataset_version must be 2026-07-11")
+        if self.dataset_version != date(2026, 8, 24):
+            raise ValueError("dataset_version must be 2026-08-24")
         if (
             tuple((entry.namespace, entry.path, entry.kind) for entry in self.logical_inputs)
             != _INPUT_INVENTORY

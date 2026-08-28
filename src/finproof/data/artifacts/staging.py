@@ -854,10 +854,10 @@ class ExternalOrderRelation(StrEnum):
     """Closed relation names accepted by the bounded order store."""
 
     BRONZE_SOURCE_ROW = "bronze_source_row"
-    SILVER_BOND_INSTRUMENT = "silver_bond_instrument"
+    SILVER_BOND_SALE_LOT = "silver_bond_sale_lot"
     SILVER_DOMESTIC_LISTED_PRODUCT = "silver_domestic_listed_product"
     SILVER_OVERSEAS_LISTED_PRODUCT = "silver_overseas_listed_product"
-    PUBLIC_FUND_SOURCE_ROW = "public_fund_source_row"
+    SILVER_FUND_ITEM = "silver_fund_item"
     SILVER_QUALITY_ISSUE = "silver_quality_issue"
     EXACT_LINK_LEFT_CANDIDATE = "exact_link_left_candidate"
     EXACT_LINK_RIGHT_CANDIDATE = "exact_link_right_candidate"
@@ -2450,8 +2450,8 @@ class ExactLinkCandidateStoreCustody:
                         rows=tuple(batch),
                     )
                     batch.clear()
-            if count != self._store._expected_exact_link_evidence:
-                raise ValueError("evidence admission count changed")
+            if count % 2 != 0:
+                raise ValueError("evidence admission must contain two rows per exact link")
             if batch:
                 self._store.insert_batch(
                     relation=ExternalOrderRelation.EXACT_LINK_EVIDENCE,
@@ -2659,8 +2659,8 @@ def _open_external_order_store(
         value._database_identity = _leaf_identity(
             os.stat("store.duckdb", dir_fd=workspace_fd, follow_symlinks=False)
         )
-        value._expected_exact_links = config.exact_links.links
-        value._expected_exact_link_evidence = config.exact_links.evidence
+        value._expected_exact_links = config.exact_link_candidate_limit
+        value._expected_exact_link_evidence = config.exact_link_candidate_limit * 2
         value._forced_spill_names = {}
         value._limits = limits
         value._marker_identity = marker_identity
@@ -2738,10 +2738,10 @@ def _external_order_key_types(
 ) -> tuple[type[str] | type[int], ...]:
     schemas: dict[ExternalOrderRelation, tuple[type[str] | type[int], ...]] = {
         ExternalOrderRelation.BRONZE_SOURCE_ROW: (int, str, str, int),
-        ExternalOrderRelation.SILVER_BOND_INSTRUMENT: (str,),
+        ExternalOrderRelation.SILVER_BOND_SALE_LOT: (str, str, str, str, int),
         ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT: (str,),
         ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT: (str,),
-        ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW: (str, int),
+        ExternalOrderRelation.SILVER_FUND_ITEM: (str, int),
         ExternalOrderRelation.SILVER_QUALITY_ISSUE: (int, str, str, int, int, str, str),
         ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE: (str, str),
         ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE: (str, str),

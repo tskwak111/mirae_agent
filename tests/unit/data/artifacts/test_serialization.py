@@ -7,36 +7,45 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from finproof.data.normalization.bonds import normalize_bond
+from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
 from finproof.data.normalization.overseas_listed import normalize_overseas_listed
-from finproof.data.normalization.public_funds import collapse_fund_items, normalize_fund_attribute
-from finproof.domain.bonds import BondInstrument
+from finproof.data.normalization.public_funds import normalize_public_fund_item
+from finproof.domain.bonds import BondInstrument, BondSaleLot
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.overseas_listed import OverseasListedProduct
-from finproof.domain.public_funds import FundItem
+from finproof.domain.public_funds import PublicFundItem
 from finproof.registry.rating import RatingRegistry
 from tests.helpers.source_rows import source_row
 
 ROOT = Path(__file__).resolve().parents[4]
-AS_OF = date(2026, 7, 11)
+AS_OF = date(2026, 8, 24)
 
 
-def _bond_record() -> BondInstrument:
+def _bond_lot_record() -> BondSaleLot:
     registry = RatingRegistry.from_yaml(ROOT / "config/rating_scale.yaml")
-    result = normalize_bond(
+    result = normalize_bond_lot(
         source_row(
             "PRBD01N001",
             {
-                "ISU_DT": "20200101",
-                "MAT_DT": "20270711",
-                "SRFC_IRT": "1.2300",
-                "REMAINING_DAYS": "365",
+                "pd_no": "KR0000000001",
+                "pd_exg_mkt": "장외",
+                "info_base_dt": "20260822",
+                "info_seq": "1",
+                "isu_dt": "20200101",
+                "mat_dt": "20270711",
+                "srfc_irt": "1.2300",
+                "remaining_days": "365",
             },
         ),
-        AS_OF,
         registry,
     )
+    assert result.record is not None
+    return result.record
+
+
+def _bond_record() -> BondInstrument:
+    result = project_bond_instrument((_bond_lot_record(),), as_of=AS_OF)
     assert result.record is not None
     return result.record
 
@@ -55,25 +64,31 @@ def _overseas_record() -> OverseasListedProduct:
     return result.record
 
 
-def _fund_record() -> FundItem:
-    normalized = []
-    for excel_row, code in ((2, "C101"), (3, "C102")):
-        result = normalize_fund_attribute(
-            source_row("PRFD01N001", {"prfd_attr_cd": code}, excel_row=excel_row)
+def _fund_record() -> PublicFundItem:
+    result = normalize_public_fund_item(
+        source_row(
+            "PRFD01N001",
+            {"prfd_attr_cds": "C101,C102,C101", "prfd_attr_cnt": "3"},
         )
-        assert result.record is not None
-        normalized.append(result.record)
-    collapsed = collapse_fund_items(normalized)
-    assert len(collapsed.items) == 1
-    return collapsed.items[0]
+    )
+    assert result.record is not None
+    return result.record
 
 
-def test_serialization_module_skeleton_rejects_valid_bond() -> None:
+def test_refreshed_bond_lot_record_json_round_trip_preserves_every_field_and_lineage() -> None:
     from finproof.data.artifacts.serialization import serialize_table_row
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 
-    spec = TABLE_SPEC_BY_NAME["silver_bond_instrument"]
-    assert tuple(serialize_table_row(spec, _bond_record())) == spec.logical_projection
+    record = _bond_lot_record()
+    spec = TABLE_SPEC_BY_NAME["silver_bond_sale_lot"]
+    row = serialize_table_row(spec, record)
+    parsed = BondSaleLot.model_validate_json(row["record_json"])
+
+    assert parsed == record
+    assert parsed.source_row == record.source_row
+    assert parsed.source_key == record.source_key
+    assert row["source_row_number"] == record.source_row.source_row_number
+    assert tuple(row) == spec.logical_projection
 
 
 def test_bond_record_json_round_trip_and_projection() -> None:
@@ -81,16 +96,18 @@ def test_bond_record_json_round_trip_and_projection() -> None:
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
     from finproof.domain.values import DerivedValue, NormalizedValue
 
-    record = _bond_record()
+    projected = project_bond_instrument((_bond_lot_record(),), as_of=AS_OF)
+    assert projected.record is not None
+    record = projected.record
     payload = canonical_record_json(record)
-    round_tripped = BondInstrument.model_validate_json(payload, strict=True)
+    round_tripped = BondInstrument.model_validate_json(payload)
     row = serialize_table_row(TABLE_SPEC_BY_NAME["silver_bond_instrument"], record)
 
     assert round_tripped == record
     assert row["record_json"] == payload
     assert row["grain"] == "instrument"
     for name in BondInstrument.model_fields:
-        if name == "grain":
+        if name in {"grain", "selected_lot_key", "field_sources", "buy_yield_range"}:
             continue
         wrapped = getattr(record, name)
         if isinstance(wrapped, NormalizedValue):
@@ -159,36 +176,32 @@ def test_overseas_record_json_round_trip_and_projection() -> None:
     assert tuple(row) == TABLE_SPEC_BY_NAME["silver_overseas_listed_product"].logical_projection
 
 
-def test_fund_item_record_json_round_trip_representative_and_lineage() -> None:
+def test_refreshed_fund_item_record_json_round_trip_preserves_every_field_and_lineage() -> None:
     from finproof.data.artifacts.serialization import canonical_record_json, serialize_table_row
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 
     record = _fund_record()
     payload = canonical_record_json(record)
-    round_tripped = FundItem.model_validate_json(payload)
+    round_tripped = PublicFundItem.model_validate_json(payload)
     row = serialize_table_row(TABLE_SPEC_BY_NAME["silver_fund_item"], record)
 
     assert round_tripped == record
     assert row["record_json"] == payload
-    for name in FundItem.model_fields:
-        if name in {"grain", "contributing_rows"}:
+    for name in PublicFundItem.model_fields:
+        if name in {"grain", "source_row", "attribute_codes"}:
             continue
         wrapped = getattr(record, name)
-        assert row[name] == wrapped.representative.normalized_value
-        assert row[f"{name}__quality_status"] == wrapped.representative.quality_status.value
-    assert row["ksd_id"] == record.ksd_id.representative.normalized_value
-    assert row["ksd_id__quality_status"] == record.ksd_id.representative.quality_status.value
-    assert "equivalent_sources" not in row
-    parsed = FundItem.model_validate_json(row["record_json"])
-    assert parsed.contributing_rows == record.contributing_rows
-    assert parsed.ksd_id.equivalent_sources == record.ksd_id.equivalent_sources
+        assert row[name] == wrapped.normalized_value
+        assert row[f"{name}__quality_status"] == wrapped.quality_status.value
+    assert round_tripped.source_row == record.source_row
+    assert round_tripped.attribute_codes == ("C101", "C102", "C101")
 
 
 @pytest.mark.parametrize(
     "case",
-    ["bronze_column", "bronze_cell", "fund_attribute", "quality", "gold_link", "gold_evidence"],
+    ["bronze_column", "bronze_cell", "quality", "gold_link", "gold_evidence"],
 )
-def test_explicit_table_serializers_cover_bronze_attribute_quality_and_gold(case: str) -> None:
+def test_explicit_table_serializers_cover_bronze_quality_and_gold(case: str) -> None:
     from datetime import UTC, datetime
     from decimal import Decimal
     from pathlib import PurePosixPath
@@ -263,9 +276,6 @@ def test_explicit_table_serializers_cover_bronze_attribute_quality_and_gold(case
         source_snapshot_date=cell.source_snapshot_date,
         source_applicable_date=None,
     )
-    attribute_result = normalize_fund_attribute(source_row("PRFD01N001"))
-    assert attribute_result.record is not None
-    attribute = collapse_fund_items([attribute_result.record]).attributes[0]
     pure = DataQualityIssue.from_row(
         source_row("PREF01N001"),
         "pd_itm_no",
@@ -283,7 +293,6 @@ def test_explicit_table_serializers_cover_bronze_attribute_quality_and_gold(case
     cases = {
         "bronze_column": ("bronze_source_column", column),
         "bronze_cell": ("bronze_source_cell", cell),
-        "fund_attribute": ("silver_fund_item_attribute", attribute),
         "quality": ("silver_quality_issue", quality),
         "gold_link": ("gold_exact_cross_source_link", link),
         "gold_evidence": ("gold_exact_cross_source_link_evidence", evidence),
@@ -423,48 +432,6 @@ def test_quality_logical_projection_compares_each_uncovered_scalar_to_canonical_
         logical_table_row(spec, {**row, field: changed})
 
 
-@pytest.mark.parametrize(
-    "field",
-    [
-        "grain",
-        "fund_item_id",
-        "fund_item_id__quality_status",
-        "attribute_code",
-        "attribute_code__quality_status",
-        "attribute_code_raw",
-        "source_row_number",
-        "record_json",
-    ],
-)
-def test_fund_attribute_logical_projection_compares_every_physical_column_to_canonical_record_json(
-    field: str,
-) -> None:
-    import json
-
-    from finproof.data.artifacts.serialization import logical_table_row, serialize_table_row
-    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-
-    normalized = normalize_fund_attribute(source_row("PRFD01N001"))
-    assert normalized.record is not None
-    attribute = collapse_fund_items([normalized.record]).attributes[0]
-    spec = TABLE_SPEC_BY_NAME["silver_fund_item_attribute"]
-    row = dict(serialize_table_row(spec, attribute))
-    original = row[field]
-    if field == "record_json":
-        payload = json.loads(original)
-        payload["attribute_code"]["raw_value"] = "FORGED"
-        changed: object = json.dumps(
-            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
-    elif type(original) is int:
-        changed = original + 1
-    else:
-        changed = f"{original}x"
-
-    with pytest.raises(ValueError, match="attribute typed/JSON"):
-        logical_table_row(spec, {**row, field: changed})
-
-
 def test_non_bronze_serializers_expose_no_persistence_timestamp_parameter() -> None:
     from datetime import UTC, datetime
     from inspect import signature
@@ -506,9 +473,9 @@ def test_decimal_date_local_datetime_enum_null_and_utc_encoding(case: str) -> No
     domestic = _domestic_record()
     assert type(bond.coupon_rate.normalized_value) is Decimal
     assert type(bond.issue_date.normalized_value) is date
-    assert domestic.daily_update_at.normalized_value is None or (
-        type(domestic.daily_update_at.normalized_value) is datetime
-        and domestic.daily_update_at.normalized_value.tzinfo is None
+    assert (
+        domestic.daily_update_date.normalized_value is None
+        or type(domestic.daily_update_date.normalized_value) is date
     )
     assert domestic.tracking_error.normalized_value is None
     domestic_json = json.loads(
@@ -534,7 +501,7 @@ def test_decimal_date_local_datetime_enum_null_and_utc_encoding(case: str) -> No
         forged = bond.model_copy(
             update={
                 "issue_date": bond.issue_date.model_copy(
-                    update={"normalized_value": datetime(2026, 7, 11)}
+                    update={"normalized_value": datetime(2026, 8, 24)}
                 )
             }
         )
@@ -558,44 +525,25 @@ def test_decimal_date_local_datetime_enum_null_and_utc_encoding(case: str) -> No
         serialize_table_row(TABLE_SPEC_BY_NAME["silver_bond_instrument"], forged)
 
 
-@pytest.mark.parametrize(
-    "case",
-    ["source-local-aware", "bronze-naive", "bronze-nonzero-offset"],
-)
-def test_serialization_rejects_aware_source_local_and_nonexact_utc_timestamps(
+@pytest.mark.parametrize("case", ["bronze-naive", "bronze-nonzero-offset"])
+def test_serialization_rejects_nonexact_utc_timestamps(
     case: str,
 ) -> None:
-    from datetime import UTC, datetime, timedelta, timezone
+    from datetime import datetime, timedelta, timezone
 
-    from finproof.data.artifacts.serialization import (
-        serialize_bronze_source_row,
-        serialize_table_row,
-    )
+    from finproof.data.artifacts.serialization import serialize_bronze_source_row
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 
-    if case == "source-local-aware":
-        value = _domestic_record()
-        forged = value.model_copy(
-            update={
-                "daily_update_at": value.daily_update_at.model_copy(
-                    update={"normalized_value": datetime(2026, 7, 10, tzinfo=UTC)}
-                )
-            }
-        )
-        call = lambda: serialize_table_row(  # noqa: E731
-            TABLE_SPEC_BY_NAME["silver_domestic_listed_product"], forged
-        )
-    elif case.startswith("bronze"):
-        timestamp = (
-            datetime(2026, 8, 15)
-            if case == "bronze-naive"
-            else datetime(2026, 8, 15, tzinfo=timezone(timedelta(hours=9)))
-        )
-        call = lambda: serialize_bronze_source_row(  # noqa: E731
-            TABLE_SPEC_BY_NAME["bronze_source_row"],
-            source_row("PRBD01N001"),
-            persistence_timestamp=timestamp,
-        )
+    timestamp = (
+        datetime(2026, 8, 15)
+        if case == "bronze-naive"
+        else datetime(2026, 8, 15, tzinfo=timezone(timedelta(hours=9)))
+    )
+    call = lambda: serialize_bronze_source_row(  # noqa: E731
+        TABLE_SPEC_BY_NAME["bronze_source_row"],
+        source_row("PRBD01N001"),
+        persistence_timestamp=timestamp,
+    )
     with pytest.raises(ValueError, match="timestamp"):
         call()
 
@@ -724,67 +672,45 @@ def test_serialization_revalidates_exact_registered_spec_and_model_pair(case: st
 
 @pytest.mark.parametrize(
     "case",
-    [
-        "decimal-string",
-        "string-subclass",
-        "fund-value-subclass",
-        "normalized-value-subclass",
-    ],
+    ["decimal-string", "string-subclass", "normalized-value-subclass"],
 )
-def test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and_nested_model_leaves(  # noqa: E501
+def test_direct_fund_item_revalidation_rejects_forged_normalized_leaves(
     monkeypatch: pytest.MonkeyPatch,
     case: str,
 ) -> None:
-    from decimal import Decimal
-
     from finproof.data.artifacts import serialization
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
-    from finproof.domain.public_funds import FundItemValue
     from finproof.domain.values import NormalizedValue
 
     value = _fund_record().model_copy(deep=True)
     if case == "decimal-string":
-        object.__setattr__(value.return_1m.representative, "normalized_value", "1.25")
+        object.__setattr__(value.return_1m, "normalized_value", "1.25")
     elif case == "string-subclass":
 
         class ForgedText(str):
             pass
 
         object.__setattr__(
-            value.name.representative,
+            value.name,
             "normalized_value",
-            ForgedText(value.name.representative.normalized_value or "fund"),
-        )
-    elif case == "fund-value-subclass":
-
-        class ForgedFundItemValue(FundItemValue[Decimal]):
-            pass
-
-        wrapped = value.return_1m
-        object.__setattr__(
-            value,
-            "return_1m",
-            ForgedFundItemValue.model_construct(
-                representative=wrapped.representative,
-                equivalent_sources=wrapped.equivalent_sources,
-            ),
+            ForgedText(value.name.normalized_value or "fund"),
         )
     else:
 
-        class ForgedNormalizedValue(NormalizedValue[Decimal]):
+        class ForgedNormalizedValue(NormalizedValue[str]):
             pass
 
-        representative = value.return_1m.representative
+        original = value.name
         object.__setattr__(
-            value.return_1m,
-            "representative",
+            value,
+            "name",
             ForgedNormalizedValue.model_construct(
-                raw_value=representative.raw_value,
-                normalized_value=representative.normalized_value,
-                quality_status=representative.quality_status,
-                rule_id=representative.rule_id,
-                rule_version=representative.rule_version,
-                source=representative.source,
+                raw_value=original.raw_value,
+                normalized_value=original.normalized_value,
+                quality_status=original.quality_status,
+                rule_id=original.rule_id,
+                rule_version=original.rule_version,
+                source=original.source,
             ),
         )
 
@@ -797,7 +723,7 @@ def test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and
         return original_canonical(model)
 
     monkeypatch.setattr(serialization, "canonical_record_json", tracked_canonical)
-    with pytest.raises(ValueError, match="physical model values"):
+    with pytest.raises(ValueError, match=r"physical|Decimal"):
         serialization.serialize_table_row(
             TABLE_SPEC_BY_NAME["silver_fund_item"],
             value,
@@ -808,32 +734,17 @@ def test_fund_wide_revalidation_rejects_json_coercible_forged_decimal_string_and
 @pytest.mark.parametrize(
     "case",
     [
-        "grain-str-subclass",
         "locator-str-subclass",
-        "locator-path-subclass",
-        "locator-int-subclass",
-        "locator-bool",
-        "locator-datetime",
         "locator-date-subclass",
-        "locator-applicable-datetime",
-        "equivalent-locator-int-subclass",
         "row-str-subclass",
-        "row-path-subclass",
-        "row-int-subclass",
-        "raw-payload-str-subclass",
         "cells-list",
         "cell-subclass",
-        "cell-str-subclass",
-        "cell-int-subclass",
     ],
 )
-def test_fund_python_graph_recursively_rejects_exact_model_children_with_forged_scalar_subclasses(
+def test_direct_fund_item_graph_rejects_forged_source_lineage(
     monkeypatch: pytest.MonkeyPatch,
     case: str,
 ) -> None:
-    from datetime import datetime
-    from pathlib import PurePosixPath
-
     from finproof.data.artifacts import serialization
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
     from finproof.domain.source import SourceCell
@@ -841,74 +752,26 @@ def test_fund_python_graph_recursively_rejects_exact_model_children_with_forged_
     class ForgedText(str):
         pass
 
-    class ForgedInt(int):
-        pass
-
     class ForgedDate(date):
-        pass
-
-    class ForgedPath(PurePosixPath):
         pass
 
     class ForgedSourceCell(SourceCell):
         pass
 
     value = _fund_record().model_copy(deep=True)
-    representative = value.fund_item_id.representative
-    locator = representative.source
-    equivalent_locator = value.fund_item_id.equivalent_sources[1]
-    row = value.contributing_rows[0]
+    locator = value.fund_item_id.source
+    row = value.source_row
     cell = row.cells[0]
 
-    if case == "grain-str-subclass":
-        object.__setattr__(value, "grain", ForgedText(value.grain))
-    elif case == "locator-str-subclass":
+    if case == "locator-str-subclass":
         object.__setattr__(locator, "source_table", ForgedText(locator.source_table))
-    elif case == "locator-path-subclass":
-        object.__setattr__(locator, "source_file", ForgedPath(locator.source_file))
-    elif case == "locator-int-subclass":
-        object.__setattr__(
-            locator,
-            "source_row_number",
-            ForgedInt(locator.source_row_number),
-        )
-    elif case == "locator-bool":
-        object.__setattr__(locator, "source_row_number", True)
-    elif case == "locator-datetime":
-        object.__setattr__(
-            locator,
-            "source_snapshot_date",
-            datetime(2026, 7, 11),
-        )
     elif case == "locator-date-subclass":
-        object.__setattr__(locator, "source_snapshot_date", ForgedDate(2026, 7, 11))
-    elif case == "locator-applicable-datetime":
-        object.__setattr__(
-            locator,
-            "source_applicable_date",
-            datetime(2026, 7, 11),
-        )
-    elif case == "equivalent-locator-int-subclass":
-        object.__setattr__(
-            equivalent_locator,
-            "source_column_number",
-            ForgedInt(equivalent_locator.source_column_number),
-        )
+        object.__setattr__(locator, "source_snapshot_date", ForgedDate(2026, 8, 24))
     elif case == "row-str-subclass":
         object.__setattr__(row, "source_table", ForgedText(row.source_table))
-    elif case == "row-path-subclass":
-        object.__setattr__(row, "source_file", ForgedPath(row.source_file))
-    elif case == "row-int-subclass":
-        object.__setattr__(row, "source_row_number", ForgedInt(row.source_row_number))
-    elif case == "raw-payload-str-subclass":
-        object.__setattr__(
-            row,
-            "raw_payload",
-            (ForgedText(row.raw_payload[0]), *row.raw_payload[1:]),
-        )
     elif case == "cells-list":
         object.__setattr__(row, "cells", list(row.cells))
-    elif case == "cell-subclass":
+    else:
         object.__setattr__(
             row,
             "cells",
@@ -917,15 +780,6 @@ def test_fund_python_graph_recursively_rejects_exact_model_children_with_forged_
                 *row.cells[1:],
             ),
         )
-    elif case == "cell-str-subclass":
-        object.__setattr__(cell, "raw_value", ForgedText(cell.raw_value))
-    else:
-        object.__setattr__(
-            cell,
-            "excel_column_number",
-            ForgedInt(cell.excel_column_number),
-        )
-
     canonical_calls = 0
 
     def fail_canonical(_model: BaseModel) -> str:

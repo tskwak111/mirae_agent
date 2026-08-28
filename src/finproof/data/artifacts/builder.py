@@ -127,7 +127,7 @@ class ArtifactManifestIdentity(BaseModel):
 
     @model_validator(mode="after")
     def require_snapshot(self) -> Self:
-        if self.dataset_version != date(2026, 7, 11):
+        if self.dataset_version != date(2026, 8, 24):
             raise ValueError("manifest telemetry requires the official snapshot")
         return self
 
@@ -173,10 +173,10 @@ class ArtifactBuildTelemetry(BaseModel):
             or self.max_writer_batch_rows > 65_536
             or self.max_verifier_batch_rows > 65_536
             or self.max_bronze_reconstruction_cells > 73
-            or self.linked_domestic_record_json_parses > 47
-            or self.linked_fund_record_json_parses > 47
-            or self.max_live_link_keys > 47
-            or self.max_live_evidence_keys > 371
+            or self.linked_domestic_record_json_parses > 217
+            or self.linked_fund_record_json_parses > 217
+            or self.max_live_link_keys > 217
+            or self.max_live_evidence_keys > 434
             or tuple(value.path for value in self.physical_files) != _PHYSICAL_FILE_PATHS
         ):
             raise ValueError("artifact build telemetry is incomplete or unbounded")

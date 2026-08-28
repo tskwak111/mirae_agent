@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, BinaryIO, Self
+from typing import Any, BinaryIO, Literal, Self
 
 import yaml
 from pydantic import BaseModel, ConfigDict, model_validator
@@ -90,21 +90,11 @@ class ArtifactSilverCounts(BaseModel):
 
     model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
 
+    bond_sale_lot: int
     bond_instrument: int
     domestic_listed_product: int
     overseas_listed_product: int
     fund_item: int
-    fund_item_attribute: int
-
-
-class ArtifactExactLinkExpectations(BaseModel):
-    """Expected exact-link outputs."""
-
-    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
-
-    links: int
-    evidence: int
-    pair_sha256: str
 
 
 class ArtifactParquetOptions(BaseModel):
@@ -142,7 +132,7 @@ class ArtifactBuildConfig(BaseModel):
     sources: tuple[ArtifactSourceExpectation, ...]
     silver_counts: ArtifactSilverCounts
     quarantine_source_rows: int
-    exact_links: ArtifactExactLinkExpectations
+    exact_link_candidate_limit: Literal[217]
     parquet: ArtifactParquetOptions
     staging: ArtifactStagingOptions
 
@@ -239,52 +229,48 @@ _EXPECTED_ARTIFACT_CONFIG: dict[str, Any] = {
     "version": "1.0.0",
     "artifact_contract_version": "1.0.0",
     "artifact_set_id": "finproof-data-artifacts/v1",
-    "dataset_snapshot_date": date(2026, 7, 11),
+    "dataset_snapshot_date": date(2026, 8, 24),
     "registry_versions": {
         "dataset": "1.0.0",
-        "quality": "1.0.0",
+        "quality": "1.1.0",
         "rating": "1.0.0",
-        "state": "1.1.0",
+        "state": "1.2.0",
     },
     "sources": (
         {
             "table": "PRBD01N001",
-            "rows": 42_394,
-            "columns": 40,
-            "cells": 1_695_760,
+            "rows": 21_882,
+            "columns": 58,
+            "cells": 1_269_156,
         },
         {
             "table": "PREF01N001",
-            "rows": 1_734,
-            "columns": 73,
-            "cells": 126_582,
+            "rows": 1_780,
+            "columns": 98,
+            "cells": 174_440,
         },
         {
             "table": "PREF02N001",
-            "rows": 5_646,
+            "rows": 6_037,
             "columns": 49,
-            "cells": 276_654,
+            "cells": 295_813,
         },
         {
             "table": "PRFD01N001",
-            "rows": 95_619,
-            "columns": 45,
-            "cells": 4_302_855,
+            "rows": 23_676,
+            "columns": 75,
+            "cells": 1_775_700,
         },
     ),
     "silver_counts": {
-        "bond_instrument": 42_394,
-        "domestic_listed_product": 1_733,
-        "overseas_listed_product": 5_646,
-        "fund_item": 11_138,
-        "fund_item_attribute": 95_618,
+        "bond_sale_lot": 21_882,
+        "bond_instrument": 20_497,
+        "domestic_listed_product": 1_779,
+        "overseas_listed_product": 6_037,
+        "fund_item": 23_676,
     },
-    "quarantine_source_rows": 2,
-    "exact_links": {
-        "links": 47,
-        "evidence": 371,
-        "pair_sha256": ("8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962"),
-    },
+    "quarantine_source_rows": 1,
+    "exact_link_candidate_limit": 217,
     "parquet": {
         "compression": "zstd",
         "compression_level": 3,
@@ -468,14 +454,14 @@ def validate_build_registry_versions(
         state = _load_registry(config_root / "state_rules.yaml")
         if (
             datasets.get("version") != "1.0.0"
-            or datasets.get("snapshot_date") != "2026-07-11"
+            or datasets.get("snapshot_date") != "2026-08-24"
             or quality.get("version") != versions.quality_rule_version
             or rating.get("version") != versions.rating_rule_version
             or state.get("version") != versions.state_rule_version
-            or versions.dataset_version != date(2026, 7, 11)
-            or versions.quality_rule_version != "1.0.0"
+            or versions.dataset_version != date(2026, 8, 24)
+            or versions.quality_rule_version != "1.1.0"
             or versions.rating_rule_version != "1.0.0"
-            or versions.state_rule_version != "1.1.0"
+            or versions.state_rule_version != "1.2.0"
         ):
             raise ValueError("build registry version mismatch")
     except (OSError, SafeFileReadError, TypeError, ValueError, yaml.YAMLError) as exc:
@@ -532,14 +518,14 @@ def _validate_registry_payloads(
 ) -> None:
     if (
         datasets.get("version") != "1.0.0"
-        or datasets.get("snapshot_date") != "2026-07-11"
+        or datasets.get("snapshot_date") != "2026-08-24"
         or quality.get("version") != versions.quality_rule_version
         or rating.get("version") != versions.rating_rule_version
         or state.get("version") != versions.state_rule_version
-        or versions.dataset_version != date(2026, 7, 11)
-        or versions.quality_rule_version != "1.0.0"
+        or versions.dataset_version != date(2026, 8, 24)
+        or versions.quality_rule_version != "1.1.0"
         or versions.rating_rule_version != "1.0.0"
-        or versions.state_rule_version != "1.1.0"
+        or versions.state_rule_version != "1.2.0"
     ):
         raise ValueError("build registry version mismatch")
 
@@ -547,10 +533,10 @@ def _validate_registry_payloads(
 def _require_config_versions(versions: VersionBundle) -> None:
     if (
         type(versions) is not VersionBundle
-        or versions.dataset_version != date(2026, 7, 11)
-        or versions.quality_rule_version != "1.0.0"
+        or versions.dataset_version != date(2026, 8, 24)
+        or versions.quality_rule_version != "1.1.0"
         or versions.rating_rule_version != "1.0.0"
-        or versions.state_rule_version != "1.1.0"
+        or versions.state_rule_version != "1.2.0"
     ):
         raise ValueError("artifact config version bundle mismatch")
 

@@ -42,29 +42,26 @@ from finproof.data.artifacts.staging import (
     FundExactLinkCandidate,
 )
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TableSpec
-from finproof.data.normalization.bonds import normalize_bond
+from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
 from finproof.data.normalization.overseas_listed import normalize_overseas_listed
-from finproof.data.normalization.public_funds import (
-    classify_public_fund_row,
-    normalize_public_fund_item_group,
-)
+from finproof.data.normalization.public_funds import normalize_public_fund_item
 from finproof.data.source_manifest import OFFICIAL_TABLE_IDS
-from finproof.domain.bonds import BondInstrument
+from finproof.domain.bonds import BondInstrument, BondSaleLot
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.normalization import NormalizationResult
 from finproof.domain.overseas_listed import OverseasListedProduct
-from finproof.domain.public_funds import FundCollapseResult
+from finproof.domain.public_funds import PublicFundItem
 from finproof.domain.quality import DataQualityIssue
 from finproof.domain.source import SourceRow
 from finproof.registry.rating import RatingRegistry
 
 _SOURCE_NAMES = ("PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001")
 _STAGED_RELATION_NAMES = (
-    "SILVER_BOND_INSTRUMENT",
+    "SILVER_BOND_SALE_LOT",
     "SILVER_DOMESTIC_LISTED_PRODUCT",
     "SILVER_OVERSEAS_LISTED_PRODUCT",
-    "PUBLIC_FUND_SOURCE_ROW",
+    "SILVER_FUND_ITEM",
     "SILVER_QUALITY_ISSUE",
 )
 
@@ -283,11 +280,11 @@ class SilverBuildResult(_SilverBuildResultProvenance):
             item.observed_rows for item in exact_bronze.observations.source_tables
         )
         staged_counts = {item.name: item.observed for item in instrumentation.staged_relation_rows}
-        unstaged_fund_rows = source_counts[3] - staged_counts["PUBLIC_FUND_SOURCE_ROW"]
+        unstaged_fund_rows = source_counts[3] - staged_counts["SILVER_FUND_ITEM"]
         if (
             tuple(item.observed for item in instrumentation.source_consume_counts) != source_counts
             or instrumentation.source_rows_consumed != sum(source_counts)
-            or staged_counts["SILVER_BOND_INSTRUMENT"] != observed_rows["silver_bond_instrument"]
+            or staged_counts["SILVER_BOND_SALE_LOT"] != observed_rows["silver_bond_sale_lot"]
             or staged_counts["SILVER_DOMESTIC_LISTED_PRODUCT"]
             != observed_rows["silver_domestic_listed_product"]
             or staged_counts["SILVER_OVERSEAS_LISTED_PRODUCT"]
@@ -522,7 +519,6 @@ class SilverArtifactEmitter:
         "_excluded_counts",
         "_held_rating_registry",
         "_instrumentation",
-        "_last_fund_group_size",
         "_max_live_fund_group_rows",
         "_max_relation_batch_rows",
         "_max_writer_batch_rows",
@@ -543,7 +539,6 @@ class SilverArtifactEmitter:
     _excluded_counts: dict[str, int]
     _held_rating_registry: RatingRegistry
     _instrumentation: SilverBuildInstrumentation | None
-    _last_fund_group_size: int
     _max_live_fund_group_rows: int
     _max_relation_batch_rows: int
     _max_writer_batch_rows: int
@@ -587,7 +582,6 @@ class SilverArtifactEmitter:
         value._versions = versions
         value._held_rating_registry = rating_registry
         value._max_live_fund_group_rows = 0
-        value._last_fund_group_size = 0
         value._max_relation_batch_rows = 0
         value._max_writer_batch_rows = 0
         value._source_rows_consumed = 0
@@ -595,7 +589,7 @@ class SilverArtifactEmitter:
         value._normalizer_call_counts = dict.fromkeys(_SOURCE_NAMES, 0)
         value._staged_relation_rows = dict.fromkeys(_STAGED_RELATION_NAMES, 0)
         value._excluded_counts = dict.fromkeys(
-            ("instrument", "listed_product", "fund_item", "fund_attribute"),
+            ("instrument", "listed_product", "fund_item"),
             0,
         )
         value._observations = None
@@ -617,17 +611,14 @@ class SilverArtifactEmitter:
         self._source_consume_counts[row.source_table] += 1
         self._normalizer_call_counts[row.source_table] += 1
         result: (
-            NormalizationResult[BondInstrument]
+            NormalizationResult[BondSaleLot]
             | NormalizationResult[ListedProduct]
             | NormalizationResult[OverseasListedProduct]
+            | NormalizationResult[PublicFundItem]
         )
         if row.source_table == "PRBD01N001":
-            result = normalize_bond(
-                row,
-                self._versions.dataset_version,
-                self._held_rating_registry,
-            )
-            relation = ExternalOrderRelation.SILVER_BOND_INSTRUMENT
+            result = normalize_bond_lot(row, self._held_rating_registry)
+            relation = ExternalOrderRelation.SILVER_BOND_SALE_LOT
         elif row.source_table == "PREF01N001":
             result = normalize_domestic_listed(row, self._versions.dataset_version)
             relation = ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
@@ -635,24 +626,8 @@ class SilverArtifactEmitter:
             result = normalize_overseas_listed(row)
             relation = ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT
         else:
-            classification = classify_public_fund_row(row)
-            if classification.issue is not None:
-                self._excluded_counts["fund_attribute"] += 1
-                self._stage_quality_issues((classification.issue,))
-                return
-            if type(classification.item_key) is not str:
-                raise ValueError("classified fund item key is missing")
-            self._order_store.insert_batch(
-                relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW,
-                rows=(
-                    ExternalOrderRow(
-                        key=(classification.item_key, row.source_row_number),
-                        payload_json=canonical_record_json(row),
-                    ),
-                ),
-            )
-            self._staged_relation_rows[ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW.name] += 1
-            return
+            result = normalize_public_fund_item(row)
+            relation = ExternalOrderRelation.SILVER_FUND_ITEM
         self._stage_nonfund_result(relation, result)
         self._stage_quality_issues(result.issues)
 
@@ -660,27 +635,46 @@ class SilverArtifactEmitter:
         self,
         relation: ExternalOrderRelation,
         result: (
-            NormalizationResult[BondInstrument]
+            NormalizationResult[BondSaleLot]
             | NormalizationResult[ListedProduct]
             | NormalizationResult[OverseasListedProduct]
+            | NormalizationResult[PublicFundItem]
         ),
     ) -> None:
         if result.record is None:
             grain = (
                 "instrument"
-                if relation is ExternalOrderRelation.SILVER_BOND_INSTRUMENT
+                if relation is ExternalOrderRelation.SILVER_BOND_SALE_LOT
+                else "fund_item"
+                if relation is ExternalOrderRelation.SILVER_FUND_ITEM
                 else "listed_product"
             )
             self._excluded_counts[grain] += 1
             return
-        product_id = result.record.product_id.normalized_value
+        record = result.record
+        product_id_wrapper = (
+            record.fund_item_id if isinstance(record, PublicFundItem) else record.product_id
+        )
+        product_id = product_id_wrapper.normalized_value
         if type(product_id) is not str:
             raise ValueError("normalized Silver product ID is missing")
+        if type(result.record) is BondSaleLot:
+            key: tuple[str | int, ...] = (
+                product_id,
+                result.record.source_key.exchange_market,
+                result.record.source_key.info_base_date,
+                result.record.source_key.info_seq,
+                result.record.source_key.source_row_number,
+            )
+        elif type(result.record) is PublicFundItem:
+            key = (product_id, result.record.source_row.source_row_number)
+        else:
+            key = (product_id,)
         self._order_store.insert_batch(
             relation=relation,
             rows=(
                 ExternalOrderRow(
-                    key=(product_id,),
+                    key=key,
                     payload_json=canonical_record_json(result.record),
                 ),
             ),
@@ -690,7 +684,7 @@ class SilverArtifactEmitter:
             and type(result.record) is ListedProduct
             and result.record.product_type.normalized_value == "ETF"
         ):
-            candidate = DomesticExactLinkCandidate(
+            domestic_candidate = DomesticExactLinkCandidate(
                 left_product_id=product_id,
                 source_product_type="ETF",
                 identifier=ExactLinkIdentifierSource(
@@ -702,11 +696,35 @@ class SilverArtifactEmitter:
                 relation=ExternalOrderRelation.EXACT_LINK_LEFT_CANDIDATE,
                 rows=(
                     ExternalOrderRow(
-                        key=(candidate.identifier.raw_identifier, product_id),
-                        payload_json=canonical_record_json(candidate),
+                        key=(domestic_candidate.identifier.raw_identifier, product_id),
+                        payload_json=canonical_record_json(domestic_candidate),
                     ),
                 ),
             )
+        elif (
+            relation is ExternalOrderRelation.SILVER_FUND_ITEM
+            and type(result.record) is PublicFundItem
+        ):
+            raw_identifier = result.record.ksd_id.raw_value
+            if raw_identifier != "":
+                fund_candidate = FundExactLinkCandidate(
+                    right_product_id=product_id,
+                    identifiers=(
+                        ExactLinkIdentifierSource(
+                            raw_identifier=raw_identifier,
+                            locator=result.record.ksd_id.source,
+                        ),
+                    ),
+                )
+                self._order_store.insert_batch(
+                    relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
+                    rows=(
+                        ExternalOrderRow(
+                            key=(raw_identifier, product_id),
+                            payload_json=canonical_record_json(fund_candidate),
+                        ),
+                    ),
+                )
         self._staged_relation_rows[relation.name] += 1
 
     def _stage_quality_issues(self, issues: Sequence[DataQualityIssue]) -> None:
@@ -764,7 +782,7 @@ class SilverArtifactEmitter:
             excluded_silver_records=tuple(
                 ExcludedSilverCount(
                     grain=cast(
-                        Literal["instrument", "listed_product", "fund_item", "fund_attribute"],
+                        Literal["instrument", "listed_product", "fund_item"],
                         grain,
                     ),
                     count=count,
@@ -779,6 +797,11 @@ class SilverArtifactEmitter:
         }
         self._observations = exact.observations.with_silver(
             (
+                NamedExpectedObservedCount(
+                    name="bond_sale_lot",
+                    expected=self._config.silver_counts.bond_sale_lot,
+                    observed=observed_counts["silver_bond_sale_lot"],
+                ),
                 NamedExpectedObservedCount(
                     name="bond_instrument",
                     expected=self._config.silver_counts.bond_instrument,
@@ -798,11 +821,6 @@ class SilverArtifactEmitter:
                     name="fund_item",
                     expected=self._config.silver_counts.fund_item,
                     observed=observed_counts["silver_fund_item"],
-                ),
-                NamedExpectedObservedCount(
-                    name="fund_item_attribute",
-                    expected=self._config.silver_counts.fund_item_attribute,
-                    observed=observed_counts["silver_fund_item_attribute"],
                 ),
             ),
             ExpectedObservedCount(
@@ -857,11 +875,11 @@ class SilverArtifactEmitter:
 
     def _drain_silver_tables(self, bronze_tables: StagedParquetSet) -> StagedParquetSet:
         table_names = (
+            "silver_bond_sale_lot",
             "silver_bond_instrument",
             "silver_domestic_listed_product",
             "silver_overseas_listed_product",
             "silver_fund_item",
-            "silver_fund_item_attribute",
             "silver_quality_issue",
         )
         specs = tuple(TABLE_SPEC_BY_NAME[name] for name in table_names)
@@ -878,25 +896,25 @@ class SilverArtifactEmitter:
                         limit=self._config.parquet.writer_batch_rows,
                     )
                 )
-            self._drain_model_relation(
-                ExternalOrderRelation.SILVER_BOND_INSTRUMENT,
-                BondInstrument,
-                specs[0],
-                sinks[0],
-            )
+            self._drain_bond_relation(specs[0], specs[1], sinks[0], sinks[1])
             self._drain_model_relation(
                 ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT,
                 ListedProduct,
-                specs[1],
-                sinks[1],
+                specs[2],
+                sinks[2],
             )
             self._drain_model_relation(
                 ExternalOrderRelation.SILVER_OVERSEAS_LISTED_PRODUCT,
                 OverseasListedProduct,
-                specs[2],
-                sinks[2],
+                specs[3],
+                sinks[3],
             )
-            self._drain_fund_relation(specs[3], specs[4], sinks[3], sinks[4])
+            self._drain_model_relation(
+                ExternalOrderRelation.SILVER_FUND_ITEM,
+                PublicFundItem,
+                specs[4],
+                sinks[4],
+            )
             self._drain_model_relation(
                 ExternalOrderRelation.SILVER_QUALITY_ISSUE,
                 DataQualityIssue,
@@ -928,8 +946,10 @@ class SilverArtifactEmitter:
         self,
         relation: ExternalOrderRelation,
         model_type: type[BondInstrument]
+        | type[BondSaleLot]
         | type[ListedProduct]
         | type[OverseasListedProduct]
+        | type[PublicFundItem]
         | type[DataQualityIssue],
         spec: TableSpec,
         sink: _SilverBatchSink,
@@ -940,85 +960,52 @@ class SilverArtifactEmitter:
                 len(batch),
             )
             for staged in batch:
-                model = model_type.model_validate_json(staged.payload_json, strict=True)
+                model = model_type.model_validate_json(staged.payload_json)
                 sink.enqueue(serialize_table_row(spec, model))
 
-    def _drain_fund_relation(
+    def _drain_bond_relation(
         self,
-        item_spec: TableSpec,
-        attribute_spec: TableSpec,
-        item_sink: _SilverBatchSink,
-        attribute_sink: _SilverBatchSink,
+        lot_spec: TableSpec,
+        parent_spec: TableSpec,
+        lot_sink: _SilverBatchSink,
+        parent_sink: _SilverBatchSink,
     ) -> None:
-        for result in self._iter_normalized_fund_groups():
-            if not result.items:
-                self._excluded_counts["fund_item"] += 1
-            self._excluded_counts["fund_attribute"] += self._last_fund_group_size - len(
-                result.attributes
-            )
-            for item in result.items:
-                item_sink.enqueue(serialize_table_row(item_spec, item))
-            for attribute in result.attributes:
-                attribute_sink.enqueue(serialize_table_row(attribute_spec, attribute))
-            self._stage_quality_issues(result.issues)
+        current_id: str | None = None
+        lots: list[BondSaleLot] = []
 
-    def _iter_normalized_fund_groups(self) -> Iterator[FundCollapseResult]:
-        current_key: str | None = None
-        group: list[SourceRow] = []
-
-        def take_group() -> FundCollapseResult:
-            self._last_fund_group_size = len(group)
-            result = normalize_public_fund_item_group(tuple(group))
-            group.clear()
-            for item in result.items:
-                right_product_id = item.fund_item_id.representative.normalized_value
-                if type(right_product_id) is not str:
-                    raise ValueError("normalized fund item ID is missing")
-                raw_identifier = item.ksd_id.representative.raw_value
-                if raw_identifier == "":
-                    continue
-                candidate = FundExactLinkCandidate(
-                    right_product_id=right_product_id,
-                    identifiers=tuple(
-                        ExactLinkIdentifierSource(
-                            raw_identifier=raw_identifier,
-                            locator=source,
-                        )
-                        for source in item.ksd_id.equivalent_sources
-                    ),
-                )
-                self._order_store.insert_batch(
-                    relation=ExternalOrderRelation.EXACT_LINK_RIGHT_CANDIDATE,
-                    rows=(
-                        ExternalOrderRow(
-                            key=(raw_identifier, right_product_id),
-                            payload_json=canonical_record_json(candidate),
-                        ),
-                    ),
-                )
-            return result
+        def emit_parent() -> None:
+            if not lots:
+                return
+            projection = project_bond_instrument(tuple(lots), as_of=self._versions.dataset_version)
+            if projection.record is None:
+                self._excluded_counts["instrument"] += 1
+            else:
+                parent_sink.enqueue(serialize_table_row(parent_spec, projection.record))
+            self._stage_quality_issues(projection.issues)
+            lots.clear()
 
         for batch in self._order_store.iter_ordered_batches(
-            relation=ExternalOrderRelation.PUBLIC_FUND_SOURCE_ROW
+            relation=ExternalOrderRelation.SILVER_BOND_SALE_LOT
         ):
             self._max_relation_batch_rows = max(
                 self._max_relation_batch_rows,
                 len(batch),
             )
             for staged in batch:
-                item_key = staged.key[0]
-                if type(item_key) is not str:
-                    raise ValueError("fund staging key changed")
-                if current_key is not None and item_key != current_key:
-                    yield take_group()
-                current_key = item_key
-                group.append(SourceRow.model_validate_json(staged.payload_json, strict=True))
+                lot = BondSaleLot.model_validate_json(staged.payload_json)
+                product_id = lot.product_id.normalized_value
+                if type(product_id) is not str:
+                    raise ValueError("bond lot product ID is missing")
+                if current_id is not None and product_id != current_id:
+                    emit_parent()
+                current_id = product_id
+                lots.append(lot)
+                lot_sink.enqueue(serialize_table_row(lot_spec, lot))
                 self._max_live_fund_group_rows = max(
                     self._max_live_fund_group_rows,
-                    len(group),
+                    len(lots),
                 )
-        if group:
-            yield take_group()
+        emit_parent()
 
     def _iter_persisted_quality_issues(self) -> Iterator[DataQualityIssue]:
         for batch in self._order_store.iter_ordered_batches(

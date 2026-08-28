@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import io
 import pickle
 from copy import copy, deepcopy
@@ -86,18 +85,14 @@ def _install_small_fixture(
         {**source, "rows": 1, "cells": source["columns"]} for source in payload["sources"]
     )
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 0,
-        "evidence": 0,
-        "pair_sha256": hashlib.sha256(b"").hexdigest(),
-    }
+    payload["exact_link_candidate_limit"] = 217
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
 
     def small_config(

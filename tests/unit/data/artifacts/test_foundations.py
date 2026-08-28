@@ -89,40 +89,37 @@ _VALID_ARTIFACT_CONFIG = """\
 version: 1.0.0
 artifact_contract_version: 1.0.0
 artifact_set_id: finproof-data-artifacts/v1
-dataset_snapshot_date: 2026-07-11
+dataset_snapshot_date: 2026-08-24
 registry_versions:
   dataset: 1.0.0
-  quality: 1.0.0
+  quality: 1.1.0
   rating: 1.0.0
-  state: 1.1.0
+  state: 1.2.0
 sources:
   - table: PRBD01N001
-    rows: 42394
-    columns: 40
-    cells: 1695760
+    rows: 21882
+    columns: 58
+    cells: 1269156
   - table: PREF01N001
-    rows: 1734
-    columns: 73
-    cells: 126582
+    rows: 1780
+    columns: 98
+    cells: 174440
   - table: PREF02N001
-    rows: 5646
+    rows: 6037
     columns: 49
-    cells: 276654
+    cells: 295813
   - table: PRFD01N001
-    rows: 95619
-    columns: 45
-    cells: 4302855
+    rows: 23676
+    columns: 75
+    cells: 1775700
 silver_counts:
-  bond_instrument: 42394
-  domestic_listed_product: 1733
-  overseas_listed_product: 5646
-  fund_item: 11138
-  fund_item_attribute: 95618
-quarantine_source_rows: 2
-exact_links:
-  links: 47
-  evidence: 371
-  pair_sha256: 8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962
+  bond_sale_lot: 21882
+  bond_instrument: 20497
+  domestic_listed_product: 1779
+  overseas_listed_product: 6037
+  fund_item: 23676
+quarantine_source_rows: 1
+exact_link_candidate_limit: 217
 parquet:
   compression: zstd
   compression_level: 3
@@ -152,8 +149,8 @@ def _mutate_frozen_artifact_config(config: Any, case: str) -> None:
         config.registry_versions.dataset = "forged"
     elif case == "silver":
         config.silver_counts.bond_instrument = 0
-    elif case == "links":
-        config.exact_links.links = 0
+    elif case == "ceiling":
+        config.exact_link_candidate_limit = 0
     elif case == "parquet":
         config.parquet.compression = "forged"
     else:
@@ -176,6 +173,29 @@ def test_repository_artifact_build_config_matches_frozen_model() -> None:
     assert loaded.artifact_set_id == "finproof-data-artifacts/v1"
 
 
+def test_refreshed_artifact_build_config_separates_input_ceiling_from_output_goldens() -> None:
+    from finproof.core.versions import VersionBundle
+    from finproof.data.artifacts.config import ArtifactBuildConfig
+
+    repository_root = Path(__file__).parents[4]
+    loaded = ArtifactBuildConfig.load(
+        repository_root / "config/artifact_build.yaml",
+        repository_root=repository_root,
+        versions=VersionBundle(),
+    )
+
+    assert loaded.silver_counts.model_dump() == {
+        "bond_sale_lot": 21_882,
+        "bond_instrument": 20_497,
+        "domestic_listed_product": 1_779,
+        "overseas_listed_product": 6_037,
+        "fund_item": 23_676,
+    }
+    assert loaded.quarantine_source_rows == 1
+    assert loaded.exact_link_candidate_limit == 217
+    assert not hasattr(loaded, "exact_links")
+
+
 def _synthetic_build_settings(repository_root: Path) -> object:
     from finproof.core.settings import Settings
 
@@ -193,9 +213,15 @@ def _synthetic_build_settings(repository_root: Path) -> object:
         "rating_scale.yaml",
         "state_rules.yaml",
     ):
-        content = "version: 1.1.0\n" if name == "state_rules.yaml" else "version: 1.0.0\n"
+        content = (
+            "version: 1.2.0\n"
+            if name == "state_rules.yaml"
+            else "version: 1.1.0\n"
+            if name == "quality_rules.yaml"
+            else "version: 1.0.0\n"
+        )
         if name == "datasets.yaml":
-            content += 'snapshot_date: "2026-07-11"\n'
+            content += 'snapshot_date: "2026-08-24"\n'
         (config_dir / name).write_text(content, encoding="utf-8")
     schemas_dir = repository_root / "schemas"
     schemas_dir.mkdir()
@@ -226,15 +252,13 @@ _CONFIG_MUTATION_IDS = [
         for table in ("PRBD01N001", "PREF01N001", "PREF02N001", "PRFD01N001")
         for aspect in ("order", "rows", "columns", "cells")
     ],
+    "silver-bond-lot",
     "silver-bond",
     "silver-domestic",
     "silver-overseas",
     "silver-fund-item",
-    "silver-fund-attribute",
     "quarantine",
-    "links",
-    "evidence",
-    "pair-sha256",
+    "exact-link-candidate-limit",
     "parquet-compression",
     "parquet-compression-level",
     "parquet-statistics",
@@ -256,7 +280,7 @@ def _mutate_artifact_config(case: str) -> str:
         "version": ("version", "9.9.9"),
         "artifact-contract-version": ("artifact_contract_version", "9.9.9"),
         "artifact-set-id": ("artifact_set_id", "forged/v9"),
-        "snapshot-date": ("dataset_snapshot_date", "2026-07-10"),
+        "snapshot-date": ("dataset_snapshot_date", "2026-08-23"),
         "quarantine": ("quarantine_source_rows", 3),
     }
     if case in direct:
@@ -275,17 +299,15 @@ def _mutate_artifact_config(case: str) -> str:
             sources[index][aspect] += 1
     elif case.startswith("silver-"):
         key = {
+            "silver-bond-lot": "bond_sale_lot",
             "silver-bond": "bond_instrument",
             "silver-domestic": "domestic_listed_product",
             "silver-overseas": "overseas_listed_product",
             "silver-fund-item": "fund_item",
-            "silver-fund-attribute": "fund_item_attribute",
         }[case]
         payload["silver_counts"][key] += 1
-    elif case in {"links", "evidence"}:
-        payload["exact_links"][case] += 1
-    elif case == "pair-sha256":
-        payload["exact_links"]["pair_sha256"] = "0" * 64
+    elif case == "exact-link-candidate-limit":
+        payload["exact_link_candidate_limit"] += 1
     elif case.startswith("parquet-"):
         key = {
             "parquet-compression": "compression",
@@ -721,12 +743,12 @@ def test_artifact_build_config_rejects_yaml_scalar_type_coercion(
     from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorCode
 
     replacement = {
-        "quoted-source-rows": ("    rows: 42394", '    rows: "42394"'),
+        "quoted-source-rows": ("    rows: 21882", '    rows: "21882"'),
         "quoted-threads": ("  threads: 1", '  threads: "1"'),
         "integer-statistics": ("  statistics: true", "  statistics: 1"),
         "quoted-date": (
-            "dataset_snapshot_date: 2026-07-11",
-            'dataset_snapshot_date: "2026-07-11"',
+            "dataset_snapshot_date: 2026-08-24",
+            'dataset_snapshot_date: "2026-08-24"',
         ),
     }[case]
     repository_root = tmp_path / "repository"
@@ -747,7 +769,7 @@ def test_artifact_build_config_rejects_yaml_scalar_type_coercion(
 
 @pytest.mark.parametrize(
     "case",
-    ["top-level", "source", "registry", "silver", "links", "parquet", "staging"],
+    ["top-level", "source", "registry", "silver", "ceiling", "parquet", "staging"],
 )
 def test_artifact_build_config_is_deeply_frozen(case: str, tmp_path: Path) -> None:
     from finproof.core.versions import VersionBundle

@@ -3485,18 +3485,15 @@ def test_final_seal_rejects_copy_equal_object_new_staged_foreign_and_second_cons
                 foreign_context.__exit__(None, None, None)
 
 
-@pytest.mark.parametrize("case", ["quality", "fund-attribute"])
-def test_common_checker_rejects_each_quality_and_fund_attribute_physical_json_mismatch(
+@pytest.mark.parametrize("case", ["quality", "fund-item"])
+def test_common_checker_rejects_each_quality_and_fund_item_physical_json_mismatch(
     tmp_path: Path, case: str
 ) -> None:
     from finproof.data.artifacts.parquet_io import verify_staged_parquet_table
     from finproof.data.artifacts.serialization import serialize_table_row
-    from finproof.data.normalization.public_funds import (
-        collapse_fund_items,
-        normalize_fund_attribute,
-    )
     from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStatus
     from tests.helpers.source_rows import source_row
+    from tests.unit.data.artifacts.test_serialization import _fund_record
 
     if case == "quality":
         pure = DataQualityIssue.from_row(
@@ -3520,19 +3517,17 @@ def test_common_checker_rejects_each_quality_and_fund_attribute_physical_json_mi
         row = dict(serialize_table_row(spec, value))
         row["reason"] = "forged"
     else:
-        normalized = normalize_fund_attribute(source_row("PRFD01N001"))
-        assert normalized.record is not None
-        value = collapse_fund_items([normalized.record]).attributes[0]
-        spec = table_spec("silver_fund_item_attribute")
+        value = _fund_record()
+        spec = table_spec("silver_fund_item")
         row = dict(serialize_table_row(spec, value))
-        row["attribute_code_raw"] = "FORGED"
+        row["name"] = "FORGED"
 
     owner = TestStageArtifactOwner(tmp_path / case, datetime(2026, 8, 15, tzinfo=UTC))
     leaf = owner.claim_parquet_leaf(spec.table_name)
     writer = ParquetBatchWriter(spec, leaf)
     writer.write_batch((row,))
     writer.close()
-    with pytest.raises(ValueError, match="typed/JSON"):
+    with pytest.raises(ValueError, match=r"typed(?:/JSON| projection)"):
         verify_staged_parquet_table(owner=owner, leaf=leaf, spec=spec)
 
 

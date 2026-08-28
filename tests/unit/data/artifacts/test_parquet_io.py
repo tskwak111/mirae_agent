@@ -308,7 +308,6 @@ def test_writer_accepts_mapping_rows_and_rejects_each_non_mapping_before_arrow(
         "string",
         "int64",
         "date",
-        "local-datetime",
         "utc-datetime",
         "decimal",
         "bool",
@@ -328,7 +327,7 @@ def test_writer_validates_every_exact_physical_scalar_on_each_frozen_snapshot(
     )
     from finproof.data.artifacts.table_specs import table_spec
     from tests.helpers.source_rows import source_row
-    from tests.unit.data.artifacts.test_serialization import _bond_record, _domestic_record
+    from tests.unit.data.artifacts.test_serialization import _bond_record
 
     if case in {"string", "int64", "date", "nonnullable-null"}:
         spec = table_spec("bronze_source_column")
@@ -339,10 +338,6 @@ def test_writer_validates_every_exact_physical_scalar_on_each_frozen_snapshot(
             "date": ("source_snapshot_date", datetime(2026, 7, 11)),
             "nonnullable-null": ("catalog_version", None),
         }[case]
-    elif case == "local-datetime":
-        spec = table_spec("silver_domestic_listed_product")
-        row = dict(serialize_table_row(spec, _domestic_record()))
-        field, invalid = "daily_update_at", datetime(2026, 7, 11, tzinfo=UTC)
     elif case == "utc-datetime":
         spec = table_spec("bronze_source_row")
         row = dict(

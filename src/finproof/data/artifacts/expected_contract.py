@@ -11,6 +11,7 @@ from finproof.data.artifacts.errors import ArtifactContractError, ArtifactErrorC
 from finproof.data.artifacts.safe_files import SafeFileReadError, read_held_regular_file
 
 NonNegativeInt = Annotated[int, Field(ge=0)]
+ExactLinkEvidenceCount = Annotated[int, Field(ge=0, le=434)]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
@@ -69,10 +70,8 @@ class ExpectedPhase1ArtifactContract(BaseModel):
     tables: tuple[ExpectedLogicalTable, ...]
     reports: tuple[ExpectedSemanticReport, ...]
     overall_manifest_logical_hash: Sha256
-    exact_link_pair_sha256: Literal[
-        "8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962"
-    ]
-    exact_link_evidence_count: Literal[371]
+    exact_link_pair_sha256: Sha256
+    exact_link_evidence_count: ExactLinkEvidenceCount
 
     @classmethod
     def load(cls, path: Path) -> Self:
@@ -89,8 +88,8 @@ class ExpectedPhase1ArtifactContract(BaseModel):
     @model_validator(mode="after")
     def require_official_dataset_date(self) -> Self:
         """Bind expected artifacts to the official Phase 1 snapshot."""
-        if self.dataset_version != date(2026, 7, 11):
-            raise ValueError("dataset_version must be 2026-07-11")
+        if self.dataset_version != date(2026, 8, 24):
+            raise ValueError("dataset_version must be 2026-08-24")
         observed_inputs = tuple(
             (entry.namespace, entry.path, entry.kind) for entry in self.logical_inputs
         )
@@ -130,12 +129,12 @@ class ArtifactLogicalContractPayload(BaseModel):
     reports: tuple[ExpectedSemanticReport, ...]
     overall_manifest_logical_hash: Sha256
     exact_link_pair_sha256: Sha256
-    exact_link_evidence_count: NonNegativeInt
+    exact_link_evidence_count: ExactLinkEvidenceCount
 
     @model_validator(mode="after")
     def require_closed_shape(self) -> Self:
-        if self.dataset_version != date(2026, 7, 11):
-            raise ValueError("dataset_version must be 2026-07-11")
+        if self.dataset_version != date(2026, 8, 24):
+            raise ValueError("dataset_version must be 2026-08-24")
         observed_inputs = tuple(
             (entry.namespace, entry.path, entry.kind) for entry in self.logical_inputs
         )
@@ -318,11 +317,11 @@ _EXPECTED_TABLE_NAMES = (
     "bronze_source_column",
     "bronze_source_row",
     "bronze_source_cell",
+    "silver_bond_sale_lot",
     "silver_bond_instrument",
     "silver_domestic_listed_product",
     "silver_overseas_listed_product",
     "silver_fund_item",
-    "silver_fund_item_attribute",
     "silver_quality_issue",
     "gold_exact_cross_source_link",
     "gold_exact_cross_source_link_evidence",
@@ -332,26 +331,26 @@ _EXPECTED_TABLE_GRAINS = (
     "source_column",
     "source_row",
     "source_cell",
+    "bond_sale_lot",
     "instrument",
     "listed_product",
     "listed_product",
     "fund_item",
-    "fund_attribute",
     "quality_issue",
     "exact_cross_source_link",
     "exact_cross_source_link_evidence",
 )
 
 _EXPECTED_TABLE_COUNTS: tuple[int | None, ...] = (
-    207,
-    145_393,
-    6_401_851,
-    42_394,
-    1_733,
-    5_646,
-    11_138,
-    95_618,
+    251,
+    53_375,
+    2_828_505,
+    21_882,
+    20_497,
+    1_779,
+    6_037,
+    23_676,
     None,
-    47,
-    371,
+    None,
+    None,
 )

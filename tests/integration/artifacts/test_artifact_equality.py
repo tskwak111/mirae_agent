@@ -10,6 +10,7 @@ from typing import Any, Literal, cast
 import pytest
 
 from tests.helpers.artifacts import (
+    TABLES,
     artifact_build_input_identity,
     artifact_staging_settings,
     manifest_payload,
@@ -17,6 +18,22 @@ from tests.helpers.artifacts import (
     write_database_artifact_tree,
     write_empty_database_artifact_tree,
 )
+
+
+def test_fixture_artifact_contract_uses_refreshed_native_inventory() -> None:
+    assert TABLES == (
+        ("bronze_source_column", "source_column", 251),
+        ("bronze_source_row", "source_row", 53_375),
+        ("bronze_source_cell", "source_cell", 2_828_505),
+        ("silver_bond_sale_lot", "bond_sale_lot", 21_882),
+        ("silver_bond_instrument", "instrument", 20_497),
+        ("silver_domestic_listed_product", "listed_product", 1_779),
+        ("silver_overseas_listed_product", "listed_product", 6_037),
+        ("silver_fund_item", "fund_item", 23_676),
+        ("silver_quality_issue", "quality_issue", 1),
+        ("gold_exact_cross_source_link", "exact_cross_source_link", 217),
+        ("gold_exact_cross_source_link_evidence", "exact_cross_source_link_evidence", 434),
+    )
 
 
 def test_candidate_core_verifier_consumes_managed_stage_root_without_path_or_private_field_access(
@@ -141,7 +158,7 @@ def test_database_equality_accepts_exact_tables_and_rejects_count_drift(
     try:
         connection.execute(
             "INSERT INTO bronze_source_column VALUES "
-            "('1.0.0', DATE '2026-07-11', 0, 'PRBD01N001', 1, 'A', "
+            "('1.0.0', DATE '2026-08-24', 0, 'PRBD01N001', 1, 'A', "
             "'field', 'string', 'x', 'Y', '이름', 'schema.xlsx', 1)"
         )
     finally:
@@ -217,7 +234,7 @@ def test_database_port_requires_exact_manifest_inventory_tables_and_logical_resu
             ),
             overall_manifest_logical_hash=manifest.logical_hash,
             exact_link_pair_sha256="8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962",
-            exact_link_evidence_count=371,
+            exact_link_evidence_count=434,
         )
         verifier = DuckDBArtifactDatabaseVerifier()
         verifier.verify_database(
@@ -753,7 +770,7 @@ def _linked_rows() -> tuple[
     domestic = _domestic_record()
     fund = _fund_record()
     domestic_id = str(domestic.product_id.normalized_value)
-    fund_id = str(fund.fund_item_id.representative.normalized_value)
+    fund_id = str(fund.fund_item_id.normalized_value)
     return (
         {
             "silver_domestic_listed_product": (
@@ -830,7 +847,7 @@ def test_final_relation_verifier_filters_exact_linked_records_from_reopened_fina
             )
 
         def reject_scan(*_args: object, **_kwargs: object) -> object:
-            raise AssertionError("more than 47 linked IDs must fail before a table scan")
+            raise AssertionError("more than 217 linked IDs must fail before a table scan")
 
         monkeypatch.setattr(
             _FinalInventoryRelationVerifier,
@@ -841,7 +858,7 @@ def test_final_relation_verifier_filters_exact_linked_records_from_reopened_fina
             tuple(
                 verifier.iter_linked_record_json(
                     side=ExactLinkedSide.DOMESTIC,
-                    exact_ids=tuple(f"id-{index:02d}" for index in range(48)),
+                    exact_ids=tuple(f"id-{index:03d}" for index in range(218)),
                 )
             )
 
