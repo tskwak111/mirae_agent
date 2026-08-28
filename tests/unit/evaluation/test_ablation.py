@@ -1,4 +1,5 @@
 import asyncio
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -7,7 +8,7 @@ import pytest
 
 import finproof.evaluation.ablation as ablation
 from finproof.core.settings import ExecutionMode
-from finproof.domain.query_plan import QueryPlan
+from finproof.domain.query_plan import ProductType, QueryPlan, ResultGrain
 from finproof.evaluation.ablation import (
     AblationMeasurement,
     AblationRunner,
@@ -17,6 +18,7 @@ from finproof.evaluation.ablation import (
 from finproof.evaluation.ablation_experiment import (
     _approved_plans,
     _CaseRun,
+    _direct_request,
     _Experiment,
     _parse_direct_answer,
     _planner_for_ablation,
@@ -44,6 +46,12 @@ from finproof.quality import PolicyExecutionResult
 from finproof.quality.metric_policy import MetricPolicyResult
 from finproof.registry.loader import RegistryBundle
 from finproof.runtime import RuntimeArtifactSession
+from finproof.storage.repositories.products import (
+    RawExecutionResult,
+    RawFieldValue,
+    RawProductRow,
+    RawSegmentResult,
+)
 
 
 class _FailingPlanner:
@@ -57,6 +65,49 @@ class _UsageGenerator:
 
     def usage_since(self, _index: int) -> tuple[int, int]:
         return 13, 8
+
+
+def test_direct_ablation_bounds_rows_as_an_explicit_source_ordered_prefix() -> None:
+    case = load_golden_cases((Path("evaluation/canonical/lookup.jsonl"),))[0]
+    rows = tuple(
+        RawProductRow(
+            product_type=ProductType.DOMESTIC_ETF,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            product_id=f"P-{index:03d}",
+            values=(
+                RawFieldValue(
+                    field_id="product_name",
+                    value=f"source-{index:03d}-" + "가" * 4_000,
+                    quality_status="valid",
+                ),
+            ),
+        )
+        for index in range(50)
+    )
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.DOMESTIC_ETF,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                rows=rows,
+                candidate_count=50,
+                max_batch_rows=50,
+            ),
+        ),
+        candidate_count=50,
+    )
+
+    request = _direct_request("HCX-007", case, raw)
+    user_payload = json.loads(request.messages[1].content)
+    included = user_payload["retrieved_rows"]
+
+    assert 0 < len(included) < 50
+    assert [row["product_id"] for row in included] == [
+        row.product_id for row in rows[: len(included)]
+    ]
+    assert user_payload["retrieved_row_count"] == 50
+    assert user_payload["included_row_count"] == len(included)
+    assert user_payload["truncated"] is True
 
 
 @pytest.mark.asyncio

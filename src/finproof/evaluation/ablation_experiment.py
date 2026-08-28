@@ -69,6 +69,7 @@ from finproof.storage.repositories.products import RawExecutionResult
 _DIRECT_PROMPT_VERSION = "ablation-direct-answer.v1"
 _CASE_DEADLINE_SECONDS = 15.0
 _MAX_QUOTA_WAIT_SECONDS = 60.0
+_MAX_DIRECT_ROW_BYTES = 90_000
 
 
 class _FrozenModel(BaseModel):
@@ -705,7 +706,7 @@ def _value_type(value: object) -> ValueType:
 
 
 def _direct_request(model_name: str, case: GoldenCase, raw: RawExecutionResult) -> HcxRequest:
-    rows = [
+    rows = tuple(
         {
             "product_type": row.product_type.value,
             "product_id": row.product_id,
@@ -713,12 +714,23 @@ def _direct_request(model_name: str, case: GoldenCase, raw: RawExecutionResult) 
         }
         for segment in raw.segments
         for row in segment.rows
-    ]
+    )
+    included_rows: list[Mapping[str, object]] = []
+    included_bytes = 0
+    for row in rows:
+        row_bytes = len(json.dumps(row, ensure_ascii=False, separators=(",", ":")).encode())
+        separator_bytes = int(bool(included_rows))
+        if included_bytes + separator_bytes + row_bytes > _MAX_DIRECT_ROW_BYTES:
+            break
+        included_rows.append(row)
+        included_bytes += separator_bytes + row_bytes
+    retrieved_row_count = len(rows)
     system = (
         "Answer only from the supplied official retrieved rows. Return one JSON object with "
         "keys products, values, answer, limitation_present. products items contain product_type "
         "and product_id. values items contain product_id, field_id, value_type "
-        "(decimal|integer|date|text|boolean|null), and value. Do not invent missing facts."
+        "(decimal|integer|date|text|boolean|null), and value. Do not invent missing facts. "
+        "When truncated is true, state that limitation and set limitation_present to true."
     )
     return HcxRequest.strict_json(
         model_name=model_name,
@@ -727,7 +739,13 @@ def _direct_request(model_name: str, case: GoldenCase, raw: RawExecutionResult) 
             HcxMessage(
                 role="user",
                 content=json.dumps(
-                    {"question": case.question, "retrieved_rows": rows},
+                    {
+                        "question": case.question,
+                        "retrieved_rows": included_rows,
+                        "retrieved_row_count": retrieved_row_count,
+                        "included_row_count": len(included_rows),
+                        "truncated": len(included_rows) != retrieved_row_count,
+                    },
                     ensure_ascii=False,
                     separators=(",", ":"),
                 ),
