@@ -541,7 +541,7 @@ async def test_hcx_generation_builds_exact_pending_review_packet() -> None:
     assert request.max_completion_tokens >= 8_192
     assert request.response_schema_json is None
     assert "responseFormat" not in request.to_payload()
-    assert "thinking" not in request.to_payload()
+    assert request.to_payload()["thinking"] == {"effort": "none"}
     prompt = "\n".join(message.content for message in request.messages)
     assert all(
         phrase in prompt
