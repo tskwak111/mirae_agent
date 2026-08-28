@@ -42,7 +42,19 @@ def test_structured_request_uses_v3_camel_case_fields() -> None:
         {"role": "user", "content": "미국 ETF 5개"},
     ]
     assert "tools" not in payload
-    assert "thinking" not in payload
+    assert payload["thinking"] == {"effort": "none"}
+
+
+def test_strict_json_request_disables_hcx_007_thinking() -> None:
+    request = HcxRequest.strict_json(
+        model_name="HCX-007",
+        messages=_messages(),
+        max_completion_tokens=1200,
+        temperature=0.0,
+        seed=17,
+    )
+
+    assert request.to_payload()["thinking"] == {"effort": "none"}
 
 
 def test_structured_schema_and_emitted_payload_cannot_mutate_the_request() -> None:

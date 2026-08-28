@@ -101,6 +101,8 @@ class HcxRequest(BaseModel):
             "temperature": self.temperature,
             "seed": self.seed,
         }
+        if self.model_name == "HCX-007":
+            payload["thinking"] = {"effort": "none"}
         if self.response_schema_json is not None:
             payload["responseFormat"] = {
                 "type": "json",
