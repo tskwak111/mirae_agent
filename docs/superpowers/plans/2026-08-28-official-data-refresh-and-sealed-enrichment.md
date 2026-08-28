@@ -652,7 +652,7 @@ git commit -m "feat: migrate refreshed artifact contracts"
 - `HoldingRecord` and `HoldingCoverageRecord` strict models
 - `admit_holding_snapshot(...) -> HoldingGeneration`
 
-- [ ] **Step 1: Write admission/coverage REDs**
+- [x] **Step 1: Write admission/coverage REDs**
 
 ```python
 def test_partial_coverage_allows_positive_match_but_not_negative_claim() -> None:
@@ -663,7 +663,7 @@ def test_partial_coverage_allows_positive_match_but_not_negative_claim() -> None
 
 Reject nonexact owner links, cutoff-late records, missing URL/hash/reuse basis, contradictory or falsely declared unit metadata, and declared generation count/hash drift. Preserve an unknown unit as unknown with lineage and a quality state; never guess, convert, rank, or aggregate it as a known unit.
 
-- [ ] **Step 2: Run RED and implement the two strict records**
+- [x] **Step 2: Run RED and implement the two strict records**
 
 ```bash
 uv run pytest tests/unit/data/test_holdings.py -q
@@ -671,7 +671,7 @@ uv run pytest tests/unit/data/test_holdings.py -q
 
 For product types without an admitted generation, emit explicit `unavailable` coverage rows. Do not fabricate holdings.
 
-- [ ] **Step 3: Add only the two artifact relations**
+- [x] **Step 3: Add only the two artifact relations**
 
 ```bash
 uv run pytest tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py tests/unit/data/artifacts/test_silver.py tests/unit/data/artifacts/test_manifest.py tests/integration/artifacts/test_artifact_duckdb.py -q -k holding
@@ -679,7 +679,7 @@ uv run pytest tests/unit/data/artifacts/test_table_specs.py tests/unit/data/arti
 
 Update the manifest schema and expected-contract validator from Task 6's 11-table intermediate inventory to the final 13-table inventory in this same RED/GREEN slice.
 
-- [ ] **Step 4: Build the single official candidate pair, seal the expected contract, and run the official aggregate**
+- [x] **Step 4: Build the single official candidate pair, seal the expected contract, and run the official aggregate**
 
 Use the repository's existing candidate builder/publication flow. Candidate A and B use distinct injected UTC timestamps and must produce identical logical contract bytes. Reuse the Task 6 independent source scan without launching another artifact build, and require each candidate's exact emitted pair set to equal that scanned 217-pair set before expected-contract generation. This is the conservation bridge that detects a dropped or substituted candidate while keeping 217 out of the build config's output golden. Generate `config/expected_phase1_artifacts.json` only from the pair-set-checked, verified final 13-table inventory. Any source with unresolved reuse permission remains unavailable; this does not block official-only queries or artifact publication.
 
@@ -689,7 +689,7 @@ uv run python tools/audit_source_data.py --check
 uv run python tools/verify_handoff.py
 ```
 
-- [ ] **Step 5: Commit and independent review**
+- [x] **Step 5: Commit and independent review**
 
 ```bash
 git add src/finproof/data/holdings.py src/finproof/data/artifacts schemas/artifact_manifest.schema.json source_material/external tests/unit/data tests/unit/data/artifacts tests/integration/artifacts config/expected_phase1_artifacts.json

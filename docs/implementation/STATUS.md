@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-27 — Phase 4 Task 2 is closed. The bounded correction and
-independent re-review returned Critical 0 / Important 0, and the final Task 2 full
-gate passed.
+**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 7.
+The sealed-holdings implementation and its independent review returned Critical 0 /
+Important 0; Task 8 plan correction and independent plan review are next.
 
 ## Frozen baseline
 
@@ -62,8 +62,28 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 3: implement ablation, latency, load, resilience, and soak measurement
-from the frozen Phase 4 plan.** Task 3 has not started.
+**Official-data refresh Task 8: correct and independently review the constituent-query
+ownership and evidence contract before writing any RED.** Phase 4 Task 3 resumes after
+the official refresh/release plan is closed.
+
+## Official-data refresh Task 7 closure
+
+- Implementation commit: `e5e13997d7b61f26608b744661c66a0cb4329578`
+  (`feat: add sealed holdings coverage`).
+- No external source met the cutoff, immutable-artifact, exact-crosswalk, and reuse-basis
+  admission boundary. The official artifact therefore contains zero fabricated holding
+  rows and 31,492 explicit `unavailable` coverage rows.
+- The sole official A/B pair used distinct timestamps and produced identical logical
+  bytes for all 13 tables, the same independently scanned 217 exact-link pairs, and 434
+  direct evidence rows. Overall logical SHA-256 is
+  `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`.
+- Focused holdings/structure checks passed 45 tests. The retained-B official aggregate
+  passed 31 tests in 1,586.04 seconds; source audit passed 53,375 rows; handoff verified
+  61 required files, 9 inputs, and 19,074,953 bytes. Scoped Ruff, clean non-incremental
+  mypy, clean-wheel packaged-resource verification, and staged diff checks passed.
+- Independent review of `04731dc..e5e1399` returned Critical 0 / Important 0 / Minor 0.
+  No correction round was required. User evaluation JSON, PDFs, and review-batch files
+  remained untouched and unstaged.
 
 ## Phase 4 Task 1 batch-001 checkpoint
 
