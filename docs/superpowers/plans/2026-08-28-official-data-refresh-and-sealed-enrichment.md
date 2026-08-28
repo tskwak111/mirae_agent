@@ -1108,6 +1108,17 @@ the files and contracts above.
 
 ### Task 9: Require HCX planning and verified HCX answer wording within 295 seconds
 
+**2026-08-29 blocker correction (D-036):** The prompt-only strict-JSON live
+acceptance reached HCX-007, but both the initial planner output and the one allowed
+repair failed local schema validation. NCP's official Chat Completions v3 contract
+documents HCX-007 Structured Outputs through `responseFormat` and supports every
+keyword used by both checked-in provider schemas. Therefore evaluation activates the
+already implemented `HcxRequest.structured` transport for planning and wording while
+retaining all stricter local validation, the same two-call ceiling, and fail-closed
+publication. `StrictJsonPlanner` remains offline/extended-demo only. This correction
+supersedes Task 9 references to evaluation "strict JSON" below; it does not reopen
+Steps 1-8 except for the focused provider-mode and replay assertions listed in Step 9.
+
 **Files:**
 
 - Create: `schemas/hcx_answer.schema.json`
@@ -1117,8 +1128,13 @@ the files and contracts above.
 - Create: `tests/unit/service/test_publication.py`
 - Modify: `src/finproof/answer/__init__.py`
 - Modify: `src/finproof/domain/answers.py`
+- Modify: `src/finproof/evidence/__init__.py`
+- Modify: `src/finproof/evidence/builder.py`
 - Modify: `src/finproof/planner/hcx_client.py`
 - Modify: `src/finproof/planner/json_planner.py`
+- Modify: `src/finproof/planner/models.py`
+- Modify: `src/finproof/planner/rule_fallback.py`
+- Modify: `src/finproof/planner/structured_planner.py`
 - Modify: `src/finproof/api/dependencies.py`
 - Modify: `src/finproof/api/app.py`
 - Modify: `src/finproof/api/errors.py`
@@ -1138,6 +1154,7 @@ the files and contracts above.
 - Modify: `tests/unit/api/test_response_model.py`
 - Modify: `tests/unit/cli/test_evaluate.py`
 - Modify: `tests/unit/core/test_hcx_settings.py`
+- Modify: `tests/unit/planner/test_hcx_models.py`
 - Modify: `tests/unit/planner/test_rule_fallback.py`
 - Modify: `tests/unit/evaluation/test_ablation.py`
 - Modify: `tests/unit/evaluation/test_build_canonical_reference_packet.py`
@@ -1169,7 +1186,8 @@ the files and contracts above.
   PlannedQuery`; `PlanningRequest.start(..., deadline_seconds=...)` is removed so
   no planner or caller can mint a stage-local deadline.
 - One dependency-owned `HcxClient` and one dependency-owned `httpx.AsyncClient`
-  lifetime are shared by `StrictJsonPlanner` and `HcxVerbalizer`.
+  lifetime are shared by the evaluation `StructuredOutputPlanner` and
+  `HcxVerbalizer`; `StrictJsonPlanner` has no evaluation composition path.
 - `HcxClient.generate(request: HcxRequest, request_id: str, *, deadline:
   RequestDeadline) -> HcxResponse` checks the same work cutoff; it remains
   non-retrying and does not own or close the shared HTTP client.
@@ -1200,7 +1218,7 @@ the files and contracts above.
 **Evaluation composition contract:**
 
 - `ExecutionMode.EVALUATION` in the FastAPI lifespan and canonical/robustness CLI
-  composition requires `hcx_enabled=True`, a non-empty key, an `HCX-*` model, a
+  composition requires `hcx_enabled=True`, a non-empty key, exact model `HCX-007`, a
   successfully opened shared HTTP client, both checked-in schemas, both prompt
   identities, and an expected-verified runtime artifact session. Absence or
   construction failure raises before evaluation work; it never selects
@@ -1222,13 +1240,15 @@ the files and contracts above.
   empty context, safe trace, and exact five-string envelope bypasses HCX.
 - Evaluation `ReplayVersions` records both mandatory HCX stages. Rename the stale
   `PlannerRuntimeMode.HCX_STRICT_JSON_WITH_FALLBACK` member/value to
-  `HCX_STRICT_JSON_VERIFIED_WORDING = "hcx-strict-json-verified-wording"`; record
+  `HCX_STRUCTURED_OUTPUTS_VERIFIED_WORDING =
+  "hcx-structured-outputs-verified-wording"`; record
   `execution_mode=EVALUATION`, `hcx_enabled=True`, `fallback_enabled=False`, the
   HCX planner model/provider, `PROMPT_VERSION`, `ANSWER_PROMPT_VERSION`, the
   checked-in answer-schema SHA-256, and
   `wording_verification_mode="exact-application-surface-v1"` in the replay object
   and `configuration_sha256`. `ReplayVersions.from_configuration` rejects any
-  evaluation combination that omits those identities, enables fallback, or disables
+  evaluation combination that omits those identities, names a model other than exact
+  `HCX-007`, sets `structured_outputs_enabled=False`, enables fallback, or disables
   HCX. `FALLBACK_ONLY` metadata remains valid only with
   `ExecutionMode.EXTENDED_DEMO` for explicit offline/demo replay.
 
@@ -1352,10 +1372,10 @@ Expected: pass with the exact 293/295 boundaries and byte contract.
 
 Cover API and canonical/robustness CLI construction with disabled HCX, missing key,
 invalid readiness, explicit orchestrator/service override, and ready recorded HCX.
-Assert the same ready graph owns one HTTP client, one `HcxClient`, one strict planner,
-and one verbalizer. Replace the old fallback expectations with every row in the closed
-transition table; assert the exact call count, prompt kind (`repair` versus identical
-transport retry), and centralized safe terminal category.
+Assert the same ready graph owns one HTTP client, one `HcxClient`, one structured-output
+planner, and one structured-output verbalizer. Replace the old fallback expectations
+with every row in the closed transition table; assert the exact call count, prompt kind
+(`repair` versus identical transport retry), and centralized safe terminal category.
 Add replay REDs before changing `evaluation/runner.py`: evaluation metadata rejects
 `hcx_enabled=False` and `fallback_enabled=True`, uses the renamed HCX-only verified-
 wording mode, binds both prompt identities and the answer-schema hash, and keeps
@@ -1374,8 +1394,8 @@ advertises HCX with fallback without a verified-wording identity.
 - [ ] **Step 4: Implement mandatory evaluation planning and shared ownership**
 
 Remove the evaluation fallback dependency from `PlannerService`, implement the table
-with a two-call counter, and pass the same `RequestDeadline` object into strict plan,
-repair, retry, and `HcxClient.generate`. In `ApiDependencies.open_orchestrator`, open
+with a two-call counter, and pass the same `RequestDeadline` object into structured
+plan, repair, retry, and `HcxClient.generate`. In `ApiDependencies.open_orchestrator`, open
 one HTTP client, construct one `HcxClient`, inject it into both HCX adapters, and close
 the HTTP context only after `EvaluationOrchestrator.aclose()` drains retained DB work.
 Make `_open_local_service` reuse this graph. Keep direct rule planning and deterministic
@@ -1476,7 +1496,33 @@ uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/int
 Expected: pass with exact five-string canonical bytes and the full HCX graph in
 evaluation mode.
 
-- [ ] **Step 9: Run focused live-HCX acceptance without printing the key**
+- [ ] **Step 9: Activate Structured Outputs under focused RED→GREEN, then run live acceptance**
+
+First add focused RED assertions that evaluation planning and wording each emit
+`responseFormat={"type":"json","schema":<their exact checked-in provider schema>}`;
+that those structured requests omit `thinking`; that neither path can select prompt-only
+`HcxRequest.strict_json`; that both schemas contain only the officially supported HCX
+subset; that API and CLI evaluation reject every model except exact `HCX-007`; and that
+replay metadata rejects `structured_outputs_enabled=False` and uses only
+`hcx-structured-outputs-verified-wording`. Run:
+
+```bash
+uv run pytest tests/unit/planner/test_hcx_models.py tests/unit/answer/test_hcx_verbalizer.py tests/integration/planner/test_planner_service.py tests/integration/evaluation/test_runner.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/security/test_runtime_provider_policy.py -q
+```
+
+Expected RED: the current evaluation graph and verbalizer still construct prompt-only
+strict-JSON requests and replay metadata still names that mode.
+
+Implement the smallest activation by reusing `HcxRequest.structured` and the existing
+provider-schema loaders. `HcxRequest.to_payload` emits `thinking={"effort":"none"}`
+only for prompt-only HCX-007 calls and omits `thinking` whenever `responseFormat` is
+present. Give `StructuredOutputPlanner` the same one invalid-output
+repair interface already enforced by `PlannerService`; every initial/retry/repair
+planner call uses `hcx_query_plan.schema.json`, and every initial/repair wording call
+uses `hcx_answer.schema.json`. Keep strict local parsing, canonical schema/Pydantic and
+semantic validation, exact fact-pack verification, call limits, deadline identity, and
+safe publication unchanged. Rerun the focused command and require GREEN before any
+live call.
 
 The opt-in test constructs the same shared `HcxClient`, runs one planner schema case
 and one wording schema case with at least one numeric/entity/rank signature, and passes
@@ -1490,18 +1536,19 @@ FINPROOF_RUN_LIVE_HCX=1 uv run pytest tests/integration/planner/test_live_hcx.py
 
 Expected: pass when authorized credentials are present. If credentials are absent,
 record the skip and do not claim live acceptance. If the selected HCX model cannot
-satisfy either strict schema after its one allowed invalid-output repair, stop under
-the repository HCX-model contract; do not enable deterministic evaluation fallback.
+satisfy either structured provider schema plus stricter local validation after its one
+allowed invalid-output repair, stop under the repository HCX-model contract; do not
+enable deterministic evaluation fallback.
 
 - [ ] **Step 10: Run the one Task 9 aggregate and scoped checks**
 
 Run the Task 9 bundle once after all focused GREENs:
 
 ```bash
-uv run pytest tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py -q
-uv run ruff format --check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
-uv run ruff check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
-uv run mypy src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/integration/evaluation/test_runner.py
+uv run pytest tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_hcx_models.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py -q
+uv run ruff format --check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+uv run ruff check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+uv run mypy src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/integration/evaluation/test_runner.py
 uv run python tools/audit_source_data.py --check
 uv run python tools/verify_handoff.py
 git diff --check
@@ -1531,9 +1578,10 @@ candidate gate.
   provider payload, prompt, path, SQL, or stack trace on any terminal path.
 - The focused live acceptance is observed or explicitly recorded as skipped for absent
   credentials; schema incompatibility is a stop, not a fallback trigger.
-- Evaluation replay metadata identifies HCX strict-JSON planning plus verified HCX
+- Evaluation replay metadata identifies HCX Structured Outputs planning plus verified HCX
   wording, binds both prompt/schema identities, and always records
-  `hcx_enabled=True` with `fallback_enabled=False`; fallback-only metadata is
+  exact model `HCX-007`, `structured_outputs_enabled=True`, `hcx_enabled=True`, and
+  `fallback_enabled=False`; fallback-only metadata is
   demonstrably extended-demo/offline.
 
 **Stop conditions:**
@@ -1561,7 +1609,7 @@ candidate gate.
 - [ ] **Step 11: Commit the exact Task 9 paths and request independent review**
 
 ```bash
-git add schemas/hcx_answer.schema.json src/finproof/answer/__init__.py src/finproof/answer/hcx_verbalizer.py src/finproof/domain/answers.py src/finproof/planner/hcx_client.py src/finproof/planner/json_planner.py src/finproof/planner/service.py src/finproof/api/app.py src/finproof/api/dependencies.py src/finproof/api/errors.py src/finproof/api/models.py src/finproof/api/routes/answer.py src/finproof/cli/evaluate.py src/finproof/service/__init__.py src/finproof/service/answer_service.py src/finproof/service/limits.py src/finproof/service/orchestrator.py src/finproof/service/publication.py src/finproof/evidence/verifier.py src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+git add schemas/hcx_answer.schema.json src/finproof/answer/__init__.py src/finproof/answer/hcx_verbalizer.py src/finproof/domain/answers.py src/finproof/evidence/__init__.py src/finproof/evidence/builder.py src/finproof/evidence/verifier.py src/finproof/planner/hcx_client.py src/finproof/planner/json_planner.py src/finproof/planner/models.py src/finproof/planner/rule_fallback.py src/finproof/planner/structured_planner.py src/finproof/planner/service.py src/finproof/api/app.py src/finproof/api/dependencies.py src/finproof/api/errors.py src/finproof/api/models.py src/finproof/api/routes/answer.py src/finproof/cli/evaluate.py src/finproof/service/__init__.py src/finproof/service/answer_service.py src/finproof/service/limits.py src/finproof/service/orchestrator.py src/finproof/service/publication.py src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_hcx_models.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
 git commit -m "feat: require verified HCX answer pipeline"
 ```
 
