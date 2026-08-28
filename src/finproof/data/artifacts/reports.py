@@ -1131,6 +1131,12 @@ class SourceAuditReport(BaseModel):
             "fund_item",
         ):
             raise ValueError("silver_tables must use the exact closed order")
+        if (
+            self.exact_links.observed > 217
+            or self.exact_link_evidence.observed > 434
+            or self.exact_link_evidence.observed != self.exact_links.observed * 2
+        ):
+            raise ValueError("exact-link report counts exceed bounds or direct evidence ratio")
         return self
 
     def semantic_projection(self) -> Mapping[str, object]:

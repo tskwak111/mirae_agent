@@ -48,15 +48,15 @@ def test_bronze_observations_require_exact_hashes_and_four_ordered_source_tables
         for entry in _source_audit_payload()["source_tables"]
     )
     payload: dict[str, object] = {
-        "source_snapshot_date": date(2026, 7, 11),
+        "source_snapshot_date": date(2026, 8, 24),
         "source_manifest_sha256": "a" * 64,
         "schema_catalog_sha256": "b" * 64,
         "source_tables": source_tables,
     }
     if case == "snapshot":
-        payload["source_snapshot_date"] = date(2026, 7, 10)
+        payload["source_snapshot_date"] = date(2026, 8, 23)
     elif case == "snapshot-string":
-        payload["source_snapshot_date"] = "2026-07-11"
+        payload["source_snapshot_date"] = "2026-08-24"
     elif case.startswith("manifest-"):
         payload["source_manifest_sha256"] = {
             "manifest-uppercase": "A" * 64,
@@ -91,7 +91,7 @@ def test_bronze_observations_require_exact_hashes_and_four_ordered_source_tables
         BronzeSourceAuditObservations.from_bronze(**payload)
 
     valid = BronzeSourceAuditObservations.from_bronze(
-        source_snapshot_date=date(2026, 7, 11),
+        source_snapshot_date=date(2026, 8, 24),
         source_manifest_sha256="a" * 64,
         schema_catalog_sha256="b" * 64,
         source_tables=source_tables,
@@ -120,7 +120,7 @@ def test_cp4_bronze_observations_reject_forged_later_typestate_and_report_admiss
         for entry in _source_audit_payload()["source_tables"]
     )
     value = BronzeSourceAuditObservations.from_bronze(
-        source_snapshot_date=date(2026, 7, 11),
+        source_snapshot_date=date(2026, 8, 24),
         source_manifest_sha256="a" * 64,
         schema_catalog_sha256="b" * 64,
         source_tables=source_tables,
@@ -183,69 +183,65 @@ def _source_audit_payload() -> dict[str, Any]:
         "report_id": "source_audit",
         "report_contract_version": "1.0.0",
         "artifact_contract_version": "1.0.0",
-        "source_snapshot_date": date(2026, 7, 11),
+        "source_snapshot_date": date(2026, 8, 24),
         "source_manifest_sha256": "a" * 64,
         "schema_catalog_sha256": "b" * 64,
         "source_tables": (
             {
                 "source_table": "PRBD01N001",
-                "expected_rows": 42_394,
-                "observed_rows": 42_394,
-                "expected_columns": 40,
-                "observed_columns": 40,
-                "expected_cells": 1_695_760,
-                "observed_cells": 1_695_760,
+                "expected_rows": 21_882,
+                "observed_rows": 21_882,
+                "expected_columns": 58,
+                "observed_columns": 58,
+                "expected_cells": 1_269_156,
+                "observed_cells": 1_269_156,
             },
             {
                 "source_table": "PREF01N001",
-                "expected_rows": 1_734,
-                "observed_rows": 1_734,
-                "expected_columns": 73,
-                "observed_columns": 73,
-                "expected_cells": 126_582,
-                "observed_cells": 126_582,
+                "expected_rows": 1_780,
+                "observed_rows": 1_780,
+                "expected_columns": 98,
+                "observed_columns": 98,
+                "expected_cells": 174_440,
+                "observed_cells": 174_440,
             },
             {
                 "source_table": "PREF02N001",
-                "expected_rows": 5_646,
-                "observed_rows": 5_646,
+                "expected_rows": 6_037,
+                "observed_rows": 6_037,
                 "expected_columns": 49,
                 "observed_columns": 49,
-                "expected_cells": 276_654,
-                "observed_cells": 276_654,
+                "expected_cells": 295_813,
+                "observed_cells": 295_813,
             },
             {
                 "source_table": "PRFD01N001",
-                "expected_rows": 95_619,
-                "observed_rows": 95_619,
-                "expected_columns": 45,
-                "observed_columns": 45,
-                "expected_cells": 4_302_855,
-                "observed_cells": 4_302_855,
+                "expected_rows": 23_676,
+                "observed_rows": 23_676,
+                "expected_columns": 75,
+                "observed_columns": 75,
+                "expected_cells": 1_775_700,
+                "observed_cells": 1_775_700,
             },
         ),
         "silver_tables": (
-            {"name": "bond_instrument", "expected": 42_394, "observed": 42_394},
+            {"name": "bond_sale_lot", "expected": 21_882, "observed": 21_882},
+            {"name": "bond_instrument", "expected": 20_497, "observed": 20_497},
             {
                 "name": "domestic_listed_product",
-                "expected": 1_733,
-                "observed": 1_733,
+                "expected": 1_779,
+                "observed": 1_779,
             },
             {
                 "name": "overseas_listed_product",
-                "expected": 5_646,
-                "observed": 5_646,
+                "expected": 6_037,
+                "observed": 6_037,
             },
-            {"name": "fund_item", "expected": 11_138, "observed": 11_138},
-            {
-                "name": "fund_item_attribute",
-                "expected": 95_618,
-                "observed": 95_618,
-            },
+            {"name": "fund_item", "expected": 23_676, "observed": 23_676},
         ),
-        "quarantine_source_rows": {"expected": 2, "observed": 2},
+        "quarantine_source_rows": {"expected": 1, "observed": 1},
         "exact_links": {"expected": 47, "observed": 47},
-        "exact_link_evidence": {"expected": 371, "observed": 371},
+        "exact_link_evidence": {"expected": 94, "observed": 94},
         "exact_link_pair_sha256": {"expected": "c" * 64, "observed": "c" * 64},
     }
 

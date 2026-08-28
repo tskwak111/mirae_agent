@@ -2383,7 +2383,6 @@ def test_candidate_custody_admits_exact_evidence_once_with_numeric_key_payload_o
     payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
         mode="python"
     )
-    payload["exact_link_candidate_limit"] = 1
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
     evidence = tuple(
         ExactCrossSourceLinkEvidenceRecord(
@@ -2400,7 +2399,7 @@ def test_candidate_custody_admits_exact_evidence_once_with_numeric_key_payload_o
             source_column_number=1,
             source_column_letter="A",
             source_checksum="a" * 64,
-            source_snapshot_date=date(2026, 7, 11),
+            source_snapshot_date=date(2026, 8, 24),
             source_applicable_date=None,
         )
         for role_order in (0, 1)
