@@ -30,6 +30,9 @@ from finproof.evaluation.ablation_experiment import (
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
+from finproof.planner.hcx_client import HcxClient, HcxRateLimitError
+from finproof.planner.models import HcxRequest, HcxResponse, HcxUsage
+from finproof.planner.rate_limits import HcxRateLimitSnapshot
 from finproof.planner.service import (
     HcxGenerator,
     LocalPlanValidator,
@@ -54,6 +57,104 @@ class _UsageGenerator:
 
     def usage_since(self, _index: int) -> tuple[int, int]:
         return 13, 8
+
+
+@pytest.mark.asyncio
+async def test_ablation_paces_hcx_calls_from_the_remaining_token_budget() -> None:
+    response = HcxResponse(
+        status_code="20000",
+        status_message="OK",
+        message_content="{}",
+        usage=HcxUsage(prompt_tokens=9_000, completion_tokens=1_000, total_tokens=10_000),
+        rate_limits=HcxRateLimitSnapshot(
+            limit_requests=60,
+            remaining_requests=59,
+            reset_requests_seconds=60.0,
+            limit_tokens=60_000,
+            remaining_tokens=50_000,
+            reset_tokens_seconds=60.0,
+        ),
+    )
+    sleeps: list[float] = []
+
+    class Client:
+        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+            return response
+
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
+    request = cast(HcxRequest, object())
+
+    await generator.run(lambda: generator.generate(request, "first"))
+    await generator.run(lambda: generator.generate(request, "second"))
+
+    assert sleeps == [12.0]
+
+
+@pytest.mark.asyncio
+async def test_ablation_retries_one_rate_limited_hcx_call_after_reset() -> None:
+    response = HcxResponse(
+        status_code="20000",
+        status_message="OK",
+        message_content="{}",
+        usage=HcxUsage(prompt_tokens=10, completion_tokens=5, total_tokens=15),
+        rate_limits=HcxRateLimitSnapshot(),
+    )
+    sleeps: list[float] = []
+    attempts = 0
+
+    class Client:
+        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise HcxRateLimitError(
+                    "42902",
+                    HcxRateLimitSnapshot(
+                        reset_requests_seconds=2.0,
+                        reset_tokens_seconds=4.0,
+                    ),
+                )
+            return response
+
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
+    request = cast(HcxRequest, object())
+
+    observed = await generator.run(lambda: generator.generate(request, "rate-limited"))
+
+    assert observed is response
+    assert attempts == 2
+    assert sleeps == [4.0]
+
+
+@pytest.mark.asyncio
+async def test_ablation_carries_a_second_rate_limit_reset_to_the_next_call() -> None:
+    sleeps: list[float] = []
+
+    class Client:
+        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+            raise HcxRateLimitError(
+                "42902",
+                HcxRateLimitSnapshot(reset_tokens_seconds=4.0),
+            )
+
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
+    request = cast(HcxRequest, object())
+
+    with pytest.raises(HcxRateLimitError):
+        await generator.run(lambda: generator.generate(request, "first"))
+    with pytest.raises(HcxRateLimitError):
+        await generator.run(lambda: generator.generate(request, "second"))
+
+    assert sleeps == [4.0, 4.0, 4.0]
 
 
 @pytest.mark.asyncio
