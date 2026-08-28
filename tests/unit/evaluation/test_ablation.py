@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -12,6 +13,8 @@ from finproof.evaluation.ablation import (
 from finproof.evaluation.ablation_experiment import (
     _approved_plans,
     _CaseRun,
+    _parse_direct_answer,
+    _planner_for_ablation,
     _policy_observation,
 )
 from finproof.evaluation.ablation_experiment import (
@@ -20,8 +23,11 @@ from finproof.evaluation.ablation_experiment import (
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
+from finproof.planner.service import HcxGenerator, LocalPlanValidator
+from finproof.planner.structured_planner import StructuredOutputPlanner
 from finproof.quality import PolicyExecutionResult
 from finproof.quality.metric_policy import MetricPolicyResult
+from finproof.registry.loader import RegistryBundle
 
 
 def _measurement(
@@ -182,6 +188,27 @@ def test_ablation_experiment_loads_an_approved_plan_for_every_canonical_case() -
     plans = _approved_plans(Path.cwd(), cases)
 
     assert set(plans) == {case.case_id for case in cases}
+
+
+def test_ablation_experiment_uses_the_dormant_structured_planner() -> None:
+    planner = _planner_for_ablation(
+        generator=cast(HcxGenerator, object()),
+        validator=cast(LocalPlanValidator, object()),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    assert type(planner) is StructuredOutputPlanner
+
+
+def test_direct_ablation_accepts_one_hcx_json_fence() -> None:
+    answer = _parse_direct_answer(
+        '```json\n{"products":[],"values":[],"answer":"조회 결과",'
+        '"limitation_present":false}\n```\n설명'
+    )
+
+    assert answer.answer == "조회 결과"
+    assert not answer.limitation_present
 
 
 def test_domain_policy_observation_does_not_require_the_evidence_stage() -> None:

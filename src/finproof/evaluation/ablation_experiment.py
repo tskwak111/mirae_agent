@@ -43,17 +43,16 @@ from finproof.evaluation.models import (
 from finproof.evaluation.runner import _code_commit
 from finproof.evaluation.scoring import CaseScore, RatioScore, score_case
 from finproof.planner.hcx_client import HcxClient, create_hcx_http_client
-from finproof.planner.json_planner import StrictJsonPlanner
 from finproof.planner.models import HcxMessage, HcxRequest, HcxResponse
 from finproof.planner.prompts import PROMPT_VERSION
-from finproof.planner.rule_fallback import RuleFallbackPlanner
 from finproof.planner.service import (
+    HcxGenerator,
     LocalPlanValidator,
     PlannedQuery,
     PlannerProtocol,
-    PlannerService,
     PlanningRequest,
 )
+from finproof.planner.structured_planner import StructuredOutputPlanner
 from finproof.quality import PolicyEngine, PolicyExecutionResult
 from finproof.query import (
     ExecutionBundleBuilder,
@@ -62,6 +61,7 @@ from finproof.query import (
     SemanticValidator,
     ValidationContext,
 )
+from finproof.registry.loader import RegistryBundle
 from finproof.runtime import RuntimeArtifactSession, open_runtime_artifact_session
 from finproof.service import AnswerService
 from finproof.storage.repositories.products import RawExecutionResult
@@ -253,7 +253,7 @@ class _Experiment:
                 _direct_request(self.settings.hcx_model_name, case, raw),
                 request_id=f"{case.case_id}-ablation-a-{repeat}",
             )
-            answer = _DirectAnswer.model_validate_json(response.message_content)
+            answer = _parse_direct_answer(response.message_content)
             observation = _direct_observation(answer, _elapsed_ms(started))
         except Exception:
             prompt_tokens, completion_tokens = self.generator.usage_since(usage_index)
@@ -313,14 +313,11 @@ async def _run(
                 SemanticValidator(fields),
                 entity_resolver=EntityResolver(EntityIndex.from_session(session)),
             )
-            planner = PlannerService(
-                strict_json_planner=StrictJsonPlanner(
-                    generator=generator,
-                    validator=validator,
-                    registries=session.registries,
-                    model_name=settings.hcx_model_name,
-                ),
-                rule_fallback=RuleFallbackPlanner(validator=validator),
+            planner = _planner_for_ablation(
+                generator=generator,
+                validator=validator,
+                registries=session.registries,
+                model_name=settings.hcx_model_name,
             )
             experiment = _Experiment(settings, session, planner, generator)
             observed: dict[AblationVariant, dict[str, list[_CaseRun]]] = {
@@ -707,6 +704,30 @@ def _direct_request(model_name: str, case: GoldenCase, raw: RawExecutionResult) 
         max_completion_tokens=2_048,
         temperature=0.0,
         seed=17,
+    )
+
+
+def _parse_direct_answer(content: str) -> _DirectAnswer:
+    value = content.strip()
+    if value.startswith("```json\n"):
+        value = value[8:]
+        if (closing_fence := value.find("\n```")) >= 0:
+            value = value[:closing_fence]
+    return _DirectAnswer.model_validate_json(value)
+
+
+def _planner_for_ablation(
+    *,
+    generator: HcxGenerator,
+    validator: LocalPlanValidator,
+    registries: RegistryBundle,
+    model_name: str,
+) -> PlannerProtocol:
+    return StructuredOutputPlanner(
+        generator=generator,
+        validator=validator,
+        registries=registries,
+        model_name=model_name,
     )
 
 
