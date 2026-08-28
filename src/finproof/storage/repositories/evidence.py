@@ -203,6 +203,7 @@ class EvidenceRepository:
         holding_refs: list[HoldingRecordEvidenceRef] = []
         coverage_refs: list[HoldingCoverageEvidenceRef] = []
         for request in requests:
+            holding_provenance: dict[tuple[ProductType, str, str], tuple[object, ...]] = {}
             placeholders = ", ".join("?" for _ in request.product_ids)
             owner_parameters = (request.product_type.value, *request.product_ids)
             count_rows = connection.execute(
@@ -254,6 +255,25 @@ class EvidenceRepository:
                     != row[:13]
                 ):
                     raise ValueError("canonical holding evidence row differs")
+                provenance_key = (
+                    record.owner_product_type,
+                    record.owner_product_id,
+                    record.generation_id,
+                )
+                provenance = (
+                    record.owner_source_identifier,
+                    record.owner_identifier_type,
+                    record.owner_link_method,
+                    record.source_owner,
+                    record.source_kind,
+                    record.direct_source_url,
+                    record.raw_file_sha256,
+                    record.source_as_of_date,
+                    record.publication_date,
+                )
+                previous = holding_provenance.setdefault(provenance_key, provenance)
+                if previous != provenance:
+                    raise ValueError("holding evidence provenance differs within generation")
                 holding_refs.append(
                     HoldingRecordEvidenceRef(
                         evidence_id=_evidence_id(
@@ -323,6 +343,24 @@ class EvidenceRepository:
                 )
                 if coverage.observed_holding_count != full_count:
                     raise ValueError("holding coverage observed count differs")
+                coverage_key = (
+                    coverage.owner_product_type,
+                    coverage.owner_product_id,
+                    cast(str, coverage.source_generation_id),
+                )
+                coverage_provenance = (
+                    coverage.owner_source_identifier,
+                    coverage.owner_identifier_type,
+                    coverage.owner_link_method,
+                    coverage.source_owner,
+                    coverage.source_kind,
+                    coverage.direct_source_url,
+                    coverage.raw_file_sha256,
+                    coverage.source_as_of_date,
+                    coverage.publication_date,
+                )
+                if holding_provenance.get(coverage_key) != coverage_provenance:
+                    raise ValueError("holding and coverage provenance differs")
                 coverage_refs.append(
                     HoldingCoverageEvidenceRef(
                         evidence_id=_evidence_id(

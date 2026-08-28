@@ -147,6 +147,136 @@ def test_overseas_return_1y_limitation_reaches_evidence_renderer_and_verifier() 
     assert limitation in ClaimVerifier().verify(draft, evidence).text
 
 
+def test_mixed_complete_and_unavailable_holding_coverage_warns_without_absence_claim() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.core.settings import ExecutionMode
+    from finproof.domain.answers import AnswerRequest, ClaimKind
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.entity import (
+        HoldingResolutionCandidate,
+        HoldingResolutionResult,
+    )
+    from finproof.evidence import ClaimVerifier, EvidenceBuilder
+    from finproof.quality import MetricPolicyResult, PolicyExecutionResult
+    from finproof.query import FieldRegistry, ResolutionBundle, SemanticValidator, ValidationContext
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    class Connection:
+        def execute(self, _sql: str, _parameters: object) -> Self:
+            return self
+
+        def fetchall(self) -> tuple[tuple[object, ...], ...]:
+            return (
+                ("domestic_etf", "complete", 3),
+                ("domestic_etf", "unavailable", 2),
+            )
+
+        def close(self) -> None: ...
+
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_ETF,),
+        entities=(),
+        as_of_date=date(2026, 8, 24),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(
+            FilterClause(
+                field="holding_constituent",
+                operator=FilterOperator.EQ,
+                value="삼성전자",
+            ),
+        ),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    candidate = HoldingResolutionCandidate(
+        constituent_identifier="KR7005930003",
+        constituent_identifier_type="isin",
+        display_name="삼성전자",
+    )
+    context = ValidationContext(
+        as_of_date=plan.as_of_date,
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+    validated = SemanticValidator(
+        FieldRegistry.from_bundle(RegistryBundle.from_package())
+    ).validate(
+        plan,
+        resolutions=ResolutionBundle(
+            results=(),
+            holding_constituent=HoldingResolutionResult(
+                selected=candidate,
+                candidates=(candidate,),
+            ),
+        ),
+        context=context,
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(),
+            comparison_valid_values=(),
+            excluded_count=0,
+            warnings=(),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+    )
+    session = _candidate_registry_session(Connection())
+    try:
+        evidence = EvidenceBuilder().build(
+            plan=validated,
+            policy_result=policy,
+            repository=EvidenceRepository(session),
+        )
+    finally:
+        session._close()
+
+    limitation = (
+        "domestic_etf 구성종목 자료 중 일부는 제공되지 않아 "
+        "검색되지 않은 종목의 부재를 판단하지 않았습니다."
+    )
+    assert limitation in evidence.material_policy_limitations
+    unavailable = next(
+        summary
+        for summary in evidence.summaries
+        if summary.partition_key == "holding-coverage:domestic_etf:unavailable"
+    )
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-mixed-coverage", question="삼성전자 보유 ETF"),
+        plan=plan,
+        evidence=evidence,
+    )
+    claim = next(
+        item
+        for item in draft.claims
+        if item.kind is ClaimKind.LIMITATION and item.value == limitation
+    )
+    assert claim.evidence_ids == (unavailable.summary_id,)
+    assert ClaimVerifier().verify(draft, evidence).text == draft.text
+
+
 def test_holding_repository_reparses_canonical_rows_and_uses_full_owner_generation_count(
     tmp_path: Path,
 ) -> None:
@@ -198,6 +328,57 @@ def test_holding_repository_reparses_canonical_rows_and_uses_full_owner_generati
     assert len(result.holding_records) == 1
     assert result.holding_records[0].constituent_identifier == matching.constituent_identifier
     assert result.holding_coverage[0].observed_holding_count == 2
+
+
+def test_holding_repository_rejects_same_generation_with_different_shared_provenance(
+    tmp_path: Path,
+) -> None:
+    import duckdb
+    from tests.helpers.artifacts import write_database_artifact_tree
+    from tests.unit.data.test_holdings import _coverage, _holding
+
+    from finproof.data.artifacts.serialization import serialize_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.data.holdings import HoldingCoverageRecord, HoldingRecord
+    from finproof.storage.repositories.evidence import EvidenceRepository, HoldingEvidenceLookup
+
+    holding = cast(HoldingRecord, _holding())
+    coverage_payload = cast(HoldingCoverageRecord, _coverage()).model_dump(mode="python")
+    coverage_payload["source_owner"] = "서로 다른 출처"
+    coverage = HoldingCoverageRecord.model_validate(coverage_payload, strict=True)
+    root = tmp_path / "holding-provenance-mismatch"
+    write_database_artifact_tree(
+        root,
+        {
+            "silver_product_holding": (
+                dict(serialize_table_row(TABLE_SPEC_BY_NAME["silver_product_holding"], holding)),
+            ),
+            "silver_product_holding_coverage": (
+                dict(
+                    serialize_table_row(
+                        TABLE_SPEC_BY_NAME["silver_product_holding_coverage"], coverage
+                    )
+                ),
+            ),
+        },
+    )
+    session = _candidate_registry_session(
+        duckdb.connect(str(root / "finproof.duckdb"), read_only=True)
+    )
+    try:
+        with pytest.raises(ValueError, match="provenance"):
+            EvidenceRepository(session).fetch_holding_evidence(
+                (
+                    HoldingEvidenceLookup(
+                        product_type=holding.owner_product_type,
+                        product_ids=(holding.owner_product_id,),
+                        constituent_identifier=holding.constituent_identifier,
+                        constituent_identifier_type=holding.constituent_identifier_type,
+                    ),
+                )
+            )
+    finally:
+        session._close()
 
 
 def test_final_product_claims_use_complete_source_cell_lineage() -> None:

@@ -40,6 +40,19 @@ def test_normalized_exact_name_selects_only_one_distinct_pair() -> None:
     assert result.selected.constituent_identifier == "KR7005930003"
 
 
+def test_every_exact_alias_for_one_pair_remains_resolvable() -> None:
+    resolver = _resolver(
+        ("KR7005930003", "ISIN", "Samsung Electronics Co"),
+        ("KR7005930003", "ISIN", "Samsung Electronics"),
+    )
+
+    result = resolver.resolve("Samsung Electronics Co")
+
+    assert result.selected is result.candidates[0]
+    assert result.selected.constituent_identifier == "KR7005930003"
+    assert result.selected.display_name == "Samsung Electronics Co"
+
+
 def test_multi_pair_name_ambiguity_is_deterministic_and_bounded_to_five() -> None:
     rows = tuple((f"ID-{index}", "LOCAL", "동명이인") for index in range(9, -1, -1))
 

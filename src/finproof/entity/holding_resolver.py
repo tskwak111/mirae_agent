@@ -44,7 +44,7 @@ class HoldingResolver:
     def _from_rows(cls, rows: tuple[tuple[str, str, str], ...]) -> Self:
         if cls is not HoldingResolver or type(rows) is not tuple:
             raise TypeError("holding resolution rows differ")
-        by_pair: dict[tuple[str, str], str] = {}
+        candidates: dict[tuple[str, str, str], HoldingResolutionCandidate] = {}
         for row in rows:
             if (
                 type(row) is not tuple
@@ -53,21 +53,26 @@ class HoldingResolver:
             ):
                 raise TypeError("holding resolution row differs")
             identifier, identifier_type, display_name = row
-            key = (identifier, identifier_type)
-            existing = by_pair.get(key)
-            if existing is None or (normalize_product_text(display_name), display_name) < (
-                normalize_product_text(existing),
-                existing,
-            ):
-                by_pair[key] = display_name
+            candidates.setdefault(
+                (identifier, identifier_type, display_name),
+                HoldingResolutionCandidate(
+                    constituent_identifier=identifier,
+                    constituent_identifier_type=identifier_type,
+                    display_name=display_name,
+                ),
+            )
         value = object.__new__(cls)
         value._candidates = tuple(
-            HoldingResolutionCandidate(
-                constituent_identifier=identifier,
-                constituent_identifier_type=identifier_type,
-                display_name=display_name,
+            candidates[key]
+            for key in sorted(
+                candidates,
+                key=lambda item: (
+                    item[0],
+                    item[1],
+                    normalize_product_text(item[2]),
+                    item[2],
+                ),
             )
-            for (identifier, identifier_type), display_name in sorted(by_pair.items())
         )
         return value
 
@@ -77,13 +82,26 @@ class HoldingResolver:
         identifier_matches = tuple(
             candidate for candidate in self._candidates if candidate.constituent_identifier == text
         )
-        matches = identifier_matches or tuple(
+        raw_matches = identifier_matches or tuple(
             candidate
             for candidate in self._candidates
             if normalize_product_text(candidate.display_name) == normalize_product_text(text)
         )
+        matches = _deduplicate_pairs(raw_matches)
         bounded = matches[:5]
         return HoldingResolutionResult(
             selected=bounded[0] if len(matches) == 1 else None,
             candidates=bounded,
         )
+
+
+def _deduplicate_pairs(
+    candidates: tuple[HoldingResolutionCandidate, ...],
+) -> tuple[HoldingResolutionCandidate, ...]:
+    by_pair: dict[tuple[str, str], HoldingResolutionCandidate] = {}
+    for candidate in candidates:
+        by_pair.setdefault(
+            (candidate.constituent_identifier, candidate.constituent_identifier_type),
+            candidate,
+        )
+    return tuple(by_pair.values())

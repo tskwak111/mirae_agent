@@ -1499,7 +1499,13 @@ def _holding_coverage_limitations(
                 f"{product_type.value} 구성종목 자료는 제공되지 않아 "
                 "보유하지 않았다는 결론을 내리지 않았습니다."
             )
-        elif any(item.coverage_state is HoldingCoverageState.PARTIAL_TOP_10 for item in items):
+            continue
+        if any(item.coverage_state is HoldingCoverageState.UNAVAILABLE for item in items):
+            values.append(
+                f"{product_type.value} 구성종목 자료 중 일부는 제공되지 않아 "
+                "검색되지 않은 종목의 부재를 판단하지 않았습니다."
+            )
+        if any(item.coverage_state is HoldingCoverageState.PARTIAL_TOP_10 for item in items):
             values.append(
                 f"{product_type.value} 구성종목 자료는 부분 범위이므로 "
                 "검색되지 않은 종목의 부재를 판단하지 않았습니다."

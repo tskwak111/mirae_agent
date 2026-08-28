@@ -607,12 +607,23 @@ def _limitation_evidence_ids(
             if item.coverage_state.value == "partial_top_10"
         )
     if "구성종목 자료" in limitation:
+        state = (
+            "unavailable"
+            if "제공되지 않아" in limitation
+            else "partial_top_10"
+            if "부분 범위" in limitation
+            else None
+        )
         return tuple(
             item.summary_id
             for item in evidence.summaries
             if item.kind is EvidenceSummaryKind.COVERAGE
             and item.product_types
             and limitation.startswith(item.product_types[0].value)
+            and (
+                state is None
+                or (item.partition_key is not None and item.partition_key.endswith(f":{state}"))
+            )
         )
     return ()
 
