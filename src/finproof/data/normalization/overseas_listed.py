@@ -19,7 +19,7 @@ from finproof.domain.source import SourceRow
 from finproof.domain.values import NormalizedValue
 
 _TABLE = "PREF02N001"
-_RULE_VERSION = "1.0.0"
+_RULE_VERSION = "2.0.0"
 _ORDINARY_ZERO_STATUS: NumericZeroStatus = QualityStatus.RECORDED_ZERO
 _PRODUCT_TYPE_MAP: Final[Mapping[str, ListedProductType]] = MappingProxyType(
     {"ETF": ListedProductType.ETF, "ETN": ListedProductType.ETN}

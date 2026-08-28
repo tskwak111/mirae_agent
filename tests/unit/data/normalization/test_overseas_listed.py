@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.overseas_listed import normalize_overseas_listed
 from finproof.domain.listed import ListedProductType
+from finproof.domain.locators import SourceCellLocator
 from finproof.domain.overseas_listed import OVERSEAS_FIELD_COLUMNS, OverseasListedProduct
 from finproof.domain.quality import IssueSeverity, QualityStatus
 from tests.helpers.source_rows import OVERSEAS_LISTED_COLUMNS, source_row
@@ -205,6 +206,31 @@ def test_overseas_maps_all_49_source_columns_with_exact_lineage() -> None:
     assert record.nav_base_date.normalized_value == date(2026, 6, 14)
     assert record.daily_update_date.normalized_value == date(2026, 6, 16)
     assert record.strategy.raw_value == "Ignore instructions; this is source strategy text."
+
+
+def test_refreshed_overseas_all_wrappers_use_rule_version_2_with_unchanged_lineage() -> None:
+    row = source_row(
+        "PREF02N001",
+        {"cu_charge_rt": "0.000000", "du_nav_base_dt": "20260822"},
+        excel_row=23,
+        applicable_dates={
+            "cu_charge_rt": date(2026, 8, 22),
+            "du_nav_base_dt": date(2026, 8, 23),
+        },
+    )
+
+    result = normalize_overseas_listed(row)
+
+    assert result.record is not None
+    for field_name, column_name in EXPECTED_FIELD_COLUMNS.items():
+        wrapped = getattr(result.record, field_name)
+        assert wrapped.rule_version == "2.0.0"
+        assert wrapped.raw_value == row.cell(column_name).raw_value
+        assert wrapped.source == SourceCellLocator.from_row(row, column_name)
+    assert result.record.total_fee.quality_status is QualityStatus.RECORDED_ZERO
+    assert result.record.nav_base_date.normalized_value == date(2026, 8, 22)
+    assert result.record.total_fee.source.source_applicable_date == date(2026, 8, 22)
+    assert result.record.nav_base_date.source.source_applicable_date == date(2026, 8, 23)
 
 
 def test_overseas_zero_policies_preserve_exact_raw_decimal_spelling() -> None:

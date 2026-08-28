@@ -113,6 +113,7 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
     metric_quality: dict[str, Counter[QualityStatus]] = {
         field_name: Counter() for field_name in ("total_fee", "tracking_error", "return_1y")
     }
+    admitted_blank_suspensions: list[ListedProduct] = []
     product_ids: set[str] = set()
     quarantined: list[tuple[int, str, tuple[DataQualityIssue, ...]]] = []
     source_rows = records = 0
@@ -142,6 +143,8 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
         produced_groups[product_type] += 1
         for field_name, counter in metric_quality.items():
             counter[getattr(record, field_name).quality_status] += 1
+        if record.suspension_flag.raw_value == "":
+            admitted_blank_suspensions.append(record)
         _assert_listed_source_fidelity(record, row)
 
     assert source_rows == 1_780
@@ -149,6 +152,12 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
     assert len(product_ids) == 1_779
     assert source_groups == Counter({"ETF": 1_235, "ETN": 545})
     assert produced_groups == Counter({ListedProductType.ETF: 1_234, ListedProductType.ETN: 545})
+    assert len(admitted_blank_suspensions) == 2
+    assert all(
+        record.suspension_flag.normalized_value is None
+        and record.suspension_flag.quality_status is QualityStatus.MISSING_BLANK
+        for record in admitted_blank_suspensions
+    )
     assert metric_quality == {
         "total_fee": Counter(
             {

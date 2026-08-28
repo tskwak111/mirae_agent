@@ -358,13 +358,36 @@ def test_domestic_flags_use_only_exact_source_codes(
     assert result.record is not None
     assert result.record.sale_flag.normalized_value is expected_sale
     assert result.record.suspension_flag.normalized_value is expected_suspended
-    expected_warnings = sum(value is None for value in (expected_sale, expected_suspended))
+    expected_warnings = sum(
+        value is None and raw != ""
+        for raw, value in ((sale, expected_sale), (suspended, expected_suspended))
+    )
     assert (
         sum(
             issue.source.source_column_name in {"pd_sale_yn", "pd_tr_yn"} for issue in result.issues
         )
         == expected_warnings
     )
+
+
+@pytest.mark.parametrize(
+    ("column", "field_name"),
+    [("pd_sale_yn", "sale_flag"), ("pd_tr_yn", "suspension_flag")],
+)
+def test_blank_domestic_flag_is_missing_without_warning_and_makes_eligibility_unavailable(
+    column: str,
+    field_name: str,
+) -> None:
+    result = normalize_domestic_listed(source_row("PREF01N001", {column: ""}), AS_OF)
+
+    assert result.record is not None
+    wrapped = getattr(result.record, field_name)
+    assert wrapped.raw_value == ""
+    assert wrapped.normalized_value is None
+    assert wrapped.quality_status is QualityStatus.MISSING_BLANK
+    assert not any(issue.source.source_column_name == column for issue in result.issues)
+    assert result.record.is_eligible_at_as_of.value is None
+    assert result.record.is_eligible_at_as_of.quality_status is QualityStatus.MISSING_BLANK
 
 
 @pytest.mark.parametrize(
@@ -385,7 +408,7 @@ def test_domestic_flags_use_only_exact_source_codes(
             "20200101",
             "99991231",
             None,
-            QualityStatus.OUT_OF_DOMAIN,
+            QualityStatus.MISSING_BLANK,
         ),
         (
             "1",
@@ -393,7 +416,7 @@ def test_domestic_flags_use_only_exact_source_codes(
             "20200101",
             "99991231",
             None,
-            QualityStatus.OUT_OF_DOMAIN,
+            QualityStatus.MISSING_BLANK,
         ),
         (
             "1",

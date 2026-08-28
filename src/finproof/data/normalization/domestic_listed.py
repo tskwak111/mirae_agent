@@ -276,13 +276,18 @@ def _flag(
     mapping: Mapping[str, bool],
     rule_id: str,
 ) -> NormalizedValue[bool]:
-    normalized_value = mapping.get(row.cell(column_name).raw_value)
+    raw_value = row.cell(column_name).raw_value
+    normalized_value = mapping.get(raw_value)
     return make_normalized_value(
         row,
         column_name,
         normalized_value=normalized_value,
         quality_status=(
-            QualityStatus.VALID if normalized_value is not None else QualityStatus.OUT_OF_DOMAIN
+            QualityStatus.MISSING_BLANK
+            if not raw_value.strip()
+            else QualityStatus.VALID
+            if normalized_value is not None
+            else QualityStatus.OUT_OF_DOMAIN
         ),
         rule_id=rule_id,
         rule_version=_RULE_VERSION,
