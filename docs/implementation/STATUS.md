@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 7.
-The sealed-holdings implementation and its independent review returned Critical 0 /
-Important 0; Task 8 plan correction and independent plan review are next.
+**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 8.
+Constituent filtering/evidence and overseas 1Y pruning are implemented and reviewed;
+Task 9 plan correction and independent plan re-review are next.
 
 ## Frozen baseline
 
@@ -62,9 +62,35 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Official-data refresh Task 8: correct and independently review the constituent-query
-ownership and evidence contract before writing any RED.** Phase 4 Task 3 resumes after
-the official refresh/release plan is closed.
+**Official-data refresh Task 9: correct the HCX-only evaluation composition, async
+verbalizer/fact-pack verification, safe-response ownership, and ingress-to-serialization
+295-second deadline plan; obtain an independent 0C/0I plan review before writing any
+RED.** Phase 4 Task 3 resumes after the official refresh/release plan is closed.
+
+## Official-data refresh Task 8 closure
+
+- Implementation commit: `5dfa42c83a6536f9a0f0d4ecbb5664b2c1571094`
+  (`feat: query sealed constituent evidence`). Single correction commit:
+  `ce7130b47bf2ed4bd3bd9040c0718ad1f30c0b8d`
+  (`fix: preserve constituent evidence limits`).
+- Focused TDD added exact constituent resolution, five-type native segmentation and
+  parameterized correlated `EXISTS`, overseas-ETF 1Y pruning, canonical holding/coverage
+  evidence, bounded v3 serialization, and synthetic cross-product execution. The Task 8
+  aggregate passed 244 tests; scoped Ruff, clean non-incremental mypy, source audit at
+  53,375 rows, handoff at 61 files / 9 inputs / 19,074,953 bytes, and diff checks passed.
+- Initial independent code review returned Critical 0 / Important 3. One bounded
+  RED→GREEN correction preserved every exact alias, rejected cross-record provenance
+  divergence, and retained non-absence limitations for mixed complete/unavailable
+  coverage. Its focused tests passed 6, 2, and 2 cases; the related aggregate passed 16
+  tests, and scoped Ruff/mypy/diff checks passed.
+- Bounded re-review closed all three implementation findings with Critical 0 / Important
+  0. A non-code selector transcription in the ignored correction report was corrected
+  mechanically and freshly re-observed as 2 passed in 0.84 seconds; no further review
+  loop or production change was made.
+- Nonblocking backlog: narrow holding evidence DTO product-type fields to their admitted
+  owner-type literals if a future contract revision needs earlier rejection of impossible
+  DTOs. User evaluation JSON, PDFs, and review-batch files remained untouched and
+  unstaged.
 
 ## Official-data refresh Task 7 closure
 

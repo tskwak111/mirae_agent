@@ -821,7 +821,7 @@ emits it at most once, and never combines it with `domestic_bond`. Repository,
 editable-install, and clean-wheel runtime resources must expose the same reviewed registry
 bytes and issued versions.
 
-- [ ] **Step 1: Write resolver, registry, semantic, and construction-boundary REDs**
+- [x] **Step 1: Write resolver, registry, semantic, and construction-boundary REDs**
 
 ```python
 from finproof.domain.query_plan import FilterOperator
@@ -868,7 +868,7 @@ uv run pytest tests/contract/test_runtime_registry_resources.py::test_repository
 uv run pytest tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py -q -k holding
 ```
 
-- [ ] **Step 2: Implement the minimum resolver, registry exception, and caller wiring**
+- [x] **Step 2: Implement the minimum resolver, registry exception, and caller wiring**
 
 Reuse `normalize_product_text` from `src/finproof/entity/normalization.py`, the
 deterministic ordering used by `EntityResolver`, and
@@ -888,7 +888,7 @@ uv run pytest tests/contract/test_runtime_registry_resources.py::test_repository
 uv run pytest tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py -q -k holding
 ```
 
-- [ ] **Step 3: Write relation-separation and SQL/security REDs**
+- [x] **Step 3: Write relation-separation and SQL/security REDs**
 
 ```python
 def test_holding_filter_compiles_parameterized_exists(compiler, segment) -> None:
@@ -912,7 +912,7 @@ compiler emits no four-part holding correlation.
 uv run pytest tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py tests/integration/query/test_holding_executor.py tests/unit/quality/test_pipeline_order.py -q
 ```
 
-- [ ] **Step 4: Implement the minimum typed relation and correlated `EXISTS`**
+- [x] **Step 4: Implement the minimum typed relation and correlated `EXISTS`**
 
 Add `HoldingConstituentFilter` and carry it only on `ExecutionSegment`. Exclude the
 relation from `QueryAst` native projection collection, ordinary filter compilation,
@@ -924,7 +924,7 @@ generic relation abstraction.
 uv run pytest tests/unit/query/test_execution_bundle.py tests/unit/query/test_sql_compiler.py tests/security/test_query_injection.py tests/integration/query/test_holding_executor.py tests/unit/quality/test_pipeline_order.py -q
 ```
 
-- [ ] **Step 5: Write and close overseas 1Y limitation transport RED**
+- [x] **Step 5: Write and close overseas 1Y limitation transport RED**
 
 For a domestic ETF + overseas ETF + public-fund `return_1y` plan, preserve the compatible
 domestic ETF/public-fund global rank, omit the overseas segment, and create a typed
@@ -942,7 +942,7 @@ mapping, and the pruning rule; do not create a generic warning or limitation mod
 uv run pytest tests/unit/query/test_execution_bundle.py tests/integration/query/test_executor.py tests/unit/quality/test_pipeline_order.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/answer/test_renderer.py tests/unit/evidence/test_claim_verifier.py -q -k 'overseas and return_1y'
 ```
 
-- [ ] **Step 6: Write holding/coverage evidence and snapshot REDs**
+- [x] **Step 6: Write holding/coverage evidence and snapshot REDs**
 
 Add focused REDs proving each positive owner binds official owner evidence, exact owner
 crosswalk, one or more canonical holding rows, the exact owner coverage row, displayed
@@ -972,7 +972,7 @@ the serializer has no v3 branch, and the builder still owns the obsolete snapsho
 uv run pytest tests/unit/domain/test_evidence_models.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/evidence/test_claim_verifier.py tests/unit/answer/test_renderer.py -q -k 'holding or coverage or snapshot'
 ```
 
-- [ ] **Step 7: Implement the minimum typed evidence binding**
+- [x] **Step 7: Implement the minimum typed evidence binding**
 
 Add bounded, default-empty `HoldingRecordEvidenceRef` and
 `HoldingCoverageEvidenceRef` tuples to `EvidenceBundle`. Reuse canonical holding models,
@@ -987,7 +987,7 @@ graph or duplicate holding schema.
 uv run pytest tests/unit/domain/test_evidence_models.py tests/unit/evidence/test_builder.py tests/unit/evidence/test_serializer.py tests/unit/evidence/test_claim_verifier.py tests/unit/answer/test_renderer.py -q -k 'holding or coverage or snapshot'
 ```
 
-- [ ] **Step 8: Write and close the synthetic cross-product E2E RED**
+- [x] **Step 8: Write and close the synthetic cross-product E2E RED**
 
 The official contract remains exactly zero `silver_product_holding` rows and 31,492
 `silver_product_holding_coverage` rows. Do not rebuild or modify the official artifacts,
@@ -1012,7 +1012,7 @@ fixture support, then require GREEN.
 uv run pytest tests/integration/query/test_cross_product_holding_query.py -q
 ```
 
-- [ ] **Step 9: Run one Task 8 aggregate and verification bundle**
+- [x] **Step 9: Run one Task 8 aggregate and verification bundle**
 
 ```bash
 uv run pytest tests/unit/entity tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py -q
@@ -1094,7 +1094,7 @@ The clean-wheel resource check appears only in the aggregate command above and r
 - Stop if overseas 1Y requires an unapproved source, metric, or comparability rule.
 - Stop on any unexplained focused failure, source audit failure, or evidence mismatch.
 
-- [ ] **Step 10: Commit the exact Task 8 paths and request independent code review**
+- [x] **Step 10: Commit the exact Task 8 paths and request independent code review**
 
 ```bash
 git add config/field_registry.yaml config/planner_catalog.yaml src/finproof/entity/__init__.py src/finproof/entity/models.py src/finproof/entity/holding_resolver.py src/finproof/query src/finproof/domain/execution.py src/finproof/domain/evidence.py src/finproof/storage/repositories/evidence.py src/finproof/quality/pipeline.py src/finproof/evidence src/finproof/answer/renderer.py src/finproof/api/dependencies.py src/finproof/planner/service.py src/finproof/planner/prompts.py src/finproof/service/answer_service.py src/finproof/cli/evaluate.py src/finproof/evaluation/ablation_experiment.py tests/unit/entity/test_holding_resolution.py tests/unit/query tests/unit/registry/test_registry_loader.py tests/unit/planner/test_prompts.py tests/security/test_query_injection.py tests/integration/query tests/integration/planner/test_planner_service.py tests/integration/service/test_answer_service.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/unit/evaluation/test_ablation.py tests/unit/quality/test_pipeline_order.py tests/unit/domain/test_evidence_models.py tests/unit/evidence tests/unit/answer/test_renderer.py tests/contract/test_runtime_registry_resources.py
