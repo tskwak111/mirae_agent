@@ -151,6 +151,55 @@ async def test_ablation_paces_hcx_calls_from_the_remaining_token_budget() -> Non
 
 
 @pytest.mark.asyncio
+async def test_ablation_waits_for_token_reset_before_a_larger_next_request() -> None:
+    response = HcxResponse(
+        status_code="20000",
+        status_message="OK",
+        message_content="{}",
+        usage=HcxUsage(prompt_tokens=9_000, completion_tokens=1_000, total_tokens=10_000),
+        rate_limits=HcxRateLimitSnapshot(
+            remaining_requests=59,
+            reset_requests_seconds=60.0,
+            remaining_tokens=50_000,
+            reset_tokens_seconds=60.0,
+        ),
+    )
+    sleeps: list[float] = []
+    attempts = 0
+
+    class Client:
+        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+            nonlocal attempts
+            attempts += 1
+            return response
+
+    async def sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
+    small = HcxRequest.strict_json(
+        model_name="HCX-007",
+        messages=(HcxMessage(role="user", content="small"),),
+        max_completion_tokens=2_048,
+        temperature=0.0,
+        seed=17,
+    )
+    large = HcxRequest.strict_json(
+        model_name="HCX-007",
+        messages=(HcxMessage(role="user", content="가" * 20_000),),
+        max_completion_tokens=2_048,
+        temperature=0.0,
+        seed=17,
+    )
+
+    await generator.run(lambda: generator.generate(small, "small"))
+    await generator.run(lambda: generator.generate(large, "large"))
+
+    assert attempts == 2
+    assert sleeps == [13.2576, 60.0]
+
+
+@pytest.mark.asyncio
 async def test_ablation_retries_one_rate_limited_hcx_call_after_reset() -> None:
     response = HcxResponse(
         status_code="20000",

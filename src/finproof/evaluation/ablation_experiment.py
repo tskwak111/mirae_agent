@@ -88,6 +88,11 @@ class _DirectAnswer(_FrozenModel):
     limitation_present: bool = False
 
 
+class _QuotaWaitRequired(Exception):
+    def __init__(self, delay: float) -> None:
+        self.delay = delay
+
+
 class _RecordingGenerator:
     def __init__(
         self,
@@ -98,12 +103,22 @@ class _RecordingGenerator:
         self._client = client
         self._sleep = sleep
         self._pending_delay = 0.0
+        self._remaining_tokens: int | None = None
+        self._reset_tokens_seconds: float | None = None
         self.responses: list[HcxResponse] = []
 
     async def generate(self, request: HcxRequest, request_id: str) -> HcxResponse:
+        if (
+            self._remaining_tokens is not None
+            and self._reset_tokens_seconds is not None
+            and _reserved_token_upper_bound(request) > self._remaining_tokens
+        ):
+            raise _QuotaWaitRequired(min(self._reset_tokens_seconds, _MAX_QUOTA_WAIT_SECONDS))
         response = await self._client.generate(request, request_id)
         self.responses.append(response)
         self._pending_delay = _quota_delay_seconds(request, response)
+        self._remaining_tokens = response.rate_limits.remaining_tokens
+        self._reset_tokens_seconds = response.rate_limits.reset_tokens_seconds
         return response
 
     async def run[T](self, operation: Callable[[], Awaitable[T]]) -> T:
@@ -111,6 +126,11 @@ class _RecordingGenerator:
             delay, self._pending_delay = self._pending_delay, 0.0
             await self._sleep(delay)
         try:
+            return await _within_case_deadline(operation())
+        except _QuotaWaitRequired as quota_wait:
+            self._remaining_tokens = None
+            self._reset_tokens_seconds = None
+            await self._sleep(quota_wait.delay)
             return await _within_case_deadline(operation())
         except HcxRateLimitError as error:
             reset_delay = _quota_reset_seconds(error)
@@ -860,6 +880,13 @@ def _quota_delay_seconds(request: HcxRequest, response: HcxResponse) -> float:
             else limits.reset_tokens_seconds * used_tokens / limits.remaining_tokens
         )
     return min(max(delays), _MAX_QUOTA_WAIT_SECONDS)
+
+
+def _reserved_token_upper_bound(request: HcxRequest) -> int:
+    payload_bytes = len(
+        json.dumps(request.to_payload(), ensure_ascii=False, separators=(",", ":")).encode()
+    )
+    return payload_bytes + request.max_completion_tokens
 
 
 def _quota_reset_seconds(error: HcxRateLimitError) -> float | None:
