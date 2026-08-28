@@ -1448,7 +1448,7 @@ call. Prove initial invalid wording gets exactly one repair and any second failu
 transport failure returns the prebuilt safe publication.
 
 ```bash
-uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py -q
+uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/integration/api/test_answer_endpoint.py tests/e2e/test_evaluation_api.py tests/unit/cli/test_evaluate.py -q
 ```
 
 Expected: fail because synchronous `answer_plan` currently publishes deterministic
