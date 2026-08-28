@@ -1132,13 +1132,16 @@ the files and contracts above.
 - Modify: `src/finproof/service/limits.py`
 - Modify: `src/finproof/evidence/verifier.py`
 - Modify: `src/finproof/evaluation/ablation_experiment.py`
+- Modify: `src/finproof/evaluation/runner.py`
 - Modify: `tools/build_canonical_reference_packet.py`
 - Modify: `tests/golden/test_seed_plans.py`
+- Modify: `tests/unit/api/test_response_model.py`
 - Modify: `tests/unit/cli/test_evaluate.py`
 - Modify: `tests/unit/core/test_hcx_settings.py`
 - Modify: `tests/unit/planner/test_rule_fallback.py`
 - Modify: `tests/unit/evaluation/test_ablation.py`
 - Modify: `tests/unit/evaluation/test_build_canonical_reference_packet.py`
+- Modify: `tests/unit/evidence/test_claim_verifier.py`
 - Modify: `tests/integration/planner/test_hcx_client.py`
 - Modify: `tests/integration/planner/test_planner_service.py`
 - Modify: `tests/integration/planner/test_live_hcx.py`
@@ -1147,6 +1150,7 @@ the files and contracts above.
 - Modify: `tests/integration/service/test_orchestrator_fallbacks.py`
 - Modify: `tests/integration/api/test_answer_endpoint.py`
 - Modify: `tests/integration/evaluation/test_fault_injection.py`
+- Modify: `tests/integration/evaluation/test_runner.py`
 - Modify: `tests/evaluation/test_adversarial_cases.py`
 - Modify: `tests/e2e/test_evaluation_api.py`
 - Modify: `tests/security/test_runtime_provider_policy.py`
@@ -1216,6 +1220,17 @@ the files and contracts above.
 - `Intent.CLARIFY` and `Intent.UNSUPPORTED` still produce a strict fact pack and
   require HCX wording. Only `"요청을 처리할 수 없습니다."` with empty claims,
   empty context, safe trace, and exact five-string envelope bypasses HCX.
+- Evaluation `ReplayVersions` records both mandatory HCX stages. Rename the stale
+  `PlannerRuntimeMode.HCX_STRICT_JSON_WITH_FALLBACK` member/value to
+  `HCX_STRICT_JSON_VERIFIED_WORDING = "hcx-strict-json-verified-wording"`; record
+  `execution_mode=EVALUATION`, `hcx_enabled=True`, `fallback_enabled=False`, the
+  HCX planner model/provider, `PROMPT_VERSION`, `ANSWER_PROMPT_VERSION`, the
+  checked-in answer-schema SHA-256, and
+  `wording_verification_mode="exact-application-surface-v1"` in the replay object
+  and `configuration_sha256`. `ReplayVersions.from_configuration` rejects any
+  evaluation combination that omits those identities, enables fallback, or disables
+  HCX. `FALLBACK_ONLY` metadata remains valid only with
+  `ExecutionMode.EXTENDED_DEMO` for explicit offline/demo replay.
 
 **Fact-pack and provider contract:**
 
@@ -1304,9 +1319,14 @@ Add fake-clock tests proving `outer_at == start + 295.0`,
 expiry at the work cutoff, and exact safe bytes already constructed inside the
 two-second reserve. Test the exact five keys, canonical byte equality, and absence of
 keys, paths, raw SQL, provider content, prompts, and stack traces.
+Before changing middleware, routes, errors, models, or serialization, add API REDs in
+`tests/integration/api/test_answer_endpoint.py`, `tests/e2e/test_evaluation_api.py`,
+and `tests/unit/api/test_response_model.py`. They must prove the middleware creates
+the deadline at ingress, route/error paths reuse the prebuilt safe publication, raw
+response content equals canonical bytes, and FastAPI performs no second serialization.
 
 ```bash
-uv run pytest tests/unit/service/test_limits.py tests/unit/service/test_publication.py -q
+uv run pytest tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/api/test_response_model.py tests/integration/api/test_answer_endpoint.py tests/e2e/test_evaluation_api.py -q
 ```
 
 Expected: fail because the current limiter creates a 15-second deadline at admission
@@ -1323,7 +1343,7 @@ orchestrator safe renderer, route assembly, and unexpected-exception assembly wi
 bytes directly; FastAPI must not perform a second JSON serialization.
 
 ```bash
-uv run pytest tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/api/test_response_model.py -q
+uv run pytest tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/api/test_response_model.py tests/integration/api/test_answer_endpoint.py tests/e2e/test_evaluation_api.py -q
 ```
 
 Expected: pass with the exact 293/295 boundaries and byte contract.
@@ -1336,13 +1356,20 @@ Assert the same ready graph owns one HTTP client, one `HcxClient`, one strict pl
 and one verbalizer. Replace the old fallback expectations with every row in the closed
 transition table; assert the exact call count, prompt kind (`repair` versus identical
 transport retry), and centralized safe terminal category.
+Add replay REDs before changing `evaluation/runner.py`: evaluation metadata rejects
+`hcx_enabled=False` and `fallback_enabled=True`, uses the renamed HCX-only verified-
+wording mode, binds both prompt identities and the answer-schema hash, and keeps
+fallback-only metadata exclusive to extended-demo replay. Seed, ablation, reference-
+packet, and integration-runner tests must first fail while they still advertise the
+stale evaluation fallback contract.
 
 ```bash
-uv run pytest tests/integration/planner/test_planner_service.py tests/unit/cli/test_evaluate.py tests/security/test_runtime_provider_policy.py -q
+uv run pytest tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/unit/cli/test_evaluate.py tests/golden/test_seed_plans.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/integration/evaluation/test_runner.py tests/security/test_runtime_provider_policy.py -q
 ```
 
 Expected: fail because API and CLI currently select `RuleFallbackPlanner`, accept
-evaluation overrides, and planner failures return rule plans.
+evaluation overrides, planner failures return rule plans, and replay metadata still
+advertises HCX with fallback without a verified-wording identity.
 
 - [ ] **Step 4: Implement mandatory evaluation planning and shared ownership**
 
@@ -1353,14 +1380,16 @@ one HTTP client, construct one `HcxClient`, inject it into both HCX adapters, an
 the HTTP context only after `EvaluationOrchestrator.aclose()` drains retained DB work.
 Make `_open_local_service` reuse this graph. Keep direct rule planning and deterministic
 answering only behind explicit non-evaluation checks; update seed, ablation, and
-reference-packet tests/tools to declare that offline mode.
+reference-packet tests/tools to declare that offline mode. Update `ReplayVersions` and
+the evaluation service metadata exactly as frozen above; no evaluation report may
+retain the old `WITH_FALLBACK` name or `fallback_enabled=True`.
 
 ```bash
-uv run pytest tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/unit/cli/test_evaluate.py tests/security/test_runtime_provider_policy.py -q
+uv run pytest tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/unit/cli/test_evaluate.py tests/golden/test_seed_plans.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/integration/evaluation/test_runner.py tests/security/test_runtime_provider_policy.py -q
 ```
 
-Expected: pass with no evaluation path to `RuleFallbackPlanner` and no second HTTP
-client.
+Expected: pass with no evaluation path to `RuleFallbackPlanner`, no second HTTP
+client, and exact HCX-only verified-wording replay metadata.
 
 - [ ] **Step 5: Write strict fact-pack, provider-output, and wording-verifier REDs**
 
@@ -1383,7 +1412,7 @@ def test_valid_ids_cannot_cover_a_changed_number(prepared, verifier, deadline) -
 ```
 
 ```bash
-uv run pytest tests/unit/answer/test_hcx_verbalizer.py tests/unit/evidence/test_claim_verifier.py -q
+uv run pytest tests/unit/answer/test_hcx_verbalizer.py tests/unit/evidence/test_claim_verifier.py tests/integration/service/test_answer_service.py tests/integration/query/test_cross_product_holding_query.py -q
 ```
 
 Expected: fail because no strict answer schema, fact pack, signature binder, or HCX
@@ -1419,7 +1448,7 @@ call. Prove initial invalid wording gets exactly one repair and any second failu
 transport failure returns the prebuilt safe publication.
 
 ```bash
-uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/integration/evaluation/test_fault_injection.py -q
+uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py -q
 ```
 
 Expected: fail because synchronous `answer_plan` currently publishes deterministic
@@ -1469,10 +1498,10 @@ the repository HCX-model contract; do not enable deterministic evaluation fallba
 Run the Task 9 bundle once after all focused GREENs:
 
 ```bash
-uv run pytest tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py -q
-uv run ruff format --check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py tools/build_canonical_reference_packet.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
-uv run ruff check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py tools/build_canonical_reference_packet.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
-uv run mypy src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py tools/build_canonical_reference_packet.py
+uv run pytest tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py -q
+uv run ruff format --check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+uv run ruff check src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer tests/unit/service tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner tests/integration/query/test_cross_product_holding_query.py tests/integration/service tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+uv run mypy src/finproof/answer src/finproof/api src/finproof/cli/evaluate.py src/finproof/domain/answers.py src/finproof/evidence/verifier.py src/finproof/planner src/finproof/service src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/integration/evaluation/test_runner.py
 uv run python tools/audit_source_data.py --check
 uv run python tools/verify_handoff.py
 git diff --check
@@ -1502,6 +1531,10 @@ candidate gate.
   provider payload, prompt, path, SQL, or stack trace on any terminal path.
 - The focused live acceptance is observed or explicitly recorded as skipped for absent
   credentials; schema incompatibility is a stop, not a fallback trigger.
+- Evaluation replay metadata identifies HCX strict-JSON planning plus verified HCX
+  wording, binds both prompt/schema identities, and always records
+  `hcx_enabled=True` with `fallback_enabled=False`; fallback-only metadata is
+  demonstrably extended-demo/offline.
 
 **Stop conditions:**
 
@@ -1517,6 +1550,9 @@ candidate gate.
   provider-reported IDs are accepted without exact application tuple equality.
 - Stop if a third planner or wording call is possible, if transport retry and repair
   can both occur, or if CLARIFY/UNSUPPORTED bypass HCX.
+- Stop if an evaluation `ReplayVersions` can carry the stale `WITH_FALLBACK` mode,
+  `hcx_enabled=False`, `fallback_enabled=True`, a missing answer prompt/schema/
+  verification identity, or fallback-only metadata.
 - Stop if any stage constructs a new deadline, if work begins inside the serialization
   reserve, if safe bytes cannot be produced before `outer_at`, or if a detached DB
   worker releases its permit/session early.
@@ -1525,7 +1561,7 @@ candidate gate.
 - [ ] **Step 11: Commit the exact Task 9 paths and request independent review**
 
 ```bash
-git add schemas/hcx_answer.schema.json src/finproof/answer/__init__.py src/finproof/answer/hcx_verbalizer.py src/finproof/domain/answers.py src/finproof/planner/hcx_client.py src/finproof/planner/json_planner.py src/finproof/planner/service.py src/finproof/api/app.py src/finproof/api/dependencies.py src/finproof/api/errors.py src/finproof/api/models.py src/finproof/api/routes/answer.py src/finproof/cli/evaluate.py src/finproof/service/__init__.py src/finproof/service/answer_service.py src/finproof/service/limits.py src/finproof/service/orchestrator.py src/finproof/service/publication.py src/finproof/evidence/verifier.py src/finproof/evaluation/ablation_experiment.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
+git add schemas/hcx_answer.schema.json src/finproof/answer/__init__.py src/finproof/answer/hcx_verbalizer.py src/finproof/domain/answers.py src/finproof/planner/hcx_client.py src/finproof/planner/json_planner.py src/finproof/planner/service.py src/finproof/api/app.py src/finproof/api/dependencies.py src/finproof/api/errors.py src/finproof/api/models.py src/finproof/api/routes/answer.py src/finproof/cli/evaluate.py src/finproof/service/__init__.py src/finproof/service/answer_service.py src/finproof/service/limits.py src/finproof/service/orchestrator.py src/finproof/service/publication.py src/finproof/evidence/verifier.py src/finproof/evaluation/ablation_experiment.py src/finproof/evaluation/runner.py tools/build_canonical_reference_packet.py tests/golden/test_seed_plans.py tests/unit/api/test_response_model.py tests/unit/answer/test_hcx_verbalizer.py tests/unit/service/test_limits.py tests/unit/service/test_publication.py tests/unit/cli/test_evaluate.py tests/unit/core/test_hcx_settings.py tests/unit/planner/test_rule_fallback.py tests/unit/evaluation/test_ablation.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evidence/test_claim_verifier.py tests/integration/planner/test_hcx_client.py tests/integration/planner/test_planner_service.py tests/integration/planner/test_live_hcx.py tests/integration/query/test_cross_product_holding_query.py tests/integration/service/test_answer_service.py tests/integration/service/test_orchestrator_fallbacks.py tests/integration/api/test_answer_endpoint.py tests/integration/evaluation/test_fault_injection.py tests/integration/evaluation/test_runner.py tests/evaluation/test_adversarial_cases.py tests/e2e/test_evaluation_api.py tests/security/test_runtime_provider_policy.py
 git commit -m "feat: require verified HCX answer pipeline"
 ```
 
