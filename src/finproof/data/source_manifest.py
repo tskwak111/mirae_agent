@@ -22,8 +22,9 @@ from pydantic import (
 )
 
 from finproof.core.errors import SourceContractError, SourceErrorCode
+from finproof.core.settings import OFFICIAL_DISTRIBUTION_DATE
 
-OFFICIAL_SNAPSHOT = date(2026, 7, 11)
+OFFICIAL_SNAPSHOT = OFFICIAL_DISTRIBUTION_DATE
 OFFICIAL_TABLE_IDS = (
     "PRBD01N001",
     "PREF01N001",
@@ -128,9 +129,11 @@ class CatalogColumn(StrictModel):
 
     column_name: str
     column_type: str
-    example: str
-    key: str
-    name_ko: str
+    nullable: str = ""
+    column_comment: str = ""
+    example: str = ""
+    key: str = ""
+    name_ko: str = ""
     schema_excel_row: int = Field(gt=0, strict=True)
 
 

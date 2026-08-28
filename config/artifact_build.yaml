@@ -1,7 +1,7 @@
 version: 1.0.0
 artifact_contract_version: 1.0.0
 artifact_set_id: finproof-data-artifacts/v1
-dataset_snapshot_date: 2026-07-11
+dataset_snapshot_date: 2026-08-24
 registry_versions:
   dataset: 1.0.0
   quality: 1.0.0
@@ -9,21 +9,21 @@ registry_versions:
   state: 1.1.0
 sources:
   - table: PRBD01N001
-    rows: 42394
-    columns: 40
-    cells: 1695760
+    rows: 21882
+    columns: 58
+    cells: 1269156
   - table: PREF01N001
-    rows: 1734
-    columns: 73
-    cells: 126582
+    rows: 1780
+    columns: 98
+    cells: 174440
   - table: PREF02N001
-    rows: 5646
+    rows: 6037
     columns: 49
-    cells: 276654
+    cells: 295813
   - table: PRFD01N001
-    rows: 95619
-    columns: 45
-    cells: 4302855
+    rows: 23676
+    columns: 75
+    cells: 1775700
 silver_counts:
   bond_instrument: 42394
   domestic_listed_product: 1733

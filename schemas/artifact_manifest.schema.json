@@ -21,7 +21,7 @@
     "manifest_version": {"const": "1.0.0"},
     "artifact_contract_version": {"const": "1.0.0"},
     "artifact_set_id": {"const": "finproof-data-artifacts/v1"},
-    "dataset_version": {"const": "2026-07-11", "format": "date"},
+    "dataset_version": {"const": "2026-08-24", "format": "date"},
     "persistence_timestamp": {
       "type": "string",
       "format": "date-time",
@@ -220,7 +220,7 @@
         "planner_version"
       ],
       "properties": {
-        "dataset_version": {"const": "2026-07-11", "format": "date"},
+        "dataset_version": {"const": "2026-08-24", "format": "date"},
         "metric_registry_version": {"const": "1.0.0"},
         "state_rule_version": {"const": "1.1.0"},
         "quality_rule_version": {"const": "1.0.0"},

@@ -14,7 +14,7 @@ def test_show_versions_emits_deterministic_json(capsys: pytest.CaptureFixture[st
     assert main(["show-versions"]) == 0
 
     payload = json.loads(capsys.readouterr().out)
-    assert payload["dataset_version"] == "2026-07-11"
+    assert payload["dataset_version"] == "2026-08-24"
     assert payload["planner_version"] == "1.0.0"
 
 
@@ -27,15 +27,15 @@ def test_verify_handoff_runs_real_verifier(capsys: pytest.CaptureFixture[str]) -
 def test_audit_source_runs_frozen_check(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["audit-source"]) == 0
 
-    assert "145,393 rows" in capsys.readouterr().out
+    assert "53,375 rows" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
     ("command", "expected"),
     [
-        ("show-versions", "2026-07-11"),
+        ("show-versions", "2026-08-24"),
         ("verify-handoff", "FinProof handoff PASS"),
-        ("audit-source", "145,393 rows"),
+        ("audit-source", "53,375 rows"),
     ],
 )
 def test_installed_console_entry_point_runs_from_checkout(command: str, expected: str) -> None:
@@ -76,3 +76,58 @@ def test_installed_console_rejects_lookalike_checkout(tmp_path: Path) -> None:
     assert completed.returncode == 2
     assert "untrusted code executed" not in completed.stdout
     assert "installed FinProof checkout" in completed.stderr
+
+
+def test_rooted_generators_never_fall_back_to_active_source_paths(tmp_path: Path) -> None:
+    from tools.audit_source_data import calculate
+    from tools.create_input_manifest import build_manifest
+    from tools.extract_schema_catalog import build_catalog
+
+    missing = tmp_path / "missing"
+
+    with pytest.raises(FileNotFoundError):
+        build_manifest(data_root=missing)
+    with pytest.raises(FileNotFoundError):
+        build_catalog(schema_root=missing)
+    with pytest.raises(FileNotFoundError):
+        calculate(source_root=missing)
+
+
+def test_rooted_cli_defaults_stay_under_the_explicit_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tools import audit_source_data, create_input_manifest, extract_schema_catalog
+
+    active = tmp_path / "active"
+    candidate_source = tmp_path / "candidate/source_material"
+    candidate_data = candidate_source / "data"
+    candidate_data.mkdir(parents=True)
+    active.mkdir()
+    monkeypatch.setattr(create_input_manifest, "DATA", active)
+    monkeypatch.setattr(create_input_manifest, "DEFAULT_OUTPUT", active / "input_manifest.json")
+    monkeypatch.setattr(
+        create_input_manifest, "build_manifest", lambda *, data_root: {"root": str(data_root)}
+    )
+    monkeypatch.setattr(extract_schema_catalog, "DATA", active)
+    monkeypatch.setattr(extract_schema_catalog, "DEFAULT_OUTPUT", active / "schema_catalog.json")
+    monkeypatch.setattr(
+        extract_schema_catalog, "build_catalog", lambda *, schema_root: {"root": str(schema_root)}
+    )
+
+    assert create_input_manifest.main(["--data-root", str(candidate_data)]) == 0
+    assert extract_schema_catalog.main(["--schema-root", str(candidate_data)]) == 0
+    assert (candidate_source / "input_manifest.json").is_file()
+    assert (candidate_source / "schema_catalog.json").is_file()
+    assert tuple(active.iterdir()) == ()
+
+    expected = candidate_source.parent / "tests/contracts/expected_source_audit.json"
+    expected.parent.mkdir(parents=True)
+    observed = {"total_source_rows": 53_375, "distribution_date": "2026-08-24"}
+    expected.write_text(json.dumps(observed), encoding="utf-8")
+
+    def calculate(*, source_root: Path) -> dict[str, object]:
+        assert source_root == candidate_source
+        return observed
+
+    monkeypatch.setattr(audit_source_data, "calculate", calculate)
+    assert audit_source_data.main(["--source-root", str(candidate_source), "--check"]) == 0

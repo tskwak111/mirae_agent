@@ -9,7 +9,7 @@ from typing import Literal
 
 from finproof.domain.source import SourceCell, SourceRow
 
-SNAPSHOT_DATE = date(2026, 7, 11)
+SNAPSHOT_DATE = date(2026, 8, 24)
 
 BOND_COLUMNS = (
     "PD_NO",

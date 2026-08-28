@@ -11,10 +11,10 @@ from finproof.data.xlsx_stream import iter_xlsx_rows
 
 ROOT = Path(__file__).resolve().parents[2]
 EXPECTED_ROWS = {
-    "PRBD01N001": 42_394,
-    "PREF01N001": 1_734,
-    "PREF02N001": 5_646,
-    "PRFD01N001": 95_619,
+    "PRBD01N001": 21_882,
+    "PREF01N001": 1_780,
+    "PREF02N001": 6_037,
+    "PRFD01N001": 23_676,
 }
 
 pytestmark = [pytest.mark.source_contract, pytest.mark.slow]
@@ -59,7 +59,27 @@ def test_official_workbooks_stream_with_complete_lineage() -> None:
                 assert cell.applicable_date is None
         assert observed[table_id] == expected_rows
 
-    assert sum(observed.values()) == 145_393
+    assert sum(observed.values()) == 53_375
+
+
+def test_independent_audit_matches_the_fixed_august_package_profile() -> None:
+    from tools.audit_source_data import calculate
+
+    audit = calculate()
+
+    assert audit["total_source_rows"] == 53_375
+    assert audit["PRBD01N001"]["rows"] == 21_882
+    assert audit["PRBD01N001"]["unique_pd_no"] == 20_497
+    assert audit["PRBD01N001"]["duplicate_instruments"] == 1_078
+    assert audit["PREF01N001"]["rows"] == 1_780
+    assert audit["PREF01N001"]["group_ETF"] == 1_235
+    assert audit["PREF01N001"]["group_ETN"] == 545
+    assert audit["PREF02N001"]["rows"] == 6_037
+    assert audit["PREF02N001"]["group_ETF"] == 5_972
+    assert audit["PREF02N001"]["group_ETN"] == 65
+    assert audit["PRFD01N001"]["rows"] == 23_676
+    assert audit["PRFD01N001"]["unique_itm_no"] == 23_676
+    assert audit["PRFD01N001"]["exact_domestic_etf_fund_links"] == 217
 
 
 def test_official_first_bond_row_preserves_exact_values() -> None:
@@ -71,8 +91,8 @@ def test_official_first_bond_row_preserves_exact_values() -> None:
     row = next(iter_xlsx_rows(source))
 
     assert row.source_row_number == 2
-    assert row.cell("PD_NO").raw_value == "KR101501DA16"
-    assert row.cell("PD_NM").raw_value == "국민주택1종채권 20-01"
+    assert row.cell("pd_no").raw_value == "KR60143NEFC6"
+    assert row.cell("pd_nm").raw_value == "퍼스트파이브지제팔십사차유동화전문1-14"
 
 
 def _selected_rows(source: VerifiedSourceFile) -> dict[int, dict[str, str]]:

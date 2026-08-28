@@ -1,104 +1,118 @@
 {
   "PRBD01N001": {
-    "bond_kind_distinct_raw": 52,
-    "bond_kind_distinct_trimmed": 40,
-    "buy_yield_nonblank": 881,
-    "buyable_quantity_nonblank": 881,
-    "buyable_quantity_positive": 325,
-    "maturity_date_99991231": 4,
-    "maturity_date_blank": 3,
-    "maturity_date_zero": 316,
-    "mixed_multi_agency_rating_rows": 286,
-    "pd_std_info_update_20260224": 20160,
-    "positive_quantity_matured_before_snapshot": 71,
-    "positive_quantity_missing_both_ratings": 223,
-    "positive_quantity_not_matured_at_snapshot": 254,
-    "remaining_days_infers_20260224": 20127,
-    "remaining_days_nonblank": 31749,
-    "rows": 42394,
-    "unique_pd_no": 42394
+    "coverage_boundary": "2026-08-22",
+    "coverage_maxima": {
+      "info_base_dt": "20260821",
+      "pd_std_info_update": "20260821",
+      "sale_yield_base_dt": "20260821"
+    },
+    "duplicate_instruments": 1078,
+    "quality_distribution": {
+      "buy_yield": {
+        "blank": 21248,
+        "nonblank": 634,
+        "numeric_zero": 0
+      },
+      "buyable_quantity": {
+        "blank": 21248,
+        "nonblank": 634,
+        "numeric_zero": 338
+      },
+      "mat_dt": {
+        "blank": 1,
+        "nonblank": 21881,
+        "numeric_zero": 4
+      }
+    },
+    "rows": 21882,
+    "unique_pd_no": 20497
   },
   "PREF01N001": {
-    "active_ETF": 1139,
-    "active_ETN": 381,
-    "base_index_nonblank": 58,
-    "difference_nonblank": 1517,
-    "difference_values_equal_zero": 1517,
-    "du_last_aum_positive": 1042,
-    "fee_nonblank": 217,
-    "fee_positive": 67,
-    "fee_zero": 150,
-    "group_ETF": 1202,
-    "group_ETN": 532,
-    "pd_net_tamt_positive": 1551,
-    "return_1m_exact_minus_100": 20,
-    "return_1y_exact_minus_100": 98,
-    "return_3m_exact_minus_100": 37,
-    "return_6m_exact_minus_100": 53,
-    "return_ytd_exact_minus_100": 44,
-    "rows": 1734,
-    "tracking_nonblank": 1551,
-    "tracking_values_equal_zero": 1551,
-    "unique_product_ids": 1734
+    "coverage_boundary": "2026-08-22",
+    "coverage_maxima": {
+      "du_upt_dt": "20260821",
+      "ref_base_dt": "20260822",
+      "wu_upt_dt": "20260821"
+    },
+    "group_ETF": 1235,
+    "group_ETN": 545,
+    "quality_distribution": {
+      "du_chas_errt": {
+        "blank": 182,
+        "nonblank": 1598,
+        "numeric_zero": 438
+      },
+      "du_er_1y": {
+        "blank": 364,
+        "nonblank": 1416,
+        "numeric_zero": 20
+      },
+      "du_last_aum": {
+        "blank": 182,
+        "nonblank": 1598,
+        "numeric_zero": 428
+      }
+    },
+    "rows": 1780,
+    "unique_product_ids": 1780
   },
   "PREF02N001": {
-    "asset_type_nonblank": 5638,
-    "aum_nonblank": 5459,
-    "aum_positive": 5451,
-    "base_index_nonblank": 5638,
-    "currency_usd": 5646,
-    "fee_positive": 5283,
-    "fee_zero": 363,
-    "group_ETF": 5587,
-    "group_ETN": 59,
-    "leverage_factor_nonblank": 0,
-    "manager_nonblank": 5638,
-    "region_nonblank": 5638,
-    "replication_nonblank": 2360,
-    "return_1d_nonblank": 5388,
-    "return_1d_values_equal_zero": 5388,
-    "rows": 5646,
-    "strategy_nonblank": 5638,
-    "unique_product_ids": 5646
+    "coverage_boundary": "2026-08-23",
+    "coverage_maxima": {
+      "du_clpr_base_dt": "20260821",
+      "du_upt_dt": "20260822",
+      "wu_upt_dt": "20260822"
+    },
+    "group_ETF": 5972,
+    "group_ETN": 65,
+    "quality_distribution": {
+      "cu_charge_rt": {
+        "blank": 0,
+        "nonblank": 6037,
+        "numeric_zero": 419
+      },
+      "du_er_1d": {
+        "blank": 14,
+        "nonblank": 6023,
+        "numeric_zero": 125
+      },
+      "du_last_aum": {
+        "blank": 205,
+        "nonblank": 5832,
+        "numeric_zero": 11
+      }
+    },
+    "rows": 6037,
+    "unique_product_ids": 6037
   },
   "PRFD01N001": {
-    "currency_items_blank_or_other": 1,
-    "currency_items_krw": 11067,
-    "currency_items_usd": 71,
-    "currency_rows_blank_or_other": 1,
-    "currency_rows_krw": 95046,
-    "currency_rows_usd": 572,
-    "duplicate_itm_no_attribute_pairs": 0,
-    "exact_domestic_etf_fund_links": 47,
-    "fund_type_06_items": 686,
-    "fund_type_06_rows": 5436,
-    "literal_null_risk_items": 2573,
-    "literal_null_risk_rows": 18416,
-    "malformed_excel_rows": [
-      84563
-    ],
-    "malformed_itm_no": 1,
-    "max_attributes_per_item": 16,
-    "mirae_sale_rows_blank": 4024,
-    "mirae_sale_rows_other": 1,
-    "mirae_sale_rows_y": 91594,
-    "name_contains_etf_items": 113,
-    "name_contains_etf_rows": 1260,
-    "name_contains_listed_index_items": 62,
-    "name_contains_listed_index_rows": 423,
-    "name_etf_or_listed_index_items": 175,
-    "non_attribute_disagreement_items": 0,
-    "return_below_minus_100_items": 1,
-    "return_below_minus_100_rows": 5,
-    "rows": 95619,
-    "sale_rows_active": 76318,
-    "sale_rows_blank_or_other": 1,
-    "sale_rows_complete": 19300,
-    "unique_itm_no": 11139,
-    "unique_itm_no_attribute_pairs": 95619,
-    "valid_format_itm_no": 11138
+    "coverage_boundary": "2026-08-22",
+    "coverage_maxima": {
+      "fd_daily_bas_dt": "20260821",
+      "fd_price_bas_dt": "20260821"
+    },
+    "exact_domestic_etf_fund_links": 217,
+    "quality_distribution": {
+      "fd_nast_suma": {
+        "blank": 14263,
+        "nonblank": 9413,
+        "numeric_zero": 0
+      },
+      "fd_yr1_ern_r": {
+        "blank": 16654,
+        "nonblank": 7022,
+        "numeric_zero": 0
+      },
+      "prfd_attr_cds": {
+        "blank": 12396,
+        "nonblank": 11280,
+        "numeric_zero": 0
+      }
+    },
+    "rows": 23676,
+    "unique_itm_no": 23676
   },
-  "audit_version": "1.0.0",
-  "snapshot_date": "2026-07-11",
-  "total_source_rows": 145393
+  "audit_version": "2.0.0",
+  "distribution_date": "2026-08-24",
+  "total_source_rows": 53375
 }

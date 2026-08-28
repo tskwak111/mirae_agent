@@ -7,14 +7,14 @@ This directory contains the exact competition task PDF and the eight supplied wo
 ```text
 competition_task_financial_product_agent.pdf
 
-data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx
-data/PRBD01N001_schema.xlsx
-data/PREF01N001_domestic_etf_20260711_datarows.xlsx
-data/PREF01N001_schema.xlsx
-data/PREF02N001_overseas_etf_20260711_datarows.xlsx
-data/PREF02N001_schema.xlsx
-data/PRFD01N001_public_funds_20260711_datarows.xlsx
-data/PRFD01N001_schema.xlsx
+data/prbd01n001_data.xlsx
+data/prbd01n001_schema.xlsx
+data/pref01n001_data.xlsx
+data/pref01n001_schema.xlsx
+data/pref02n001_data.xlsx
+data/pref02n001_schema.xlsx
+data/prfd01n001_data.xlsx
+data/prfd01n001_schema.xlsx
 ```
 
 `input_manifest.json` records SHA-256 and source contracts. `schema_catalog.json` is a reproducible extraction from the schema workbooks. Run:
@@ -25,6 +25,7 @@ python tools/audit_source_data.py --check
 python tools/extract_schema_catalog.py --check
 ```
 
-Never edit an official workbook. A checksum mismatch is a stop condition. An officially replaced file requires a dated decision-log override, a fresh audit, and reviewed expectation changes.
-
-The sample sheets contain `axis_*` fields. They are retained in the catalog as hints, not accepted as mandatory ground-truth labels.
+The active distribution date is 2026-08-24. Domestic/public coverage is through
+2026-08-22 and overseas coverage is through 2026-08-23 Korea time. Never edit an
+official workbook; publish only a complete candidate that passes checksum, schema,
+header, independent-audit, and rollback verification.

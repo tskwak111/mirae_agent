@@ -1,11 +1,13 @@
 import hashlib
 import os
+import shutil
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
+import tools.admit_official_archive as archive_admission
 from tools.admit_official_archive import (
     ArchiveAdmissionError,
     ArchiveMemberSpec,
@@ -238,3 +240,81 @@ def test_archive_admission_fails_closed(tmp_path: Path, mutation: str) -> None:
         inspect_archive(archive, expected=expected)
 
     assert caught.value.code == error_code
+
+
+def _copy_active_candidate(root: Path) -> Path:
+    repository = Path(__file__).resolve().parents[2]
+    candidate = root / "candidate"
+    shutil.copytree(repository / "source_material/data", candidate / "source_material/data")
+    shutil.copy2(
+        repository / "source_material/competition_task_financial_product_agent.pdf",
+        candidate / "source_material/competition_task_financial_product_agent.pdf",
+    )
+    for relative in (
+        "source_material/input_manifest.json",
+        "source_material/schema_catalog.json",
+        "tests/contracts/expected_source_audit.json",
+    ):
+        destination = candidate / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(repository / relative, destination)
+    return candidate
+
+
+def _active_bytes(repository: Path) -> dict[str, bytes]:
+    paths = [
+        *sorted((repository / "source_material/data").glob("*.xlsx")),
+        repository / "source_material/input_manifest.json",
+        repository / "source_material/schema_catalog.json",
+        repository / "tests/contracts/expected_source_audit.json",
+    ]
+    return {str(path.relative_to(repository)): path.read_bytes() for path in paths}
+
+
+def _write_active_repository(root: Path) -> Path:
+    repository = root / "repository"
+    (repository / "source_material/data").mkdir(parents=True)
+    (repository / "source_material/data/old.xlsx").write_bytes(b"old workbook")
+    (repository / "source_material/input_manifest.json").write_bytes(b"old manifest")
+    (repository / "source_material/schema_catalog.json").write_bytes(b"old catalog")
+    expected = repository / "tests/contracts/expected_source_audit.json"
+    expected.parent.mkdir(parents=True)
+    expected.write_bytes(b"old audit")
+    return repository
+
+
+def test_publish_rejects_bad_candidate_before_touching_active_bytes(tmp_path: Path) -> None:
+    candidate = _copy_active_candidate(tmp_path)
+    repository = _write_active_repository(tmp_path)
+    before = _active_bytes(repository)
+    manifest = candidate / "source_material/input_manifest.json"
+    manifest.chmod(0o600)
+    manifest.write_bytes(b"{}")
+
+    with pytest.raises(ArchiveAdmissionError):
+        archive_admission.publish_candidate(candidate, repository)
+
+    assert _active_bytes(repository) == before
+
+
+@pytest.mark.parametrize("failure_step", [1, 2, 3, 4])
+def test_publish_rolls_back_every_active_byte_after_each_publication_step(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_step: int,
+) -> None:
+    candidate = _copy_active_candidate(tmp_path)
+    repository = _write_active_repository(tmp_path)
+    before = _active_bytes(repository)
+
+    def inject(step: int) -> None:
+        if step == failure_step:
+            raise OSError("injected publication failure")
+
+    monkeypatch.setattr(archive_admission, "validate_candidate", lambda _root: None)
+    monkeypatch.setattr("tools.admit_official_archive._publication_checkpoint", inject)
+
+    with pytest.raises(ArchiveAdmissionError, match="candidate_publish"):
+        archive_admission.publish_candidate(candidate, repository)
+
+    assert _active_bytes(repository) == before

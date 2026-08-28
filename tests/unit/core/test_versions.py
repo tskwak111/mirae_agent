@@ -11,7 +11,7 @@ def test_version_bundle_defaults_match_checked_in_contracts() -> None:
 
     assert bundle.model_dump(mode="json") == {
         "answer_policy_version": "1.0.0",
-        "dataset_version": "2026-07-11",
+        "dataset_version": "2026-08-24",
         "metric_registry_version": "1.0.0",
         "planner_version": "1.0.0",
         "quality_rule_version": "1.0.0",

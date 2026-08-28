@@ -20,103 +20,87 @@ DATA: Final = ROOT / "source_material" / "data"
 DEFAULT_OUTPUT: Final = ROOT / "source_material" / "schema_catalog.json"
 
 FILES: Final = {
-    "PRBD01N001": "PRBD01N001_schema.xlsx",
-    "PREF01N001": "PREF01N001_schema.xlsx",
-    "PREF02N001": "PREF02N001_schema.xlsx",
-    "PRFD01N001": "PRFD01N001_schema.xlsx",
+    "PRBD01N001": "prbd01n001_schema.xlsx",
+    "PREF01N001": "pref01n001_schema.xlsx",
+    "PREF02N001": "pref02n001_schema.xlsx",
+    "PRFD01N001": "prfd01n001_schema.xlsx",
 }
+
+SCHEMA_HEADER: Final = ("순번", "컬럼명", "데이터타입", "Nullable", "컬럼코멘트")
 
 
 def padded(values: tuple[str, ...], length: int) -> tuple[str, ...]:
     return values + ("",) * max(0, length - len(values))
 
 
-def extract_table(table_id: str, file_name: str) -> dict[str, Any]:
-    path = DATA / file_name
-    schema_rows = list(iter_sheet_rows(path, "Sheet1_Schema"))
-    header_index = next(
-        index
-        for index, row in enumerate(schema_rows)
-        if row.values and row.values[0].strip() == "컬럼명"
-    )
+def extract_table(table_id: str, file_name: str, *, schema_root: Path = DATA) -> dict[str, Any]:
+    path = schema_root / file_name
+    schema_rows = list(iter_sheet_rows(path, "schema"))
+    if not schema_rows or schema_rows[0].values != SCHEMA_HEADER:
+        raise ValueError(f"schema header differs for {table_id}")
     columns: list[dict[str, str | int]] = []
-    for row in schema_rows[header_index + 1 :]:
+    for expected_ordinal, row in enumerate(schema_rows[1:], start=1):
         values = padded(row.values, 5)
-        column_name = values[0].strip()
+        if values[0].strip() != str(expected_ordinal):
+            raise ValueError(f"schema ordinal differs for {table_id}")
+        column_name = values[1].strip()
         if not column_name:
-            continue
+            raise ValueError(f"schema column is blank for {table_id}")
         columns.append(
             {
                 "column_name": column_name,
-                "key": values[1].strip(),
                 "column_type": values[2].strip(),
-                "name_ko": values[3].strip(),
-                "example": values[4].strip(),
+                "nullable": values[3].strip(),
+                "column_comment": values[4].strip(),
+                "key": "",
+                "name_ko": "",
+                "example": "",
                 "schema_excel_row": row.excel_row_number,
             }
         )
-
-    sample_rows = list(iter_sheet_rows(path, "Sheet2_Sample"))
-    total_text = next(
-        (
-            row.values[0]
-            for row in sample_rows
-            if row.values and row.values[0].startswith("Total Row:")
-        ),
-        "",
-    )
-    sample_header: tuple[str, ...] = ()
-    sample_values: tuple[str, ...] = ()
-    for index, row in enumerate(sample_rows):
-        if row.values and row.values[0].startswith("Total Row:"):
-            for next_row in sample_rows[index + 1 :]:
-                if next_row.values and any(value.strip() for value in next_row.values):
-                    sample_header = next_row.values
-                    break
-            if sample_header:
-                header_position = sample_rows.index(next_row)
-                for value_row in sample_rows[header_position + 1 :]:
-                    if value_row.values and any(value.strip() for value in value_row.values):
-                        sample_values = value_row.values
-                        break
-            break
-
-    sample = dict(zip(sample_header, padded(sample_values, len(sample_header)), strict=True))
     return {
         "table_id": table_id,
         "schema_file": file_name,
-        "source_snapshot_label": schema_rows[0].values[0]
-        if schema_rows and schema_rows[0].values
-        else "",
-        "total_row_label": total_text,
+        "source_snapshot_label": "2026-08-24",
+        "total_row_label": "",
         "column_count": len(columns),
         "columns": columns,
-        "sample": sample,
-        "sample_axis_columns": sorted(key for key in sample if key.startswith("axis_")),
-        "axis_warning": (
-            "Sample axis_* fields are reference hints, not mandatory official ground-truth labels."
-        ),
+        "sample": {},
+        "sample_axis_columns": [],
+        "axis_warning": "Schema columns are authoritative; source values retain field dates.",
     }
 
 
-def build_catalog() -> dict[str, Any]:
+def build_catalog(*, schema_root: Path = DATA) -> dict[str, Any]:
+    if not schema_root.is_dir():
+        raise FileNotFoundError(schema_root)
     return {
         "catalog_version": "1.0.0",
-        "snapshot_date": "2026-07-11",
+        "snapshot_date": "2026-08-24",
         "tables": {
-            table_id: extract_table(table_id, file_name) for table_id, file_name in FILES.items()
+            table_id: extract_table(table_id, file_name, schema_root=schema_root)
+            for table_id, file_name in FILES.items()
         },
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--schema-root", type=Path, default=DATA)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args(argv)
-    output = cast(Path, args.output)
+    output = cast(
+        Path,
+        args.output
+        or (
+            DEFAULT_OUTPUT
+            if args.schema_root == DATA
+            else args.schema_root.parent / "schema_catalog.json"
+        ),
+    )
 
-    catalog = build_catalog()
+    catalog = build_catalog(schema_root=args.schema_root)
     rendered = json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.check:
         if not output.is_file():

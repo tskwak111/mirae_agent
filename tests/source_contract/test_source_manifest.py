@@ -98,7 +98,16 @@ def test_official_manifest_and_catalog_load_with_exact_tables() -> None:
         ROOT / "source_material/schema_catalog.json",
     )
     assert tuple(entry.table_id for entry in manifest.data_files) == OFFICIAL_TABLE_IDS
-    assert manifest.data_entry("PRBD01N001").expected_rows == 42_394
+    assert manifest.snapshot_date == date(2026, 8, 24)
+    assert [
+        (entry.table_id, entry.expected_rows, entry.expected_columns, entry.sheet_name)
+        for entry in manifest.data_files
+    ] == [
+        ("PRBD01N001", 21_882, 58, "data"),
+        ("PREF01N001", 1_780, 98, "data"),
+        ("PREF02N001", 6_037, 49, "data"),
+        ("PRFD01N001", 23_676, 75, "data"),
+    ]
 
 
 @pytest.mark.parametrize("table_id", OFFICIAL_TABLE_IDS)
@@ -450,12 +459,14 @@ def test_official_manifest_verifies_all_files() -> None:
     verified = manifest.verify(ROOT / "source_material")
 
     bond = verified.data_file("PRBD01N001")
-    assert bond.manifest_relative_path == PurePosixPath(
-        "data/PRBD01N001_domestic_bonds_20260711_datarows.xlsx"
+    assert bond.manifest_relative_path == PurePosixPath("data/prbd01n001_data.xlsx")
+    assert bond.snapshot_date == date(2026, 8, 24)
+    assert bond.sha256 == "574ae5d6c1d98704712c256ed5352cbaed065ea9c3a6eb7b2a52adb305fa9001"
+    assert bond.expected_headers[:3] == (
+        "after_tax_yield",
+        "applied_yield",
+        "avg_annual_tax_yield",
     )
-    assert bond.snapshot_date == date(2026, 7, 11)
-    assert bond.sha256 == "728f44a567a986d21cf843d711c6c4dfa1a24d05b39c7da0541b981b57ecccf8"
-    assert bond.expected_headers[:3] == ("PD_NO", "PD_EXG_MKT", "PD_NM")
 
 
 def test_verify_rejects_missing_file(tmp_path: Path) -> None:

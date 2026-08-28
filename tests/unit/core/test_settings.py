@@ -19,7 +19,7 @@ def test_settings_use_frozen_evaluation_defaults(
         database_path=tmp_path / "artifacts/finproof.duckdb",
     )
 
-    assert settings.dataset_snapshot_date == date(2026, 7, 11)
+    assert settings.dataset_snapshot_date == date(2026, 8, 24)
     assert settings.execution_mode is ExecutionMode.EVALUATION
     assert settings.default_top_k == 5
     assert settings.max_top_k == 50
@@ -50,7 +50,7 @@ def test_evaluation_settings_reject_snapshot_override(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("FINPROOF_DATASET_SNAPSHOT_DATE", "2026-07-10")
+    monkeypatch.setenv("FINPROOF_DATASET_SNAPSHOT_DATE", "2026-08-23")
 
-    with pytest.raises(ValidationError, match="2026-07-11"):
+    with pytest.raises(ValidationError, match="2026-08-24"):
         Settings()

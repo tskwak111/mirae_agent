@@ -67,12 +67,12 @@ def write_source_contract_fixture(
     manifest = {
         "manifest_version": "1.0.0",
         "competition": "FinProof test fixture",
-        "snapshot_date": "2026-07-11",
+        "snapshot_date": "2026-08-24",
         "files": files,
     }
     catalog = {
         "catalog_version": "1.0.0",
-        "snapshot_date": "2026-07-11",
+        "snapshot_date": "2026-08-24",
         "tables": {
             table_id: {
                 "axis_warning": "test fixture",

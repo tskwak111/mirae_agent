@@ -8,7 +8,7 @@ from typing import Protocol
 
 from finproof.core.correlation import current_correlation_id
 from finproof.core.logging import log_request_complete
-from finproof.core.settings import EVALUATION_SNAPSHOT_DATE, ExecutionMode
+from finproof.core.settings import OFFICIAL_DISTRIBUTION_DATE, ExecutionMode
 from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
@@ -45,7 +45,7 @@ class EvaluationOrchestrator:
         answer_service: AnswerPlanService,
         limiter: RequestLimiter | None = None,
         execution_mode: ExecutionMode,
-        snapshot_date: date = EVALUATION_SNAPSHOT_DATE,
+        snapshot_date: date = OFFICIAL_DISTRIBUTION_DATE,
     ) -> None:
         self._planner = planner
         self._answer_service = answer_service

@@ -5,7 +5,7 @@ from typing import Self
 
 from pydantic import BaseModel, ConfigDict, PrivateAttr
 
-from finproof.core.settings import ExecutionMode
+from finproof.core.settings import OFFICIAL_DISTRIBUTION_DATE, ExecutionMode
 from finproof.data.artifacts.manifest import VerifiedArtifactSet
 from finproof.registry.loader import RegistryBundle
 
@@ -17,7 +17,7 @@ class VersionBundle(BaseModel):
 
     _runtime_issuance: object = PrivateAttr(default=None)
 
-    dataset_version: date = date(2026, 7, 11)
+    dataset_version: date = OFFICIAL_DISTRIBUTION_DATE
     metric_registry_version: str = "1.0.0"
     state_rule_version: str = "1.1.0"
     quality_rule_version: str = "1.0.0"

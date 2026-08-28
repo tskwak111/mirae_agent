@@ -3,12 +3,24 @@
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Self
 
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-EVALUATION_SNAPSHOT_DATE = date(2026, 7, 11)
+OFFICIAL_DISTRIBUTION_DATE = date(2026, 8, 24)
+OFFICIAL_COVERAGE_DATES = MappingProxyType(
+    {
+        "domestic_bond": date(2026, 8, 22),
+        "domestic_etf": date(2026, 8, 22),
+        "domestic_etn": date(2026, 8, 22),
+        "overseas_etf": date(2026, 8, 23),
+        "overseas_etn": date(2026, 8, 23),
+        "public_fund": date(2026, 8, 22),
+    }
+)
+EVALUATION_SNAPSHOT_DATE = OFFICIAL_DISTRIBUTION_DATE
 
 
 class ExecutionMode(StrEnum):
@@ -83,7 +95,7 @@ class Settings(BaseSettings):
             self.execution_mode is ExecutionMode.EVALUATION
             and self.dataset_snapshot_date != EVALUATION_SNAPSHOT_DATE
         ):
-            raise ValueError("evaluation dataset_snapshot_date must be 2026-07-11")
+            raise ValueError("evaluation dataset_snapshot_date must be 2026-08-24")
         if self.default_top_k > self.max_top_k:
             raise ValueError("default_top_k must not exceed max_top_k")
         if not self.hcx_model_name.startswith("HCX-"):

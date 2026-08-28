@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import os
 import shutil
 import sys
@@ -15,11 +16,16 @@ from typing import TYPE_CHECKING, Final
 from zipfile import BadZipFile, ZipFile
 
 if TYPE_CHECKING:
-    from tools.xlsx_stream import list_sheet_names
+    from tools.audit_source_data import calculate, differences, require_official_profile
+    from tools.xlsx_stream import iter_sheet_rows, list_sheet_names
 elif __package__:
-    from .xlsx_stream import list_sheet_names
+    from .audit_source_data import calculate, differences, require_official_profile
+    from .xlsx_stream import iter_sheet_rows, list_sheet_names
 else:
-    from xlsx_stream import list_sheet_names
+    from audit_source_data import calculate, differences, require_official_profile
+    from xlsx_stream import iter_sheet_rows, list_sheet_names
+
+from finproof.data.source_manifest import SourceFileManifest
 
 
 @dataclass(frozen=True)
@@ -233,15 +239,157 @@ def admit_archive(
     return tuple(workbook for workbook, _ in verified)
 
 
+def validate_candidate(candidate_root: Path) -> None:
+    """Validate every candidate contract before any active path can move."""
+
+    source_root = candidate_root / "source_material"
+    data_root = source_root / "data"
+    manifest_path = source_root / "input_manifest.json"
+    catalog_path = source_root / "schema_catalog.json"
+    audit_path = candidate_root / "tests/contracts/expected_source_audit.json"
+    required = (data_root, manifest_path, catalog_path, audit_path)
+    if not candidate_root.is_dir() or any(not path.exists() for path in required):
+        raise ArchiveAdmissionError("candidate_missing", "candidate inventory is incomplete")
+
+    actual_names = tuple(path.name for path in sorted(data_root.glob("*.xlsx")))
+    expected_names = tuple(sorted(item.member for item in OFFICIAL_ARCHIVE.members))
+    if actual_names != expected_names:
+        raise ArchiveAdmissionError("candidate_inventory", "candidate workbook inventory differs")
+    for spec in OFFICIAL_ARCHIVE.members:
+        path = data_root / spec.member
+        if path.stat().st_size != spec.size_bytes or _sha256(path) != spec.sha256:
+            raise ArchiveAdmissionError(
+                "candidate_workbook", f"candidate workbook differs: {spec.member!r}"
+            )
+        if spec.sheet_name not in list_sheet_names(path):
+            raise ArchiveAdmissionError(
+                "candidate_workbook", f"candidate workbook sheet differs: {spec.member!r}"
+            )
+
+    from finproof.core.errors import SourceContractError
+
+    try:
+        manifest = SourceFileManifest.load(manifest_path, catalog_path)
+        observed_profile = tuple(
+            (entry.table_id, entry.expected_rows, entry.expected_columns, entry.sheet_name)
+            for entry in manifest.data_files
+        )
+        if observed_profile != (
+            ("PRBD01N001", 21_882, 58, "data"),
+            ("PREF01N001", 1_780, 98, "data"),
+            ("PREF02N001", 6_037, 49, "data"),
+            ("PRFD01N001", 23_676, 75, "data"),
+        ):
+            raise ArchiveAdmissionError("candidate_manifest", "candidate manifest profile differs")
+        verified = manifest.verify(source_root)
+        for source in verified.data_files:
+            header = next(
+                iter(iter_sheet_rows(source.verified_absolute_path, source.sheet_name))
+            ).values
+            if header != source.expected_headers:
+                raise ArchiveAdmissionError(
+                    "candidate_header",
+                    f"schema and data headers differ: {source.table_id}",
+                )
+        actual_audit = calculate(source_root=source_root)
+        require_official_profile(actual_audit)
+        expected_audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        if differences(expected_audit, actual_audit):
+            raise ArchiveAdmissionError("candidate_audit", "candidate audit contract differs")
+    except ArchiveAdmissionError:
+        raise
+    except (
+        OSError,
+        ValueError,
+        KeyError,
+        StopIteration,
+        json.JSONDecodeError,
+        SourceContractError,
+    ) as error:
+        raise ArchiveAdmissionError("candidate_invalid", "candidate validation failed") from error
+
+
+def _publication_checkpoint(step: int) -> None:
+    """No-op checkpoint used by rollback failure-injection tests."""
+
+    del step
+
+
+def _remove_path(path: Path) -> None:
+    if path.is_dir():
+        shutil.rmtree(path)
+    elif path.exists():
+        path.unlink()
+
+
+def publish_candidate(candidate_root: Path, repository_root: Path) -> None:
+    """Publish the four active source groups as one rollback-guarded operation."""
+
+    validate_candidate(candidate_root)
+    repository_root = repository_root.resolve(strict=True)
+    groups = (
+        Path("source_material/data"),
+        Path("source_material/input_manifest.json"),
+        Path("source_material/schema_catalog.json"),
+        Path("tests/contracts/expected_source_audit.json"),
+    )
+    states: list[tuple[Path, Path, bool]] = []
+    with tempfile.TemporaryDirectory(prefix=".source-publication-", dir=repository_root) as tmp:
+        try:
+            staging = Path(tmp) / "candidate"
+            shutil.copytree(candidate_root, staging)
+            validate_candidate(staging)
+            backup_root = Path(tmp) / "backup"
+            backup_root.mkdir()
+            for step, relative in enumerate(groups, start=1):
+                source = staging / relative
+                target = repository_root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                backup = backup_root / str(step)
+                had_target = target.exists()
+                if had_target:
+                    os.replace(target, backup)
+                states.append((target, backup, had_target))
+                os.replace(source, target)
+                _publication_checkpoint(step)
+        except Exception as error:
+            rollback_error: OSError | None = None
+            for target, backup, had_target in reversed(states):
+                try:
+                    _remove_path(target)
+                    if had_target and backup.exists():
+                        os.replace(backup, target)
+                except OSError as caught:
+                    rollback_error = caught
+            if rollback_error is not None:
+                raise ArchiveAdmissionError(
+                    "candidate_rollback", "candidate publication rollback failed"
+                ) from rollback_error
+            raise ArchiveAdmissionError(
+                "candidate_publish", "candidate publication failed"
+            ) from error
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--archive", type=Path)
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument("--check", action="store_true")
     action.add_argument("--admit", action="store_true")
+    action.add_argument("--publish", action="store_true")
     parser.add_argument("--target", type=Path, default=Path("source_material/data"))
+    parser.add_argument("--candidate-root", type=Path)
+    parser.add_argument("--repo-root", type=Path, default=Path("."))
     args = parser.parse_args(argv)
     try:
+        if args.publish:
+            if args.candidate_root is None:
+                parser.error("--publish requires --candidate-root")
+            publish_candidate(args.candidate_root, args.repo_root)
+            print("Official source candidate published: 4 active groups")
+            return 0
+        if args.archive is None:
+            parser.error("--check and --admit require --archive")
         admitted = (
             admit_archive(args.archive, args.target)
             if args.admit

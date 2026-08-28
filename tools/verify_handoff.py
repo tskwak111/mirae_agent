@@ -179,8 +179,8 @@ def verify_manifest(errors: list[str]) -> None:
     if not manifest_path.is_file():
         return
     manifest = load_json(manifest_path)
-    if manifest.get("snapshot_date") != "2026-07-11":
-        errors.append("input manifest snapshot_date must be 2026-07-11")
+    if manifest.get("snapshot_date") != "2026-08-24":
+        errors.append("input manifest snapshot_date must be 2026-08-24")
     entries = manifest.get("files", [])
     if len(entries) != 9:
         errors.append(f"input manifest must contain 9 files, found {len(entries)}")
@@ -291,8 +291,8 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
     expected_path = ROOT / "tests/contracts/expected_source_audit.json"
     if expected_path.is_file():
         expected = load_json(expected_path)
-        if expected.get("total_source_rows") != 145393:
-            errors.append("expected source audit total must be 145393")
+        if expected.get("total_source_rows") != 53375:
+            errors.append("expected source audit total must be 53375")
 
 
 def verify_yaml(errors: list[str]) -> None:
@@ -318,7 +318,7 @@ def verify_schema_catalog(errors: list[str]) -> None:
     actual = build_catalog()
     if expected != actual:
         errors.append("schema_catalog.json does not match the schema workbooks")
-    expected_counts = {"PRBD01N001": 40, "PREF01N001": 73, "PREF02N001": 49, "PRFD01N001": 45}
+    expected_counts = {"PRBD01N001": 58, "PREF01N001": 98, "PREF02N001": 49, "PRFD01N001": 75}
     actual_counts = {key: value["column_count"] for key, value in actual["tables"].items()}
     if actual_counts != expected_counts:
         errors.append(f"schema column counts differ: {actual_counts!r}")

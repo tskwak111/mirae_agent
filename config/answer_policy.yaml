@@ -7,7 +7,7 @@ limits:
   max_context_bytes: 24000
   max_answer_chars: 12000
 safe_defaults:
-  as_of_date: "2026-07-11"
+  as_of_date: "2026-08-24"
   public_fund_result_grain: "fund_item"
   heterogeneous_result_grain: "product"
   single_partition_top_k_scope: "global"
@@ -16,7 +16,7 @@ safe_defaults:
   cross_currency_aum: "separate_by_currency"
   missing_rank_return_period: "clarify"
 wording:
-  snapshot_assumption: "2026-07-11 제공 스냅샷 기준"
+  snapshot_assumption: "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
   matched_candidates: "조건에 부합하는 후보"
   recorded_view_label: "제공 데이터 기록값"
   comparison_view_label: "비교 가능 기준"
