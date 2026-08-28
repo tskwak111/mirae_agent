@@ -2,16 +2,21 @@
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
-from finproof.domain.bonds import BondInstrument, BondSaleLot
-from finproof.domain.quality import QualityStatus
+from finproof.domain.bonds import BOND_LOT_FIELD_COLUMNS, BondInstrument, BondSaleLot
+from finproof.domain.locators import SourceCellLocator
+from finproof.domain.quality import IssueSeverity, QualityStatus
+from finproof.registry.rating import RatingRegistry
 from tests.helpers.source_rows import source_row
 
 AS_OF = date(2026, 8, 22)
+ROOT = Path(__file__).resolve().parents[4]
+RATING_REGISTRY = RatingRegistry.from_yaml(ROOT / "config/rating_scale.yaml")
 
 
 def _lot(
@@ -45,7 +50,8 @@ def _lot(
                 "mat_dt": maturity_date,
             },
             excel_row=row_number,
-        )
+        ),
+        RATING_REGISTRY,
     )
     assert result.record is not None
     return result.record
@@ -53,12 +59,251 @@ def _lot(
 
 def test_bond_lot_rejects_wrong_source_table() -> None:
     with pytest.raises(NormalizationContractError, match="PRBD01N001"):
-        normalize_bond_lot(source_row("PREF01N001"))
+        normalize_bond_lot(source_row("PREF01N001"), RATING_REGISTRY)
+
+
+@pytest.mark.parametrize(
+    ("raw", "normalized", "status", "warned"),
+    [
+        ("C0", None, QualityStatus.OUT_OF_DOMAIN, True),
+        ("AA０", "AA0", QualityStatus.VALID, False),  # noqa: RUF001 -- exact alias
+        ("AA-", "AA-", QualityStatus.VALID, False),
+        ("NR", None, QualityStatus.MISSING_LITERAL_NULL, False),
+    ],
+)
+def test_bond_lot_resolves_primary_rating_through_registry(
+    raw: str,
+    normalized: str | None,
+    status: QualityStatus,
+    warned: bool,
+) -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", {"crd_grd": raw}),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is not None
+    assert result.record.credit_rating.raw_value == raw
+    assert result.record.credit_rating.normalized_value == normalized
+    assert result.record.credit_rating.quality_status is status
+    assert (
+        any(
+            issue.rule_id == "bond.credit_rating"
+            and issue.source.source_column_name == "crd_grd"
+            and issue.severity is IssueSeverity.WARNING
+            and not issue.quarantined
+            for issue in result.issues
+        )
+        is warned
+    )
+
+
+@pytest.mark.parametrize(
+    ("values", "column"),
+    [
+        ({"pd_no": "KR"}, "pd_no"),
+        ({"pd_no": " KR0000000001"}, "pd_no"),
+        ({"pd_exg_mkt": ""}, "pd_exg_mkt"),
+        ({"info_base_dt": "20260230"}, "info_base_dt"),
+        ({"info_seq": "0"}, "info_seq"),
+        ({"info_seq": "1.5"}, "info_seq"),
+    ],
+)
+def test_malformed_bond_lot_identity_quarantines_with_safe_blocker(
+    values: dict[str, str],
+    column: str,
+) -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", values, excel_row=77),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is None
+    assert len(result.issues) == 1
+    issue = result.issues[0]
+    assert issue.quarantined is True
+    assert issue.severity is IssueSeverity.BLOCKER
+    assert issue.quality_status is QualityStatus.MALFORMED_SOURCE_ROW
+    assert issue.source.source_row_number == 77
+    assert issue.source.source_column_name == column
+    assert all(raw not in issue.reason for raw in values.values() if raw)
+
+
+def test_valid_bond_lot_maps_every_declared_source_cell_exactly() -> None:
+    values = {
+        "pd_no": "XS0000000001",
+        "pd_exg_mkt": "장외",
+        "info_base_dt": "20260822",
+        "info_seq": "7",
+        "pd_nm": "채권명",
+        "pd_abrv_nm": "단축명",
+        "curr_cd": "USD",
+        "bd_knd": "회사채",
+        "isu_dt": "20200101",
+        "mat_dt": "20270822",
+        "pd_std_info_update": "20260821",
+        "srfc_irt": "1.1",
+        "buy_yield": "2.2",
+        "buyable_quantity": "3",
+        "remaining_days": "365",
+        "crd_grd": "AA０",  # noqa: RUF001 -- exact source alias
+        "crd_grd_dt": "20260820",
+        "dur": "4.4",
+        "eval_price": "10000",
+        "trade_price": "9990",
+    }
+    row = source_row("PRBD01N001", values, excel_row=42)
+    result = normalize_bond_lot(row, RATING_REGISTRY)
+
+    assert result.record is not None
+    lot = result.record
+    for field_name, column_name in BOND_LOT_FIELD_COLUMNS.items():
+        wrapped = getattr(lot, field_name)
+        assert wrapped.raw_value == row.cell(column_name).raw_value
+        assert wrapped.source == SourceCellLocator.from_row(row, column_name)
+    assert lot.product_id.normalized_value == "XS0000000001"
+    assert lot.credit_rating.normalized_value == "AA0"
+
+
+@pytest.mark.parametrize(
+    ("raw", "status", "warned"),
+    [
+        ("", QualityStatus.MISSING_BLANK, False),
+        ("0", QualityStatus.SENTINEL_ZERO, False),
+        ("00000000", QualityStatus.SENTINEL_ZERO, False),
+        ("99991231", QualityStatus.SENTINEL_MAX_DATE, False),
+        ("20260230", QualityStatus.INVALID_FORMAT, True),
+    ],
+)
+def test_bond_maturity_quality_and_warning_remain_source_faithful(
+    raw: str,
+    status: QualityStatus,
+    warned: bool,
+) -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", {"mat_dt": raw}),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is not None
+    assert result.record.maturity_date.raw_value == raw
+    assert result.record.maturity_date.normalized_value is None
+    assert result.record.maturity_date.quality_status is status
+    assert (
+        any(
+            issue.source.source_column_name == "mat_dt"
+            and issue.quality_status is QualityStatus.INVALID_FORMAT
+            for issue in result.issues
+        )
+        is warned
+    )
+
+
+def test_bond_projection_recalculates_remaining_days_without_overwriting_source() -> None:
+    row = source_row(
+        "PRBD01N001",
+        {"mat_dt": "20260831", "remaining_days": "999"},
+        applicable_dates={"mat_dt": date(2026, 8, 21)},
+    )
+    lot_result = normalize_bond_lot(row, RATING_REGISTRY)
+    assert lot_result.record is not None
+    result = project_bond_instrument((lot_result.record,), as_of=AS_OF)
+
+    assert result.record is not None
+    assert result.record.source_remaining_days.raw_value == "999"
+    assert result.record.source_remaining_days.normalized_value == 999
+    assert result.record.remaining_days_at_as_of.value == 9
+    assert result.record.remaining_days_at_as_of.inputs == (lot_result.record.maturity_date.source,)
+    assert result.record.maturity_date.source.source_applicable_date == date(2026, 8, 21)
+
+
+@pytest.mark.parametrize(
+    ("column", "field_name"),
+    [
+        ("srfc_irt", "coupon_rate"),
+        ("buy_yield", "buy_yield"),
+        ("buyable_quantity", "buyable_quantity"),
+        ("dur", "duration"),
+        ("eval_price", "evaluation_price"),
+        ("trade_price", "trade_price"),
+    ],
+)
+def test_bond_lot_numeric_zero_remains_recorded_zero(
+    column: str,
+    field_name: str,
+) -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", {column: "0"}),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is not None
+    wrapped = getattr(result.record, field_name)
+    assert wrapped.normalized_value == 0
+    assert wrapped.quality_status is QualityStatus.RECORDED_ZERO
+
+
+def test_invalid_optional_numeric_is_preserved_and_warned() -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", {"dur": "not-a-number"}),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is not None
+    assert result.record.duration.raw_value == "not-a-number"
+    assert result.record.duration.normalized_value is None
+    assert result.record.duration.quality_status is QualityStatus.INVALID_FORMAT
+    assert any(
+        issue.source.source_column_name == "dur"
+        and issue.quality_status is QualityStatus.INVALID_FORMAT
+        and issue.severity is IssueSeverity.WARNING
+        and not issue.quarantined
+        for issue in result.issues
+    )
+
+
+@pytest.mark.parametrize(
+    ("raw", "normalized", "status", "warned"),
+    [
+        ("KRW", "KRW", QualityStatus.VALID, False),
+        ("USD", "USD", QualityStatus.VALID, False),
+        ("000", None, QualityStatus.OUT_OF_DOMAIN, True),
+        ("krw", None, QualityStatus.OUT_OF_DOMAIN, True),
+        ("", None, QualityStatus.MISSING_BLANK, False),
+    ],
+)
+def test_bond_currency_requires_exact_uppercase_three_letter_code(
+    raw: str,
+    normalized: str | None,
+    status: QualityStatus,
+    warned: bool,
+) -> None:
+    result = normalize_bond_lot(
+        source_row("PRBD01N001", {"curr_cd": raw}),
+        RATING_REGISTRY,
+    )
+
+    assert result.record is not None
+    assert result.record.currency.raw_value == raw
+    assert result.record.currency.normalized_value == normalized
+    assert result.record.currency.quality_status is status
+    assert (
+        any(
+            issue.source.source_column_name == "curr_cd"
+            and issue.quality_status is QualityStatus.OUT_OF_DOMAIN
+            for issue in result.issues
+        )
+        is warned
+    )
 
 
 def test_bond_models_are_strict_frozen_and_quantity_lives_only_on_lot() -> None:
     assert BondSaleLot.model_config["frozen"] is True
     assert BondInstrument.model_config["frozen"] is True
+    assert BondSaleLot.model_config["extra"] == "forbid"
+    assert BondSaleLot.model_config["strict"] is True
+    assert BondInstrument.model_config["extra"] == "forbid"
+    assert BondInstrument.model_config["strict"] is True
     assert "buyable_quantity" in BondSaleLot.model_fields
     assert "buyable_quantity" not in BondInstrument.model_fields
     assert "has_positive_buyable_quantity" not in BondInstrument.model_fields

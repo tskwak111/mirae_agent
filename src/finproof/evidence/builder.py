@@ -485,8 +485,8 @@ class EvidenceBuilder:
         )
         rating_limitations = (
             (
-                "신용등급 필터는 대표 정규화 등급의 레지스트리 순서를 사용하며, 미평가 등급은 "
-                "제외합니다. 복수 평가기관 원문 등급은 보존하고, 불일치는 자동 통합하지 않습니다.",
+                "신용등급 필터는 대표 원천 등급의 레지스트리 순서를 사용하며, 미평가 및 "
+                "등록되지 않은 등급은 제외합니다.",
             )
             if _requires_rating_policy_disclosure(original)
             else ()
@@ -538,6 +538,7 @@ class EvidenceBuilder:
                         direct,
                         existing_warnings=policy_result.warnings,
                     ),
+                    *_bond_buy_yield_range_limitations(derived),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
             )
@@ -1312,6 +1313,28 @@ def _requires_rating_policy_disclosure(plan: QueryPlan) -> bool:
             for clause in plan.filters
         )
     )
+
+
+def _bond_buy_yield_range_limitations(
+    items: tuple[DerivedEvidence[object], ...],
+) -> tuple[str, ...]:
+    limitations: list[str] = []
+    for item in items:
+        value = item.value.value
+        if (
+            item.product_type is not ProductType.DOMESTIC_BOND
+            or item.field_id != "buy_yield_range"
+            or type(value) is not tuple
+            or len(value) != 2
+            or not all(type(bound) is Decimal for bound in value)
+            or value[0] == value[1]
+        ):
+            continue
+        limitations.append(
+            f"{item.product_id}의 매수수익률은 유효 로트 중 최댓값을 선택했으며, "
+            f"관측 범위는 {value[0]}~{value[1]}입니다."
+        )
+    return tuple(limitations)
 
 
 def _direct_recorded_zero_limitations(

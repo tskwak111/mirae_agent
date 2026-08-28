@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 from typing import Self
 
 import pytest
@@ -12,7 +13,11 @@ from tests.helpers.source_rows import source_row
 from finproof.data.artifacts.serialization import canonical_record_json
 from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
 from finproof.domain.bonds import BondInstrument
+from finproof.registry.rating import RatingRegistry
 from finproof.runtime.session import RuntimeArtifactSession
+
+ROOT = Path(__file__).resolve().parents[3]
+RATING_REGISTRY = RatingRegistry.from_yaml(ROOT / "config/rating_scale.yaml")
 
 
 def _candidate_registry_session(connection: object) -> RuntimeArtifactSession:
@@ -1086,9 +1091,10 @@ def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
         repository=EvidenceRepository(session),
     )
     assert any(
-        "대표 정규화 등급" in item and "미평가" in item and "복수 평가기관" in item
+        "대표 원천 등급" in item and "미평가" in item and "등록되지 않은 등급" in item
         for item in evidence.material_policy_limitations
     )
+    assert all("복수 평가기관" not in item for item in evidence.material_policy_limitations)
     rank_plan = plan.model_copy(
         update={
             "intent": Intent.SCREEN_RANK,
@@ -1105,7 +1111,7 @@ def test_builder_exposes_credit_rating_threshold_policy_limitation() -> None:
         repository=EvidenceRepository(session),
     )
     assert any(
-        "레지스트리 순서" in item and "미평가" in item and "불일치" in item
+        "레지스트리 순서" in item and "미평가" in item and "등록되지 않은 등급" in item
         for item in rank_evidence.material_policy_limitations
     )
     session._close()
@@ -2322,24 +2328,127 @@ def test_purchaseability_evidence_is_identical_for_different_raw_quantities() ->
     session._close()
 
 
-def _bond_evidence_session(
-    *, buy_yield: str = "2.25", buyable_quantity: str = "10"
-) -> tuple[RuntimeArtifactSession, BondInstrument]:
-    lot = normalize_bond_lot(
-        source_row(
-            "PRBD01N001",
-            {
-                "pd_no": "KR0000000001",
-                "buy_yield": buy_yield,
-                "buyable_quantity": buyable_quantity,
-                "mat_dt": "20270822",
-                "eval_price": "99",
-            },
-            excel_row=77,
+def test_buy_yield_evidence_binds_material_multi_lot_range_and_selection_rule() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyExecutionResult, PolicyRow
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session(lot_yields=("3.1", "bad", "4.2"))
+    row = PolicyRow(
+        raw=RawProductRow(
+            product_type=ProductType.DOMESTIC_BOND,
+            native_result_grain=ResultGrain.INSTRUMENT,
+            product_id="KR0000000001",
+            values=(
+                RawFieldValue(
+                    field_id="product_id",
+                    value="KR0000000001",
+                    quality_status="valid",
+                ),
+                RawFieldValue(
+                    field_id="buy_yield",
+                    value=Decimal("4.2"),
+                    quality_status="valid",
+                ),
+            ),
+        ),
+        state=StateEvaluation(
+            product_id="KR0000000001",
+            eligible=True,
+            state_ids=(),
+            warnings=(),
+        ),
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(row,),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(), comparison_valid_values=(), excluded_count=0, warnings=()
+        ),
+        dual_lens_labels=(),
+        selected_rows=(row,),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        source_rows=(row,),
+    )
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(
+            plan=_plan().model_copy(update={"as_of_date": date(2026, 8, 22)}),
+            resolutions=(),
+            context=(),
+        ),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+
+    range_evidence = next(item for item in evidence.derived if item.field_id == "buy_yield_range")
+    assert range_evidence.value.value == (Decimal("3.1"), Decimal("4.2"))
+    assert tuple(source.source_row_number for source in range_evidence.value.inputs) == (77, 78, 79)
+    assert any(
+        "최댓값" in limitation and "3.1~4.2" in limitation
+        for limitation in evidence.material_policy_limitations
+    )
+    session._close()
+
+    for lot_yields in (("4.2",), ("4.2", "4.2")):
+        equal_session, _ = _bond_evidence_session(lot_yields=lot_yields)
+        equal_evidence = EvidenceBuilder().build(
+            plan=ValidatedQueryPlan._issue(
+                plan=_plan().model_copy(update={"as_of_date": date(2026, 8, 22)}),
+                resolutions=(),
+                context=(),
+            ),
+            policy_result=policy,
+            repository=EvidenceRepository(equal_session),
         )
-    ).record
-    assert lot is not None
-    record = project_bond_instrument((lot,), as_of=date(2026, 8, 22)).record
+        equal_range = next(
+            item for item in equal_evidence.derived if item.field_id == "buy_yield_range"
+        )
+        assert equal_range.value.value == (Decimal("4.2"), Decimal("4.2"))
+        assert all(
+            "유효 로트 중 최댓값" not in limitation
+            for limitation in equal_evidence.material_policy_limitations
+        )
+        equal_session._close()
+
+
+def _bond_evidence_session(
+    *,
+    buy_yield: str = "2.25",
+    buyable_quantity: str = "10",
+    lot_yields: tuple[str, ...] | None = None,
+) -> tuple[RuntimeArtifactSession, BondInstrument]:
+    lots = tuple(
+        normalize_bond_lot(
+            source_row(
+                "PRBD01N001",
+                {
+                    "pd_no": "KR0000000001",
+                    "info_seq": str(index),
+                    "buy_yield": lot_yield,
+                    "buyable_quantity": buyable_quantity,
+                    "mat_dt": "20270822",
+                    "eval_price": "99",
+                },
+                excel_row=76 + index,
+            ),
+            RATING_REGISTRY,
+        ).record
+        for index, lot_yield in enumerate(lot_yields or (buy_yield,), start=1)
+    )
+    assert all(lot is not None for lot in lots)
+    record = project_bond_instrument(lots, as_of=date(2026, 8, 22)).record  # type: ignore[arg-type]
     assert isinstance(record, BondInstrument)
     bond = record
 

@@ -41,7 +41,10 @@ _PARENT_FIELDS = (
 )
 
 
-def normalize_bond_lot(row: SourceRow) -> NormalizationResult[BondSaleLot]:
+def normalize_bond_lot(
+    row: SourceRow,
+    rating_registry: RatingRegistry,
+) -> NormalizationResult[BondSaleLot]:
     """Normalize one verified PRBD row into one recoverable sale lot."""
     if row.source_table != _TABLE:
         raise NormalizationContractError(expected_table=_TABLE, actual_table=row.source_table)
@@ -119,7 +122,7 @@ def normalize_bond_lot(row: SourceRow) -> NormalizationResult[BondSaleLot]:
         rule_id="bond.source_remaining_days",
         rule_version=_RULE_VERSION,
     )
-    credit_rating = _text(row, "crd_grd", "bond.credit_rating")
+    credit_rating = _rating(row, rating_registry)
     credit_rating_date = _date(row, "crd_grd_dt", "bond.credit_rating_date")
     duration = _decimal(row, "dur", "bond.duration")
     evaluation_price = _decimal(row, "eval_price", "bond.evaluation_price")
@@ -157,6 +160,16 @@ def normalize_bond_lot(row: SourceRow) -> NormalizationResult[BondSaleLot]:
                 rule_id="bond.currency",
                 quality_status=QualityStatus.OUT_OF_DOMAIN,
                 reason="Domestic bond currency is outside the source domain.",
+            )
+        )
+    if credit_rating.quality_status is QualityStatus.OUT_OF_DOMAIN:
+        issues.append(
+            _warning_issue(
+                row,
+                "crd_grd",
+                rule_id="bond.credit_rating",
+                quality_status=QualityStatus.OUT_OF_DOMAIN,
+                reason="Primary credit rating is outside the configured rating domain.",
             )
         )
 
@@ -256,14 +269,14 @@ def project_bond_instrument(
             )
         )
     yield_values = tuple(_required_decimal(lot.buy_yield) for lot in valid_yields)
-    yield_sources = tuple(lot.buy_yield.source for lot in valid_yields)
+    yield_sources = tuple(lot.buy_yield.source for lot in ordered)
     yield_range = DerivedValue[tuple[Decimal, Decimal]](
         value=(min(yield_values), max(yield_values)) if yield_values else None,
         quality_status=(QualityStatus.VALID if yield_values else selected.buy_yield.quality_status),
         rule_id="bond.buy_yield_range",
         rule_version=_RULE_VERSION,
         as_of_date=as_of,
-        inputs=yield_sources or (selected.buy_yield.source,),
+        inputs=yield_sources,
     )
     record = BondInstrument(
         selected_lot_key=selected.source_key,
@@ -295,10 +308,10 @@ def project_bond_instrument(
 def normalize_bond(
     row: SourceRow,
     as_of: date,
-    _rating_registry: RatingRegistry,
+    rating_registry: RatingRegistry,
 ) -> NormalizationResult[BondInstrument]:
     """Compatibility wrapper for one-row callers until grouped artifact staging migrates."""
-    lot_result = normalize_bond_lot(row)
+    lot_result = normalize_bond_lot(row, rating_registry)
     if lot_result.record is None:
         return NormalizationResult[BondInstrument](record=None, issues=lot_result.issues)
     projection = project_bond_instrument((lot_result.record,), as_of=as_of)
@@ -451,6 +464,18 @@ def _decimal(row: SourceRow, column_name: str, rule_id: str) -> NormalizedValue[
         column_name,
         zero_status=_ZERO_STATUS,
         rule_id=rule_id,
+        rule_version=_RULE_VERSION,
+    )
+
+
+def _rating(row: SourceRow, registry: RatingRegistry) -> NormalizedValue[str]:
+    resolution = registry.resolve(row.cell("crd_grd").raw_value)
+    return make_normalized_value(
+        row,
+        "crd_grd",
+        normalized_value=resolution.normalized_value,
+        quality_status=resolution.quality_status,
+        rule_id="bond.credit_rating",
         rule_version=_RULE_VERSION,
     )
 

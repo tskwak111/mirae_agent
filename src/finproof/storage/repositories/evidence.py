@@ -124,6 +124,23 @@ class EvidenceRepository:
                         )
                     else:
                         raise ValueError("record evidence field differs")
+                if (
+                    request.product_type is ProductType.DOMESTIC_BOND
+                    and "buy_yield" in request.field_ids
+                ):
+                    if not isinstance(model, BondInstrument):
+                        raise ValueError("bond range evidence model differs")
+                    derived.append(
+                        DerivedEvidence[object](
+                            evidence_id=(
+                                f"{request.product_type.value}:{product_id}:buy_yield_range"
+                            ),
+                            product_type=request.product_type,
+                            product_id=product_id,
+                            field_id="buy_yield_range",
+                            value=cast(DerivedValue[object], model.buy_yield_range),
+                        )
+                    )
                 records.append(
                     RecordEvidence(
                         product_type=request.product_type,
