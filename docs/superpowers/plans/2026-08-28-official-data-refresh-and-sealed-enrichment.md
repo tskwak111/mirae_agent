@@ -1500,7 +1500,7 @@ evaluation mode.
 
 First add focused RED assertions that evaluation planning and wording each emit
 `responseFormat={"type":"json","schema":<their exact checked-in provider schema>}`;
-that those structured requests omit `thinking`; that neither path can select prompt-only
+that those structured requests set exact `thinking={"effort":"none"}`; that neither path can select prompt-only
 `HcxRequest.strict_json`; that both schemas contain only the officially supported HCX
 subset; that API and CLI evaluation reject every model except exact `HCX-007`; and that
 replay metadata rejects `structured_outputs_enabled=False` and uses only
@@ -1510,13 +1510,14 @@ replay metadata rejects `structured_outputs_enabled=False` and uses only
 uv run pytest tests/unit/planner/test_hcx_models.py tests/unit/answer/test_hcx_verbalizer.py tests/integration/planner/test_planner_service.py tests/integration/evaluation/test_runner.py tests/integration/api/test_answer_endpoint.py tests/unit/cli/test_evaluate.py tests/security/test_runtime_provider_policy.py -q
 ```
 
-Expected RED: the current evaluation graph and verbalizer still construct prompt-only
-strict-JSON requests and replay metadata still names that mode.
+Expected RED on the resumed correction: the current structured payload omits the
+provider-required explicit non-inference marker.
 
 Implement the smallest activation by reusing `HcxRequest.structured` and the existing
-provider-schema loaders. `HcxRequest.to_payload` emits `thinking={"effort":"none"}`
-only for prompt-only HCX-007 calls and omits `thinking` whenever `responseFormat` is
-present. Give `StructuredOutputPlanner` the same one invalid-output
+provider-schema loaders. `HcxRequest.to_payload` emits exact
+`thinking={"effort":"none"}` for every HCX-007 request; with `responseFormat` this is
+the provider's explicit non-inference marker, not enabled Thinking. Give
+`StructuredOutputPlanner` the same one invalid-output
 repair interface already enforced by `PlannerService`; every initial/retry/repair
 planner call uses `hcx_query_plan.schema.json`, and every initial/repair wording call
 uses `hcx_answer.schema.json`. Keep strict local parsing, canonical schema/Pydantic and
