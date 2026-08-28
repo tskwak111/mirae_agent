@@ -59,6 +59,7 @@ The distribution version is `2026-08-24`. It is not a claim that every cell was
 measured that day. The organizer describes domestic/public coverage through the
 2026-08-22 business date and overseas coverage through 2026-08-23 Korea time. Each
 field's actual source date remains authoritative and is preserved independently.
+Internal code tables are unavailable: code-table meanings are not queried or guessed.
 
 ## 3. Version and time model
 
@@ -104,8 +105,9 @@ one sale lot has a positive `buy_yield`. The approved instrument-level policy is
 `BUYABLE_QUANTITY` stays in Bronze and source lineage but is removed from the query
 field and metric registries. For the organizer's purchaseability assumption, an
 instrument present in the replacement master is treated as purchasable unless its
-issue date proves that it is not yet issued or its maturity/end evidence proves that
-it has ended at the applicable boundary. Missing or sentinel maturity alone does not
+issue date proves that it is not yet issued. Ended or delisted evidence excludes a
+bond; absence of both permits the organizer assumption. Missing or sentinel maturity
+alone does not
 make the instrument ineligible under the organizer's assumption, but the answer must
 warn that the end state is not source-verifiable. No quantity threshold is used.
 
@@ -229,8 +231,8 @@ registry contract.
 
 SEC N-PORT does not directly publish a one-year return. A derived twelve-month NAV
 return is therefore not admitted by this design. Until a verified compatible source is
-approved, overseas ETF one-year-return segments are reported as unsupported and are
-not mixed into a global domestic-ETF/public-fund one-year ranking.
+approved, overseas ETF/ETN one-year-return segments are pruned with an explicit
+limitation and are not mixed into a global domestic-ETF/public-fund one-year ranking.
 
 ## 6. Query and execution design
 

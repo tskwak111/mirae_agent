@@ -84,3 +84,14 @@ These records track contradictions found while reading the entire transferred pa
 ## How to add an official answer
 
 Add a dated `OFFICIAL_OVERRIDE` row containing the exact source/channel and affected config/tests. Never edit history to hide the previous decision.
+
+## 2026-08-24 official refresh overrides
+
+| ID | Date | Status | Decision | Rationale |
+|---|---|---|---|---|
+| D-031 | 2026-08-24 | OFFICIAL_OVERRIDE | The 2026-08-24 organizer distribution supersedes the 2026-07-11 source baseline. Its coverage boundaries are domestic/public=2026-08-22 and overseas=2026-08-23; field-level dates remain authoritative. | organizer notice, transcribed in `source_material/official_notices/2026-08-24-data-refresh-and-runtime-rules.md` |
+| D-032 | 2026-08-24 | OFFICIAL_OVERRIDE | Code-table meanings are not queried or guessed because internal code tables are unavailable. Zero or missing value is omitted or reported unavailable; it is not silently treated as zero for filtering, ranking, or aggregation. | organizer notice |
+| D-033 | 2026-08-24 | OFFICIAL_OVERRIDE | BUYABLE_QUANTITY is invalid. Ended or delisted evidence excludes a bond; absence of both permits the organizer assumption that the product is purchasable. | organizer notice |
+| D-034 | 2026-08-24 | OFFICIAL_OVERRIDE | `du_er_1d` is never annualized. Overseas ETF/ETN one-year-return segments are pruned with an explicit limitation. | organizer Q&A |
+| D-035 | 2026-08-24 | OFFICIAL_OVERRIDE | HCX is mandatory for intent analysis and final answer wording. The runtime uses a 295-second outer deadline beneath the organizer's physical 300-second no-response boundary. | organizer notice |
+| A-005 | 2026-08-24 | RESOLVED_INTERNAL | A release manifest is metadata in a child commit. It explicitly covers its clean parent candidate commit and is verified from that Git object; image and artifact hashes also bind to the covered parent. | prevents the manifest from changing the commit it attests |
