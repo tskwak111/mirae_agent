@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from finproof.domain.execution import ExecutionSegment
+from finproof.domain.execution import ExecutionSegment, HoldingConstituentFilter
 from finproof.domain.query_plan import (
     AggregationFunction,
     AggregationSpec,
@@ -223,3 +223,48 @@ def test_compiler_uses_deterministic_null_and_product_id_ordering_only_as_displa
         'ORDER BY "buy_yield" DESC NULLS LAST, "product_id" ASC NULLS LAST'
     )
     assert "LIMIT" not in compiled.sql
+
+
+@pytest.mark.parametrize(
+    "product_type",
+    [
+        ProductType.DOMESTIC_ETF,
+        ProductType.DOMESTIC_ETN,
+        ProductType.OVERSEAS_ETF,
+        ProductType.OVERSEAS_ETN,
+        ProductType.PUBLIC_FUND,
+    ],
+)
+def test_holding_filter_compiles_parameterized_four_part_exists(
+    product_type: ProductType,
+) -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    segment = ExecutionSegment(
+        product_type=product_type,
+        native_result_grain=(
+            ResultGrain.FUND_ITEM
+            if product_type is ProductType.PUBLIC_FUND
+            else ResultGrain.LISTED_PRODUCT
+        ),
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        holding_constituent_filter=HoldingConstituentFilter(
+            constituent_identifier="KR7005930003",
+            constituent_identifier_type="ISIN",
+        ),
+    )
+
+    compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
+
+    assert "EXISTS" in compiled.sql
+    assert 'FROM "silver_product_holding" AS "holding"' in compiled.sql
+    assert '"holding"."owner_product_type" = ?' in compiled.sql
+    assert '"holding"."owner_product_id" = "owner".' in compiled.sql
+    assert '"holding"."constituent_identifier" = ?' in compiled.sql
+    assert '"holding"."constituent_identifier_type" = ?' in compiled.sql
+    assert "KR7005930003" not in compiled.sql
+    assert compiled.parameters[-3:] == (product_type.value, "KR7005930003", "ISIN")
+    assert "UNION" not in compiled.sql

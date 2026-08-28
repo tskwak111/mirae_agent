@@ -1,4 +1,4 @@
-version: "1.1.0"
+version: "1.2.0"
 product_type_aliases:
   domestic_bond: ["국내채권", "채권", "원화채권"]
   domestic_etf: ["국내 ETF", "한국 ETF", "국내 상장 ETF"]
@@ -7,6 +7,7 @@ product_type_aliases:
   overseas_etn: ["해외 ETN"]
   public_fund: ["공모펀드", "펀드"]
 field_aliases:
+  holding_constituent: ["구성종목", "보유종목", "편입종목"]
   total_fee: ["총보수", "보수", "운용보수"]
   aum: ["AUM", "운용규모", "순자산", "순자산총액"]
   credit_rating: ["신용등급", "등급"]

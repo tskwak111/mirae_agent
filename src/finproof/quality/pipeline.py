@@ -6,7 +6,7 @@ from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict
 
-from finproof.domain.execution import ExecutionBundle
+from finproof.domain.execution import ExecutionBundle, ExecutionLimitationCode
 from finproof.domain.query_plan import (
     AggregationFunction,
     FilterClause,
@@ -86,6 +86,7 @@ class PolicyExecutionResult(BaseModel):
     warnings: tuple[str, ...]
     source_rows: tuple[PolicyRow, ...] = ()
     metric_values: tuple[MetricValue, ...] = ()
+    limitations: tuple[ExecutionLimitationCode, ...] = ()
 
 
 class PolicyEngine:
@@ -488,6 +489,7 @@ class PolicyEngine:
             warnings=tuple(dict.fromkeys((*warnings, *metric_policy.warnings))),
             source_rows=tuple(source_rows),
             metric_values=tuple(metric_values),
+            limitations=bundle.limitations,
         )
 
 

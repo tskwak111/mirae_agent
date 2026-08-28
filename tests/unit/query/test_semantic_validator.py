@@ -18,6 +18,7 @@ from finproof.domain.query_plan import (
     ResultGrain,
     TopKScope,
 )
+from finproof.entity import HoldingResolutionResult
 from finproof.query import FieldRegistry, ResolutionBundle, SemanticValidator, ValidationContext
 from finproof.registry.loader import RegistryBundle
 
@@ -258,3 +259,114 @@ def test_aggregation_target_group_and_operation_are_registry_authorized() -> Non
                 resolutions=ResolutionBundle(results=()),
                 context=_context(),
             )
+
+
+def _holding_plan(
+    product_types: tuple[ProductType, ...] = (ProductType.DOMESTIC_ETF,),
+    *,
+    filters: tuple[FilterClause, ...] | None = None,
+) -> QueryPlan:
+    return QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=product_types,
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=(
+            ResultGrain.LISTED_PRODUCT if len(product_types) == 1 else ResultGrain.PRODUCT
+        ),
+        filters=filters
+        if filters is not None
+        else (
+            FilterClause(
+                field="holding_constituent",
+                operator=FilterOperator.EQ,
+                value="삼성전자",
+            ),
+        ),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+
+def _holding_resolution(*, selected: bool = True) -> HoldingResolutionResult:
+    from finproof.entity import HoldingResolutionCandidate
+
+    candidate = HoldingResolutionCandidate(
+        constituent_identifier="KR7005930003",
+        constituent_identifier_type="ISIN",
+        display_name="삼성전자",
+    )
+    return HoldingResolutionResult(
+        selected=candidate if selected else None,
+        candidates=(candidate,),
+    )
+
+
+def test_holding_semantics_require_one_resolved_filter_and_reject_bonds_whole_plan() -> None:
+    resolution = _holding_resolution()
+    allowed = (
+        ProductType.DOMESTIC_ETF,
+        ProductType.DOMESTIC_ETN,
+        ProductType.OVERSEAS_ETF,
+        ProductType.OVERSEAS_ETN,
+        ProductType.PUBLIC_FUND,
+    )
+    for product_type in allowed:
+        plan = _holding_plan((product_type,))
+        if product_type is ProductType.PUBLIC_FUND:
+            plan = plan.model_copy(update={"result_grain": ResultGrain.FUND_ITEM})
+        assert (
+            _validator()
+            .validate(
+                plan,
+                resolutions=ResolutionBundle(results=(), holding_constituent=resolution),
+                context=_context(),
+            )
+            .plan
+            is plan
+        )
+
+    duplicate = _holding_plan().filters * 2
+    for plan in (
+        _holding_plan(filters=duplicate),
+        _holding_plan((ProductType.DOMESTIC_BOND, ProductType.DOMESTIC_ETF)),
+    ):
+        with pytest.raises(ValueError, match=r"holding|bond"):
+            _validator().validate(
+                plan,
+                resolutions=ResolutionBundle(results=(), holding_constituent=resolution),
+                context=_context(),
+            )
+
+
+def test_holding_semantics_reject_missing_unresolved_and_malformed_resolution() -> None:
+    from finproof.entity import HoldingResolutionResult
+
+    plan = _holding_plan()
+    invalid = (
+        None,
+        HoldingResolutionResult(selected=None, candidates=()),
+        _holding_resolution(selected=False),
+    )
+    for resolution in invalid:
+        with pytest.raises(ValueError, match="holding resolution"):
+            _validator().validate(
+                plan,
+                resolutions=ResolutionBundle(results=(), holding_constituent=resolution),
+                context=_context(),
+            )
+
+
+def test_unrelated_semantics_keep_default_none_holding_resolution() -> None:
+    plan = _holding_plan(filters=())
+    resolutions = ResolutionBundle(results=())
+
+    validated = _validator().validate(plan, resolutions=resolutions, context=_context())
+
+    assert validated.resolutions is resolutions
+    assert resolutions.holding_constituent is None

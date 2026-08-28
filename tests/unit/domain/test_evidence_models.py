@@ -114,3 +114,51 @@ def test_evidence_summary_bounds_counts_policy_versions_and_artifact_hash() -> N
     for mutation in invalid:
         with pytest.raises(ValidationError):
             EvidenceSummary.model_validate(payload | mutation)
+
+
+def test_holding_evidence_references_are_bounded_and_globally_unique() -> None:
+    from finproof.data.holdings import HoldingCoverageState
+    from finproof.domain.evidence import (
+        EvidenceBundle,
+        HoldingCoverageEvidenceRef,
+        HoldingRecordEvidenceRef,
+    )
+
+    holding = HoldingRecordEvidenceRef(
+        evidence_id="holding:domestic_etf:ETF-1:1",
+        owner_product_type=ProductType.DOMESTIC_ETF,
+        owner_product_id="ETF-1",
+        generation_id="generation-1",
+        constituent_identifier="KR7005930003",
+        constituent_identifier_type="ISIN",
+        display_name="삼성전자",
+        source_kind="krx_etf_pdf",
+        source_as_of_date=date(2026, 8, 22),
+        source_row_ordinal=1,
+    )
+    coverage = HoldingCoverageEvidenceRef(
+        evidence_id="coverage:domestic_etf:ETF-1",
+        owner_product_type=ProductType.DOMESTIC_ETF,
+        owner_product_id="ETF-1",
+        coverage_state=HoldingCoverageState.PARTIAL_TOP_10,
+        source_generation_id="generation-1",
+        observed_holding_count=1,
+        limitation_code="partial_top_10_only",
+        source_kind="krx_etf_pdf",
+        source_as_of_date=date(2026, 8, 22),
+    )
+    bundle = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(),
+        material_policy_limitations=(),
+        holding_records=(holding,),
+        holding_coverage=(coverage,),
+    )
+
+    assert bundle.holding_records == (holding,)
+    assert bundle.holding_coverage == (coverage,)
+    payload = bundle.model_dump(mode="python")
+    payload["holding_coverage"][0]["evidence_id"] = holding.evidence_id
+    with pytest.raises(ValidationError, match="evidence ID"):
+        EvidenceBundle.model_validate(payload, strict=True)

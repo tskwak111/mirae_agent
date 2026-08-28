@@ -40,6 +40,7 @@ def test_field_registry_maps_every_canonical_field_to_closed_table_spec_projecti
     expected = {
         (field_id, product_type)
         for field_id, field in registries.fields.entries.items()
+        if field_id != "holding_constituent"
         for product_type in (
             field.product_types
             or tuple(
@@ -65,3 +66,24 @@ def test_buyable_quantity_is_not_queryable_or_metric_registered() -> None:
 
     assert "buyable_quantity" not in registries.fields.entries
     assert "bond.buyable_quantity" not in registries.metrics.entries
+
+
+def test_holding_constituent_supports_only_eq_without_native_projection() -> None:
+    from finproof.domain.query_plan import FilterOperator, ProductType
+    from finproof.query.fields import FieldRegistry as QueryFieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    registries = RegistryBundle.from_package()
+    field = registries.fields.entries["holding_constituent"]
+
+    assert registries.fields.version == "1.3.0"
+    assert field.operators == (FilterOperator.EQ,)
+    assert field.product_types == (
+        ProductType.DOMESTIC_ETF,
+        ProductType.DOMESTIC_ETN,
+        ProductType.OVERSEAS_ETF,
+        ProductType.OVERSEAS_ETN,
+        ProductType.PUBLIC_FUND,
+    )
+    query_fields = QueryFieldRegistry.from_bundle(registries)
+    assert all(key[0] != "holding_constituent" for key in query_fields.projections)

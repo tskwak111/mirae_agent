@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 from finproof.core.settings import ExecutionMode
 from finproof.domain.execution import ValidatedQueryPlan
 from finproof.domain.query_plan import ProductType, QueryPlan, ResultGrain
-from finproof.entity.models import ResolutionResult
+from finproof.entity.models import HoldingResolutionResult, ResolutionResult
 from finproof.query.fields import FieldProjection, FieldRegistry
 
 
@@ -18,6 +18,7 @@ class _FrozenModel(BaseModel):
 
 class ResolutionBundle(_FrozenModel):
     results: tuple[ResolutionResult, ...]
+    holding_constituent: HoldingResolutionResult | None = None
 
 
 class ValidationContext(_FrozenModel):
@@ -80,8 +81,37 @@ class SemanticValidator:
                 raise ValueError("entity resolution is not uniquely selected")
 
         registry_fields = self._fields._registries.fields.entries
+        holding_filters = tuple(
+            clause for clause in plan.filters if clause.field == "holding_constituent"
+        )
+        if len(holding_filters) > 1:
+            raise ValueError("holding constituent filter cardinality differs")
+        if holding_filters:
+            if ProductType.DOMESTIC_BOND in plan.product_types:
+                raise ValueError("holding constituent cannot be combined with domestic bond")
+            holding_resolution = resolutions.holding_constituent
+            if (
+                type(holding_resolution) is not HoldingResolutionResult
+                or holding_resolution.selected is None
+                or len(holding_resolution.candidates) != 1
+                or holding_resolution.selected is not holding_resolution.candidates[0]
+            ):
+                raise ValueError("holding resolution is not uniquely selected")
+        elif resolutions.holding_constituent is not None:
+            raise ValueError("holding resolution lacks a relation filter")
         for clause in plan.filters:
             definition = registry_fields.get(clause.field)
+            if clause.field == "holding_constituent":
+                if (
+                    definition is None
+                    or clause.operator not in definition.operators
+                    or type(clause.value) is not str
+                    or any(
+                        product not in definition.product_types for product in plan.product_types
+                    )
+                ):
+                    raise ValueError("holding filter differs")
+                continue
             projections = _projections(self._fields, clause.field, plan.product_types)
             if definition is None or not projections:
                 raise ValueError("filter field has no selected product target")

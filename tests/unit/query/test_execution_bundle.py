@@ -291,3 +291,90 @@ def test_per_product_type_scope_records_each_required_compatibility_split() -> N
         (ProductType.DOMESTIC_BOND,),
         (ProductType.PUBLIC_FUND,),
     )
+
+
+def test_holding_relation_is_typed_and_never_enters_scalar_filters() -> None:
+    from tests.unit.query.test_semantic_validator import _holding_plan, _holding_resolution
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _holding_plan(
+        (
+            ProductType.DOMESTIC_ETF,
+            ProductType.DOMESTIC_ETN,
+            ProductType.OVERSEAS_ETF,
+            ProductType.OVERSEAS_ETN,
+            ProductType.PUBLIC_FUND,
+        )
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(
+            results=(),
+            holding_constituent=_holding_resolution(),
+        ),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert len(bundle.segments) == 5
+    assert all(segment.filters == () for segment in bundle.segments)
+    assert all(
+        segment.holding_constituent_filter.constituent_identifier == "KR7005930003"
+        and segment.holding_constituent_filter.constituent_identifier_type == "ISIN"
+        for segment in bundle.segments
+        if segment.holding_constituent_filter is not None
+    )
+
+
+def test_overseas_return_1y_is_pruned_before_compatible_global_partition() -> None:
+    from finproof.domain.execution import ExecutionLimitationCode
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(
+            ProductType.DOMESTIC_ETF,
+            ProductType.OVERSEAS_ETF,
+            ProductType.PUBLIC_FUND,
+        ),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "filters": (),
+            "metrics": ("return_1y",),
+            "sort": (SortSpec(field="return_1y", direction=SortDirection.DESC),),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert tuple(segment.product_type for segment in bundle.segments) == (
+        ProductType.DOMESTIC_ETF,
+        ProductType.PUBLIC_FUND,
+    )
+    assert bundle.comparison_partitions[0].product_types == (
+        ProductType.DOMESTIC_ETF,
+        ProductType.PUBLIC_FUND,
+    )
+    assert bundle.limitations == (ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE,)
+
+
+def test_overseas_only_return_1y_remains_unsupported() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.OVERSEAS_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+    ).model_copy(update={"metrics": ("return_1y",), "filters": ()})
+
+    with pytest.raises(ValueError, match="metric"):
+        SemanticValidator(fields).validate(
+            plan,
+            resolutions=ResolutionBundle(results=()),
+            context=_context(),
+        )

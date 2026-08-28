@@ -30,3 +30,18 @@ class ResolutionResult(BaseModel):
 
     selected: ResolutionCandidate | None
     candidates: Annotated[tuple[ResolutionCandidate, ...], Field(max_length=5)]
+
+
+class HoldingResolutionCandidate(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    constituent_identifier: Annotated[str, Field(min_length=1, max_length=300)]
+    constituent_identifier_type: Annotated[str, Field(min_length=1, max_length=100)]
+    display_name: Annotated[str, Field(min_length=1, max_length=500)]
+
+
+class HoldingResolutionResult(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    selected: HoldingResolutionCandidate | None
+    candidates: Annotated[tuple[HoldingResolutionCandidate, ...], Field(max_length=5)]

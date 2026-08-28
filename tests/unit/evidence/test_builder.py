@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Self
+from typing import Self, cast
 
 import pytest
 from tests.helpers.source_rows import source_row
@@ -29,7 +29,6 @@ def _candidate_registry_session(connection: object) -> RuntimeArtifactSession:
     from finproof.registry.resources import REGISTRY_RESOURCE_NAMES, registry_resource_bytes
 
     payloads = {name: registry_resource_bytes(name) for name in REGISTRY_RESOURCE_NAMES}
-    payloads["datasets.yaml"] = payloads["datasets.yaml"].replace(b"2026-08-24", b"2026-07-11", 1)
     registries = RegistryBundle._from_resource_bytes(payloads)
     verified = verified_artifacts()
     return RuntimeArtifactSession._issue(
@@ -60,6 +59,145 @@ def test_evidence_and_answer_skeleton_exposes_exact_interfaces() -> None:
             AnswerService,
         )
     )
+
+
+def test_overseas_return_1y_limitation_reaches_evidence_renderer_and_verifier() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.core.settings import ExecutionMode
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.execution import ExecutionLimitationCode
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.evidence import ClaimVerifier, EvidenceBuilder, serialize_evidence_context
+    from finproof.quality import MetricPolicyResult, PolicyExecutionResult
+    from finproof.query import FieldRegistry, ResolutionBundle, SemanticValidator, ValidationContext
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.OVERSEAS_ETF),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    context = ValidationContext(
+        as_of_date=plan.as_of_date,
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+    validated = SemanticValidator(
+        FieldRegistry.from_bundle(RegistryBundle.from_package())
+    ).validate(plan, resolutions=ResolutionBundle(results=()), context=context)
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(),
+            comparison_valid_values=(),
+            excluded_count=0,
+            warnings=(),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        limitations=(ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE,),
+    )
+    try:
+        evidence = EvidenceBuilder().build(
+            plan=validated,
+            policy_result=policy,
+            repository=EvidenceRepository(session),
+        )
+    finally:
+        session._close()
+
+    limitation = (
+        "해외 ETF/ETN의 1년 수익률은 제공 데이터에 없어 "
+        "해당 상품을 1년 수익률 비교에서 제외했습니다."
+    )
+    wording = RegistryBundle.from_package().answers.document["wording"]
+    assert isinstance(wording, Mapping)
+    assert evidence.material_policy_limitations[0] == wording["snapshot_assumption"]
+    assert limitation in evidence.material_policy_limitations
+    assert limitation in serialize_evidence_context(evidence)
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q", question="1년 수익률"),
+        plan=plan,
+        evidence=evidence,
+    )
+    assert limitation in ClaimVerifier().verify(draft, evidence).text
+
+
+def test_holding_repository_reparses_canonical_rows_and_uses_full_owner_generation_count(
+    tmp_path: Path,
+) -> None:
+    import duckdb
+    from tests.helpers.artifacts import write_database_artifact_tree
+    from tests.unit.data.test_holdings import _coverage, _holding
+
+    from finproof.data.artifacts.serialization import serialize_table_row
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.data.holdings import HoldingRecord
+    from finproof.storage.repositories.evidence import EvidenceRepository, HoldingEvidenceLookup
+
+    matching = cast(HoldingRecord, _holding())
+    other = _holding("KR7006600007")
+    coverage = _coverage(observed_holding_count=2)
+    root = tmp_path / "holding-evidence"
+    write_database_artifact_tree(
+        root,
+        {
+            "silver_product_holding": (
+                dict(serialize_table_row(TABLE_SPEC_BY_NAME["silver_product_holding"], matching)),
+                dict(serialize_table_row(TABLE_SPEC_BY_NAME["silver_product_holding"], other)),
+            ),
+            "silver_product_holding_coverage": (
+                dict(
+                    serialize_table_row(
+                        TABLE_SPEC_BY_NAME["silver_product_holding_coverage"], coverage
+                    )
+                ),
+            ),
+        },
+    )
+    connection = duckdb.connect(str(root / "finproof.duckdb"), read_only=True)
+    session = _candidate_registry_session(connection)
+    try:
+        result = EvidenceRepository(session).fetch_holding_evidence(
+            (
+                HoldingEvidenceLookup(
+                    product_type=matching.owner_product_type,
+                    product_ids=(matching.owner_product_id,),
+                    constituent_identifier=matching.constituent_identifier,
+                    constituent_identifier_type=matching.constituent_identifier_type,
+                ),
+            )
+        )
+    finally:
+        session._close()
+
+    assert len(result.holding_records) == 1
+    assert result.holding_records[0].constituent_identifier == matching.constituent_identifier
+    assert result.holding_coverage[0].observed_holding_count == 2
 
 
 def test_final_product_claims_use_complete_source_cell_lineage() -> None:
@@ -126,7 +264,7 @@ def test_public_fund_evidence_restores_canonical_nested_lineage() -> None:
     from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
 
     fund = _fund_record()
-    product_id = fund.fund_item_id.representative.normalized_value
+    product_id = fund.fund_item_id.normalized_value
     assert type(product_id) is str
 
     class Connection:
@@ -151,7 +289,7 @@ def test_public_fund_evidence_restores_canonical_nested_lineage() -> None:
     )[0]
 
     assert record.direct[0].value.normalized_value == product_id
-    assert record.direct[0].value.source == fund.fund_item_id.representative.source
+    assert record.direct[0].value.source == fund.fund_item_id.source
     session._close()
 
 
@@ -2366,7 +2504,6 @@ def test_purchaseability_evidence_is_identical_for_different_raw_quantities() ->
         context=(),
     )
     payloads = {name: registry_resource_bytes(name) for name in REGISTRY_RESOURCE_NAMES}
-    payloads["datasets.yaml"] = payloads["datasets.yaml"].replace(b"2026-08-24", b"2026-07-11", 1)
     registries = RegistryBundle._from_resource_bytes(payloads)
     verified = verified_artifacts()
     versions = VersionBundle.from_runtime(

@@ -6,7 +6,7 @@ from typing import Protocol, runtime_checkable
 
 from finproof.core.settings import Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult
-from finproof.entity import EntityIndex, EntityResolver
+from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
 from finproof.planner.hcx_client import HcxClient, HcxHttpClientFactory, create_hcx_http_client
 from finproof.planner.json_planner import StrictJsonPlanner
 from finproof.planner.rule_fallback import RuleFallbackPlanner
@@ -55,6 +55,7 @@ class ApiDependencies:
         validator = LocalPlanValidator(
             SemanticValidator(fields),
             entity_resolver=EntityResolver(EntityIndex.from_session(runtime_session)),
+            holding_resolver=HoldingResolver.from_session(runtime_session),
         )
         fallback = RuleFallbackPlanner(validator=validator)
         if not settings.hcx_enabled:

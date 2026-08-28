@@ -56,6 +56,15 @@ class ComparisonPartition(_FrozenModel):
     compatibility_key: str
 
 
+class HoldingConstituentFilter(_FrozenModel):
+    constituent_identifier: Annotated[str, Field(min_length=1, max_length=300)]
+    constituent_identifier_type: Annotated[str, Field(min_length=1, max_length=100)]
+
+
+class ExecutionLimitationCode(StrEnum):
+    OVERSEAS_RETURN_1Y_UNAVAILABLE = "overseas_return_1y_unavailable"
+
+
 class ExecutionSegment(_FrozenModel):
     product_type: ProductType
     native_result_grain: ResultGrain
@@ -64,6 +73,7 @@ class ExecutionSegment(_FrozenModel):
     sort: tuple[SortSpec, ...]
     aggregation: AggregationSpec | None
     top_k: int
+    holding_constituent_filter: HoldingConstituentFilter | None = None
 
 
 class ExecutionBundle(_FrozenModel):
@@ -72,6 +82,7 @@ class ExecutionBundle(_FrozenModel):
     segments: tuple[ExecutionSegment, ...]
     comparison_partitions: tuple[ComparisonPartition, ...]
     response_grain: ResultGrain
+    limitations: tuple[ExecutionLimitationCode, ...] = ()
 
 
 class TraceValidation(StrEnum):

@@ -5,7 +5,7 @@ from datetime import date
 import pytest
 
 from finproof.core.settings import ExecutionMode
-from finproof.domain.execution import ExecutionSegment
+from finproof.domain.execution import ExecutionSegment, HoldingConstituentFilter
 from finproof.domain.query_plan import (
     FilterClause,
     FilterOperator,
@@ -79,3 +79,28 @@ def test_query_injection_family_never_reaches_identifier_expression_or_statement
                 execution_mode=ExecutionMode.EVALUATION,
             ),
         )
+
+
+def test_holding_injection_payload_is_bound_and_never_interpolated() -> None:
+    payload = "x'); DROP TABLE silver_product_holding; --"
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    segment = ExecutionSegment(
+        product_type=ProductType.DOMESTIC_ETN,
+        native_result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        holding_constituent_filter=HoldingConstituentFilter(
+            constituent_identifier=payload,
+            constituent_identifier_type="LOCAL",
+        ),
+    )
+
+    compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
+
+    assert payload not in compiled.sql
+    assert payload in compiled.parameters
+    assert compiled.sql.count(";") == 0
+    assert "EXISTS" in compiled.sql

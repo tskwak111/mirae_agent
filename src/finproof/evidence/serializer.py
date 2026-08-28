@@ -77,8 +77,12 @@ def _compact(evidence: EvidenceBundle) -> dict[str, object]:
     )
     source_keys = tuple(sorted({_source_key(locator) for locator in locators}))
     source_index = {key: index for index, key in enumerate(source_keys)}
-    return {
-        "format": "evidence_context.v2",
+    payload: dict[str, object] = {
+        "format": (
+            "evidence_context.v3"
+            if evidence.holding_records or evidence.holding_coverage
+            else "evidence_context.v2"
+        ),
         "sources": [_source_value(key) for key in source_keys],
         "direct_fields": _DIRECT_FIELDS,
         "direct": [_direct_value(item, source_index) for item in direct],
@@ -88,6 +92,14 @@ def _compact(evidence: EvidenceBundle) -> dict[str, object]:
         "summaries": [item.model_dump(mode="json") for item in evidence.summaries],
         "material_policy_limitations": list(evidence.material_policy_limitations),
     }
+    if evidence.holding_records or evidence.holding_coverage:
+        payload["holding_records"] = [
+            item.model_dump(mode="json") for item in evidence.holding_records
+        ]
+        payload["holding_coverage"] = [
+            item.model_dump(mode="json") for item in evidence.holding_coverage
+        ]
+    return payload
 
 
 def _source_key(locator: Mapping[str, object]) -> tuple[str, str, str, str, str]:

@@ -5,6 +5,7 @@ from decimal import Decimal
 from typing import cast
 
 from finproof.answer.safety import require_safe_claim
+from finproof.data.holdings import HoldingCoverageState
 from finproof.domain.answers import (
     AnswerClaim,
     AnswerDraft,
@@ -30,7 +31,8 @@ class ClaimVerifier:
     def verify(self, draft: AnswerDraft, evidence: EvidenceBundle) -> VerifiedAnswer:
         if type(draft) is not AnswerDraft or type(evidence) is not EvidenceBundle:
             raise TypeError("claim verification inputs differ")
-        values: dict[str, _EvidenceValue] = (
+        values = cast(
+            dict[str, _EvidenceValue],
             {
                 item.evidence_id: (
                     (item.product_type,),
@@ -67,6 +69,30 @@ class ClaimVerifier:
                 )
                 for item in evidence.summaries
             }
+            | {
+                item.evidence_id: (
+                    (item.owner_product_type,),
+                    (),
+                    None,
+                    item.owner_product_id,
+                    "holding_constituent",
+                    item.constituent_identifier,
+                    (),
+                )
+                for item in evidence.holding_records
+            }
+            | {
+                item.evidence_id: (
+                    (item.owner_product_type,),
+                    (),
+                    None,
+                    item.owner_product_id,
+                    "holding_coverage",
+                    item.coverage_state.value,
+                    (),
+                )
+                for item in evidence.holding_coverage
+            },
         )
         known_evidence_ids = set(values) | {item.summary_id for item in evidence.summaries}
         claimed_limitations = {
@@ -86,6 +112,17 @@ class ClaimVerifier:
                 raise ValueError("claim differs from evidence")
             if claim.kind is ClaimKind.CANDIDATE and not _matches_candidate_claim(claim, values):
                 raise ValueError("claim differs from evidence")
+            if claim.kind is ClaimKind.CANDIDATE or any(
+                summary.kind.value == "rank" and summary.summary_id in claim.evidence_ids
+                for summary in evidence.summaries
+            ):
+                _require_holding_claim_evidence(claim, evidence)
+            if claim.kind is ClaimKind.LIMITATION and type(claim.value) is str:
+                required = _required_limitation_evidence(claim.value, evidence)
+                if _requires_limitation_evidence(claim.value) and (
+                    not required or not set(required) <= set(claim.evidence_ids)
+                ):
+                    raise ValueError("holding limitation evidence differs")
             if (claim.kind is ClaimKind.NUMERIC or claim.field_id is not None) and not (
                 _matches_value_claim(claim, values)
             ):
@@ -145,4 +182,70 @@ def _matches_candidate_claim(
     return bool(referenced) and all(
         item is not None and item[0] == (claim.product_type,) and item[3] == claim.product_id
         for item in referenced
+    )
+
+
+def _require_holding_claim_evidence(claim: AnswerClaim, evidence: EvidenceBundle) -> None:
+    if claim.product_type is None or claim.product_id is None:
+        return
+    owner = (claim.product_type, claim.product_id)
+    holding_ids = {
+        item.evidence_id
+        for item in evidence.holding_records
+        if (item.owner_product_type, item.owner_product_id) == owner
+    }
+    if not holding_ids:
+        return
+    coverage_ids = {
+        item.evidence_id
+        for item in evidence.holding_coverage
+        if (item.owner_product_type, item.owner_product_id) == owner
+    }
+    owner_ids = {
+        item.evidence_id
+        for item in evidence.direct
+        if (item.product_type, item.product_id, item.field_id)
+        == (claim.product_type, claim.product_id, "product_id")
+    }
+    referenced = set(claim.evidence_ids)
+    if (
+        not owner_ids
+        or not coverage_ids
+        or not all(referenced & required for required in (owner_ids, holding_ids, coverage_ids))
+    ):
+        raise ValueError("holding evidence is incomplete")
+
+
+def _required_limitation_evidence(
+    limitation: str,
+    evidence: EvidenceBundle,
+) -> tuple[str, ...]:
+    if limitation.startswith("해외 ETF/ETN의 1년 수익률"):
+        return tuple(
+            item.summary_id
+            for item in evidence.summaries
+            if item.partition_key == "limitation:overseas-return-1y"
+        )
+    if "상위 10개 부분 자료" in limitation:
+        return tuple(
+            item.evidence_id
+            for item in evidence.holding_coverage
+            if item.coverage_state is HoldingCoverageState.PARTIAL_TOP_10
+        )
+    if "구성종목 자료" in limitation:
+        return tuple(
+            item.summary_id
+            for item in evidence.summaries
+            if item.kind.value == "coverage"
+            and item.product_types
+            and limitation.startswith(item.product_types[0].value)
+        )
+    return ()
+
+
+def _requires_limitation_evidence(limitation: str) -> bool:
+    return (
+        limitation.startswith("해외 ETF/ETN의 1년 수익률")
+        or "상위 10개 부분 자료" in limitation
+        or "구성종목 자료" in limitation
     )

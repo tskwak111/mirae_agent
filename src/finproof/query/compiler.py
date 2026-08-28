@@ -51,8 +51,35 @@ class SqlCompiler:
             predicate, values = _predicate(projection.column_name, clause.operator, clause.value)
             predicates.append(predicate)
             parameters.extend(values)
+        holding_filter = ast.segment.holding_constituent_filter
+        if holding_filter is not None:
+            holding_spec = TABLE_SPEC_BY_NAME["silver_product_holding"]
+            holding_columns = {column.name for column in holding_spec.columns}
+            required = {
+                "owner_product_type",
+                "owner_product_id",
+                "constituent_identifier",
+                "constituent_identifier_type",
+            }
+            if not required <= holding_columns:
+                raise ValueError("holding relation columns are not registered")
+            outer_product_id = by_field["product_id"].column_name
+            predicates.append(
+                'EXISTS (SELECT 1 FROM "silver_product_holding" AS "holding" WHERE '  # noqa: S608 -- closed registry identifier
+                '"holding"."owner_product_type" = ? AND '
+                f'"holding"."owner_product_id" = "owner".{_quote(outer_product_id)} AND '
+                '"holding"."constituent_identifier" = ? AND '
+                '"holding"."constituent_identifier_type" = ?)'
+            )
+            parameters.extend(
+                (
+                    ast.segment.product_type.value,
+                    holding_filter.constituent_identifier,
+                    holding_filter.constituent_identifier_type,
+                )
+            )
         selected_sql = ", ".join(_quote(column) for column in selected)
-        sql = f"SELECT {selected_sql} FROM {_quote(ast.table_name)}"  # noqa: S608 -- closed identifiers
+        sql = f'SELECT {selected_sql} FROM {_quote(ast.table_name)} AS "owner"'  # noqa: S608 -- closed registry identifiers
         if predicates:
             sql += " WHERE " + " AND ".join(predicates)
         order = [

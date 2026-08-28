@@ -10,7 +10,7 @@ from finproof.registry.loader import RegistryBundle
 def test_system_prompt_is_versioned_and_self_checksummed() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == PROMPT_VERSION == "phase4-planner-v2"
+    assert prompt.version == PROMPT_VERSION == "phase4-planner-v3"
     assert prompt.checksum == sha256(prompt.text.encode("utf-8")).hexdigest()
     assert len(prompt.checksum) == 64
 
@@ -53,7 +53,7 @@ def test_system_prompt_contains_the_closed_planning_contract_and_compact_catalog
 def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == "phase4-planner-v2"
+    assert prompt.version == "phase4-planner-v3"
     assert "domestic_bond=instrument" in prompt.text
     assert "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product" in prompt.text
     assert "public_fund=fund_item" in prompt.text
@@ -65,6 +65,12 @@ def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
     assert "never emit namespaced metric registry IDs" in prompt.text
     assert "BUYABLE_QUANTITY" in prompt.text
     assert "never emit buyable_quantity" in prompt.text
+    assert "holding_constituent" in prompt.text
+    assert "one scalar eq" in prompt.text
+    assert "at most once" in prompt.text
+    assert "never combine" in prompt.text
+    assert "domestic_bond" in prompt.text
+    assert all(alias in prompt.text for alias in ("구성종목", "보유종목", "편입종목"))
     compact_catalog = json.loads(
         prompt.text.split("\ncompact_catalog=", 1)[1].split("\nprovider_schema=", 1)[0]
     )

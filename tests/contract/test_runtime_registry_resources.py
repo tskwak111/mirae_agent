@@ -15,7 +15,9 @@ def test_repository_and_package_registry_bytes_are_identical() -> None:
     """The runtime parses the exact reviewed repository bytes for all eight registries."""
     for name in REGISTRY_RESOURCE_NAMES:
         assert registry_resource_bytes(name) == (ROOT / "config" / name).read_bytes()
-    assert RegistryBundle.from_package().fields.version == "1.1.0"
+    bundle = RegistryBundle.from_package()
+    assert bundle.fields.version == "1.3.0"
+    assert bundle.planner.version == "1.2.0"
 
 
 def test_wheel_and_editable_install_load_identical_runtime_registry_resources(

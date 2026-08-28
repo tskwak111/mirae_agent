@@ -10,7 +10,7 @@ from finproof.domain.query_plan import ProductType
 from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
-PROMPT_VERSION = "phase4-planner-v2"
+PROMPT_VERSION = "phase4-planner-v3"
 
 _RULES = """interpret only; never answer the financial question.
 Use only canonical names in the supplied compact catalog; never invent identifiers.
@@ -25,6 +25,10 @@ public_fund=fund_item.
 A multi-product filtering or exclusion request uses intent=screen unless the user asks
 to produce ranked, compared, or aggregated results; display/warning does not change intent.
 Never emit an entity with empty text; product categories and criteria are not entities.
+Map 구성종목, 보유종목, 편입종목 at most once to one holding_constituent filter as one scalar eq.
+Permit holding_constituent only for domestic_etf, domestic_etn, overseas_etf,
+overseas_etn, and public_fund; never emit it as an entity, tuple, fuzzy match, sort,
+or aggregation, and never combine it with domestic_bond.
 All field-bearing plan members use IDs from the fields catalog;
 never emit namespaced metric registry IDs in filters, metrics, sort, or aggregation.
 BUYABLE_QUANTITY is invalid and raw-lineage-only; never emit buyable_quantity.

@@ -8,6 +8,7 @@ from typing import Any, cast
 
 from finproof.answer.templates import wording_text
 from finproof.data.artifacts.hashing import canonical_json_bytes
+from finproof.data.holdings import HoldingCoverageState
 from finproof.domain.evidence import (
     DerivedEvidence,
     DirectEvidence,
@@ -15,8 +16,10 @@ from finproof.domain.evidence import (
     EvidenceSummary,
     EvidenceSummaryKind,
     EvidenceSummaryValue,
+    HoldingCoverageEvidenceRef,
+    HoldingRecordEvidenceRef,
 )
-from finproof.domain.execution import ValidatedQueryPlan
+from finproof.domain.execution import ExecutionLimitationCode, ValidatedQueryPlan
 from finproof.domain.quality import QualityStatus
 from finproof.domain.query_plan import (
     AggregationFunction,
@@ -31,7 +34,19 @@ from finproof.domain.query_plan import (
 )
 from finproof.domain.values import DerivedValue
 from finproof.quality import MetricValue, PolicyExecutionResult, PolicyRow, RankPolicyResult
-from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+from finproof.storage.repositories.evidence import (
+    EvidenceLookup,
+    EvidenceRepository,
+    HoldingCoverageStateCount,
+    HoldingEvidenceLookup,
+)
+
+_EXECUTION_LIMITATION_TEXT = {
+    ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE: (
+        "해외 ETF/ETN의 1년 수익률은 제공 데이터에 없어 "
+        "해당 상품을 1년 수익률 비교에서 제외했습니다."
+    ),
+}
 
 
 class EvidenceBuilder:
@@ -76,6 +91,50 @@ class EvidenceBuilder:
         )
         for row in source_only_rows:
             selected[(row.raw.product_type, row.raw.product_id)] = None
+
+        holding_clause = next(
+            (clause for clause in original.filters if clause.field == "holding_constituent"),
+            None,
+        )
+        holding_records: tuple[HoldingRecordEvidenceRef, ...] = ()
+        holding_coverage: tuple[HoldingCoverageEvidenceRef, ...] = ()
+        holding_coverage_counts: tuple[HoldingCoverageStateCount, ...] = ()
+        if holding_clause is not None:
+            resolution = getattr(plan.resolutions, "holding_constituent", None)
+            candidate = getattr(resolution, "selected", None)
+            if (
+                candidate is None
+                or type(candidate.constituent_identifier) is not str
+                or type(candidate.constituent_identifier_type) is not str
+            ):
+                raise ValueError("holding evidence resolution differs")
+            holding_requests = tuple(
+                HoldingEvidenceLookup(
+                    product_type=product_type,
+                    product_ids=tuple(
+                        product_id
+                        for selected_type, product_id in selected
+                        if selected_type is product_type
+                    ),
+                    constituent_identifier=candidate.constituent_identifier,
+                    constituent_identifier_type=candidate.constituent_identifier_type,
+                )
+                for product_type in original.product_types
+                if any(selected_type is product_type for selected_type, _ in selected)
+            )
+            if holding_requests:
+                holding_result = repository.fetch_holding_evidence(holding_requests)
+                holding_records = holding_result.holding_records
+                holding_coverage = holding_result.holding_coverage
+            no_result_types = tuple(
+                product_type
+                for product_type in original.product_types
+                if not any(selected_type is product_type for selected_type, _ in selected)
+            )
+            if no_result_types:
+                holding_coverage_counts = repository.fetch_holding_coverage_state_counts(
+                    no_result_types
+                )
 
         field_ids = tuple(
             dict.fromkeys(
@@ -180,6 +239,50 @@ class EvidenceBuilder:
                 artifact_hash=artifact_hash,
             )
         ]
+        summaries.extend(
+            _summary(
+                summary_id=(
+                    f"summary:holding-coverage:{item.product_type.value}:"
+                    f"{item.coverage_state.value}"
+                ),
+                kind=EvidenceSummaryKind.COVERAGE,
+                included_count=item.owner_count,
+                excluded_count=0,
+                value=item.owner_count,
+                evidence_ids=(),
+                policy_versions=("holding_coverage:1.0.0",),
+                plan_hash=plan_hash,
+                version_hash=version_hash,
+                artifact_hash=artifact_hash,
+                product_types=(item.product_type,),
+                partition_key=(
+                    f"holding-coverage:{item.product_type.value}:{item.coverage_state.value}"
+                ),
+            )
+            for item in holding_coverage_counts
+        )
+        if ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE in policy_result.limitations:
+            pruned_types = tuple(
+                product_type
+                for product_type in original.product_types
+                if product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
+            )
+            summaries.append(
+                _summary(
+                    summary_id="summary:limitation:overseas-return-1y",
+                    kind=EvidenceSummaryKind.COVERAGE,
+                    included_count=0,
+                    excluded_count=len(pruned_types),
+                    value=ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE.value,
+                    evidence_ids=(),
+                    policy_versions=("execution_limitation:1.0.0",),
+                    plan_hash=plan_hash,
+                    version_hash=version_hash,
+                    artifact_hash=artifact_hash,
+                    product_types=pruned_types,
+                    partition_key="limitation:overseas-return-1y",
+                )
+            )
         if excluded:
             summaries.append(
                 _summary(
@@ -525,10 +628,13 @@ class EvidenceBuilder:
             for summary in summaries
             if summary.kind is EvidenceSummaryKind.AGGREGATE and summary.excluded_count > 0
         )
+        wording = repository._session.registries.answers.document["wording"]
+        if not isinstance(wording, Mapping):
+            raise TypeError("answer wording registry differs")
         limitations = tuple(
             dict.fromkeys(
                 (
-                    "2026-07-11 제공 스냅샷 기준",
+                    wording_text(wording, "snapshot_assumption"),
                     *dual_lens_labels,
                     *rating_limitations,
                     *incomplete_comparison,
@@ -548,6 +654,14 @@ class EvidenceBuilder:
                         existing_warnings=policy_result.warnings,
                     ),
                     *_bond_buy_yield_range_limitations(derived),
+                    *(
+                        _EXECUTION_LIMITATION_TEXT[limitation]
+                        for limitation in policy_result.limitations
+                    ),
+                    *_holding_coverage_limitations(
+                        holding_coverage,
+                        holding_coverage_counts,
+                    ),
                     *(_warning_text(item) for item in policy_result.warnings),
                 )
             )
@@ -557,6 +671,8 @@ class EvidenceBuilder:
             derived=derived,
             summaries=tuple(summaries),
             material_policy_limitations=limitations,
+            holding_records=holding_records,
+            holding_coverage=holding_coverage,
         )
 
 
@@ -1362,6 +1478,33 @@ def _direct_recorded_zero_limitations(
         )
         else ()
     )
+
+
+def _holding_coverage_limitations(
+    coverage: tuple[HoldingCoverageEvidenceRef, ...],
+    counts: tuple[HoldingCoverageStateCount, ...],
+) -> tuple[str, ...]:
+    values: list[str] = []
+    if any(item.coverage_state is HoldingCoverageState.PARTIAL_TOP_10 for item in coverage):
+        values.append(
+            "구성종목 보유내역은 상위 10개 부분 자료이므로 "
+            "확인된 양성 일치 내에서만 결과를 제시했습니다."
+        )
+    by_type: dict[ProductType, list[HoldingCoverageStateCount]] = {}
+    for item in counts:
+        by_type.setdefault(item.product_type, []).append(item)
+    for product_type, items in by_type.items():
+        if all(item.coverage_state is HoldingCoverageState.UNAVAILABLE for item in items):
+            values.append(
+                f"{product_type.value} 구성종목 자료는 제공되지 않아 "
+                "보유하지 않았다는 결론을 내리지 않았습니다."
+            )
+        elif any(item.coverage_state is HoldingCoverageState.PARTIAL_TOP_10 for item in items):
+            values.append(
+                f"{product_type.value} 구성종목 자료는 부분 범위이므로 "
+                "검색되지 않은 종목의 부재를 판단하지 않았습니다."
+            )
+    return tuple(values)
 
 
 def _cross_currency_limitations(currencies: set[str | None]) -> tuple[str, ...]:

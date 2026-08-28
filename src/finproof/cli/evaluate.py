@@ -25,7 +25,7 @@ from finproof.domain.query_plan import (
     QueryPlan,
     ResultGrain,
 )
-from finproof.entity import EntityIndex, EntityResolver
+from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
 from finproof.evaluation.adversarial import (
     AdversarialCase,
     AdversarialObservation,
@@ -234,6 +234,7 @@ def _open_local_service(settings: Settings) -> Iterator[_LocalEvaluationService]
             validator = LocalPlanValidator(
                 SemanticValidator(fields),
                 entity_resolver=EntityResolver(EntityIndex.from_session(session)),
+                holding_resolver=HoldingResolver.from_session(session),
             )
             fallback = RuleFallbackPlanner(validator=validator)
             planner: PlannerProtocol = fallback

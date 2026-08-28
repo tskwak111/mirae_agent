@@ -297,3 +297,102 @@ def test_claim_verifier_requires_every_material_policy_limitation() -> None:
         AnswerDraft(text=" ".join(limitations), claims=claims), evidence
     )
     assert verified.claims == claims
+
+
+def test_holding_candidate_requires_owner_holding_and_exact_coverage_evidence() -> None:
+    from datetime import date
+    from pathlib import PurePosixPath
+    from typing import cast
+
+    from finproof.data.holdings import HoldingCoverageState
+    from finproof.domain.answers import AnswerClaim, AnswerDraft, ClaimKind
+    from finproof.domain.evidence import (
+        DirectEvidence,
+        EvidenceBundle,
+        HoldingCoverageEvidenceRef,
+        HoldingRecordEvidenceRef,
+    )
+    from finproof.domain.locators import SourceCellLocator
+    from finproof.domain.quality import QualityStatus
+    from finproof.domain.query_plan import ProductType
+    from finproof.domain.values import NormalizedValue
+    from finproof.evidence import ClaimVerifier
+
+    owner = cast(
+        DirectEvidence[object],
+        DirectEvidence[str](
+            evidence_id="owner:product-id",
+            product_type=ProductType.DOMESTIC_ETF,
+            product_id="ETF-1",
+            field_id="product_id",
+            value=NormalizedValue[str](
+                raw_value="ETF-1",
+                normalized_value="ETF-1",
+                quality_status=QualityStatus.VALID,
+                rule_id="product_id",
+                rule_version="1.0.0",
+                source=SourceCellLocator(
+                    source_table="PREF01N001",
+                    source_file=PurePosixPath("domestic.xlsx"),
+                    source_sheet="datarows",
+                    source_row_number=2,
+                    source_column_name="product_id",
+                    source_column_number=1,
+                    source_column_letter="A",
+                    source_checksum="a" * 64,
+                    source_snapshot_date=date(2026, 8, 24),
+                    source_applicable_date=date(2026, 8, 22),
+                ),
+            ),
+        ),
+    )
+    holding = HoldingRecordEvidenceRef(
+        evidence_id="holding:1",
+        owner_product_type=ProductType.DOMESTIC_ETF,
+        owner_product_id="ETF-1",
+        generation_id="generation-1",
+        constituent_identifier="KR7005930003",
+        constituent_identifier_type="ISIN",
+        display_name="삼성전자",
+        source_kind="krx_etf_pdf",
+        source_as_of_date=date(2026, 8, 22),
+        source_row_ordinal=1,
+    )
+    coverage = HoldingCoverageEvidenceRef(
+        evidence_id="coverage:1",
+        owner_product_type=ProductType.DOMESTIC_ETF,
+        owner_product_id="ETF-1",
+        coverage_state=HoldingCoverageState.PARTIAL_TOP_10,
+        source_generation_id="generation-1",
+        observed_holding_count=1,
+        limitation_code="partial_top_10_only",
+        source_kind="krx_etf_pdf",
+        source_as_of_date=date(2026, 8, 22),
+    )
+    text = "조건에 부합하는 후보: domestic_etf ETF-1"
+    claim = AnswerClaim(
+        claim_id="candidate:holding",
+        kind=ClaimKind.CANDIDATE,
+        text=text,
+        product_type=ProductType.DOMESTIC_ETF,
+        product_id="ETF-1",
+        evidence_ids=(owner.evidence_id, holding.evidence_id, coverage.evidence_id),
+    )
+    evidence = EvidenceBundle(
+        direct=(owner,),
+        derived=(),
+        summaries=(),
+        material_policy_limitations=(),
+        holding_records=(holding,),
+        holding_coverage=(coverage,),
+    )
+
+    assert ClaimVerifier().verify(AnswerDraft(text=text, claims=(claim,)), evidence).claims
+    with pytest.raises(ValueError, match="holding evidence"):
+        ClaimVerifier().verify(
+            AnswerDraft(
+                text=text,
+                claims=(claim.model_copy(update={"evidence_ids": (owner.evidence_id,)}),),
+            ),
+            evidence,
+        )

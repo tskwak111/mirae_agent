@@ -9,7 +9,7 @@ import pytest
 
 from finproof.core.settings import ExecutionMode
 from finproof.domain.query_plan import AggregationFunction, Intent, ProductType
-from finproof.entity import EntityResolver
+from finproof.entity import EntityResolver, HoldingResolver
 from finproof.entity.index import EntityIndex
 from finproof.planner.hcx_client import (
     HcxMalformedResponseError,
@@ -89,6 +89,61 @@ def _validator() -> LocalPlanValidator:
         SemanticValidator(FieldRegistry.from_bundle(registries)),
         entity_resolver=EntityResolver(EntityIndex._from_entries(())),
     )
+
+
+def test_local_plan_validator_requires_and_passes_separate_holding_resolution() -> None:
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.query import ResolutionBundle
+
+    registries = RegistryBundle.from_package()
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_ETF,),
+        entities=(),
+        as_of_date=date(2026, 8, 24),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(
+            FilterClause(
+                field="holding_constituent",
+                operator=FilterOperator.EQ,
+                value="삼성전자",
+            ),
+        ),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    request = PlanningRequest.start(
+        question="삼성전자 보유 ETF",
+        request_id="holding-planner",
+        as_of_date=plan.as_of_date,
+        execution_mode=ExecutionMode.EVALUATION,
+        deadline_seconds=1,
+    )
+    semantic = SemanticValidator(FieldRegistry.from_bundle(registries))
+    with pytest.raises(ValueError, match="holding resolver"):
+        LocalPlanValidator(semantic).validate(plan, request)
+
+    validated = LocalPlanValidator(
+        semantic,
+        holding_resolver=HoldingResolver._from_rows((("KR7005930003", "isin", "삼성전자"),)),
+    ).validate(plan, request)
+
+    resolutions = validated.resolutions
+    assert isinstance(resolutions, ResolutionBundle)
+    assert resolutions.holding_constituent is not None
+    assert resolutions.holding_constituent.selected is not None
+    assert resolutions.holding_constituent.selected.constituent_identifier == "KR7005930003"
 
 
 def _planners(

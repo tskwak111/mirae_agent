@@ -14,7 +14,7 @@ from finproof.domain.execution import (
     TraceValidation,
 )
 from finproof.domain.query_plan import Intent, QueryPlan
-from finproof.entity import EntityIndex, EntityResolver
+from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
 from finproof.evidence import ClaimVerifier, EvidenceBuilder, serialize_evidence_context
 from finproof.quality import PolicyEngine, PolicyExecutionResult
 from finproof.query import (
@@ -39,6 +39,7 @@ class AnswerService:
         self._session = session
         fields = FieldRegistry.from_bundle(session.registries)
         self._resolver: EntityResolver | None = None
+        self._holding_resolver: HoldingResolver | None = None
         self._validator = SemanticValidator(fields)
         self._segmenter = ExecutionBundleBuilder(fields)
         self._executor = QueryExecutor(session)
@@ -71,6 +72,11 @@ class AnswerService:
             )
         if self._resolver is None:
             self._resolver = EntityResolver(EntityIndex.from_session(self._session))
+        holding_filters = tuple(
+            clause for clause in plan.filters if clause.field == "holding_constituent"
+        )
+        if holding_filters and self._holding_resolver is None:
+            self._holding_resolver = HoldingResolver.from_session(self._session)
         resolutions = ResolutionBundle(
             results=tuple(
                 self._resolver.resolve(
@@ -78,7 +84,14 @@ class AnswerService:
                     product_types=plan.product_types,
                 )
                 for mention in plan.entities
-            )
+            ),
+            holding_constituent=(
+                self._holding_resolver.resolve(holding_filters[0].value)
+                if len(holding_filters) == 1
+                and type(holding_filters[0].value) is str
+                and self._holding_resolver is not None
+                else None
+            ),
         )
         context = ValidationContext(
             as_of_date=plan.as_of_date,

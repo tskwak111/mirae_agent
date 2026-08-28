@@ -3,7 +3,9 @@
 from finproof.domain.execution import (
     ComparisonPartition,
     ExecutionBundle,
+    ExecutionLimitationCode,
     ExecutionSegment,
+    HoldingConstituentFilter,
     ValidatedQueryPlan,
 )
 from finproof.domain.query_plan import (
@@ -46,6 +48,32 @@ class ExecutionBundleBuilder:
             )
             for product_type in ProductType
         }
+        holding_resolution = resolutions.holding_constituent
+        holding_filter = (
+            HoldingConstituentFilter(
+                constituent_identifier=holding_resolution.selected.constituent_identifier,
+                constituent_identifier_type=(
+                    holding_resolution.selected.constituent_identifier_type
+                ),
+            )
+            if holding_resolution is not None and holding_resolution.selected is not None
+            else None
+        )
+        requested_fields = {
+            *(clause.field for clause in original.filters),
+            *original.metrics,
+            *(sort.field for sort in original.sort),
+            *(original.aggregation.group_by if original.aggregation is not None else ()),
+            *(
+                (original.aggregation.field,)
+                if original.aggregation is not None and original.aggregation.field is not None
+                else ()
+            ),
+        }
+        prune_overseas_1y = "return_1y" in requested_fields and any(
+            product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
+            for product_type in original.product_types
+        )
         segments = tuple(
             ExecutionSegment(
                 product_type=product_type,
@@ -80,9 +108,14 @@ class ExecutionBundleBuilder:
                 ),
                 aggregation=original.aggregation,
                 top_k=original.top_k,
+                holding_constituent_filter=holding_filter,
             )
             for product_type in ProductType
             if product_type in original.product_types
+            and not (
+                prune_overseas_1y
+                and product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
+            )
         )
         partitions = self._comparison_partitions(segments)
         if (
@@ -97,6 +130,11 @@ class ExecutionBundleBuilder:
             segments=segments,
             comparison_partitions=partitions,
             response_grain=original.result_grain,
+            limitations=(
+                (ExecutionLimitationCode.OVERSEAS_RETURN_1Y_UNAVAILABLE,)
+                if prune_overseas_1y
+                else ()
+            ),
         )
 
     def _comparison_partitions(

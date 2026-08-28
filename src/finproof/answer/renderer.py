@@ -193,7 +193,14 @@ class AnswerRenderer:
                         product_id=summary.product_id,
                         field_id=summary.metric_id,
                         value=summary.value,
-                        evidence_ids=(summary.summary_id,),
+                        evidence_ids=(
+                            summary.summary_id,
+                            *_holding_owner_evidence_ids(
+                                evidence,
+                                summary.product_types[0],
+                                summary.product_id,
+                            ),
+                        ),
                         sign=_sign(summary.value),
                     )
                 )
@@ -303,6 +310,7 @@ class AnswerRenderer:
                     kind=ClaimKind.LIMITATION,
                     text=limitation,
                     value=limitation,
+                    evidence_ids=_limitation_evidence_ids(limitation, evidence),
                 )
             )
         _append_comparison_conclusions(lines=lines, claims=claims, evidence=evidence)
@@ -356,9 +364,18 @@ class AnswerRenderer:
                         text=candidate_text,
                         product_type=product_type,
                         product_id=product_id,
-                        evidence_ids=(
-                            *(direct_item.evidence_id for direct_item in direct),
-                            *(derived_item.evidence_id for derived_item in derived),
+                        evidence_ids=tuple(
+                            dict.fromkeys(
+                                (
+                                    *(direct_item.evidence_id for direct_item in direct),
+                                    *(derived_item.evidence_id for derived_item in derived),
+                                    *_holding_owner_evidence_ids(
+                                        evidence,
+                                        product_type,
+                                        product_id,
+                                    ),
+                                )
+                            )
                         ),
                     )
                 )
@@ -544,6 +561,60 @@ def _summary_numeric_claim(*, summary: EvidenceSummary, text: str) -> AnswerClai
         evidence_ids=(summary.summary_id,),
         sign=_sign(summary.value),
     )
+
+
+def _holding_owner_evidence_ids(
+    evidence: EvidenceBundle,
+    product_type: ProductType,
+    product_id: str | None,
+) -> tuple[str, ...]:
+    if product_id is None:
+        return ()
+    return (
+        *(
+            item.evidence_id
+            for item in evidence.direct
+            if (item.product_type, item.product_id, item.field_id)
+            == (product_type, product_id, "product_id")
+        ),
+        *(
+            item.evidence_id
+            for item in evidence.holding_records
+            if (item.owner_product_type, item.owner_product_id) == (product_type, product_id)
+        ),
+        *(
+            item.evidence_id
+            for item in evidence.holding_coverage
+            if (item.owner_product_type, item.owner_product_id) == (product_type, product_id)
+        ),
+    )
+
+
+def _limitation_evidence_ids(
+    limitation: str,
+    evidence: EvidenceBundle,
+) -> tuple[str, ...]:
+    if limitation.startswith("해외 ETF/ETN의 1년 수익률"):
+        return tuple(
+            item.summary_id
+            for item in evidence.summaries
+            if item.partition_key == "limitation:overseas-return-1y"
+        )
+    if "상위 10개 부분 자료" in limitation:
+        return tuple(
+            item.evidence_id
+            for item in evidence.holding_coverage
+            if item.coverage_state.value == "partial_top_10"
+        )
+    if "구성종목 자료" in limitation:
+        return tuple(
+            item.summary_id
+            for item in evidence.summaries
+            if item.kind is EvidenceSummaryKind.COVERAGE
+            and item.product_types
+            and limitation.startswith(item.product_types[0].value)
+        )
+    return ()
 
 
 def _summary_scope(summary: EvidenceSummary) -> str:

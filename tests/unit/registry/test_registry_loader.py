@@ -93,7 +93,13 @@ def test_field_metric_and_planner_alias_reachability_is_complete() -> None:
         metric_id for metric_id, metric in bundle.metrics.entries.items() if not metric.queryable
     }
     assert set(bundle.planner.field_aliases) <= set(bundle.fields.entries)
-    assert bundle.fields.version == "1.1.0"
+    assert bundle.fields.version == "1.3.0"
+    assert bundle.planner.version == "1.2.0"
+    assert bundle.planner.field_aliases["holding_constituent"] == (
+        "구성종목",
+        "보유종목",
+        "편입종목",
+    )
 
 
 def test_field_registry_aggregate_allowlists_match_targetless_count_contract() -> None:
@@ -119,10 +125,9 @@ def test_state_registry_contains_only_phase2_supported_validated_eligibility_rul
     from finproof.registry.loader import RegistryBundle
 
     states = RegistryBundle._from_resource_bytes(_registry_payloads()).states
-    assert states.version == "1.1.0"
+    assert states.version == "1.2.0"
     assert tuple(states.entries) == (
-        "bond.source_buyable",
-        "bond.validated_buyable_at_as_of",
+        "bond.purchasable_at_as_of",
         "domestic_listed.active_at_as_of",
     )
     assert {

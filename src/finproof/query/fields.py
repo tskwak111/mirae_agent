@@ -35,6 +35,8 @@ class FieldRegistry:
         registries.require_issued()
         projections: dict[tuple[str, ProductType], FieldProjection] = {}
         for field_id, field in registries.fields.entries.items():
+            if field_id == "holding_constituent":
+                continue
             product_types = field.product_types or tuple(
                 product_type
                 for metric_id in field.metric_ids

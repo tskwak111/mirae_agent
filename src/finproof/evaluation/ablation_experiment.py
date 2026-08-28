@@ -25,7 +25,7 @@ from finproof.core.settings import Settings
 from finproof.domain.answers import AnswerRequest
 from finproof.domain.execution import ExecutionSegment
 from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
-from finproof.entity import EntityIndex, EntityResolver
+from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
 from finproof.evaluation.ablation import AblationMeasurement, AblationVariant
 from finproof.evaluation.latency import LatencySample, LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
@@ -175,6 +175,7 @@ class _Experiment:
         self._validator = LocalPlanValidator(
             SemanticValidator(fields),
             entity_resolver=EntityResolver(EntityIndex.from_session(self.session)),
+            holding_resolver=HoldingResolver.from_session(self.session),
         )
 
     def _planning_request(self, case: GoldenCase) -> PlanningRequest:
@@ -365,6 +366,7 @@ async def _run(
             validator = LocalPlanValidator(
                 SemanticValidator(fields),
                 entity_resolver=EntityResolver(EntityIndex.from_session(session)),
+                holding_resolver=HoldingResolver.from_session(session),
             )
             planner = _planner_for_ablation(
                 generator=generator,

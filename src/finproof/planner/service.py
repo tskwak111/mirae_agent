@@ -6,14 +6,14 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import date
 from time import monotonic
-from typing import Protocol, Self
+from typing import Protocol, Self, cast
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from finproof.core.settings import ExecutionMode
 from finproof.domain.execution import ValidatedQueryPlan
 from finproof.domain.query_plan import QueryPlan
-from finproof.entity import EntityResolver
+from finproof.entity import EntityResolver, HoldingResolver
 from finproof.planner.hcx_client import (
     HcxClientError,
     HcxMalformedResponseError,
@@ -110,20 +110,32 @@ class LocalPlanValidator:
         semantic_validator: SemanticValidator,
         *,
         entity_resolver: EntityResolver | None = None,
+        holding_resolver: HoldingResolver | None = None,
     ) -> None:
         self._semantic_validator = semantic_validator
         self._entity_resolver = entity_resolver
+        self._holding_resolver = holding_resolver
 
     def validate(self, plan: QueryPlan, request: PlanningRequest) -> ValidatedQueryPlan:
         if plan.entities and self._entity_resolver is None:
             raise ValueError("entity resolver is required for entity mentions")
+        holding_filters = tuple(
+            clause for clause in plan.filters if clause.field == "holding_constituent"
+        )
+        if holding_filters and self._holding_resolver is None:
+            raise ValueError("holding resolver is required for constituent filters")
         resolutions = ResolutionBundle(
             results=tuple(
                 self._entity_resolver.resolve(mention, product_types=plan.product_types)
                 for mention in plan.entities
             )
             if self._entity_resolver is not None
-            else ()
+            else (),
+            holding_constituent=(
+                self._holding_resolver.resolve(cast(str, holding_filters[0].value))
+                if holding_filters and self._holding_resolver is not None
+                else None
+            ),
         )
         return self._semantic_validator.validate(
             plan,

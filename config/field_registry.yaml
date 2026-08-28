@@ -1,4 +1,4 @@
-version: "1.2.0"
+version: "1.3.0"
 targetless_aggregations: ["count"]
 fields:
   product_name:
@@ -12,6 +12,12 @@ fields:
     value_type: "string"
     operators: ["eq", "in"]
     sortable: true
+    aggregations: []
+  holding_constituent:
+    product_types: ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]
+    value_type: "string"
+    operators: ["eq"]
+    sortable: false
     aggregations: []
   asset_type:
     product_types: ["domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn"]

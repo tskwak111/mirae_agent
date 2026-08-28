@@ -9,7 +9,7 @@ from finproof.storage import RawProductRow
 
 def test_bond_prepolicy_projection_includes_maturity_for_validated_state() -> None:
     from finproof.domain.execution import ExecutionSegment
-    from finproof.domain.query_plan import FilterClause, FilterOperator, ProductType, ResultGrain
+    from finproof.domain.query_plan import ProductType, ResultGrain
     from finproof.query import FieldRegistry, QueryAst
     from finproof.registry.loader import RegistryBundle
 
@@ -17,13 +17,7 @@ def test_bond_prepolicy_projection_includes_maturity_for_validated_state() -> No
         ExecutionSegment(
             product_type=ProductType.DOMESTIC_BOND,
             native_result_grain=ResultGrain.INSTRUMENT,
-            filters=(
-                FilterClause(
-                    field="buyable_quantity",
-                    operator=FilterOperator.GT,
-                    value=Decimal("0"),
-                ),
-            ),
+            filters=(),
             metrics=(),
             sort=(),
             aggregation=None,
@@ -34,12 +28,12 @@ def test_bond_prepolicy_projection_includes_maturity_for_validated_state() -> No
 
     assert tuple(projection.field_id for projection in ast.projections) == (
         "product_id",
-        "buyable_quantity",
+        "issue_date",
         "maturity_date",
     )
 
 
-def test_bond_prepolicy_projection_includes_quantity_without_quantity_filter() -> None:
+def test_bond_prepolicy_projection_excludes_invalid_buyable_quantity() -> None:
     from finproof.domain.execution import ExecutionSegment
     from finproof.domain.query_plan import ProductType, ResultGrain
     from finproof.query import FieldRegistry, QueryAst
@@ -58,7 +52,7 @@ def test_bond_prepolicy_projection_includes_quantity_without_quantity_filter() -
         fields=FieldRegistry.from_bundle(RegistryBundle.from_package()),
     )
 
-    assert "buyable_quantity" in tuple(projection.field_id for projection in ast.projections)
+    assert "buyable_quantity" not in tuple(projection.field_id for projection in ast.projections)
 
 
 def test_domestic_listed_prepolicy_projection_includes_state_inputs() -> None:
@@ -142,10 +136,10 @@ def test_aum_prepolicy_projection_includes_dynamic_currency_input() -> None:
         assert "currency" in tuple(projection.field_id for projection in ast.projections)
 
 
-def test_pipeline_applies_filter_then_state_and_metric_eligibility() -> None:
+def test_pipeline_applies_state_and_metric_eligibility_without_invalid_quantity() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 
-    from finproof.domain.query_plan import FilterClause, FilterOperator, ProductType, ResultGrain
+    from finproof.domain.query_plan import ProductType, ResultGrain
     from finproof.quality import PolicyEngine
     from finproof.query import (
         ExecutionBundleBuilder,
@@ -160,15 +154,7 @@ def test_pipeline_applies_filter_then_state_and_metric_eligibility() -> None:
     )
 
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
-    plan = _plan(
-        filters=(
-            FilterClause(
-                field="buyable_quantity",
-                operator=FilterOperator.GT,
-                value=Decimal("0"),
-            ),
-        )
-    ).model_copy(update={"metrics": ()})
+    plan = _plan(filters=()).model_copy(update={"metrics": ()})
     validated = SemanticValidator(fields).validate(
         plan, resolutions=ResolutionBundle(results=()), context=_context()
     )
@@ -196,10 +182,12 @@ def test_pipeline_applies_filter_then_state_and_metric_eligibility() -> None:
 
     result = PolicyEngine().apply(raw, bundle=bundle)
 
-    assert tuple(row.raw.product_id for row in result.included_rows) == ("included",)
-    assert result.excluded_filter_count == 1
+    assert tuple(row.raw.product_id for row in result.included_rows) == (
+        "filtered",
+        "included",
+    )
+    assert result.excluded_filter_count == 0
     assert result.excluded_state_count == 1
-    assert "source quantity remains positive after maturity" in result.warnings
 
 
 def test_pipeline_uses_the_frozen_rating_scale_for_aa_minus_or_higher() -> None:

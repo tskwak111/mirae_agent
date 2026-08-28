@@ -8,10 +8,11 @@ if TYPE_CHECKING:
     from finproof.domain.query_plan import QueryPlan
 
 
-def test_current_answer_names_2026_07_11_snapshot_not_realtime() -> None:
+def test_current_answer_reuses_issued_snapshot_assumption_not_realtime() -> None:
     from finproof.answer import AnswerRenderer
     from finproof.domain.answers import AnswerRequest
     from finproof.domain.evidence import EvidenceBundle
+    from finproof.registry.loader import RegistryBundle
 
     draft = AnswerRenderer().render(
         request=AnswerRequest(question_id="q-current", question="현재 매수 가능한 채권은?"),
@@ -24,7 +25,9 @@ def test_current_answer_names_2026_07_11_snapshot_not_realtime() -> None:
         ),
     )
 
-    assert "2026-07-11 제공 스냅샷 기준" in draft.text
+    wording = RegistryBundle.from_package().answers.document["wording"]
+    assert isinstance(wording, dict) or hasattr(wording, "__getitem__")
+    assert wording["snapshot_assumption"] in draft.text
     assert "실시간" not in draft.text
 
 
