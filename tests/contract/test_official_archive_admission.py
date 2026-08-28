@@ -1,6 +1,8 @@
 import hashlib
+import json
 import os
 import shutil
+import stat
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -271,6 +273,18 @@ def _active_bytes(repository: Path) -> dict[str, bytes]:
     return {str(path.relative_to(repository)): path.read_bytes() for path in paths}
 
 
+def _active_modes(repository: Path) -> dict[str, int]:
+    paths = [
+        repository / "source_material",
+        repository / "source_material/data",
+        *sorted((repository / "source_material/data").glob("*.xlsx")),
+        repository / "source_material/input_manifest.json",
+        repository / "source_material/schema_catalog.json",
+        repository / "tests/contracts/expected_source_audit.json",
+    ]
+    return {str(path.relative_to(repository)): stat.S_IMODE(path.stat().st_mode) for path in paths}
+
+
 def _write_active_repository(root: Path) -> Path:
     repository = root / "repository"
     (repository / "source_material/data").mkdir(parents=True)
@@ -281,6 +295,17 @@ def _write_active_repository(root: Path) -> Path:
     expected.parent.mkdir(parents=True)
     expected.write_bytes(b"old audit")
     return repository
+
+
+def _make_active_source_read_only(repository: Path) -> None:
+    for path in (
+        repository / "source_material/data/old.xlsx",
+        repository / "source_material/input_manifest.json",
+        repository / "source_material/schema_catalog.json",
+    ):
+        path.chmod(0o444)
+    (repository / "source_material/data").chmod(0o555)
+    (repository / "source_material").chmod(0o555)
 
 
 def test_publish_rejects_bad_candidate_before_touching_active_bytes(tmp_path: Path) -> None:
@@ -297,6 +322,48 @@ def test_publish_rejects_bad_candidate_before_touching_active_bytes(tmp_path: Pa
     assert _active_bytes(repository) == before
 
 
+def test_validate_candidate_rejects_semantically_hand_edited_catalog(tmp_path: Path) -> None:
+    candidate = _copy_active_candidate(tmp_path)
+    catalog_path = candidate / "source_material/schema_catalog.json"
+    catalog_path.chmod(0o600)
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["tables"]["PRBD01N001"]["columns"][0]["column_type"] = "HAND_EDITED"
+    catalog_path.write_text(
+        json.dumps(catalog, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ArchiveAdmissionError, match="candidate_catalog"):
+        archive_admission.validate_candidate(candidate)
+
+
+def test_publish_makes_the_active_source_tree_read_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = _copy_active_candidate(tmp_path)
+    repository = _write_active_repository(tmp_path)
+    _make_active_source_read_only(repository)
+    monkeypatch.setattr(archive_admission, "validate_candidate", lambda _root: None)
+
+    archive_admission.publish_candidate(candidate, repository)
+
+    modes = _active_modes(repository)
+    assert modes["source_material"] == 0o555
+    assert modes["source_material/data"] == 0o555
+    assert all(
+        mode == 0o444
+        for path, mode in modes.items()
+        if path.endswith(".xlsx")
+        or path
+        in {
+            "source_material/input_manifest.json",
+            "source_material/schema_catalog.json",
+        }
+    )
+    assert modes["tests/contracts/expected_source_audit.json"] == 0o644
+
+
 @pytest.mark.parametrize("failure_step", [1, 2, 3, 4])
 def test_publish_rolls_back_every_active_byte_after_each_publication_step(
     tmp_path: Path,
@@ -305,9 +372,13 @@ def test_publish_rolls_back_every_active_byte_after_each_publication_step(
 ) -> None:
     candidate = _copy_active_candidate(tmp_path)
     repository = _write_active_repository(tmp_path)
+    _make_active_source_read_only(repository)
     before = _active_bytes(repository)
+    before_modes = _active_modes(repository)
+    checkpoints: list[int] = []
 
     def inject(step: int) -> None:
+        checkpoints.append(step)
         if step == failure_step:
             raise OSError("injected publication failure")
 
@@ -317,4 +388,6 @@ def test_publish_rolls_back_every_active_byte_after_each_publication_step(
     with pytest.raises(ArchiveAdmissionError, match="candidate_publish"):
         archive_admission.publish_candidate(candidate, repository)
 
+    assert failure_step in checkpoints
     assert _active_bytes(repository) == before
+    assert _active_modes(repository) == before_modes

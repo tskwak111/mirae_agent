@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
 from dataclasses import dataclass
@@ -17,12 +18,15 @@ from zipfile import BadZipFile, ZipFile
 
 if TYPE_CHECKING:
     from tools.audit_source_data import calculate, differences, require_official_profile
+    from tools.extract_schema_catalog import build_catalog
     from tools.xlsx_stream import iter_sheet_rows, list_sheet_names
 elif __package__:
     from .audit_source_data import calculate, differences, require_official_profile
+    from .extract_schema_catalog import build_catalog
     from .xlsx_stream import iter_sheet_rows, list_sheet_names
 else:
     from audit_source_data import calculate, differences, require_official_profile
+    from extract_schema_catalog import build_catalog
     from xlsx_stream import iter_sheet_rows, list_sheet_names
 
 from finproof.data.source_manifest import SourceFileManifest
@@ -269,6 +273,19 @@ def validate_candidate(candidate_root: Path) -> None:
     from finproof.core.errors import SourceContractError
 
     try:
+        canonical_catalog = (
+            json.dumps(
+                build_catalog(schema_root=data_root),
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n"
+        ).encode()
+        if catalog_path.read_bytes() != canonical_catalog:
+            raise ArchiveAdmissionError(
+                "candidate_catalog", "candidate catalog is not generated from source schemas"
+            )
         manifest = SourceFileManifest.load(manifest_path, catalog_path)
         observed_profile = tuple(
             (entry.table_id, entry.expected_rows, entry.expected_columns, entry.sheet_name)
@@ -334,11 +351,20 @@ def publish_candidate(candidate_root: Path, repository_root: Path) -> None:
         Path("tests/contracts/expected_source_audit.json"),
     )
     states: list[tuple[Path, Path, bool]] = []
+    source_material = repository_root / "source_material"
+    active_data = source_material / "data"
+    source_material_mode = stat.S_IMODE(source_material.stat().st_mode)
+    active_data_mode = stat.S_IMODE(active_data.stat().st_mode) if active_data.exists() else None
     with tempfile.TemporaryDirectory(prefix=".source-publication-", dir=repository_root) as tmp:
         try:
             staging = Path(tmp) / "candidate"
             shutil.copytree(candidate_root, staging)
             validate_candidate(staging)
+            staged_data = staging / "source_material/data"
+            staged_data.chmod(stat.S_IMODE(staged_data.stat().st_mode) | 0o700)
+            source_material.chmod(source_material_mode | 0o700)
+            if active_data_mode is not None:
+                active_data.chmod(active_data_mode | 0o700)
             backup_root = Path(tmp) / "backup"
             backup_root.mkdir()
             for step, relative in enumerate(groups, start=1):
@@ -352,6 +378,13 @@ def publish_candidate(candidate_root: Path, repository_root: Path) -> None:
                 states.append((target, backup, had_target))
                 os.replace(source, target)
                 _publication_checkpoint(step)
+            for workbook in active_data.glob("*.xlsx"):
+                workbook.chmod(0o444)
+            (source_material / "input_manifest.json").chmod(0o444)
+            (source_material / "schema_catalog.json").chmod(0o444)
+            (repository_root / "tests/contracts/expected_source_audit.json").chmod(0o644)
+            active_data.chmod(0o555)
+            source_material.chmod(0o555)
         except Exception as error:
             rollback_error: OSError | None = None
             for target, backup, had_target in reversed(states):
@@ -361,6 +394,12 @@ def publish_candidate(candidate_root: Path, repository_root: Path) -> None:
                         os.replace(backup, target)
                 except OSError as caught:
                     rollback_error = caught
+            try:
+                if active_data_mode is not None and active_data.exists():
+                    active_data.chmod(active_data_mode)
+                source_material.chmod(source_material_mode)
+            except OSError as caught:
+                rollback_error = caught
             if rollback_error is not None:
                 raise ArchiveAdmissionError(
                     "candidate_rollback", "candidate publication rollback failed"
