@@ -1,9 +1,12 @@
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 
 import pytest
 
 import finproof.evaluation.ablation as ablation
+from finproof.core.settings import ExecutionMode
+from finproof.domain.query_plan import QueryPlan
 from finproof.evaluation.ablation import (
     AblationMeasurement,
     AblationRunner,
@@ -13,9 +16,11 @@ from finproof.evaluation.ablation import (
 from finproof.evaluation.ablation_experiment import (
     _approved_plans,
     _CaseRun,
+    _Experiment,
     _parse_direct_answer,
     _planner_for_ablation,
     _policy_observation,
+    _RecordingGenerator,
 )
 from finproof.evaluation.ablation_experiment import (
     _measurement as _experiment_measurement,
@@ -23,11 +28,30 @@ from finproof.evaluation.ablation_experiment import (
 from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import load_golden_cases, suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
-from finproof.planner.service import HcxGenerator, LocalPlanValidator
+from finproof.planner.service import (
+    HcxGenerator,
+    LocalPlanValidator,
+    PlannedQuery,
+    PlanningRequest,
+)
 from finproof.planner.structured_planner import StructuredOutputPlanner
 from finproof.quality import PolicyExecutionResult
 from finproof.quality.metric_policy import MetricPolicyResult
 from finproof.registry.loader import RegistryBundle
+from finproof.runtime import RuntimeArtifactSession
+
+
+class _FailingPlanner:
+    async def plan(self, _request: PlanningRequest) -> PlannedQuery:
+        raise ValueError("local plan validation failed")
+
+
+class _UsageGenerator:
+    def __init__(self) -> None:
+        self.responses: list[object] = []
+
+    def usage_since(self, _index: int) -> tuple[int, int]:
+        return 13, 8
 
 
 def _measurement(
@@ -209,6 +233,40 @@ def test_direct_ablation_accepts_one_hcx_json_fence() -> None:
 
     assert answer.answer == "조회 결과"
     assert not answer.limitation_present
+
+
+@pytest.mark.asyncio
+async def test_ablation_keeps_tokens_when_structured_plan_validation_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = load_golden_cases((Path("evaluation/canonical/clarification.jsonl"),))[0]
+    plan = _approved_plans(Path.cwd(), (case,))[case.case_id]
+    experiment = object.__new__(_Experiment)
+    experiment.session = cast(
+        RuntimeArtifactSession,
+        SimpleNamespace(versions=SimpleNamespace(execution_mode=ExecutionMode.EVALUATION)),
+    )
+    experiment.planner = _FailingPlanner()
+    experiment.generator = cast(_RecordingGenerator, _UsageGenerator())
+
+    async def direct(
+        self: _Experiment,
+        measured_case: GoldenCase,
+        approved_plan: QueryPlan,
+        repeat: int,
+    ) -> _CaseRun:
+        return _CaseRun(
+            observation=ObservedCase(latency_ms=(1,)),
+            latency_ms=1,
+            prompt_tokens=1,
+            completion_tokens=1,
+        )
+
+    monkeypatch.setattr(_Experiment, "_direct", direct)
+    runs = await experiment.run_case(case, plan, 1)
+
+    assert all(run.prompt_tokens == 13 for run in tuple(runs.values())[1:])
+    assert all(run.completion_tokens == 8 for run in tuple(runs.values())[1:])
 
 
 def test_domain_policy_observation_does_not_require_the_evidence_stage() -> None:

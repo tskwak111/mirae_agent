@@ -151,7 +151,8 @@ class _Experiment:
             planned = await self.planner.plan(self._planning_request(case))
         except Exception:  # provider/domain errors become measured failures
             elapsed = _elapsed_ms(planning_started)
-            failed = _failed_run(elapsed)
+            prompt_tokens, completion_tokens = self.generator.usage_since(usage_index)
+            failed = _failed_run(elapsed, prompt_tokens, completion_tokens)
             runs.update(dict.fromkeys(tuple(AblationVariant)[1:], failed))
             return runs
         prompt_tokens, completion_tokens = self.generator.usage_since(usage_index)
