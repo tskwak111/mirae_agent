@@ -172,7 +172,7 @@ class ArtifactBuildTelemetry(BaseModel):
             or self.max_live_fund_group_rows > 16
             or self.max_writer_batch_rows > 65_536
             or self.max_verifier_batch_rows > 65_536
-            or self.max_bronze_reconstruction_cells > 73
+            or self.max_bronze_reconstruction_cells > 98
             or self.linked_domestic_record_json_parses > 217
             or self.linked_fund_record_json_parses > 217
             or self.max_live_link_keys > 217
@@ -932,6 +932,8 @@ def _build_private_live_candidate(
     settings: Settings,
     versions: VersionBundle,
     options: ArtifactBuildOptions,
+    *,
+    expected_exact_link_pairs: frozenset[tuple[str, str]] | None = None,
 ) -> _LiveArtifactBuildCandidate:
     if (
         type(settings) is not Settings
@@ -965,6 +967,14 @@ def _build_private_live_candidate(
                 config=config,
                 versions=versions,
             )
+            if expected_exact_link_pairs is not None:
+                require_exact_link_pair_conservation(
+                    emitted_pairs=frozenset(
+                        (row.left_product_id, row.right_product_id)
+                        for row in complete.exact_link_build_result.links
+                    ),
+                    independently_scanned_pairs=expected_exact_link_pairs,
+                )
             candidate, observed = _finalize_complete_candidate(
                 session=session,
                 complete=complete,
@@ -977,6 +987,31 @@ def _build_private_live_candidate(
         candidate=candidate,
         observations=observed,
     )
+
+
+def require_exact_link_pair_conservation(
+    *,
+    emitted_pairs: frozenset[tuple[str, str]],
+    independently_scanned_pairs: frozenset[tuple[str, str]],
+) -> None:
+    """Require one official candidate to preserve the sealed independent pair set."""
+    for name, pairs in (
+        ("emitted", emitted_pairs),
+        ("independently scanned", independently_scanned_pairs),
+    ):
+        if (
+            type(pairs) is not frozenset
+            or len(pairs) != 217
+            or any(
+                type(pair) is not tuple
+                or len(pair) != 2
+                or any(type(value) is not str or not value for value in pair)
+                for pair in pairs
+            )
+        ):
+            raise ValueError(f"{name} pair set is outside the sealed contract")
+    if emitted_pairs != independently_scanned_pairs:
+        raise ValueError("official candidate pair set differs from the independent scan")
 
 
 def _discard_live_candidate_to_core_outcome(

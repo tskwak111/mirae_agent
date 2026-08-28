@@ -42,6 +42,7 @@ from finproof.data.artifacts.staging import (
     FundExactLinkCandidate,
 )
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TableSpec
+from finproof.data.holdings import HoldingOwnerType, build_holding_relations
 from finproof.data.normalization.bonds import normalize_bond_lot, project_bond_instrument
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
 from finproof.data.normalization.overseas_listed import normalize_overseas_listed
@@ -53,6 +54,7 @@ from finproof.domain.normalization import NormalizationResult
 from finproof.domain.overseas_listed import OverseasListedProduct
 from finproof.domain.public_funds import PublicFundItem
 from finproof.domain.quality import DataQualityIssue
+from finproof.domain.query_plan import ProductType
 from finproof.domain.source import SourceRow
 from finproof.registry.rating import RatingRegistry
 
@@ -63,6 +65,8 @@ _STAGED_RELATION_NAMES = (
     "SILVER_OVERSEAS_LISTED_PRODUCT",
     "SILVER_FUND_ITEM",
     "SILVER_QUALITY_ISSUE",
+    "SILVER_PRODUCT_HOLDING",
+    "SILVER_PRODUCT_HOLDING_COVERAGE",
 )
 
 
@@ -198,7 +202,7 @@ class _SilverBuildResultProvenance:
 
 @dataclass(frozen=True, init=False, slots=True)
 class SilverBuildResult(_SilverBuildResultProvenance):
-    """Builder-issued carrier for one verified nine-table Silver stage."""
+    """Builder-issued carrier for one verified eleven-table Silver stage."""
 
     input_identity: BuildInputIdentity
     staged_tables: StagedParquetSet
@@ -247,7 +251,7 @@ class SilverBuildResult(_SilverBuildResultProvenance):
             staged_tables._owner is not exact_bronze.staged_tables._owner
             or staged_tables.persistence_timestamp
             != exact_bronze.staged_tables.persistence_timestamp
-            or staged_names != tuple(TABLE_SPEC_BY_NAME)[:9]
+            or staged_names != tuple(TABLE_SPEC_BY_NAME)[:11]
             or len(bronze_verifications) != 3
             or any(
                 staged_tables.verifications[index] is not bronze_verifications[index]
@@ -291,6 +295,16 @@ class SilverBuildResult(_SilverBuildResultProvenance):
             != observed_rows["silver_overseas_listed_product"]
             or not 0 <= unstaged_fund_rows <= quality_join_observations.quarantined_source_row_count
             or staged_counts["SILVER_QUALITY_ISSUE"] != observed_rows["silver_quality_issue"]
+            or staged_counts["SILVER_PRODUCT_HOLDING"] != observed_rows["silver_product_holding"]
+            or staged_counts["SILVER_PRODUCT_HOLDING_COVERAGE"]
+            != observed_rows["silver_product_holding_coverage"]
+            or staged_counts["SILVER_PRODUCT_HOLDING"] != 0
+            or staged_counts["SILVER_PRODUCT_HOLDING_COVERAGE"]
+            != (
+                observed_rows["silver_domestic_listed_product"]
+                + observed_rows["silver_overseas_listed_product"]
+                + observed_rows["silver_fund_item"]
+            )
         ):
             raise ValueError("Silver result instrumentation relationship changed")
         try:
@@ -475,21 +489,21 @@ def require_silver_build_result_successor(
         raise TypeError("Silver instrumentation must have the exact runtime type")
     successor.assert_live()
     if (
-        len(prefix.verifications) != 9
-        or len(successor.verifications) != 11
+        len(prefix.verifications) != 11
+        or len(successor.verifications) != 13
         or prefix._owner is not successor._owner
         or prefix.persistence_timestamp != successor.persistence_timestamp
         or any(
             actual is not expected
             for actual, expected in zip(
-                successor.verifications[:9], prefix.verifications, strict=True
+                successor.verifications[:11], prefix.verifications, strict=True
             )
         )
         or any(
             actual is not expected
-            for actual, expected in zip(successor.handles[:9], prefix.handles, strict=True)
+            for actual, expected in zip(successor.handles[:11], prefix.handles, strict=True)
         )
-        or tuple(item.logical.name for item in successor.verifications[9:])
+        or tuple(item.logical.name for item in successor.verifications[11:])
         != (
             "gold_exact_cross_source_link",
             "gold_exact_cross_source_link_evidence",
@@ -518,6 +532,7 @@ class SilverArtifactEmitter:
         "_config",
         "_excluded_counts",
         "_held_rating_registry",
+        "_holding_enabled_products",
         "_instrumentation",
         "_max_live_fund_group_rows",
         "_max_relation_batch_rows",
@@ -538,6 +553,7 @@ class SilverArtifactEmitter:
     _config: ArtifactBuildConfig
     _excluded_counts: dict[str, int]
     _held_rating_registry: RatingRegistry
+    _holding_enabled_products: list[tuple[HoldingOwnerType, str]]
     _instrumentation: SilverBuildInstrumentation | None
     _max_live_fund_group_rows: int
     _max_relation_batch_rows: int
@@ -581,6 +597,7 @@ class SilverArtifactEmitter:
         value._config = config
         value._versions = versions
         value._held_rating_registry = rating_registry
+        value._holding_enabled_products = []
         value._max_live_fund_group_rows = 0
         value._max_relation_batch_rows = 0
         value._max_writer_batch_rows = 0
@@ -679,6 +696,27 @@ class SilverArtifactEmitter:
                 ),
             ),
         )
+        if type(record) is ListedProduct:
+            listed_type = record.product_type.normalized_value
+            owner_type: HoldingOwnerType
+            if listed_type == "ETF":
+                owner_type = ProductType.DOMESTIC_ETF
+            elif listed_type == "ETN":
+                owner_type = ProductType.DOMESTIC_ETN
+            else:  # pragma: no cover - strict listed normalization enum
+                raise ValueError("domestic listed holding owner type is unknown")
+            self._holding_enabled_products.append((owner_type, product_id))
+        elif type(record) is OverseasListedProduct:
+            listed_type = record.product_type.normalized_value
+            if listed_type == "ETF":
+                owner_type = ProductType.OVERSEAS_ETF
+            elif listed_type == "ETN":
+                owner_type = ProductType.OVERSEAS_ETN
+            else:  # pragma: no cover - strict listed normalization enum
+                raise ValueError("overseas listed holding owner type is unknown")
+            self._holding_enabled_products.append((owner_type, product_id))
+        elif type(record) is PublicFundItem:
+            self._holding_enabled_products.append((ProductType.PUBLIC_FUND, product_id))
         if (
             relation is ExternalOrderRelation.SILVER_DOMESTIC_LISTED_PRODUCT
             and type(result.record) is ListedProduct
@@ -881,6 +919,8 @@ class SilverArtifactEmitter:
             "silver_overseas_listed_product",
             "silver_fund_item",
             "silver_quality_issue",
+            "silver_product_holding",
+            "silver_product_holding_coverage",
         )
         specs = tuple(TABLE_SPEC_BY_NAME[name] for name in table_names)
         leaves = tuple(self._session.claim_parquet_leaf(spec) for spec in specs)
@@ -921,6 +961,26 @@ class SilverArtifactEmitter:
                 specs[5],
                 sinks[5],
             )
+            # ponytail: sealed official ceiling is 31,492; move this inventory to the
+            # external-order store before admitting a larger official product universe.
+            if len(self._holding_enabled_products) > 31_492:
+                raise ValueError("holding coverage inventory exceeds the sealed ceiling")
+            holdings, coverage = build_holding_relations(
+                enabled_products=tuple(
+                    sorted(
+                        self._holding_enabled_products,
+                        key=lambda item: (item[0].value, item[1]),
+                    )
+                ),
+                generations=(),
+                approved_owner_mappings=(),
+            )
+            for holding_row in holdings:
+                sinks[6].enqueue(serialize_table_row(specs[6], holding_row))
+            for coverage_row in coverage:
+                sinks[7].enqueue(serialize_table_row(specs[7], coverage_row))
+            self._staged_relation_rows["SILVER_PRODUCT_HOLDING"] = len(holdings)
+            self._staged_relation_rows["SILVER_PRODUCT_HOLDING_COVERAGE"] = len(coverage)
             for sink in sinks:
                 sink.close()
             self._max_writer_batch_rows = max(

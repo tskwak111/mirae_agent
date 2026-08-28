@@ -1183,7 +1183,12 @@ def test_silver_instrumentation_has_exact_names_counts_and_bounds(tmp_path: Path
         "SILVER_OVERSEAS_LISTED_PRODUCT",
         "SILVER_FUND_ITEM",
         "SILVER_QUALITY_ISSUE",
+        "SILVER_PRODUCT_HOLDING",
+        "SILVER_PRODUCT_HOLDING_COVERAGE",
     )
+    staged = {item.name: item.observed for item in instrumentation.staged_relation_rows}
+    assert staged["SILVER_PRODUCT_HOLDING"] == 0
+    assert staged["SILVER_PRODUCT_HOLDING_COVERAGE"] == 3
     assert 0 <= instrumentation.max_live_fund_group_rows <= 16
     assert 0 <= instrumentation.max_writer_batch_rows <= 65_536
     assert 0 <= instrumentation.max_relation_batch_rows <= 65_536
@@ -1261,7 +1266,7 @@ def test_silver_finalizer_accepts_unstaged_malformed_fund_row_backed_by_quality_
     ) == (("fund_item", 1),)
 
 
-def test_silver_result_successor_validator_accepts_only_exact_registered_eleven_table_successor(
+def test_silver_result_successor_validator_accepts_only_exact_registered_thirteen_table_successor(
     tmp_path: Path,
 ) -> None:
     from finproof.core.versions import VersionBundle
@@ -1327,10 +1332,10 @@ def test_silver_result_successor_validator_accepts_only_exact_registered_eleven_
         assert all(
             actual is expected
             for actual, expected in zip(
-                successor.verifications[:9], prefix_verifications, strict=True
+                successor.verifications[:11], prefix_verifications, strict=True
             )
         )
         assert all(
             actual is expected
-            for actual, expected in zip(successor.handles[:9], prefix_handles, strict=True)
+            for actual, expected in zip(successor.handles[:11], prefix_handles, strict=True)
         )

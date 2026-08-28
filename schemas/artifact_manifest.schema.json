@@ -92,8 +92,8 @@
     "versions": {"$ref": "#/$defs/artifactVersions"},
     "files": {
       "type": "array",
-      "minItems": 14,
-      "maxItems": 14,
+      "minItems": 16,
+      "maxItems": 16,
       "prefixItems": [
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "finproof.duckdb"}, "kind": {"const": "duckdb"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/bronze_source_cell.parquet"}, "kind": {"const": "parquet"}}}]},
@@ -106,6 +106,8 @@
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_domestic_listed_product.parquet"}, "kind": {"const": "parquet"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_fund_item.parquet"}, "kind": {"const": "parquet"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_overseas_listed_product.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_product_holding.parquet"}, "kind": {"const": "parquet"}}}]},
+        {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_product_holding_coverage.parquet"}, "kind": {"const": "parquet"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "parquet/silver_quality_issue.parquet"}, "kind": {"const": "parquet"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "reports/quality_summary.json"}, "kind": {"const": "report"}, "report_id": {"const": "quality_summary"}}}]},
         {"allOf": [{"$ref": "#/$defs/artifactFile"}, {"properties": {"path": {"const": "reports/source_audit.json"}, "kind": {"const": "report"}, "report_id": {"const": "source_audit"}}}]}
@@ -131,6 +133,8 @@
         "silver_domestic_listed_product",
         "silver_fund_item",
         "silver_overseas_listed_product",
+        "silver_product_holding",
+        "silver_product_holding_coverage",
         "silver_quality_issue"
       ],
       "properties": {
@@ -164,12 +168,18 @@
         "silver_overseas_listed_product": {
           "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_overseas_listed_product"}, "layer": {"const": "silver"}, "grain": {"const": "listed_product"}, "parquet_path": {"const": "parquet/silver_overseas_listed_product.parquet"}}}]
         },
+        "silver_product_holding": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_product_holding"}, "layer": {"const": "silver"}, "grain": {"const": "product_holding"}, "parquet_path": {"const": "parquet/silver_product_holding.parquet"}}}]
+        },
+        "silver_product_holding_coverage": {
+          "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_product_holding_coverage"}, "layer": {"const": "silver"}, "grain": {"const": "product_holding_coverage"}, "parquet_path": {"const": "parquet/silver_product_holding_coverage.parquet"}}}]
+        },
         "silver_quality_issue": {
           "allOf": [{"$ref": "#/$defs/artifactTable"}, {"properties": {"table_name": {"const": "silver_quality_issue"}, "layer": {"const": "silver"}, "grain": {"const": "quality_issue"}, "parquet_path": {"const": "parquet/silver_quality_issue.parquet"}}}]
         }
       },
-      "minProperties": 11,
-      "maxProperties": 11
+      "minProperties": 13,
+      "maxProperties": 13
     },
     "logical_hash": {"$ref": "#/$defs/sha256"}
   },

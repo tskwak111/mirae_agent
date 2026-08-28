@@ -17,6 +17,7 @@ from finproof.data.artifacts.table_specs import (
     require_registered_spec,
     require_registered_table_spec,
 )
+from finproof.data.holdings import HoldingCoverageRecord, HoldingRecord
 from finproof.domain.bonds import BondInstrument, BondSaleLot
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.locators import SourceCellLocator
@@ -103,6 +104,8 @@ _EXPLICIT_MODEL_BY_SPEC_ID: dict[int, type[BaseModel]] = {
     id(
         TABLE_SPEC_BY_NAME["gold_exact_cross_source_link_evidence"]
     ): ExactCrossSourceLinkEvidenceRecord,
+    id(TABLE_SPEC_BY_NAME["silver_product_holding"]): HoldingRecord,
+    id(TABLE_SPEC_BY_NAME["silver_product_holding_coverage"]): HoldingCoverageRecord,
 }
 
 _EXPLICIT_MODEL_BY_TABLE_NAME: dict[str, type[BaseModel]] = {
@@ -113,6 +116,8 @@ _EXPLICIT_MODEL_BY_TABLE_NAME: dict[str, type[BaseModel]] = {
     TABLE_SPEC_BY_NAME[
         "gold_exact_cross_source_link_evidence"
     ].table_name: ExactCrossSourceLinkEvidenceRecord,
+    TABLE_SPEC_BY_NAME["silver_product_holding"].table_name: HoldingRecord,
+    TABLE_SPEC_BY_NAME["silver_product_holding_coverage"].table_name: HoldingCoverageRecord,
 }
 
 _WIDE_MODEL_BY_SPEC_ID: dict[int, type[BaseModel]] = {
@@ -192,11 +197,70 @@ def validate_physical_row(spec: TableSpec, row: Mapping[str, object]) -> None:
 
 
 def _serialize_explicit(spec: TableSpec, value: BaseModel) -> Mapping[str, object]:
-    if type(value) is DataQualityIssue:
+    row: dict[str, object]
+    if type(value) is HoldingRecord:
+        holding = value
+        row = {
+            "generation_id": holding.generation_id,
+            "owner_product_type": holding.owner_product_type.value,
+            "owner_product_id": holding.owner_product_id,
+            "owner_source_identifier": holding.owner_source_identifier,
+            "owner_identifier_type": holding.owner_identifier_type,
+            "owner_link_method": holding.owner_link_method,
+            "constituent_identifier": holding.constituent_identifier,
+            "constituent_identifier_type": holding.constituent_identifier_type,
+            "raw_name": holding.raw_name,
+            "display_name": holding.display_name,
+            "quantity": holding.quantity.normalized_value,
+            "quantity_unit": holding.quantity_unit,
+            "market_value": holding.market_value.normalized_value,
+            "market_value_currency": holding.market_value_currency,
+            "weight": holding.weight.normalized_value,
+            "weight_unit": holding.weight_unit,
+            "source_owner": holding.source_owner,
+            "source_kind": holding.source_kind,
+            "direct_source_url": holding.direct_source_url,
+            "raw_file_sha256": holding.raw_file_sha256,
+            "source_as_of_date": holding.source_as_of_date,
+            "publication_date": holding.publication_date,
+            "source_row_ordinal": holding.source_row_ordinal,
+            "quality_state": (
+                "unknown_unit"
+                if "unknown"
+                in (
+                    holding.quantity_unit,
+                    holding.market_value_currency,
+                    holding.weight_unit,
+                )
+                else "valid"
+            ),
+            "record_json": canonical_record_json(holding),
+        }
+    elif type(value) is HoldingCoverageRecord:
+        coverage = value
+        row = {
+            "owner_product_type": coverage.owner_product_type.value,
+            "owner_product_id": coverage.owner_product_id,
+            "coverage_state": coverage.coverage_state.value,
+            "source_generation_id": coverage.source_generation_id,
+            "owner_source_identifier": coverage.owner_source_identifier,
+            "owner_identifier_type": coverage.owner_identifier_type,
+            "owner_link_method": coverage.owner_link_method,
+            "source_owner": coverage.source_owner,
+            "source_kind": coverage.source_kind,
+            "direct_source_url": coverage.direct_source_url,
+            "raw_file_sha256": coverage.raw_file_sha256,
+            "source_as_of_date": coverage.source_as_of_date,
+            "publication_date": coverage.publication_date,
+            "observed_holding_count": coverage.observed_holding_count,
+            "limitation_code": coverage.limitation_code,
+            "record_json": canonical_record_json(coverage),
+        }
+    elif type(value) is DataQualityIssue:
         if value.first_detected_at is None:
             raise ValueError("quality issue must already be persisted")
         source = value.source
-        row: dict[str, object] = {
+        row = {
             "issue_id": value.issue_id,
             "rule_id": value.rule_id,
             "rule_version": value.rule_version,
@@ -487,4 +551,20 @@ def logical_table_row(spec: TableSpec, row: Mapping[str, object]) -> Mapping[str
         )
         logical["first_detected_at"] = None
         logical["record_json"] = canonical_record_json(neutral)
+    elif spec in (
+        TABLE_SPEC_BY_NAME["silver_product_holding"],
+        TABLE_SPEC_BY_NAME["silver_product_holding_coverage"],
+    ):
+        record_json = row["record_json"]
+        if type(record_json) is not str:
+            raise ValueError("holding record_json must be an exact string")
+        model_type = _EXPLICIT_MODEL_BY_SPEC_ID[id(spec)]
+        try:
+            parsed = model_type.model_validate_json(record_json, strict=True)
+        except ValidationError as exc:
+            raise ValueError("holding record_json does not match its model") from exc
+        if canonical_record_json(parsed) != record_json:
+            raise ValueError("holding record_json must be canonical")
+        if dict(_serialize_explicit(spec, parsed)) != dict(row):
+            raise ValueError("holding typed/JSON projection agreement is required")
     return logical

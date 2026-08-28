@@ -23,12 +23,12 @@ def test_official_artifact_build_reports_bounded_architectural_memory(
     assert telemetry.max_live_fund_group_rows <= 16
     assert telemetry.max_writer_batch_rows <= 65_536
     assert telemetry.max_verifier_batch_rows <= 65_536
-    assert telemetry.max_bronze_reconstruction_cells <= 73
-    assert telemetry.linked_domestic_record_json_parses == 47
-    assert telemetry.linked_fund_record_json_parses == 47
-    assert telemetry.max_live_link_keys <= 47
-    assert telemetry.max_live_evidence_keys <= 371
-    assert len(telemetry.physical_files) == 14
+    assert telemetry.max_bronze_reconstruction_cells <= 98
+    assert telemetry.linked_domestic_record_json_parses == 217
+    assert telemetry.linked_fund_record_json_parses == 217
+    assert telemetry.max_live_link_keys <= 217
+    assert telemetry.max_live_evidence_keys <= 434
+    assert len(telemetry.physical_files) == 16
     for workspace in (telemetry.staging_workspace, telemetry.verifier_workspace):
         assert workspace.mode == 0o700
         assert workspace.marker_owned is True

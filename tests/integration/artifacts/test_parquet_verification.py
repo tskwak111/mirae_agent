@@ -1319,7 +1319,7 @@ def test_extend_verified_supersession_is_atomic_on_validation_and_owner_registra
 
 
 @pytest.mark.parametrize("case", ["partial", "reordered", "duplicate", "complete"])
-def test_require_complete_accepts_only_exact_eleven_registered_tables_in_frozen_order(
+def test_require_complete_accepts_only_exact_thirteen_registered_tables_in_frozen_order(
     tmp_path: Path, case: str
 ) -> None:
     from finproof.data.artifacts.parquet_io import StagedParquetSet
@@ -3233,7 +3233,7 @@ def test_final_adapter_requires_complete_manifest_inventory_and_declared_entry(
         assert tuple(table.name for table in result.tables) == tuple(
             spec.table_name for spec in TABLE_SPECS
         )
-        assert len(result.handles) == 11
+        assert len(result.handles) == 13
 
 
 def test_final_adapter_independently_rechecks_all_facts_and_returns_inventory_owned_result(

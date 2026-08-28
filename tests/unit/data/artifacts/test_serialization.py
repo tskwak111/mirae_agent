@@ -1,4 +1,4 @@
-# mypy: disable-error-code="arg-type,misc,no-untyped-call,no-untyped-def,union-attr"
+# mypy: disable-error-code="arg-type,attr-defined,misc,no-untyped-call,no-untyped-def,union-attr"
 """Strict artifact table serialization contracts."""
 
 from datetime import date
@@ -73,6 +73,38 @@ def _fund_record() -> PublicFundItem:
     )
     assert result.record is not None
     return result.record
+
+
+def test_holding_rows_serialize_with_canonical_complete_raw_lineage() -> None:
+    from finproof.data.artifacts.serialization import (
+        canonical_record_json,
+        logical_table_row,
+        serialize_table_row,
+    )
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
+    from finproof.data.holdings import HoldingCoverageRecord, HoldingRecord
+    from tests.unit.data.test_holdings import _admitted_generation
+
+    generation = _admitted_generation()
+    holding = generation.holdings[0]
+    holding_spec = TABLE_SPEC_BY_NAME["silver_product_holding"]
+    holding_row = serialize_table_row(holding_spec, holding)
+    assert holding_row["quantity"] == holding.quantity.normalized_value
+    assert holding_row["quality_state"] == "valid"
+    assert holding_row["record_json"] == canonical_record_json(holding)
+    assert HoldingRecord.model_validate_json(holding_row["record_json"], strict=True) == holding
+    assert logical_table_row(holding_spec, holding_row) == holding_row
+
+    coverage = generation.coverage[0]
+    coverage_spec = TABLE_SPEC_BY_NAME["silver_product_holding_coverage"]
+    coverage_row = serialize_table_row(coverage_spec, coverage)
+    assert coverage_row["coverage_state"] == "partial_top_10"
+    assert coverage_row["record_json"] == canonical_record_json(coverage)
+    assert (
+        HoldingCoverageRecord.model_validate_json(coverage_row["record_json"], strict=True)
+        == coverage
+    )
+    assert logical_table_row(coverage_spec, coverage_row) == coverage_row
 
 
 def test_refreshed_bond_lot_record_json_round_trip_preserves_every_field_and_lineage() -> None:

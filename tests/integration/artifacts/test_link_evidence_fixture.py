@@ -228,7 +228,7 @@ def test_exact_gold_writers_use_only_registered_link_and_evidence_specs(
         custody.close()
 
 
-def test_exact_gold_verification_extends_same_set_atomically_from_nine_to_eleven_and_preserves_prefix_identity(  # noqa: E501
+def test_exact_gold_verification_extends_same_set_atomically_from_eleven_to_thirteen_and_preserves_prefix_identity(  # noqa: E501
     tmp_path: Path,
 ) -> None:
     from finproof.core.versions import VersionBundle
@@ -323,14 +323,15 @@ def test_exact_gold_verification_extends_same_set_atomically_from_nine_to_eleven
             verifications=gold,
         )
 
-        assert len(successor.verifications) == 11
-        assert successor.verifications[:9] == prefix_verifications
+        assert len(successor.verifications) == 13
+        assert successor.verifications[:11] == prefix_verifications
         assert all(
             left is right
-            for left, right in zip(successor.verifications[:9], prefix_verifications, strict=True)
+            for left, right in zip(successor.verifications[:11], prefix_verifications, strict=True)
         )
         assert all(
-            left is right for left, right in zip(successor.handles[:9], prefix_handles, strict=True)
+            left is right
+            for left, right in zip(successor.handles[:11], prefix_handles, strict=True)
         )
         assert successor.persistence_timestamp == silver_result.staged_tables.persistence_timestamp
         custody.close()
@@ -423,7 +424,7 @@ def test_complete_builder_follows_exact_order_closes_custody_then_issues_exact_s
             "source_audit_report",
         )
         assert result.silver_result is silver_result
-        assert len(result.staged_tables.verifications) == 11
+        assert len(result.staged_tables.verifications) == 13
         assert custody._candidate_state == "CLOSED"
 
 

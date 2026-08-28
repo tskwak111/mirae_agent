@@ -22,15 +22,17 @@ from tests.helpers.artifacts import (
 
 def test_fixture_artifact_contract_uses_refreshed_native_inventory() -> None:
     assert TABLES == (
-        ("bronze_source_column", "source_column", 251),
+        ("bronze_source_column", "source_column", 280),
         ("bronze_source_row", "source_row", 53_375),
-        ("bronze_source_cell", "source_cell", 2_828_505),
+        ("bronze_source_cell", "source_cell", 3_515_109),
         ("silver_bond_sale_lot", "bond_sale_lot", 21_882),
         ("silver_bond_instrument", "instrument", 20_497),
         ("silver_domestic_listed_product", "listed_product", 1_779),
         ("silver_overseas_listed_product", "listed_product", 6_037),
         ("silver_fund_item", "fund_item", 23_676),
         ("silver_quality_issue", "quality_issue", 1),
+        ("silver_product_holding", "product_holding", 0),
+        ("silver_product_holding_coverage", "product_holding_coverage", 31_492),
         ("gold_exact_cross_source_link", "exact_cross_source_link", 217),
         ("gold_exact_cross_source_link_evidence", "exact_cross_source_link_evidence", 434),
     )

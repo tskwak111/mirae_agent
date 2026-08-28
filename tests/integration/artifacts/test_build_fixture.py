@@ -78,7 +78,7 @@ def _strict_outcome() -> Any:
         max_live_fund_group_rows=16,
         max_writer_batch_rows=65_536,
         max_verifier_batch_rows=65_536,
-        max_bronze_reconstruction_cells=73,
+        max_bronze_reconstruction_cells=98,
         linked_domestic_record_json_parses=47,
         linked_fund_record_json_parses=47,
         max_live_link_keys=47,
@@ -115,7 +115,7 @@ def test_private_core_outcome_binds_manifest_logical_and_physical_facts() -> Non
     outcome = _strict_outcome()
     assert type(outcome) is ArtifactCoreBuildOutcome
     assert outcome.telemetry.persistence_timestamp == outcome.manifest.persistence_timestamp
-    assert len(outcome.telemetry.physical_files) == 14
+    assert len(outcome.telemetry.physical_files) == 16
     assert set(outcome.telemetry.staging_workspace.model_dump()) == {
         "mode",
         "marker_owned",
@@ -124,6 +124,22 @@ def test_private_core_outcome_binds_manifest_logical_and_physical_facts() -> Non
         "threads",
         "memory_limit",
     }
+
+
+def test_build_telemetry_uses_refreshed_maximum_source_width_98() -> None:
+    from pydantic import ValidationError
+
+    from finproof.data.artifacts.builder import ArtifactBuildTelemetry
+
+    payload = _strict_outcome().telemetry.model_dump(mode="python")
+    payload["max_bronze_reconstruction_cells"] = 98
+    assert (
+        ArtifactBuildTelemetry.model_validate(payload, strict=True).max_bronze_reconstruction_cells
+        == 98
+    )
+    payload["max_bronze_reconstruction_cells"] = 99
+    with pytest.raises(ValidationError, match="incomplete or unbounded"):
+        ArtifactBuildTelemetry.model_validate(payload, strict=True)
 
 
 @pytest.mark.parametrize(

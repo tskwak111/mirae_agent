@@ -801,6 +801,8 @@ _TABLE_IDENTITIES = {
     "silver_overseas_listed_product": ("silver", "listed_product"),
     "silver_fund_item": ("silver", "fund_item"),
     "silver_quality_issue": ("silver", "quality_issue"),
+    "silver_product_holding": ("silver", "product_holding"),
+    "silver_product_holding_coverage": ("silver", "product_holding_coverage"),
     "gold_exact_cross_source_link": ("gold", "exact_cross_source_link"),
     "gold_exact_cross_source_link_evidence": (
         "gold",
@@ -829,6 +831,8 @@ _VERIFIED_TABLE_ORDER = (
     "silver_overseas_listed_product",
     "silver_fund_item",
     "silver_quality_issue",
+    "silver_product_holding",
+    "silver_product_holding_coverage",
     "gold_exact_cross_source_link",
     "gold_exact_cross_source_link_evidence",
 )
@@ -843,6 +847,8 @@ _VERIFIED_TABLE_GRAINS = (
     "listed_product",
     "fund_item",
     "quality_issue",
+    "product_holding",
+    "product_holding_coverage",
     "exact_cross_source_link",
     "exact_cross_source_link_evidence",
 )

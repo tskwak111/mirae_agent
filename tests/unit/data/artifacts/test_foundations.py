@@ -794,9 +794,9 @@ def test_expected_contract_accepts_exact_synthetic_contract() -> None:
 
     contract = ExpectedPhase1ArtifactContract.model_validate(expected_contract_payload())
 
-    assert contract.dataset_version.isoformat() == "2026-07-11"
+    assert contract.dataset_version.isoformat() == "2026-08-24"
     assert len(contract.logical_inputs) == 9
-    assert len(contract.tables) == 11
+    assert len(contract.tables) == 13
     assert tuple(report.report_id for report in contract.reports) == (
         "source_audit",
         "quality_summary",
@@ -831,7 +831,7 @@ def test_expected_contract_requires_official_dataset_date() -> None:
     payload = expected_contract_payload()
     payload["dataset_version"] = date(2026, 7, 10)
 
-    with pytest.raises(ValidationError, match="2026-07-11"):
+    with pytest.raises(ValidationError, match="2026-08-24"):
         ExpectedPhase1ArtifactContract.model_validate(payload)
 
 

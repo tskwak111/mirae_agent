@@ -97,13 +97,45 @@ def test_artifact_manifest_exact_valid_shape() -> None:
         tuple((entry.namespace, entry.path, entry.kind) for entry in manifest.source_inputs)
         == INPUTS
     )
-    assert len(manifest.files) == 14
+    assert len(manifest.files) == 16
     assert tuple(manifest.tables) == tuple(name for name, _, _ in sorted(TABLES))
     assert isinstance(manifest.tables, MappingProxyType)
     with pytest.raises(TypeError):
         cast(dict[str, Any], manifest.tables)["other"] = manifest.tables["bronze_source_cell"]
     with pytest.raises(ValidationError):
         manifest.logical_hash = "a" * 64
+
+
+def test_holding_manifest_schema_and_expected_contract_require_final_thirteen_tables() -> None:
+    import json
+
+    from jsonschema import Draft202012Validator, FormatChecker
+
+    from finproof.data.artifacts.expected_contract import ExpectedPhase1ArtifactContract
+
+    payload = manifest_payload()
+    manifest = ArtifactManifest.model_validate(payload, strict=True)
+    schema = json.loads(
+        (Path(__file__).resolve().parents[4] / "schemas/artifact_manifest.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+
+    assert len(manifest.tables) == 13
+    assert len(manifest.files) == 16
+    validator.validate(manifest.model_dump(mode="json"))
+
+    expected_payload = expected_contract_payload()
+    expected = ExpectedPhase1ArtifactContract.model_validate(expected_payload, strict=True)
+    assert tuple(table.name for table in expected.tables[9:11]) == (
+        "silver_product_holding",
+        "silver_product_holding_coverage",
+    )
+
+    expected_payload["tables"] = expected_payload["tables"][:-2]
+    with pytest.raises(ValidationError, match="exact closed order"):
+        ExpectedPhase1ArtifactContract.model_validate(expected_payload, strict=True)
 
 
 @pytest.mark.parametrize(

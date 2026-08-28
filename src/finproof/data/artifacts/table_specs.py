@@ -8,6 +8,7 @@ from typing import Literal, cast, get_args
 
 from pydantic import BaseModel, ConfigDict
 
+from finproof.data.holdings import HoldingCoverageRecord, HoldingRecord
 from finproof.domain.bonds import BondInstrument, BondSaleLot
 from finproof.domain.domestic_listed import ListedProduct
 from finproof.domain.overseas_listed import OverseasListedProduct
@@ -392,6 +393,65 @@ _GOLD_EVIDENCE_SPEC = _explicit_spec(
     sort_key=("link_id", "evidence_role_order", "evidence_ordinal"),
 )
 
+_HOLDING_SPEC = _explicit_spec(
+    "silver_product_holding",
+    "product_holding",
+    (
+        _column("generation_id"),
+        _column("owner_product_type"),
+        _column("owner_product_id"),
+        _column("owner_source_identifier"),
+        _column("owner_identifier_type"),
+        _column("owner_link_method"),
+        _column("constituent_identifier"),
+        _column("constituent_identifier_type"),
+        _column("raw_name"),
+        _column("display_name"),
+        _column("quantity", "decimal", nullable=True),
+        _column("quantity_unit", nullable=True),
+        _column("market_value", "decimal", nullable=True),
+        _column("market_value_currency", nullable=True),
+        _column("weight", "decimal", nullable=True),
+        _column("weight_unit", nullable=True),
+        _column("source_owner"),
+        _column("source_kind"),
+        _column("direct_source_url"),
+        _column("raw_file_sha256"),
+        _column("source_as_of_date", "date"),
+        _column("publication_date", "date"),
+        _column("source_row_ordinal", "int64"),
+        _column("quality_state"),
+        _column("record_json"),
+    ),
+    unique_key=("owner_product_type", "owner_product_id", "source_row_ordinal"),
+    sort_key=("owner_product_type", "owner_product_id", "source_row_ordinal"),
+)
+
+_HOLDING_COVERAGE_SPEC = _explicit_spec(
+    "silver_product_holding_coverage",
+    "product_holding_coverage",
+    (
+        _column("owner_product_type"),
+        _column("owner_product_id"),
+        _column("coverage_state"),
+        _column("source_generation_id", nullable=True),
+        _column("owner_source_identifier", nullable=True),
+        _column("owner_identifier_type", nullable=True),
+        _column("owner_link_method", nullable=True),
+        _column("source_owner", nullable=True),
+        _column("source_kind", nullable=True),
+        _column("direct_source_url", nullable=True),
+        _column("raw_file_sha256", nullable=True),
+        _column("source_as_of_date", "date", nullable=True),
+        _column("publication_date", "date", nullable=True),
+        _column("observed_holding_count", "int64"),
+        _column("limitation_code"),
+        _column("record_json"),
+    ),
+    unique_key=("owner_product_type", "owner_product_id"),
+    sort_key=("owner_product_type", "owner_product_id"),
+)
+
 TABLE_SPECS = (
     *_BRONZE_SPECS,
     _BOND_LOT_SPEC,
@@ -400,6 +460,8 @@ TABLE_SPECS = (
     _OVERSEAS_SPEC,
     _FUND_SPEC,
     _QUALITY_SPEC,
+    _HOLDING_SPEC,
+    _HOLDING_COVERAGE_SPEC,
     _GOLD_LINK_SPEC,
     _GOLD_EVIDENCE_SPEC,
 )
@@ -421,6 +483,8 @@ _EXACT_MODEL_BY_TABLE = MappingProxyType(
         "silver_overseas_listed_product": OverseasListedProduct,
         "silver_fund_item": PublicFundItem,
         "silver_quality_issue": DataQualityIssue,
+        "silver_product_holding": HoldingRecord,
+        "silver_product_holding_coverage": HoldingCoverageRecord,
     }
 )
 _EXACT_MODEL_BY_SPEC_ID = MappingProxyType(

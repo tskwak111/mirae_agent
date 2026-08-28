@@ -1721,10 +1721,10 @@ class ExternalOrderStore:
             if type(exact_ids) is not tuple or any(type(value) is not str for value in exact_ids):
                 raise TypeError("exact IDs are not canonical")
             if operation is ExternalOrderJoinOperation.QUALITY_TO_BRONZE:
-                required = tuple(spec.table_name for spec in TABLE_SPECS[:9])
+                required = tuple(spec.table_name for spec in TABLE_SPECS[:11])
                 tables.require_tables(required)
                 if tuple(item.logical.name for item in tables.verifications) != required:
-                    raise ValueError("quality join requires the exact nine-table set")
+                    raise ValueError("quality join requires the exact eleven-table Silver set")
                 yield from self._iter_quality_to_bronze_batches(tables)
                 return
             required = tuple(spec.table_name for spec in TABLE_SPECS)

@@ -661,7 +661,7 @@ def test_expected_contract_resource_matches_reviewed_source_bytes() -> None:
 
     assert resource == source
     assert hashlib.sha256(resource).hexdigest() == (
-        "67b0d32fd89607a39378aa733a2071bffa146baa66454b3913d0276040f191e9"
+        "b1e06dc44530b206d362dde0a01b4f7b9f77b190a72577ba80079b699b274e01"
     )
     ExpectedPhase1ArtifactContract.model_validate_json(resource, strict=True)
 

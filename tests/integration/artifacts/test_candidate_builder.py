@@ -412,3 +412,22 @@ def test_repository_candidate_parser_accepts_only_required_utc_timestamp() -> No
                 ]
             )
         assert raised.value.code == 2
+
+
+def test_official_refresh_pair_conservation_rejects_same_count_substitution() -> None:
+    from finproof.data.artifacts.builder import require_exact_link_pair_conservation
+
+    independent = frozenset((f"KR{index:010d}", f"FUND-{index:03d}") for index in range(217))
+    require_exact_link_pair_conservation(
+        emitted_pairs=independent,
+        independently_scanned_pairs=independent,
+    )
+    substituted = frozenset(
+        (("KR9999999999", "FUND-X") if index == 216 else (f"KR{index:010d}", f"FUND-{index:03d}"))
+        for index in range(217)
+    )
+    with pytest.raises(ValueError, match="pair set differs"):
+        require_exact_link_pair_conservation(
+            emitted_pairs=substituted,
+            independently_scanned_pairs=independent,
+        )

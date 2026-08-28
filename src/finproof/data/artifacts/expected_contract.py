@@ -323,6 +323,8 @@ _EXPECTED_TABLE_NAMES = (
     "silver_overseas_listed_product",
     "silver_fund_item",
     "silver_quality_issue",
+    "silver_product_holding",
+    "silver_product_holding_coverage",
     "gold_exact_cross_source_link",
     "gold_exact_cross_source_link_evidence",
 )
@@ -337,20 +339,24 @@ _EXPECTED_TABLE_GRAINS = (
     "listed_product",
     "fund_item",
     "quality_issue",
+    "product_holding",
+    "product_holding_coverage",
     "exact_cross_source_link",
     "exact_cross_source_link_evidence",
 )
 
 _EXPECTED_TABLE_COUNTS: tuple[int | None, ...] = (
-    251,
+    280,
     53_375,
-    2_828_505,
+    3_515_109,
     21_882,
     20_497,
     1_779,
     6_037,
     23_676,
     None,
+    0,
+    31_492,
     None,
     None,
 )

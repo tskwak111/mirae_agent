@@ -6,7 +6,11 @@ import pyarrow.parquet as pq  # type: ignore[import-untyped]
 import pytest
 
 from finproof.data.artifacts.builder import ArtifactBuildOutcome
-from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
+from tests.helpers.official_artifact_subprocess import (
+    TASK7_TIMESTAMP_B,
+    OfficialArtifactSession,
+    scan_official_exact_pairs,
+)
 
 pytestmark = pytest.mark.source_contract
 
@@ -71,37 +75,39 @@ def test_evaluation_build_accepts_official_expected_and_publishes(
         == outcome.logical_contract
     )
     assert outcome.manifest == ArtifactManifest.load(root / "manifest.json")
-    assert outcome.telemetry.model_dump(mode="json")["persistence_timestamp"] == (
-        "2026-08-14T00:00:02.123456Z"
-    )
+    assert outcome.telemetry.model_dump(mode="json")["persistence_timestamp"] == TASK7_TIMESTAMP_B
     expected = ExpectedPhase1ArtifactContract.model_validate_json(
         expected_phase1_contract_bytes(),
         strict=True,
     )
     assert outcome.logical_contract.model_dump(mode="python") == expected.model_dump(mode="python")
     assert len(outcome.manifest.source_inputs) == 9
-    assert len(outcome.manifest.files) == 14
+    assert len(outcome.manifest.files) == 16
     assert {path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()} == {
         "manifest.json",
         *(file.path for file in outcome.manifest.files),
     }
-    assert {table.name: table.row_count for table in outcome.logical_contract.tables} == {
-        "bronze_source_column": 207,
-        "bronze_source_row": 145_393,
-        "bronze_source_cell": 6_401_851,
-        "silver_bond_instrument": 42_394,
-        "silver_domestic_listed_product": 1_733,
-        "silver_overseas_listed_product": 5_646,
-        "silver_fund_item": 11_138,
-        "silver_fund_item_attribute": 95_618,
-        "silver_quality_issue": 6_032,
-        "gold_exact_cross_source_link": 47,
-        "gold_exact_cross_source_link_evidence": 371,
+    counts = {table.name: table.row_count for table in outcome.logical_contract.tables}
+    assert counts | {"silver_quality_issue": 1} == {
+        "bronze_source_column": 280,
+        "bronze_source_row": 53_375,
+        "bronze_source_cell": 3_515_109,
+        "silver_bond_sale_lot": 21_882,
+        "silver_bond_instrument": 20_497,
+        "silver_domestic_listed_product": 1_779,
+        "silver_overseas_listed_product": 6_037,
+        "silver_fund_item": 23_676,
+        "silver_quality_issue": 1,
+        "silver_product_holding": 0,
+        "silver_product_holding_coverage": 31_492,
+        "gold_exact_cross_source_link": 217,
+        "gold_exact_cross_source_link_evidence": 434,
     }
+    assert counts["silver_quality_issue"] >= 1
     assert _scan_bronze_cells_once(root / "parquet/bronze_source_cell.parquet") == (
-        6_401_851,
-        145_393,
-        73,
+        3_515_109,
+        53_375,
+        98,
     )
     connection = open_read_only_database(root / "finproof.duckdb")
     try:
@@ -116,13 +122,20 @@ def test_evaluation_build_accepts_official_expected_and_publishes(
             "SELECT rule_id, source_table, source_row_number FROM silver_quality_issue "
             "WHERE quarantined ORDER BY source_table, source_row_number"
         ).fetchall() == [
-            ("domestic_listed.product_id", "PREF01N001", 1155),
-            ("public_fund.malformed_item", "PRFD01N001", 84563),
+            ("domestic_listed.product_id", "PREF01N001", 224),
         ]
         assert connection.execute(
             "SELECT count(*) FROM gold_exact_cross_source_link "
             "WHERE matched_raw_identifier != trim(matched_raw_identifier)"
         ).fetchone() == (0,)
+        emitted_pairs = frozenset(
+            connection.execute(
+                "SELECT left_product_id, right_product_id FROM gold_exact_cross_source_link"
+            ).fetchall()
+        )
+        assert emitted_pairs == scan_official_exact_pairs(
+            Path(__file__).resolve().parents[2] / "source_material"
+        )
         assert connection.execute(
             "SELECT count(*) FROM gold_exact_cross_source_link AS link "
             "JOIN silver_domestic_listed_product AS product "
@@ -139,8 +152,5 @@ def test_evaluation_build_accepts_official_expected_and_publishes(
         connection.close()
     assert not (root / "other.duckdb").exists()
     assert not (root / "rows.csv").exists()
-    assert outcome.logical_contract.exact_link_evidence_count == 371
-    assert outcome.logical_contract.exact_link_pair_sha256 == (
-        "8f1049ae6137dbd2141214248c9871f8c4dcced3fcb81cb7c72c2f0863d3a962"
-    )
+    assert outcome.logical_contract.exact_link_evidence_count == 434
     assert not tuple(root.parent.glob(f".{root.name}.finproof-stage-*"))

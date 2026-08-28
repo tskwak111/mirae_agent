@@ -76,9 +76,74 @@ def test_refreshed_silver_inventory_contains_lots_not_fund_attribute_rows() -> N
     from finproof.data.artifacts.table_specs import TABLE_SPECS
 
     names = tuple(spec.table_name for spec in TABLE_SPECS)
-    assert len(names) == 11
+    assert len(names) == 13
     assert "silver_bond_sale_lot" in names
     assert "silver_fund_item_attribute" not in names
+
+
+def test_holding_relations_are_the_only_additions_to_final_thirteen_table_inventory() -> None:
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
+
+    assert len(TABLE_SPECS) == 13
+    assert tuple(spec.table_name for spec in TABLE_SPECS[9:11]) == (
+        "silver_product_holding",
+        "silver_product_holding_coverage",
+    )
+    assert tuple(spec.layer for spec in TABLE_SPECS) == (
+        "bronze",
+        "bronze",
+        "bronze",
+        "silver",
+        "silver",
+        "silver",
+        "silver",
+        "silver",
+        "silver",
+        "silver",
+        "silver",
+        "gold",
+        "gold",
+    )
+    holding = TABLE_SPEC_BY_NAME["silver_product_holding"]
+    assert holding.grain == "product_holding"
+    assert holding.unique_key == (
+        "owner_product_type",
+        "owner_product_id",
+        "source_row_ordinal",
+    )
+    assert holding.sort_key == holding.unique_key
+    assert tuple(column.name for column in holding.columns) == (
+        "generation_id",
+        "owner_product_type",
+        "owner_product_id",
+        "owner_source_identifier",
+        "owner_identifier_type",
+        "owner_link_method",
+        "constituent_identifier",
+        "constituent_identifier_type",
+        "raw_name",
+        "display_name",
+        "quantity",
+        "quantity_unit",
+        "market_value",
+        "market_value_currency",
+        "weight",
+        "weight_unit",
+        "source_owner",
+        "source_kind",
+        "direct_source_url",
+        "raw_file_sha256",
+        "source_as_of_date",
+        "publication_date",
+        "source_row_ordinal",
+        "quality_state",
+        "record_json",
+    )
+    coverage = TABLE_SPEC_BY_NAME["silver_product_holding_coverage"]
+    assert coverage.grain == "product_holding_coverage"
+    assert coverage.unique_key == ("owner_product_type", "owner_product_id")
+    assert coverage.sort_key == coverage.unique_key
+    assert coverage.columns[-1].name == "record_json"
 
 
 def test_bond_sale_lot_physical_key_includes_original_row_lineage() -> None:
@@ -210,11 +275,11 @@ def test_closed_table_spec_registry_ordered_specs_satisfies_cp2_kernel_port() ->
 
     observed = kernel_spy(registry)
     assert observed is TABLE_SPECS
-    assert len(observed) == 11
-    assert all(observed[index] is TABLE_SPECS[index] for index in range(11))
+    assert len(observed) == 13
+    assert all(observed[index] is TABLE_SPECS[index] for index in range(13))
 
 
-def test_table_registry_has_exact_eleven_names_and_paths() -> None:
+def test_table_registry_has_exact_thirteen_names_and_paths() -> None:
     from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
 
     expected_names = (
@@ -227,6 +292,8 @@ def test_table_registry_has_exact_eleven_names_and_paths() -> None:
         "silver_overseas_listed_product",
         "silver_fund_item",
         "silver_quality_issue",
+        "silver_product_holding",
+        "silver_product_holding_coverage",
         "gold_exact_cross_source_link",
         "gold_exact_cross_source_link_evidence",
     )
