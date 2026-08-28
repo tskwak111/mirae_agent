@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
@@ -21,6 +22,7 @@ from finproof.evaluation.ablation_experiment import (
     _planner_for_ablation,
     _policy_observation,
     _RecordingGenerator,
+    _within_case_deadline,
 )
 from finproof.evaluation.ablation_experiment import (
     _measurement as _experiment_measurement,
@@ -52,6 +54,19 @@ class _UsageGenerator:
 
     def usage_since(self, _index: int) -> tuple[int, int]:
         return 13, 8
+
+
+@pytest.mark.asyncio
+async def test_ablation_case_deadline_bounds_a_trickling_provider(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("finproof.evaluation.ablation_experiment._CASE_DEADLINE_SECONDS", 0.001)
+
+    async def never_finishes() -> None:
+        await asyncio.Event().wait()
+
+    with pytest.raises(TimeoutError):
+        await _within_case_deadline(never_finishes())
 
 
 def _measurement(

@@ -6,7 +6,7 @@ import asyncio
 import json
 import platform
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
@@ -67,6 +67,7 @@ from finproof.service import AnswerService
 from finproof.storage.repositories.products import RawExecutionResult
 
 _DIRECT_PROMPT_VERSION = "ablation-direct-answer.v1"
+_CASE_DEADLINE_SECONDS = 15.0
 
 
 class _FrozenModel(BaseModel):
@@ -148,7 +149,7 @@ class _Experiment:
         usage_index = len(self.generator.responses)
         planning_started = monotonic()
         try:
-            planned = await self.planner.plan(self._planning_request(case))
+            planned = await _within_case_deadline(self.planner.plan(self._planning_request(case)))
         except Exception:  # provider/domain errors become measured failures
             elapsed = _elapsed_ms(planning_started)
             prompt_tokens, completion_tokens = self.generator.usage_since(usage_index)
@@ -250,9 +251,11 @@ class _Experiment:
                 raise TypeError("validated ablation context differs")
             bundle = self._segmenter.build(validated, context=context)
             raw = self._executor.execute(bundle)
-            response = await self.generator.generate(
-                _direct_request(self.settings.hcx_model_name, case, raw),
-                request_id=f"{case.case_id}-ablation-a-{repeat}",
+            response = await _within_case_deadline(
+                self.generator.generate(
+                    _direct_request(self.settings.hcx_model_name, case, raw),
+                    request_id=f"{case.case_id}-ablation-a-{repeat}",
+                )
             )
             answer = _parse_direct_answer(response.message_content)
             observation = _direct_observation(answer, _elapsed_ms(started))
@@ -792,3 +795,7 @@ def _signature(observation: ObservedCase) -> str:
 
 def _elapsed_ms(started: float) -> int:
     return max(0, int((monotonic() - started) * 1_000))
+
+
+async def _within_case_deadline[T](operation: Awaitable[T]) -> T:
+    return await asyncio.wait_for(operation, timeout=_CASE_DEADLINE_SECONDS)
