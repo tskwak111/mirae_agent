@@ -130,3 +130,112 @@ specs and old golden/evaluation fixtures still mention quantity because their mi
 is explicitly owned by Task 6 and later evaluation-refresh work; they were not broadened
 into this checkpoint. The exact next implementation checkpoint is Task 4, refreshed
 domestic/overseas listed-product normalization.
+
+## Independent-review correction wave
+
+The permitted correction wave accepted three Important findings as direct frozen/TDD
+violations and did not broaden into the reviewer's Minor backlog.
+
+### Rating RED → GREEN
+
+```text
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest tests/unit/data/normalization/test_bonds.py -q -k rating
+```
+
+RED: `4 failed, 14 deselected`; the new lot API did not accept the frozen
+`RatingRegistry`. After restoring registry-backed primary-grade resolution at the shared
+lot path, GREEN: `4 passed, 14 deselected`. This covers official-invalid `C0`, the
+full-width-zero alias, a valid grade, and an explicit missing token. Official acceptance
+also proved exactly 103 refreshed `C0` rows remain unavailable with `OUT_OF_DOMAIN`.
+
+The truthful rating-disclosure test was separately RED (`1 failed, 30 deselected`)
+because EvidenceBuilder still claimed that plural agency source ratings existed. After
+removing that stale claim, the combined rating-wording/range selector was GREEN:
+`2 passed, 29 deselected`.
+
+### Yield-range evidence RED → GREEN
+
+```text
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest tests/unit/evidence/test_builder.py -q -k buy_yield_evidence_binds_material_multi_lot_range
+```
+
+RED: `1 failed, 30 deselected` with `StopIteration`; the parent had computed
+`buy_yield_range`, but the evidence path did not bind it. The first correction bound the
+internal derived range to a domestic-bond `buy_yield` fetch without registering a
+queryable field/metric. EvidenceBuilder stated the maximum-valid-lot rule and observed
+min–max only when the bounds differed. GREEN: `1 passed, 30 deselected`, including
+single/equal-lot wording suppression and all lot-yield locators. The final root
+adjudication below narrows the internal evidence itself to materially differing bounds.
+
+The locator assertion was then strengthened with one invalid middle lot. It produced a
+second expected RED (`1 failed, 30 deselected`; inputs `(77, 79)` instead of
+`(77, 78, 79)`). `buy_yield_range` now binds every lot-yield locator while deriving bounds
+from valid values only; the same selector returned GREEN: `1 passed, 30 deselected`.
+
+### Restored regression and listed coverage
+
+Before restoration, the prescribed listed selector had no tests:
+
+```text
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest tests/source_contract/test_official_domestic_normalization.py -q -k domestic_listed
+```
+
+RED: `1 deselected`, exit code 5. After restoring the existing mapped-field fidelity,
+eligibility-input, quarantine, and exact-count contract, GREEN: `1 passed, 1 deselected`.
+The refreshed supported baseline is 1,780 source rows, 1,779 records, one quarantined
+identifier at row 224, with source groups ETF 1,235 / ETN 545.
+
+Restored non-quantity bond regressions cover malformed lot keys, strict models, every
+declared source-cell locator, date/currency/rating quality, remaining-day derivation,
+numeric zeroes, and applicable warnings. Focused result: `29 passed, 14 deselected`;
+complete bond plus evidence unit files: `74 passed`.
+
+### Correction aggregate and scoped verification
+
+The Task 3 prescribed aggregate was run once on the correction candidate:
+
+```text
+UV_CACHE_DIR=/private/tmp/finproof-uv-cache uv run pytest tests/unit/data/normalization/test_bonds.py tests/unit/quality/test_state_policy.py tests/unit/query/test_field_registry.py tests/unit/query/test_query_ast.py tests/unit/query/test_sql_compiler.py tests/unit/planner tests/unit/evidence/test_builder.py tests/source_contract/test_official_domestic_normalization.py -q
+```
+
+GREEN: `142 passed in 42.99s`.
+
+- Scoped Ruff format check: 6 files already formatted.
+- Scoped Ruff check: all checks passed.
+- Scoped mypy: success, no issues in 6 source files.
+- Post-format/cast focused regression: `74 passed in 3.78s`.
+- Post-aggregate all-lot-lineage focused regression: `1 passed, 30 deselected`.
+- `git diff --check`: PASS with no output.
+
+No full-repository gate ran during this bounded correction wave. User-owned evaluation
+artifacts, PDFs, and review batches remained unstaged and untouched.
+
+## Final re-review root adjudication and closure
+
+The bounded re-review returned `0 Critical / 1 Important`. The residual finding was
+classified as a direct approved-contract violation: single-lot and equal-yield bonds do
+not have a materially interpretive range, so their internal fact pack must not carry
+`buy_yield_range` evidence.
+
+Focused RED:
+
+```text
+uv run pytest tests/unit/evidence/test_builder.py -q -k 'buy_yield_evidence_binds_material_multi_lot_range_and_selection_rule'
+```
+
+Observed: `1 failed, 30 deselected`; equal/single cases still contained the derived
+range. The evidence repository now emits the internal range only when both bounds exist
+and differ. Focused GREEN: `1 passed, 30 deselected`. The complete evidence unit file
+then passed `31 passed in 3.05s`; after mechanical formatting the focused selector
+remained GREEN.
+
+Scoped closure checks: Ruff format/check passed for the two touched files, a clean
+non-incremental mypy run passed for both files, and `git diff --check` passed. The first
+`uv run` static invocations could not initialize the sandbox-external uv cache; direct
+workspace-venv Ruff and mypy with a private temporary cache produced the observed clean
+results. No full gate or additional review loop ran.
+
+Final accepted blocker state: `0 Critical / 0 Important`. Nonblocking backlog remains:
+retain equivalent `product_id` locators on a future parent-lineage refinement, and keep
+SDD execution metadata out of production release scope. The exact next checkpoint is
+Task 4, refreshed domestic and overseas listed-product normalization.

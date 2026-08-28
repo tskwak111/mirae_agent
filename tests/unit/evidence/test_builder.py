@@ -2412,10 +2412,7 @@ def test_buy_yield_evidence_binds_material_multi_lot_range_and_selection_rule() 
             policy_result=policy,
             repository=EvidenceRepository(equal_session),
         )
-        equal_range = next(
-            item for item in equal_evidence.derived if item.field_id == "buy_yield_range"
-        )
-        assert equal_range.value.value == (Decimal("4.2"), Decimal("4.2"))
+        assert not any(item.field_id == "buy_yield_range" for item in equal_evidence.derived)
         assert all(
             "유효 로트 중 최댓값" not in limitation
             for limitation in equal_evidence.material_policy_limitations

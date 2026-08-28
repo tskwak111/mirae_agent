@@ -130,17 +130,19 @@ class EvidenceRepository:
                 ):
                     if not isinstance(model, BondInstrument):
                         raise ValueError("bond range evidence model differs")
-                    derived.append(
-                        DerivedEvidence[object](
-                            evidence_id=(
-                                f"{request.product_type.value}:{product_id}:buy_yield_range"
-                            ),
-                            product_type=request.product_type,
-                            product_id=product_id,
-                            field_id="buy_yield_range",
-                            value=cast(DerivedValue[object], model.buy_yield_range),
+                    bounds = model.buy_yield_range.value
+                    if bounds is not None and bounds[0] != bounds[1]:
+                        derived.append(
+                            DerivedEvidence[object](
+                                evidence_id=(
+                                    f"{request.product_type.value}:{product_id}:buy_yield_range"
+                                ),
+                                product_type=request.product_type,
+                                product_id=product_id,
+                                field_id="buy_yield_range",
+                                value=cast(DerivedValue[object], model.buy_yield_range),
+                            )
                         )
-                    )
                 records.append(
                     RecordEvidence(
                         product_type=request.product_type,
