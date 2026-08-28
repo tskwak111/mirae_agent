@@ -743,6 +743,120 @@ def test_builder_records_post_filter_count_before_state_exclusions() -> None:
     session._close()
 
 
+def test_aggregate_included_count_and_missing_limitation_are_bound() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        AggregationFunction,
+        AggregationSpec,
+        Intent,
+        ProductType,
+        ResultGrain,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import (
+        AggregatePolicyResult,
+        MetricValue,
+        PolicyExecutionResult,
+        PolicyRow,
+    )
+    from finproof.quality.metric_policy import MetricPolicyResult
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue, RawProductRow
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    row = PolicyRow(
+        raw=RawProductRow(
+            product_type=ProductType.DOMESTIC_BOND,
+            native_result_grain=ResultGrain.INSTRUMENT,
+            product_id="KR0000000001",
+            values=(
+                RawFieldValue(field_id="product_id", value="KR0000000001", quality_status="valid"),
+                RawFieldValue(field_id="buy_yield", value=Decimal("2.25"), quality_status="valid"),
+            ),
+        ),
+        state=StateEvaluation(product_id="KR0000000001", eligible=True, state_ids=(), warnings=()),
+    )
+    valid = MetricValue(
+        metric_id="bond.buy_yield",
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="KR0000000001",
+        value=Decimal("2.25"),
+        quality_status="valid",
+    )
+    missing = MetricValue(
+        metric_id="bond.buy_yield",
+        product_type=ProductType.DOMESTIC_BOND,
+        product_id="MISSING",
+        value=None,
+        quality_status="missing_blank",
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(row,),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=1,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(valid,),
+            comparison_valid_values=(valid,),
+            excluded_count=1,
+            warnings=("metric values excluded from comparison",),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(
+            AggregatePolicyResult(
+                product_type=ProductType.DOMESTIC_BOND,
+                native_result_grain=ResultGrain.INSTRUMENT,
+                partition_key="bond_buy_yield:none",
+                field_id="buy_yield",
+                group_values=(),
+                value=Decimal("2.25"),
+                included_count=1,
+                excluded_count=1,
+                policy_id="bond.buy_yield:avg",
+                evidence_requirements=("value", "quality", "count"),
+                product_ids=("KR0000000001",),
+            ),
+        ),
+        ranks=(),
+        warnings=("metric values excluded from comparison",),
+        metric_values=(valid, missing),
+    )
+    plan = ValidatedQueryPlan._issue(
+        plan=_plan().model_copy(
+            update={
+                "intent": Intent.AGGREGATE,
+                "metrics": (),
+                "aggregation": AggregationSpec(
+                    function=AggregationFunction.AVG,
+                    field="buy_yield",
+                    group_by=(),
+                ),
+            }
+        ),
+        resolutions=(),
+        context=(),
+    )
+
+    evidence = EvidenceBuilder().build(
+        plan=plan,
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+
+    aggregate = next(item for item in evidence.summaries if item.kind.value == "aggregate")
+    assert (aggregate.included_count, aggregate.excluded_count) == (1, 1)
+    assert any(
+        "1건" in limitation and "포함" in limitation and "제외" in limitation
+        for limitation in evidence.material_policy_limitations
+    )
+    session._close()
+
+
 def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
     """Dropping the recorded lens would hide policy-excluded source values."""
     from tests.unit.query.test_semantic_validator import _plan

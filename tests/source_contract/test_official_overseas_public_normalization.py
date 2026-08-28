@@ -58,7 +58,7 @@ EXPECTED_OVERSEAS_FIELD_COLUMNS = {
     "aum": "du_last_aum",
     "last_nav": "du_last_nav",
     "daily_low_price": "du_lpr",
-    "nav_base_at": "du_nav_base_dt",
+    "nav_base_date": "du_nav_base_dt",
     "daily_open_price": "du_opr",
     "daily_update_date": "du_upt_dt",
     "daily_value": "du_val_1d",
@@ -159,6 +159,7 @@ def test_official_overseas_normalization_exhausts_all_rows_and_preserves_all_fie
     product_ids: set[str] = set()
     groups: Counter[ListedProductType] = Counter()
     currency = fee_zero = fee_positive = 0
+    source_currency: Counter[str | None] = Counter()
     return_blank = return_zero = 0
     aum_blank = aum_zero = aum_positive = 0
     core_nonblank: Counter[str] = Counter()
@@ -182,7 +183,8 @@ def test_official_overseas_normalization_exhausts_all_rows_and_preserves_all_fie
             _assert_wrapper_matches_row(getattr(record, field_name), row, column)
 
         currency += record.trading_currency.normalized_value == "USD"
-        fee_zero += record.total_fee.quality_status is QualityStatus.RECORDED_ZERO_UNVERIFIED
+        source_currency[record.source_currency_raw.normalized_value] += 1
+        fee_zero += record.total_fee.quality_status is QualityStatus.RECORDED_ZERO
         fee_positive += (record.total_fee.normalized_value or Decimal(0)) > 0
         return_blank += record.return_1d.quality_status is QualityStatus.MISSING_BLANK
         return_zero += record.return_1d.quality_status is QualityStatus.RECORDED_ZERO
@@ -196,30 +198,32 @@ def test_official_overseas_normalization_exhausts_all_rows_and_preserves_all_fie
         sale_blank += record.sale_flag_raw.quality_status is QualityStatus.MISSING_BLANK
         trade_blank += record.suspension_flag_raw.quality_status is QualityStatus.MISSING_BLANK
         assert record.return_1d.quality_status is not QualityStatus.CONSTANT_METRIC
+        assert "return_1y" not in record.__class__.model_fields
 
     assert (source_rows, records, quarantines, len(product_ids)) == (
-        5_646,
-        5_646,
+        6_037,
+        6_037,
         0,
-        5_646,
+        6_037,
     )
-    assert groups == Counter({ListedProductType.ETF: 5_587, ListedProductType.ETN: 59})
-    assert currency == 5_646
-    assert (fee_zero, fee_positive) == (363, 5_283)
-    assert (return_zero, return_blank) == (5_388, 258)
-    assert (aum_positive, aum_zero, aum_blank) == (5_451, 8, 187)
+    assert groups == Counter({ListedProductType.ETF: 5_972, ListedProductType.ETN: 65})
+    assert currency == 6_037
+    assert source_currency == Counter({"USD": 6_025, None: 11, "INR": 1})
+    assert (fee_zero, fee_positive) == (419, 5_618)
+    assert (return_zero, return_blank) == (125, 14)
+    assert (aum_positive, aum_zero, aum_blank) == (5_821, 11, 205)
     assert core_nonblank == Counter(
         {
-            "base_index": 5_638,
-            "manager": 5_638,
-            "strategy": 5_638,
-            "asset_type": 5_638,
-            "region": 5_638,
+            "base_index": 6_026,
+            "manager": 6_025,
+            "strategy": 6_026,
+            "asset_type": 6_026,
+            "region": 6_026,
         }
     )
-    assert replication_nonblank == 2_360
-    assert listing_sentinel == 8
-    assert (sale_blank, trade_blank) == (10, 10)
+    assert replication_nonblank == 2_407
+    assert listing_sentinel == 11
+    assert (sale_blank, trade_blank) == (14, 14)
 
 
 def test_official_public_fund_normalization_and_collapse_preserve_grain_and_lineage(

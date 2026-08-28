@@ -1,4 +1,4 @@
-version: "1.0.0"
+version: "1.1.0"
 quality_statuses:
   - "valid"
   - "missing_blank"
@@ -30,24 +30,6 @@ rules:
     version: "1.0.0"
     match: {case_sensitive_values: ["NULL"]}
     status: "missing_literal_null"
-  overseas_etf.total_fee.zero:
-    version: "1.0.0"
-    product_types: ["overseas_etf", "overseas_etn"]
-    field: "cu_charge_rt"
-    match: {numeric_eq: 0}
-    status: "recorded_zero_unverified"
-  domestic_etf.tracking_error.constant:
-    version: "1.0.0"
-    product_types: ["domestic_etf", "domestic_etn"]
-    field: "du_chas_errt"
-    dataset_assertion: {all_nonblank_numeric_eq: 0}
-    status: "constant_metric"
-  overseas_etf.return_1d.constant:
-    version: "1.0.0"
-    product_types: ["overseas_etf", "overseas_etn"]
-    field: "du_er_1d"
-    dataset_assertion: {all_nonblank_numeric_eq: 0}
-    status: "constant_metric"
   public_fund.return_below_minus_100:
     version: "1.0.0"
     product_types: ["public_fund"]

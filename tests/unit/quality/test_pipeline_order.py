@@ -1453,7 +1453,7 @@ def test_rank_output_retains_tie_counts_policy_and_evidence_requirements() -> No
     assert result.ranks[0].evidence_requirements == ("value", "quality", "tie")
 
 
-def test_rank_metric_policy_drops_missing_and_preserves_constant_zero_tie() -> None:
+def test_rank_metric_policy_drops_missing_and_preserves_recorded_zero_tie() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 
     from finproof.domain.query_plan import (
@@ -1503,8 +1503,8 @@ def test_rank_metric_policy_drops_missing_and_preserves_constant_zero_tie() -> N
             }
         )
         for product_id, value, quality in (
-            ("E2", Decimal("0"), "constant_metric"),
-            ("E1", Decimal("0"), "constant_metric"),
+            ("E2", Decimal("0"), "recorded_zero"),
+            ("E1", Decimal("0"), "recorded_zero"),
             ("missing", None, "missing_blank"),
         )
     )

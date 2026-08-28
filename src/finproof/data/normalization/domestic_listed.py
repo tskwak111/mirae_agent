@@ -1,35 +1,105 @@
 """Pure domestic ETF/ETN normalization with exact source-cell lineage."""
 
 from collections.abc import Mapping
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from types import MappingProxyType
-from typing import Final
+from typing import Final, cast
 
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.numeric import NumericZeroStatus, parse_decimal
-from finproof.data.normalization.temporal import parse_source_datetime, parse_yyyymmdd
+from finproof.data.normalization.temporal import parse_yyyymmdd
 from finproof.data.normalization.text import parse_identifier, parse_text
 from finproof.data.normalization.value_factory import make_normalized_value
-from finproof.domain.domestic_listed import ListedProduct, ListedProductType
+from finproof.domain.domestic_listed import (
+    DOMESTIC_FIELD_COLUMNS,
+    ListedProduct,
+    ListedProductType,
+)
 from finproof.domain.normalization import NormalizationResult
 from finproof.domain.quality import DataQualityIssue, IssueSeverity, QualityStatus
 from finproof.domain.source import SourceRow
 from finproof.domain.values import DerivedValue, NormalizedValue
 
 _TABLE = "PREF01N001"
-_RULE_VERSION = "1.0.0"
+_RULE_VERSION = "2.0.0"
 _ORDINARY_ZERO_STATUS: NumericZeroStatus = QualityStatus.RECORDED_ZERO
-_FEE_ZERO_STATUS: NumericZeroStatus = QualityStatus.RECORDED_ZERO_UNVERIFIED
 _PRODUCT_TYPE_MAP: Final[Mapping[str, ListedProductType]] = MappingProxyType(
-    {
-        "ETF": ListedProductType.ETF,
-        "ETN": ListedProductType.ETN,
-    }
+    {"ETF": ListedProductType.ETF, "ETN": ListedProductType.ETN}
 )
 _CURRENCY_MAP: Final[Mapping[str, str]] = MappingProxyType({"CURR_CD_KRW": "KRW"})
 _SALE_FLAG_MAP: Final[Mapping[str, bool]] = MappingProxyType({"1": True, "0": False})
 _SUSPENSION_FLAG_MAP: Final[Mapping[str, bool]] = MappingProxyType({"0": False, "1": True})
+_DATE_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "custom_update_date",
+        "tracking_error_base_date",
+        "difference_rate_base_date",
+        "nav_base_date",
+        "daily_update_date",
+        "volatility_base_date",
+        "fundamentals_base_date",
+        "portfolio_date",
+        "distribution_base_date",
+        "distribution_price_base_date",
+        "listing_end_date",
+        "listing_date",
+        "ref_base_date",
+        "weekly_update_date",
+    }
+)
+_DECIMAL_FIELDS: Final[frozenset[str]] = frozenset(
+    {
+        "other_fee",
+        "total_fee",
+        "leverage_factor",
+        "daily_bid_price",
+        "tracking_error",
+        "close_price",
+        "difference_rate",
+        "return_1d",
+        "return_1m",
+        "return_1y",
+        "return_3m",
+        "return_6m",
+        "return_ytd",
+        "daily_high_price",
+        "aum_secondary",
+        "last_nav",
+        "daily_low_price",
+        "nav_change_amount",
+        "previous_nav",
+        "daily_value",
+        "daily_value_1m",
+        "daily_value_5d",
+        "volatility_1m",
+        "volatility_1y",
+        "volatility_3m",
+        "volatility_6m",
+        "daily_volume",
+        "average_volume_1m",
+        "average_volume_5d",
+        "average_coupon",
+        "average_maturity",
+        "effective_duration",
+        "effective_maturity",
+        "modified_duration",
+        "nominal_maturity",
+        "circulating_net_assets",
+        "circulating_share_count",
+        "annual_distribution_amount",
+        "distribution_per_share",
+        "distribution_income",
+        "distribution_nav",
+        "distribution_pay_count",
+        "distribution_yield",
+        "listed_share_count",
+        "aum_primary",
+        "share_count",
+        "realtime_market_price",
+        "realtime_market_volume",
+    }
+)
 
 
 def normalize_domestic_listed(
@@ -38,10 +108,7 @@ def normalize_domestic_listed(
 ) -> NormalizationResult[ListedProduct]:
     """Normalize one verified domestic-listed row without performing I/O."""
     if row.source_table != _TABLE:
-        raise NormalizationContractError(
-            expected_table=_TABLE,
-            actual_table=row.source_table,
-        )
+        raise NormalizationContractError(expected_table=_TABLE, actual_table=row.source_table)
 
     product_id = parse_identifier(
         row,
@@ -52,257 +119,70 @@ def normalize_domestic_listed(
     product_type = _product_type(row)
     quarantine_issues = _identity_issues(row, product_id, product_type)
     if quarantine_issues:
-        return NormalizationResult[ListedProduct](
-            record=None,
-            issues=quarantine_issues,
-        )
+        return NormalizationResult[ListedProduct](record=None, issues=quarantine_issues)
 
-    market_identifier = _text(
-        row,
-        "pd_itm_no_ma",
-        "domestic_listed.market_identifier",
-    )
-    name = _text(row, "pd_nm", "domestic_listed.name")
-    short_name = _text(row, "pd_abrv_nm", "domestic_listed.short_name")
-    currency = _currency(row)
-    listing_date = _date(row, "pd_lstg_dt", "domestic_listed.listing_date")
-    listing_end_date = _date(
-        row,
-        "pd_lste_dt",
-        "domestic_listed.listing_end_date",
-        allow_max_sentinel=True,
-    )
-    sale_flag = _flag(
-        row,
-        "pd_sale_yn",
-        mapping=_SALE_FLAG_MAP,
-        rule_id="domestic_listed.sale_flag",
-    )
-    suspension_flag = _flag(
-        row,
-        "pd_tr_yn",
-        mapping=_SUSPENSION_FLAG_MAP,
-        rule_id="domestic_listed.suspension_flag",
-    )
-    aum_primary = _decimal(row, "pd_net_tamt", "domestic_listed.aum_primary")
-    aum_secondary = _decimal(row, "du_last_aum", "domestic_listed.aum_secondary")
-    total_fee = _decimal(
-        row,
-        "cu_charge_rt",
-        "domestic_listed.total_fee",
-        zero_status=_FEE_ZERO_STATUS,
-    )
-    tracking_error = _decimal(
-        row,
-        "du_chas_errt",
-        "domestic_listed.tracking_error",
-    )
-    difference_rate = _decimal(
-        row,
-        "du_diff_rt",
-        "domestic_listed.difference_rate",
-    )
-    return_1d = _decimal(row, "du_er_1d", "domestic_listed.return_1d")
-    return_1m = _decimal(row, "du_er_1m", "domestic_listed.return_1m")
-    return_3m = _decimal(row, "du_er_3m", "domestic_listed.return_3m")
-    return_6m = _decimal(row, "du_er_6m", "domestic_listed.return_6m")
-    return_1y = _decimal(row, "du_er_1y", "domestic_listed.return_1y")
-    return_ytd = _decimal(row, "du_er_ytd", "domestic_listed.return_ytd")
-    risk_code = _text(row, "pd_risk_cd", "domestic_listed.risk_code")
-    risk_name = _text(row, "pd_risk_nm", "domestic_listed.risk_name")
-    base_index = _text(row, "cu_base_index", "domestic_listed.base_index")
-    manager = _text(row, "cu_fund_mgmt_co", "domestic_listed.manager")
-    asset_type = _text(row, "wu_inv_ast_type", "domestic_listed.asset_type")
-    region = _text(row, "wu_inv_rgn", "domestic_listed.region")
-    custom_update_date = _date(
-        row,
-        "cu_upt_dt",
-        "domestic_listed.custom_update_date",
-    )
-    daily_update_at = _datetime(
-        row,
-        "du_upt_dt",
-        "domestic_listed.daily_update_at",
-    )
-    weekly_update_date = _date(
-        row,
-        "wu_upt_dt",
-        "domestic_listed.weekly_update_date",
-    )
-    is_eligible_at_as_of = _derive_eligibility(
+    values: dict[str, object] = {}
+    for field_name, column_name in DOMESTIC_FIELD_COLUMNS.items():
+        rule_id = f"domestic_listed.{field_name}"
+        if field_name == "product_id":
+            wrapped: object = product_id
+        elif field_name == "product_type":
+            wrapped = product_type
+        elif field_name == "currency":
+            wrapped = _currency(row)
+        elif field_name == "sale_flag":
+            wrapped = _flag(row, column_name, mapping=_SALE_FLAG_MAP, rule_id=rule_id)
+        elif field_name == "suspension_flag":
+            wrapped = _flag(row, column_name, mapping=_SUSPENSION_FLAG_MAP, rule_id=rule_id)
+        elif field_name in _DATE_FIELDS:
+            wrapped = _date(
+                row,
+                column_name,
+                rule_id,
+                allow_max_sentinel=field_name == "listing_end_date",
+            )
+        elif field_name in _DECIMAL_FIELDS:
+            wrapped = _decimal(
+                row,
+                column_name,
+                rule_id,
+                zero_status=_ORDINARY_ZERO_STATUS,
+            )
+        else:
+            wrapped = _text(row, column_name, rule_id)
+        values[field_name] = wrapped
+
+    sale_flag = cast(NormalizedValue[bool], values["sale_flag"])
+    suspension_flag = cast(NormalizedValue[bool], values["suspension_flag"])
+    listing_date = cast(NormalizedValue[date], values["listing_date"])
+    listing_end_date = cast(NormalizedValue[date], values["listing_end_date"])
+    eligibility = _derive_eligibility(
         sale_flag,
         suspension_flag,
         listing_date,
         listing_end_date,
         as_of,
     )
-    issue_candidates = (
-        (
-            currency.quality_status,
-            "pd_curr_cd",
-            "domestic_listed.currency",
-            "Domestic listed currency is outside the supported source domain.",
-        ),
-        (
-            listing_date.quality_status,
-            "pd_lstg_dt",
-            "domestic_listed.listing_date",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            listing_end_date.quality_status,
-            "pd_lste_dt",
-            "domestic_listed.listing_end_date",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            sale_flag.quality_status,
-            "pd_sale_yn",
-            "domestic_listed.sale_flag",
-            "Domestic listed sale flag is outside the supported source domain.",
-        ),
-        (
-            suspension_flag.quality_status,
-            "pd_tr_yn",
-            "domestic_listed.suspension_flag",
-            "Domestic listed suspension flag is outside the supported source domain.",
-        ),
-        (
-            aum_primary.quality_status,
-            "pd_net_tamt",
-            "domestic_listed.aum_primary",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            aum_secondary.quality_status,
-            "du_last_aum",
-            "domestic_listed.aum_secondary",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            total_fee.quality_status,
-            "cu_charge_rt",
-            "domestic_listed.total_fee",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            tracking_error.quality_status,
-            "du_chas_errt",
-            "domestic_listed.tracking_error",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            difference_rate.quality_status,
-            "du_diff_rt",
-            "domestic_listed.difference_rate",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_1d.quality_status,
-            "du_er_1d",
-            "domestic_listed.return_1d",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_1m.quality_status,
-            "du_er_1m",
-            "domestic_listed.return_1m",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_3m.quality_status,
-            "du_er_3m",
-            "domestic_listed.return_3m",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_6m.quality_status,
-            "du_er_6m",
-            "domestic_listed.return_6m",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_1y.quality_status,
-            "du_er_1y",
-            "domestic_listed.return_1y",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            return_ytd.quality_status,
-            "du_er_ytd",
-            "domestic_listed.return_ytd",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            custom_update_date.quality_status,
-            "cu_upt_dt",
-            "domestic_listed.custom_update_date",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            daily_update_at.quality_status,
-            "du_upt_dt",
-            "domestic_listed.daily_update_at",
-            "Domestic listed field has an invalid source format.",
-        ),
-        (
-            weekly_update_date.quality_status,
-            "wu_upt_dt",
-            "domestic_listed.weekly_update_date",
-            "Domestic listed field has an invalid source format.",
-        ),
+    record = ListedProduct.model_validate(
+        values | {"is_eligible_at_as_of": eligibility},
+        strict=True,
     )
     issues = tuple(
         _warning_issue(
             row,
-            column_name,
-            rule_id=rule_id,
-            quality_status=quality_status,
-            reason=reason,
+            wrapped.source.source_column_name,
+            rule_id=wrapped.rule_id,
+            quality_status=wrapped.quality_status,
+            reason="Domestic listed field is outside its supported source domain.",
         )
-        for quality_status, column_name, rule_id, reason in issue_candidates
-        if quality_status in {QualityStatus.INVALID_FORMAT, QualityStatus.OUT_OF_DOMAIN}
-    )
-
-    record = ListedProduct(
-        product_id=product_id,
-        market_identifier=market_identifier,
-        product_type=product_type,
-        name=name,
-        short_name=short_name,
-        currency=currency,
-        listing_date=listing_date,
-        listing_end_date=listing_end_date,
-        sale_flag=sale_flag,
-        suspension_flag=suspension_flag,
-        aum_primary=aum_primary,
-        aum_secondary=aum_secondary,
-        total_fee=total_fee,
-        tracking_error=tracking_error,
-        difference_rate=difference_rate,
-        return_1d=return_1d,
-        return_1m=return_1m,
-        return_3m=return_3m,
-        return_6m=return_6m,
-        return_1y=return_1y,
-        return_ytd=return_ytd,
-        risk_code=risk_code,
-        risk_name=risk_name,
-        base_index=base_index,
-        manager=manager,
-        asset_type=asset_type,
-        region=region,
-        custom_update_date=custom_update_date,
-        daily_update_at=daily_update_at,
-        weekly_update_date=weekly_update_date,
-        is_eligible_at_as_of=is_eligible_at_as_of,
+        for wrapped in (value for value in values.values() if isinstance(value, NormalizedValue))
+        if wrapped.quality_status in {QualityStatus.INVALID_FORMAT, QualityStatus.OUT_OF_DOMAIN}
     )
     return NormalizationResult[ListedProduct](record=record, issues=issues)
 
 
 def _product_type(row: SourceRow) -> NormalizedValue[ListedProductType]:
-    raw_value = row.cell("pd_grp_no").raw_value
-    normalized_value = _PRODUCT_TYPE_MAP.get(raw_value)
+    normalized_value = _PRODUCT_TYPE_MAP.get(row.cell("pd_grp_no").raw_value)
     return make_normalized_value(
         row,
         "pd_grp_no",
@@ -353,12 +233,7 @@ def _identity_issues(
 
 
 def _text(row: SourceRow, column_name: str, rule_id: str) -> NormalizedValue[str]:
-    return parse_text(
-        row,
-        column_name,
-        rule_id=rule_id,
-        rule_version=_RULE_VERSION,
-    )
+    return parse_text(row, column_name, rule_id=rule_id, rule_version=_RULE_VERSION)
 
 
 def _currency(row: SourceRow) -> NormalizedValue[str]:
@@ -389,19 +264,6 @@ def _date(
         row,
         column_name,
         allow_max_sentinel=allow_max_sentinel,
-        rule_id=rule_id,
-        rule_version=_RULE_VERSION,
-    )
-
-
-def _datetime(
-    row: SourceRow,
-    column_name: str,
-    rule_id: str,
-) -> NormalizedValue[datetime]:
-    return parse_source_datetime(
-        row,
-        column_name,
         rule_id=rule_id,
         rule_version=_RULE_VERSION,
     )

@@ -12,7 +12,11 @@ from finproof.data.normalization.domestic_listed import normalize_domestic_liste
 from finproof.data.source_manifest import SourceFileManifest
 from finproof.data.xlsx_stream import iter_xlsx_rows
 from finproof.domain.bonds import BOND_LOT_FIELD_COLUMNS, BondSaleLot
-from finproof.domain.domestic_listed import ListedProduct, ListedProductType
+from finproof.domain.domestic_listed import (
+    DOMESTIC_FIELD_COLUMNS,
+    ListedProduct,
+    ListedProductType,
+)
 from finproof.domain.locators import SourceCellLocator
 from finproof.domain.quality import DataQualityIssue, QualityStatus
 from finproof.domain.source import SourceRow
@@ -24,39 +28,6 @@ SOURCE_SNAPSHOT = date(2026, 8, 24)
 BOND_BOUNDARY = date(2026, 8, 22)
 RATING_REGISTRY = RatingRegistry.from_yaml(ROOT / "config/rating_scale.yaml")
 pytestmark = [pytest.mark.source_contract, pytest.mark.slow]
-
-LISTED_COLUMNS = {
-    "product_id": "pd_itm_no",
-    "market_identifier": "pd_itm_no_ma",
-    "product_type": "pd_grp_no",
-    "name": "pd_nm",
-    "short_name": "pd_abrv_nm",
-    "currency": "pd_curr_cd",
-    "listing_date": "pd_lstg_dt",
-    "listing_end_date": "pd_lste_dt",
-    "sale_flag": "pd_sale_yn",
-    "suspension_flag": "pd_tr_yn",
-    "aum_primary": "pd_net_tamt",
-    "aum_secondary": "du_last_aum",
-    "total_fee": "cu_charge_rt",
-    "tracking_error": "du_chas_errt",
-    "difference_rate": "du_diff_rt",
-    "return_1d": "du_er_1d",
-    "return_1m": "du_er_1m",
-    "return_3m": "du_er_3m",
-    "return_6m": "du_er_6m",
-    "return_1y": "du_er_1y",
-    "return_ytd": "du_er_ytd",
-    "risk_code": "pd_risk_cd",
-    "risk_name": "pd_risk_nm",
-    "base_index": "cu_base_index",
-    "manager": "cu_fund_mgmt_co",
-    "asset_type": "wu_inv_ast_type",
-    "region": "wu_inv_rgn",
-    "custom_update_date": "cu_upt_dt",
-    "daily_update_at": "du_upt_dt",
-    "weekly_update_date": "wu_upt_dt",
-}
 
 
 def test_official_bond_lots_project_to_unique_quantity_independent_parents() -> None:
@@ -134,13 +105,19 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
         ROOT / "source_material/schema_catalog.json",
     )
     verified = manifest.verify(ROOT / "source_material")
+    source = verified.data_file("PREF01N001")
+    assert len(DOMESTIC_FIELD_COLUMNS) == 98
+    assert tuple(DOMESTIC_FIELD_COLUMNS.values()) == source.expected_headers
     source_groups: Counter[str] = Counter()
     produced_groups: Counter[ListedProductType] = Counter()
+    metric_quality: dict[str, Counter[QualityStatus]] = {
+        field_name: Counter() for field_name in ("total_fee", "tracking_error", "return_1y")
+    }
     product_ids: set[str] = set()
     quarantined: list[tuple[int, str, tuple[DataQualityIssue, ...]]] = []
     source_rows = records = 0
 
-    for row in iter_xlsx_rows(verified.data_file("PREF01N001")):
+    for row in iter_xlsx_rows(source):
         source_rows += 1
         assert row.source_snapshot_date == SOURCE_SNAPSHOT
         source_groups[row.cell("pd_grp_no").raw_value] += 1
@@ -163,6 +140,8 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
         assert product_id not in product_ids
         product_ids.add(product_id)
         produced_groups[product_type] += 1
+        for field_name, counter in metric_quality.items():
+            counter[getattr(record, field_name).quality_status] += 1
         _assert_listed_source_fidelity(record, row)
 
     assert source_rows == 1_780
@@ -170,6 +149,29 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
     assert len(product_ids) == 1_779
     assert source_groups == Counter({"ETF": 1_235, "ETN": 545})
     assert produced_groups == Counter({ListedProductType.ETF: 1_234, ListedProductType.ETN: 545})
+    assert metric_quality == {
+        "total_fee": Counter(
+            {
+                QualityStatus.MISSING_BLANK: 1_562,
+                QualityStatus.RECORDED_ZERO: 150,
+                QualityStatus.VALID: 67,
+            }
+        ),
+        "tracking_error": Counter(
+            {
+                QualityStatus.VALID: 1_160,
+                QualityStatus.RECORDED_ZERO: 438,
+                QualityStatus.MISSING_BLANK: 181,
+            }
+        ),
+        "return_1y": Counter(
+            {
+                QualityStatus.VALID: 1_396,
+                QualityStatus.MISSING_BLANK: 363,
+                QualityStatus.RECORDED_ZERO: 20,
+            }
+        ),
+    }
     assert len(quarantined) == 1
     excel_row, raw_product_id, issues = quarantined[0]
     assert (excel_row, raw_product_id) == (224, "KR")
@@ -182,7 +184,7 @@ def test_official_domestic_listed_preserves_existing_mapped_source_contract() ->
 
 
 def _assert_listed_source_fidelity(record: ListedProduct, row: SourceRow) -> None:
-    for field_name, column_name in LISTED_COLUMNS.items():
+    for field_name, column_name in DOMESTIC_FIELD_COLUMNS.items():
         wrapped = getattr(record, field_name)
         assert isinstance(wrapped, NormalizedValue)
         assert wrapped.raw_value == row.cell(column_name).raw_value

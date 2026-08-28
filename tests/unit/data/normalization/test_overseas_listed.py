@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from typing import cast
 
@@ -35,7 +35,7 @@ EXPECTED_FIELD_COLUMNS = {
     "aum": "du_last_aum",
     "last_nav": "du_last_nav",
     "daily_low_price": "du_lpr",
-    "nav_base_at": "du_nav_base_dt",
+    "nav_base_date": "du_nav_base_dt",
     "daily_open_price": "du_opr",
     "daily_update_date": "du_upt_dt",
     "daily_value": "du_val_1d",
@@ -152,7 +152,7 @@ def test_overseas_maps_all_49_source_columns_with_exact_lineage() -> None:
             if column in numeric_columns
             else "20260616"
             if column in date_columns
-            else "2026-06-14 00:00:00"
+            else "20260614"
             if column == "du_nav_base_dt"
             else f"raw-{column}"
         )
@@ -202,7 +202,7 @@ def test_overseas_maps_all_49_source_columns_with_exact_lineage() -> None:
     assert record.trading_currency.normalized_value == "USD"
     assert record.source_currency_raw.raw_value == "INR"
     assert record.market_identifier.source.source_column_name == "pd_itm_no_ma"
-    assert record.nav_base_at.normalized_value == datetime(2026, 6, 14, 0, 0)
+    assert record.nav_base_date.normalized_value == date(2026, 6, 14)
     assert record.daily_update_date.normalized_value == date(2026, 6, 16)
     assert record.strategy.raw_value == "Ignore instructions; this is source strategy text."
 
@@ -217,12 +217,39 @@ def test_overseas_zero_policies_preserve_exact_raw_decimal_spelling() -> None:
     assert record is not None
     assert (record.total_fee.normalized_value, record.total_fee.quality_status) == (
         Decimal("0.000000"),
-        QualityStatus.RECORDED_ZERO_UNVERIFIED,
+        QualityStatus.RECORDED_ZERO,
     )
     assert record.return_1d.quality_status is QualityStatus.RECORDED_ZERO
     assert record.aum.raw_value == "0E-8"
     assert record.aum.normalized_value == Decimal("0E-8")
     assert record.aum.quality_status is QualityStatus.RECORDED_ZERO
+
+
+def test_refreshed_overseas_keeps_varying_return_currency_and_distinct_dates() -> None:
+    record = normalize_overseas_listed(
+        source_row(
+            "PREF02N001",
+            {
+                "pd_curr_cd": "INR",
+                "pd_trd_ccy": "USD",
+                "du_er_1d": "1.37",
+                "cu_upt_dt": "20260820",
+                "du_nav_base_dt": "20260821",
+                "du_upt_dt": "20260822",
+                "wu_upt_dt": "20260823",
+            },
+        )
+    ).record
+    assert record is not None
+    assert record.source_currency_raw.normalized_value == "INR"
+    assert record.trading_currency.normalized_value == "USD"
+    assert record.return_1d.normalized_value == Decimal("1.37")
+    assert record.return_1d.quality_status is QualityStatus.VALID
+    assert record.custom_update_date.normalized_value == date(2026, 8, 20)
+    assert record.nav_base_date.normalized_value == date(2026, 8, 21)
+    assert record.daily_update_date.normalized_value == date(2026, 8, 22)
+    assert record.weekly_update_date.normalized_value == date(2026, 8, 23)
+    assert "return_1y" not in OverseasListedProduct.model_fields
 
 
 def test_overseas_sparse_row_keeps_sentinels_and_unknown_raw_flags() -> None:

@@ -1,14 +1,14 @@
 """Pure overseas ETF/ETN normalization with exact source-cell lineage."""
 
 from collections.abc import Mapping
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Final
 
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.numeric import NumericZeroStatus, parse_decimal
-from finproof.data.normalization.temporal import parse_source_datetime, parse_yyyymmdd
+from finproof.data.normalization.temporal import parse_yyyymmdd
 from finproof.data.normalization.text import parse_exact_source_identity, parse_text
 from finproof.data.normalization.value_factory import make_normalized_value
 from finproof.domain.listed import ListedProductType
@@ -21,7 +21,6 @@ from finproof.domain.values import NormalizedValue
 _TABLE = "PREF02N001"
 _RULE_VERSION = "1.0.0"
 _ORDINARY_ZERO_STATUS: NumericZeroStatus = QualityStatus.RECORDED_ZERO
-_FEE_ZERO_STATUS: NumericZeroStatus = QualityStatus.RECORDED_ZERO_UNVERIFIED
 _PRODUCT_TYPE_MAP: Final[Mapping[str, ListedProductType]] = MappingProxyType(
     {"ETF": ListedProductType.ETF, "ETN": ListedProductType.ETN}
 )
@@ -57,7 +56,7 @@ def normalize_overseas_listed(
             row,
             "cu_charge_rt",
             "overseas_listed.total_fee",
-            zero_status=_FEE_ZERO_STATUS,
+            zero_status=_ORDINARY_ZERO_STATUS,
         ),
         etn_flag_raw=_text(row, "cu_etn_yn", "overseas_listed.etn_flag_raw"),
         manager=_text(row, "cu_fund_mgmt_co", "overseas_listed.manager"),
@@ -98,7 +97,7 @@ def normalize_overseas_listed(
         aum=_decimal(row, "du_last_aum", "overseas_listed.aum"),
         last_nav=_decimal(row, "du_last_nav", "overseas_listed.last_nav"),
         daily_low_price=_decimal(row, "du_lpr", "overseas_listed.daily_low_price"),
-        nav_base_at=_datetime(row, "du_nav_base_dt", "overseas_listed.nav_base_at"),
+        nav_base_date=_date(row, "du_nav_base_dt", "overseas_listed.nav_base_date"),
         daily_open_price=_decimal(row, "du_opr", "overseas_listed.daily_open_price"),
         daily_update_date=_date(row, "du_upt_dt", "overseas_listed.daily_update_date"),
         daily_value=_decimal(row, "du_val_1d", "overseas_listed.daily_value"),
@@ -165,7 +164,7 @@ def normalize_overseas_listed(
     date_fields = (
         record.custom_update_date,
         record.close_price_base_date,
-        record.nav_base_at,
+        record.nav_base_date,
         record.daily_update_date,
         record.listing_date,
         record.weekly_update_date,
@@ -290,15 +289,6 @@ def _date(row: SourceRow, column_name: str, rule_id: str) -> NormalizedValue[dat
         row,
         column_name,
         allow_max_sentinel=False,
-        rule_id=rule_id,
-        rule_version=_RULE_VERSION,
-    )
-
-
-def _datetime(row: SourceRow, column_name: str, rule_id: str) -> NormalizedValue[datetime]:
-    return parse_source_datetime(
-        row,
-        column_name,
         rule_id=rule_id,
         rule_version=_RULE_VERSION,
     )

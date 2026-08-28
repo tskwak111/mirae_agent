@@ -1,15 +1,119 @@
-from datetime import date, datetime
+from collections.abc import MutableMapping
+from datetime import date
 from decimal import Decimal
+from typing import cast
 
 import pytest
 
 from finproof.core.errors import NormalizationContractError
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
+from finproof.domain import domestic_listed as domestic_listed_contract
 from finproof.domain.domestic_listed import ListedProduct, ListedProductType
 from finproof.domain.quality import IssueSeverity, QualityStatus
-from tests.helpers.source_rows import source_row
+from tests.helpers.source_rows import DOMESTIC_LISTED_COLUMNS, source_row
 
-AS_OF = date(2026, 7, 11)
+AS_OF = date(2026, 8, 22)
+
+EXPECTED_FIELD_COLUMNS = {
+    "base_index": "cu_base_index",
+    "other_fee": "cu_charge_etc_rt",
+    "total_fee": "cu_charge_rt",
+    "manager": "cu_fund_mgmt_co",
+    "leverage_factor": "cu_lev_fector",
+    "strategy": "cu_strtegy",
+    "custom_update_date": "cu_upt_dt",
+    "daily_bid_price": "du_bpr",
+    "tracking_error": "du_chas_errt",
+    "tracking_error_base_date": "du_chas_errt_base_dt",
+    "close_price": "du_clpr",
+    "difference_rate": "du_diff_rt",
+    "difference_rate_base_date": "du_diff_rt_base_dt",
+    "return_1d": "du_er_1d",
+    "return_1m": "du_er_1m",
+    "return_1y": "du_er_1y",
+    "return_3m": "du_er_3m",
+    "return_6m": "du_er_6m",
+    "return_ytd": "du_er_ytd",
+    "daily_high_price": "du_hpr",
+    "aum_secondary": "du_last_aum",
+    "last_nav": "du_last_nav",
+    "daily_low_price": "du_lpr",
+    "nav_base_date": "du_nav_base_dt",
+    "nav_change_amount": "du_nav_rnf_amt",
+    "previous_nav": "du_nav_yday",
+    "daily_update_date": "du_upt_dt",
+    "daily_value": "du_val_1d",
+    "daily_value_1m": "du_val_1m",
+    "daily_value_5d": "du_val_5d",
+    "volatility_1m": "du_vlty_1m",
+    "volatility_1y": "du_vlty_1y",
+    "volatility_3m": "du_vlty_3m",
+    "volatility_6m": "du_vlty_6m",
+    "volatility_base_date": "du_vlty_base_dt",
+    "daily_volume": "du_vol_1d",
+    "average_volume_1m": "du_vol_avg_1m",
+    "average_volume_5d": "du_vol_avg_5d",
+    "average_coupon": "fn_average_coupon",
+    "average_maturity": "fn_average_maturity",
+    "average_quality": "fn_average_quality",
+    "fundamentals_base_date": "fn_base_dt",
+    "effective_duration": "fn_effective_duration",
+    "effective_maturity": "fn_effective_maturity",
+    "modified_duration": "fn_modified_duration",
+    "nominal_maturity": "fn_nominal_maturity",
+    "portfolio_date": "fn_portfolio_dt",
+    "short_name": "pd_abrv_nm",
+    "circulating_net_assets": "pd_circ_net_tamt",
+    "circulating_share_count": "pd_circ_stk_cnt",
+    "currency": "pd_curr_cd",
+    "currency_name": "pd_curr_nm",
+    "annual_distribution_amount": "pd_divd_amt_ann",
+    "distribution_per_share": "pd_divd_amt_pshr",
+    "distribution_base_date": "pd_dvid_base_dt",
+    "distribution_cycle": "pd_dvid_cycl",
+    "distribution_income": "pd_dvid_inc_dist",
+    "distribution_nav": "pd_dvid_nav",
+    "distribution_pay_count": "pd_dvid_pay_cnt",
+    "distribution_pay_months": "pd_dvid_pay_months",
+    "distribution_price_base_date": "pd_dvid_prc_base_dt",
+    "distribution_tax_basis": "pd_dvid_tax_basis",
+    "distribution_yield": "pd_dvid_yield",
+    "exchange_market_code": "pd_exg_mkt_cd",
+    "exchange_market_name": "pd_exg_mkt_nm",
+    "product_type": "pd_grp_no",
+    "isin": "pd_isin_cd",
+    "product_id": "pd_itm_no",
+    "market_identifier": "pd_itm_no_ma",
+    "listed_share_count": "pd_lst_stk_cnt",
+    "listing_end_date": "pd_lste_dt",
+    "listing_date": "pd_lstg_dt",
+    "market_code": "pd_mkt_id",
+    "market_name": "pd_mkt_nm",
+    "aum_primary": "pd_net_tamt",
+    "name": "pd_nm",
+    "pension_risk_name": "pd_pen_risk_nm",
+    "pension_trade_flag_raw": "pd_pen_tr_yn",
+    "ric": "pd_ric",
+    "risk_code": "pd_risk_cd",
+    "risk_name": "pd_risk_nm",
+    "sale_flag": "pd_sale_yn",
+    "sector_code": "pd_sect_cd",
+    "spac_flag_raw": "pd_spac_yn",
+    "share_count": "pd_stk_cnt",
+    "ticker": "pd_ticker",
+    "suspension_flag": "pd_tr_yn",
+    "ref_asset_type": "ref_ast_type",
+    "ref_base_date": "ref_base_dt",
+    "ref_base_index": "ref_base_index",
+    "ref_manager": "ref_fund_mgmt_co",
+    "ref_region": "ref_geo_focus",
+    "realtime_market_price": "ru_mkt_price",
+    "realtime_market_volume": "ru_mkt_volume",
+    "core_flag_raw": "wu_core_yn",
+    "asset_type": "wu_inv_ast_type",
+    "region": "wu_inv_rgn",
+    "weekly_update_date": "wu_upt_dt",
+}
 
 
 def test_domestic_listed_rejects_wrong_source_table_as_programmer_error() -> None:
@@ -47,7 +151,7 @@ def test_domestic_listed_shared_type_keeps_existing_json_round_trip() -> None:
     assert restored.product_type.normalized_value is ListedProductType.ETF
 
 
-def test_valid_domestic_listed_maps_every_declared_source_column() -> None:
+def test_valid_domestic_listed_maps_all_98_refreshed_columns() -> None:
     values = {
         "pd_itm_no": "KR7000000001",
         "pd_itm_no_ma": "A000001",
@@ -77,48 +181,33 @@ def test_valid_domestic_listed_maps_every_declared_source_column() -> None:
         "wu_inv_ast_type": "주식",
         "wu_inv_rgn": "한국",
         "cu_upt_dt": "20260709",
-        "du_upt_dt": "2026-07-10 09:30:00",
+        "du_upt_dt": "20260710",
         "wu_upt_dt": "20260708",
-    }
-    columns = {
-        "product_id": "pd_itm_no",
-        "market_identifier": "pd_itm_no_ma",
-        "product_type": "pd_grp_no",
-        "name": "pd_nm",
-        "short_name": "pd_abrv_nm",
-        "currency": "pd_curr_cd",
-        "listing_date": "pd_lstg_dt",
-        "listing_end_date": "pd_lste_dt",
-        "sale_flag": "pd_sale_yn",
-        "suspension_flag": "pd_tr_yn",
-        "aum_primary": "pd_net_tamt",
-        "aum_secondary": "du_last_aum",
-        "total_fee": "cu_charge_rt",
-        "tracking_error": "du_chas_errt",
-        "difference_rate": "du_diff_rt",
-        "return_1d": "du_er_1d",
-        "return_1m": "du_er_1m",
-        "return_3m": "du_er_3m",
-        "return_6m": "du_er_6m",
-        "return_1y": "du_er_1y",
-        "return_ytd": "du_er_ytd",
-        "risk_code": "pd_risk_cd",
-        "risk_name": "pd_risk_nm",
-        "base_index": "cu_base_index",
-        "manager": "cu_fund_mgmt_co",
-        "asset_type": "wu_inv_ast_type",
-        "region": "wu_inv_rgn",
-        "custom_update_date": "cu_upt_dt",
-        "daily_update_at": "du_upt_dt",
-        "weekly_update_date": "wu_upt_dt",
     }
     row = source_row("PREF01N001", values)
     record = normalize_domestic_listed(row, AS_OF).record
     assert record is not None
-    for attribute, column in columns.items():
+    field_columns = domestic_listed_contract.DOMESTIC_FIELD_COLUMNS
+    assert dict(field_columns) == EXPECTED_FIELD_COLUMNS
+    assert tuple(field_columns.values()) == DOMESTIC_LISTED_COLUMNS
+    assert len(field_columns) == len(set(field_columns.values())) == 98
+    mutable_view = cast(MutableMapping[str, str], field_columns)
+    with pytest.raises(TypeError):
+        mutable_view["product_id"] = "pd_itm_no_ma"
+    for attribute, column in EXPECTED_FIELD_COLUMNS.items():
         wrapped = getattr(record, attribute)
-        assert wrapped.raw_value == values[column]
+        cell = row.cell(column)
+        assert wrapped.raw_value == cell.raw_value
+        assert wrapped.source.source_table == "PREF01N001"
+        assert wrapped.source.source_file == row.source_file
+        assert wrapped.source.source_sheet == row.source_sheet
+        assert wrapped.source.source_row_number == row.source_row_number
         assert wrapped.source.source_column_name == column
+        assert wrapped.source.source_column_number == cell.excel_column_number
+        assert wrapped.source.source_column_letter == cell.excel_column_letter
+        assert wrapped.source.source_checksum == row.source_checksum
+        assert wrapped.source.source_snapshot_date == row.source_snapshot_date
+        assert wrapped.source.source_applicable_date == cell.applicable_date
     assert record.currency.normalized_value == "KRW"
     assert record.sale_flag.normalized_value is True
     assert record.suspension_flag.normalized_value is False
@@ -154,7 +243,7 @@ def test_valid_domestic_listed_zero_policy_is_field_specific() -> None:
         AS_OF,
     ).record
     assert record is not None
-    assert record.total_fee.quality_status is QualityStatus.RECORDED_ZERO_UNVERIFIED
+    assert record.total_fee.quality_status is QualityStatus.RECORDED_ZERO
     assert record.tracking_error.quality_status is QualityStatus.RECORDED_ZERO
     assert record.difference_rate.quality_status is QualityStatus.RECORDED_ZERO
     ordinary_zeroes = (
@@ -233,7 +322,7 @@ def test_simultaneous_invalid_type_and_identity_emit_ordered_safe_blockers() -> 
         "pd_grp_no",
         "pd_itm_no",
     )
-    assert tuple(issue.source.source_column_number for issue in result.issues) == (43, 44)
+    assert tuple(issue.source.source_column_number for issue in result.issues) == (66, 68)
     assert all(
         issue.quarantined
         and issue.severity is IssueSeverity.BLOCKER
@@ -281,14 +370,14 @@ def test_domestic_flags_use_only_exact_source_codes(
 @pytest.mark.parametrize(
     ("sale", "suspended", "start", "end", "eligible", "eligible_status"),
     [
-        ("1", "0", "20260711", "20260711", True, QualityStatus.VALID),
+        ("1", "0", "20260822", "20260822", True, QualityStatus.VALID),
         ("1", "0", "20200101", "99991231", True, QualityStatus.VALID),
         ("1", "0", "20200101", "", True, QualityStatus.VALID),
         ("0", "0", "", "bad", False, QualityStatus.VALID),
         ("1", "1", "", "bad", False, QualityStatus.VALID),
         ("0", "", "", "bad", False, QualityStatus.VALID),
         ("", "1", "", "bad", False, QualityStatus.VALID),
-        ("1", "0", "20260712", "99991231", False, QualityStatus.VALID),
+        ("1", "0", "20260823", "99991231", False, QualityStatus.VALID),
         ("1", "0", "20200101", "20260710", False, QualityStatus.VALID),
         (
             "",
@@ -411,7 +500,7 @@ def test_max_date_sentinel_is_enabled_only_for_listing_end() -> None:
         (
             "cu_charge_rt",
             "total_fee",
-            QualityStatus.RECORDED_ZERO_UNVERIFIED,
+            QualityStatus.RECORDED_ZERO,
         ),
         ("du_chas_errt", "tracking_error", QualityStatus.RECORDED_ZERO),
         ("du_diff_rt", "difference_rate", QualityStatus.RECORDED_ZERO),
@@ -481,23 +570,32 @@ def test_domestic_currency_uses_only_the_explicit_code_map(
     )
 
 
-def test_domestic_update_fields_remain_independent_and_do_not_supply_applicable_dates() -> None:
+def test_domestic_metrics_keep_distinct_source_dates_and_applicable_dates() -> None:
     row = source_row(
         "PREF01N001",
         {
             "cu_upt_dt": "20260709",
-            "du_upt_dt": "2026-07-10 09:30:00",
+            "du_upt_dt": "20260710",
             "wu_upt_dt": "20260708",
-            "pd_net_tamt": "100",
+            "du_chas_errt_base_dt": "20260707",
+            "du_diff_rt_base_dt": "20260706",
+            "du_chas_errt": "0.12",
+            "du_er_1y": "7.5",
+        },
+        applicable_dates={
+            "du_chas_errt": date(2026, 7, 7),
+            "du_er_1y": date(2026, 7, 10),
         },
     )
     record = normalize_domestic_listed(row, AS_OF).record
     assert record is not None
     assert record.custom_update_date.normalized_value == date(2026, 7, 9)
-    assert record.daily_update_at.normalized_value == datetime(2026, 7, 10, 9, 30)
-    assert record.daily_update_at.normalized_value.tzinfo is None
+    assert record.daily_update_date.normalized_value == date(2026, 7, 10)
     assert record.weekly_update_date.normalized_value == date(2026, 7, 8)
-    assert record.aum_primary.source.source_applicable_date is None
+    assert record.tracking_error_base_date.normalized_value == date(2026, 7, 7)
+    assert record.difference_rate_base_date.normalized_value == date(2026, 7, 6)
+    assert record.tracking_error.source.source_applicable_date == date(2026, 7, 7)
+    assert record.return_1y.source.source_applicable_date == date(2026, 7, 10)
 
 
 def test_invalid_optional_metric_emits_warning_but_does_not_quarantine() -> None:

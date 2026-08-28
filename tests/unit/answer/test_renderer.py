@@ -238,7 +238,7 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
     assert "지정한 조건을 충족하는 상품을 찾지 못했습니다." in no_result
 
 
-def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
+def test_renderer_projects_rank_and_aggregate_included_count_values() -> None:
     from finproof.answer import AnswerRenderer
     from finproof.domain.answers import AnswerRequest, ClaimKind
     from finproof.domain.evidence import (
@@ -299,7 +299,10 @@ def test_renderer_projects_rank_and_aggregate_summary_values() -> None:
     )
 
     assert "domestic_bond/instrument [yield:KRW] KR0000000001 buy_yield: 2.25 (1위)" in draft.text
-    assert "domestic_bond/instrument [yield:KRW] currency=KRW buy_yield 평균: 2.10" in draft.text
+    assert (
+        "domestic_bond/instrument [yield:KRW] currency=KRW buy_yield 평균: 2.10 "
+        "(포함 2건, 제외 1건)"
+    ) in draft.text
     assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (
         Decimal("2.25"),
         Decimal("2.10"),

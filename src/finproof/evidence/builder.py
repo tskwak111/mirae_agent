@@ -517,6 +517,14 @@ class EvidenceBuilder:
             )
             else ()
         )
+        partial_aggregate_universe = tuple(
+            (
+                f"집계에 {summary.included_count}건을 포함하고 결측·비교 불가 또는 "
+                f"상태/필터 정책에 따라 {summary.excluded_count}건을 제외했습니다."
+            )
+            for summary in summaries
+            if summary.kind is EvidenceSummaryKind.AGGREGATE and summary.excluded_count > 0
+        )
         limitations = tuple(
             dict.fromkeys(
                 (
@@ -525,6 +533,7 @@ class EvidenceBuilder:
                     *rating_limitations,
                     *incomplete_comparison,
                     *missing_rank,
+                    *partial_aggregate_universe,
                     *(
                         (
                             "동률로 top-k 경계를 넘는 결과는 공동순위를 유지하고 "

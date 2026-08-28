@@ -1,7 +1,7 @@
 """Immutable domain contract for one normalized overseas listed product."""
 
 from collections.abc import Mapping
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from types import MappingProxyType
 from typing import Final, Literal, Self
@@ -34,7 +34,7 @@ OVERSEAS_FIELD_COLUMNS: Final[Mapping[str, str]] = MappingProxyType(
         "aum": "du_last_aum",
         "last_nav": "du_last_nav",
         "daily_low_price": "du_lpr",
-        "nav_base_at": "du_nav_base_dt",
+        "nav_base_date": "du_nav_base_dt",
         "daily_open_price": "du_opr",
         "daily_update_date": "du_upt_dt",
         "daily_value": "du_val_1d",
@@ -93,7 +93,7 @@ class OverseasListedProduct(BaseModel):
     aum: NormalizedValue[Decimal]
     last_nav: NormalizedValue[Decimal]
     daily_low_price: NormalizedValue[Decimal]
-    nav_base_at: NormalizedValue[datetime]
+    nav_base_date: NormalizedValue[date]
     daily_open_price: NormalizedValue[Decimal]
     daily_update_date: NormalizedValue[date]
     daily_value: NormalizedValue[Decimal]

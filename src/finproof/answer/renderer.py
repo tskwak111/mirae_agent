@@ -262,7 +262,8 @@ class AnswerRenderer:
                 aggregate_text = (
                     f"{_summary_scope(summary)} {groups + ' ' if groups else ''}"
                     f"{prefix}{subject} "
-                    f"{operation}: {summary.value}"
+                    f"{operation}: {summary.value} "
+                    f"(포함 {summary.included_count}건, 제외 {summary.excluded_count}건)"
                 )
                 lines.append(aggregate_text)
                 claims.append(
