@@ -533,6 +533,7 @@ git commit -m "feat: normalize refreshed public-fund items"
 
 **Files:**
 
+- Modify: `config/artifact_build.yaml`
 - Modify: `src/finproof/data/artifacts/table_specs.py`
 - Modify: `src/finproof/data/artifacts/serialization.py`
 - Modify: `src/finproof/data/artifacts/silver.py`
@@ -544,14 +545,31 @@ git commit -m "feat: normalize refreshed public-fund items"
 - Modify: `src/finproof/data/artifacts/expected_contract.py`
 - Modify: `src/finproof/data/artifacts/links.py`
 - Modify: `schemas/artifact_manifest.schema.json`
+- Modify: `tests/helpers/artifacts.py`
 - Leave inactive until Task 7's final relation inventory is ready: `config/expected_phase1_artifacts.json`
 - Modify: artifact unit/integration/source-contract tests under their existing paths
 
 **Table delta:** add `silver_bond_sale_lot`; remove `silver_fund_item_attribute`; retain three Bronze tables, four native product tables, quality, and the two exact-link tables.
 
-- [ ] **Step 1: Write table/serialization REDs**
+**Build-config delta:** Task 2 migrated only the admitted source dimensions. Task 6 owns the output half of `artifact_build.yaml` and its frozen in-code mirror. The refreshed native counts are exactly 21,882 bond lots, 20,497 bond instruments, 1,779 domestic listed products, 6,037 overseas listed products, 23,676 fund items, and one quarantined source row. Replace the old exact-link output golden (`links`, `evidence`, and `pair_sha256`) with one input-side `exact_link_candidate_limit: 217`. This value is the independently audited exact-intersection ceiling, not an expected Gold row count. The immutable evidence ceiling is derived as 434 because each accepted pair has exactly one left and one right direct-cell record; callers cannot widen either ceiling. The exact-only builder must accept any valid result at or below the ceiling and return the observed count/hash. Only Task 7's generated expected artifact contract may turn those observed values into release acceptance values.
+
+- [ ] **Step 1: Write build-config, table, and serialization REDs**
 
 ```python
+def test_refreshed_build_config_separates_input_ceiling_from_output_goldens() -> None:
+    config = load_repository_artifact_build_config()
+    assert config.silver_counts.model_dump() == {
+        "bond_sale_lot": 21_882,
+        "bond_instrument": 20_497,
+        "domestic_listed_product": 1_779,
+        "overseas_listed_product": 6_037,
+        "fund_item": 23_676,
+    }
+    assert config.quarantine_source_rows == 1
+    assert config.exact_link_candidate_limit == 217
+    assert not hasattr(config, "exact_links")
+
+
 def test_refreshed_silver_inventory_contains_lots_not_fund_attribute_rows() -> None:
     names = tuple(spec.name for spec in TABLE_SPECS)
     assert "silver_bond_sale_lot" in names
@@ -563,7 +581,7 @@ Prove `record_json` round trips every lot and item field with exact lineage.
 - [ ] **Step 2: Run RED and implement table specs/serialization**
 
 ```bash
-uv run pytest tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py -q
+uv run pytest tests/unit/data/artifacts/test_foundations.py tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py -q -k 'artifact_build_config or refreshed or round_trip'
 ```
 
 - [ ] **Step 3: Write and close staged-emitter REDs**
@@ -576,7 +594,9 @@ uv run pytest tests/unit/data/artifacts/test_silver.py tests/unit/data/artifacts
 
 - [ ] **Step 4: Regenerate exact links through the exact-only algorithm**
 
-Use direct fund-item `ksd_itm_no` evidence. Candidate count 217 is audited input, not a hardcoded published output; the builder seals final link/evidence count and hashes.
+Use direct fund-item `ksd_itm_no` evidence. Rewrite the official source-profile test as a fast independent exact-untrimmed ETF/fund pair-set scan that proves exactly 217 pairs, zero ETN pairs, and zero one-to-many conflicts; it must not call the artifact builder. Bounded fixtures prove algorithmic conservation: every admitted candidate produces exactly one link and two direct-cell evidence rows, with no drop or duplication. The production builder uses 217 only as a closed upper bound, never an output equality check, returns observed link/evidence counts and the canonical pair hash, and rejects one-to-many conflicts.
+
+Apply the same immutable ceilings to candidate production, reopened relation verification, linked-ID filtering, relation accumulation, and telemetry/report validation. Focused boundary tests must accept 217 links and 434 evidence rows, reject 218 or 435, and prove no caller-controlled widening. Reports must not label observed outputs as predeclared expectations; Task 7 compares the sole official A/B build's emitted pair set to the independently scanned pair set before generating the expected contract.
 
 ```bash
 uv run pytest tests/unit/data/artifacts/test_exact_links.py tests/source_contract/test_official_exact_link_profile.py tests/integration/artifacts/test_link_evidence_fixture.py -q
@@ -597,7 +617,7 @@ uv run python tools/verify_handoff.py
 - [ ] **Step 7: Commit and independent review**
 
 ```bash
-git add src/finproof/data/artifacts schemas/artifact_manifest.schema.json tests/unit/data/artifacts tests/integration/artifacts tests/source_contract/test_official_exact_link_profile.py
+git add config/artifact_build.yaml src/finproof/data/artifacts schemas/artifact_manifest.schema.json tests/helpers/artifacts.py tests/unit/data/artifacts tests/integration/artifacts tests/source_contract/test_official_exact_link_profile.py
 git commit -m "feat: migrate refreshed artifact contracts"
 ```
 
@@ -610,10 +630,12 @@ git commit -m "feat: migrate refreshed artifact contracts"
 - Create: `src/finproof/data/holdings.py`
 - Create: `tests/unit/data/test_holdings.py`
 - Create: `source_material/external/README.md`
+- Modify: `src/finproof/data/artifacts/expected_contract.py`
 - Modify: `src/finproof/data/artifacts/table_specs.py`
 - Modify: `src/finproof/data/artifacts/serialization.py`
 - Modify: `src/finproof/data/artifacts/silver.py`
 - Modify: `src/finproof/data/artifacts/builder.py`
+- Modify: `schemas/artifact_manifest.schema.json`
 - Modify: artifact tests for the two relations
 
 **Interfaces:**
@@ -644,12 +666,14 @@ For product types without an admitted generation, emit explicit `unavailable` co
 - [ ] **Step 3: Add only the two artifact relations**
 
 ```bash
-uv run pytest tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py tests/unit/data/artifacts/test_silver.py tests/integration/artifacts/test_artifact_duckdb.py -q -k holding
+uv run pytest tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py tests/unit/data/artifacts/test_silver.py tests/unit/data/artifacts/test_manifest.py tests/integration/artifacts/test_artifact_duckdb.py -q -k holding
 ```
+
+Update the manifest schema and expected-contract validator from Task 6's 11-table intermediate inventory to the final 13-table inventory in this same RED/GREEN slice.
 
 - [ ] **Step 4: Build the single official candidate pair, seal the expected contract, and run the official aggregate**
 
-Use the repository's existing candidate builder/publication flow. Candidate A and B use distinct injected UTC timestamps and must produce identical logical contract bytes. Generate `config/expected_phase1_artifacts.json` only from the verified final inventory. Any source with unresolved reuse permission remains unavailable; this does not block official-only queries or artifact publication.
+Use the repository's existing candidate builder/publication flow. Candidate A and B use distinct injected UTC timestamps and must produce identical logical contract bytes. Reuse the Task 6 independent source scan without launching another artifact build, and require each candidate's exact emitted pair set to equal that scanned 217-pair set before expected-contract generation. This is the conservation bridge that detects a dropped or substituted candidate while keeping 217 out of the build config's output golden. Generate `config/expected_phase1_artifacts.json` only from the pair-set-checked, verified final 13-table inventory. Any source with unresolved reuse permission remains unavailable; this does not block official-only queries or artifact publication.
 
 ```bash
 uv run pytest tests/source_contract/test_official_artifact_build.py tests/source_contract/test_official_exact_link_profile.py tests/integration/artifacts/test_artifact_equality.py tests/integration/artifacts/test_artifact_duckdb.py -q
@@ -660,7 +684,7 @@ uv run python tools/verify_handoff.py
 - [ ] **Step 5: Commit and independent review**
 
 ```bash
-git add src/finproof/data/holdings.py src/finproof/data/artifacts source_material/external tests/unit/data tests/unit/data/artifacts tests/integration/artifacts config/expected_phase1_artifacts.json
+git add src/finproof/data/holdings.py src/finproof/data/artifacts schemas/artifact_manifest.schema.json source_material/external tests/unit/data tests/unit/data/artifacts tests/integration/artifacts config/expected_phase1_artifacts.json
 git commit -m "feat: add sealed holdings coverage"
 ```
 
