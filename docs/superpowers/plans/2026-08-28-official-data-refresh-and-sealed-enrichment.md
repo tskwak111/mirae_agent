@@ -534,6 +534,7 @@ git commit -m "feat: normalize refreshed public-fund items"
 **Files:**
 
 - Modify: `config/artifact_build.yaml`
+- Modify: `src/finproof/core/versions.py`
 - Modify: `src/finproof/data/artifacts/table_specs.py`
 - Modify: `src/finproof/data/artifacts/serialization.py`
 - Modify: `src/finproof/data/artifacts/silver.py`
@@ -546,12 +547,13 @@ git commit -m "feat: normalize refreshed public-fund items"
 - Modify: `src/finproof/data/artifacts/links.py`
 - Modify: `schemas/artifact_manifest.schema.json`
 - Modify: `tests/helpers/artifacts.py`
+- Modify: `tests/unit/core/test_versions.py`
 - Leave inactive until Task 7's final relation inventory is ready: `config/expected_phase1_artifacts.json`
 - Modify: artifact unit/integration/source-contract tests under their existing paths
 
 **Table delta:** add `silver_bond_sale_lot`; remove `silver_fund_item_attribute`; retain three Bronze tables, four native product tables, quality, and the two exact-link tables.
 
-**Build-config delta:** Task 2 migrated only the admitted source dimensions. Task 6 owns the output half of `artifact_build.yaml` and its frozen in-code mirror. The refreshed native counts are exactly 21,882 bond lots, 20,497 bond instruments, 1,779 domestic listed products, 6,037 overseas listed products, 23,676 fund items, and one quarantined source row. Replace the old exact-link output golden (`links`, `evidence`, and `pair_sha256`) with one input-side `exact_link_candidate_limit: 217`. This value is the independently audited exact-intersection ceiling, not an expected Gold row count. The immutable evidence ceiling is derived as 434 because each accepted pair has exactly one left and one right direct-cell record; callers cannot widen either ceiling. The exact-only builder must accept any valid result at or below the ceiling and return the observed count/hash. Only Task 7's generated expected artifact contract may turn those observed values into release acceptance values.
+**Build-config delta:** Task 2 migrated only the admitted source dimensions. Task 6 owns the output half of `artifact_build.yaml` and its frozen in-code mirror. The refreshed native counts are exactly 21,882 bond lots, 20,497 bond instruments, 1,779 domestic listed products, 6,037 overseas listed products, 23,676 fund items, and one quarantined source row. The version bundle and artifact config must use the already admitted registry versions `quality=1.1.0` and `state=1.2.0`; no fixture or loader may retain the prior `1.0.0`/`1.1.0` pair. Replace the old exact-link output golden (`links`, `evidence`, and `pair_sha256`) with one input-side `exact_link_candidate_limit: 217`. This value is the independently audited exact-intersection ceiling, not an expected Gold row count. The immutable evidence ceiling is derived as 434 because each accepted pair has exactly one left and one right direct-cell record; callers cannot widen either ceiling. The exact-only builder must accept any valid result at or below the ceiling and return the observed count/hash. Only Task 7's generated expected artifact contract may turn those observed values into release acceptance values.
 
 - [ ] **Step 1: Write build-config, table, and serialization REDs**
 
@@ -570,6 +572,12 @@ def test_refreshed_build_config_separates_input_ceiling_from_output_goldens() ->
     assert not hasattr(config, "exact_links")
 
 
+def test_version_bundle_matches_admitted_quality_and_state_registries() -> None:
+    versions = VersionBundle()
+    assert versions.quality_rule_version == "1.1.0"
+    assert versions.state_rule_version == "1.2.0"
+
+
 def test_refreshed_silver_inventory_contains_lots_not_fund_attribute_rows() -> None:
     names = tuple(spec.name for spec in TABLE_SPECS)
     assert "silver_bond_sale_lot" in names
@@ -581,7 +589,7 @@ Prove `record_json` round trips every lot and item field with exact lineage.
 - [ ] **Step 2: Run RED and implement table specs/serialization**
 
 ```bash
-uv run pytest tests/unit/data/artifacts/test_foundations.py tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py -q -k 'artifact_build_config or refreshed or round_trip'
+uv run pytest tests/unit/core/test_versions.py tests/unit/data/artifacts/test_foundations.py tests/unit/data/artifacts/test_table_specs.py tests/unit/data/artifacts/test_serialization.py -q -k 'version or artifact_build_config or refreshed or round_trip'
 ```
 
 - [ ] **Step 3: Write and close staged-emitter REDs**
@@ -617,7 +625,7 @@ uv run python tools/verify_handoff.py
 - [ ] **Step 7: Commit and independent review**
 
 ```bash
-git add config/artifact_build.yaml src/finproof/data/artifacts schemas/artifact_manifest.schema.json tests/helpers/artifacts.py tests/unit/data/artifacts tests/integration/artifacts tests/source_contract/test_official_exact_link_profile.py
+git add config/artifact_build.yaml src/finproof/core/versions.py src/finproof/data/artifacts schemas/artifact_manifest.schema.json tests/helpers/artifacts.py tests/unit/core/test_versions.py tests/unit/data/artifacts tests/integration/artifacts tests/source_contract/test_official_exact_link_profile.py
 git commit -m "feat: migrate refreshed artifact contracts"
 ```
 
