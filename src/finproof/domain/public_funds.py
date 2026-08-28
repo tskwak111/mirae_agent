@@ -93,6 +93,183 @@ FUND_ITEM_FIELD_COLUMNS: Final[Mapping[str, str]] = MappingProxyType(
     }
 )
 
+PUBLIC_FUND_SOURCE_COLUMNS: Final[tuple[str, ...]] = (
+    "bmrk_eng_nm",
+    "bmrk_nm",
+    "bns_bpr",
+    "curr_cd",
+    "exchdg_yn",
+    "fd_daily_bas_dt",
+    "fd_estb_ctry_cd",
+    "fd_ivst_rgn_desc",
+    "fd_last_dstb_actg_bss_dt",
+    "fd_last_dstb_actg_eot_dt",
+    "fd_last_dstb_r",
+    "fd_mm18_ern_r",
+    "fd_mm1_ern_r",
+    "fd_mm3_ern_r",
+    "fd_mm6_ern_r",
+    "fd_nast_suma",
+    "fd_price_bas_dt",
+    "fd_prsv_r",
+    "fd_sbpr",
+    "fd_set_pcd",
+    "fd_wk1_ern_r",
+    "fd_yr1_ern_r",
+    "fd_yr2_ern_r",
+    "fd_yr3_ern_r",
+    "fd_yr5_ern_r",
+    "frc_bpr_itm_yn",
+    "fss_itm_no",
+    "han_clas_fee_type",
+    "han_clas_nm",
+    "han_clas_policies",
+    "han_clas_sales_channel",
+    "hdge_fd_yn",
+    "int_dvd_desc",
+    "itm_abrv_nm",
+    "itm_eabrv_nm",
+    "itm_eng_nm",
+    "itm_nm",
+    "itm_no",
+    "kofia_fd_ccd",
+    "ksd_itm_no",
+    "mtco_itm_no",
+    "ofsfd_yn",
+    "ofwk_trus_rwrd_r",
+    "or_attr_desc",
+    "or_co_rwrd_r",
+    "or_co_xtn_itt_cd",
+    "ovrs_fd_desc",
+    "pers_corp_desc",
+    "pfiv_sale_cntl_tcd",
+    "prfd_attr_cds",
+    "prfd_attr_cnt",
+    "prfd_attr_search_text",
+    "prvo_fd_desc",
+    "prvo_pbff_desc",
+    "rptt_ksd_itm_no",
+    "sale_co_rwrd_r",
+    "sale_yn",
+    "std_itm_no",
+    "thco_sale_yn",
+    "trusc_rwrd_r",
+    "trusc_xtn_itt_cd",
+    "zrin_attr_nms",
+    "zrin_btyp_cd",
+    "zrin_btyp_nm",
+    "zrin_dmst_bd_cmst_rt",
+    "zrin_dmst_stk_cmst_rt",
+    "zrin_etc_ast_cmst_rt",
+    "zrin_fd_cmst_rt",
+    "zrin_fd_ivst_risk_gcd",
+    "zrin_fd_ivst_risk_grd_nm",
+    "zrin_liqt_cmst_rt",
+    "zrin_ovrs_bd_cmst_rt",
+    "zrin_ovrs_stk_cmst_rt",
+    "zrin_pcd",
+    "zrin_ptn_nm",
+)
+PUBLIC_FUND_FIELD_COLUMNS: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        **FUND_ITEM_FIELD_COLUMNS,
+        "attribute_count": "prfd_attr_cnt",
+        "attribute_search_text": "prfd_attr_search_text",
+    }
+)
+
+
+class PublicFundItem(BaseModel):
+    """One refreshed public-fund source row at the item grain."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    grain: Literal["fund_item"] = "fund_item"
+    source_row: SourceRow
+    benchmark_english_name: NormalizedValue[str]
+    benchmark_name: NormalizedValue[str]
+    currency: NormalizedValue[str]
+    exchange_traded_flag_raw: NormalizedValue[str]
+    establishment_country_code: NormalizedValue[str]
+    region_description: NormalizedValue[str]
+    return_18m: NormalizedValue[Decimal]
+    return_1m: NormalizedValue[Decimal]
+    return_3m: NormalizedValue[Decimal]
+    return_6m: NormalizedValue[Decimal]
+    net_assets: NormalizedValue[Decimal]
+    establishment_type_code: NormalizedValue[str]
+    return_1w: NormalizedValue[Decimal]
+    return_1y: NormalizedValue[Decimal]
+    return_2y: NormalizedValue[Decimal]
+    return_3y: NormalizedValue[Decimal]
+    return_5y: NormalizedValue[Decimal]
+    foreign_base_price_flag_raw: NormalizedValue[str]
+    fss_item_id: NormalizedValue[str]
+    hedge_fund_flag_raw: NormalizedValue[str]
+    interest_dividend_description: NormalizedValue[str]
+    short_name: NormalizedValue[str]
+    english_short_name: NormalizedValue[str]
+    english_name: NormalizedValue[str]
+    name: NormalizedValue[str]
+    fund_item_id: NormalizedValue[str]
+    kofia_classification_code: NormalizedValue[str]
+    ksd_id: NormalizedValue[str]
+    manager_item_id: NormalizedValue[str]
+    offshore_fund_flag_raw: NormalizedValue[str]
+    fund_type_raw: NormalizedValue[str]
+    manager_external_code: NormalizedValue[str]
+    overseas_fund_description: NormalizedValue[str]
+    investor_type_description: NormalizedValue[str]
+    professional_sale_control_code: NormalizedValue[str]
+    attribute_codes: tuple[str, ...]
+    attribute_count: NormalizedValue[int]
+    attribute_search_text: NormalizedValue[str]
+    private_fund_description: NormalizedValue[str]
+    offering_type_description: NormalizedValue[str]
+    family_candidate_key: NormalizedValue[str]
+    sale_status_raw: NormalizedValue[str]
+    standard_item_id: NormalizedValue[str]
+    mirae_sale_flag_raw: NormalizedValue[str]
+    trustee_external_code: NormalizedValue[str]
+    risk_code: NormalizedValue[str]
+    risk_name: NormalizedValue[str]
+
+    @field_validator("source_row", mode="before")
+    @classmethod
+    def validate_source_row_boundary(
+        cls,
+        value: object,
+        info: ValidationInfo,
+    ) -> object:
+        if info.mode == "python":
+            if type(value) is not SourceRow:
+                raise ValueError("source_row must be an exact SourceRow instance")
+        else:
+            _validate_source_row_json(value, PUBLIC_FUND_SOURCE_COLUMNS)
+        return value
+
+    @model_validator(mode="after")
+    def validate_complete_source_lineage(self) -> Self:
+        row = self.source_row
+        if row.source_table != "PRFD01N001":
+            raise ValueError("public-fund source row must name PRFD01N001")
+        if tuple(cell.column_name for cell in row.cells) != PUBLIC_FUND_SOURCE_COLUMNS:
+            raise ValueError("public-fund source row must use canonical column order")
+        expected_codes = (
+            ()
+            if row.cell("prfd_attr_cds").raw_value == ""
+            else tuple(row.cell("prfd_attr_cds").raw_value.split(","))
+        )
+        if self.attribute_codes != expected_codes:
+            raise ValueError("attribute_codes must preserve the exact comma split")
+        for field_name, column_name in PUBLIC_FUND_FIELD_COLUMNS.items():
+            wrapped = getattr(self, field_name)
+            if wrapped.raw_value != row.cell(column_name).raw_value:
+                raise ValueError("public-fund wrapper raw value does not match source row")
+            if wrapped.source != SourceCellLocator.from_row(row, column_name):
+                raise ValueError("public-fund wrapper locator does not match source row")
+        return self
+
 
 class FundAttributeRow(BaseModel):
     """One normalized public-fund source row at its attribute grain."""
@@ -182,6 +359,10 @@ class FundAttributeRow(BaseModel):
 
 def validate_public_fund_source_row_json(value: object) -> None:
     """Reject noncanonical serialized SourceRow shapes before model coercion."""
+    _validate_source_row_json(value, tuple(FUND_ATTRIBUTE_FIELD_COLUMNS.values()))
+
+
+def _validate_source_row_json(value: object, columns: tuple[str, ...]) -> None:
     if not isinstance(value, dict) or set(value) != _SOURCE_ROW_JSON_KEYS:
         _raise_noncanonical_source_row_json()
 
@@ -218,11 +399,11 @@ def validate_public_fund_source_row_json(value: object) -> None:
         type(raw_value) is str for raw_value in raw_payload
     ):
         _raise_noncanonical_source_row_json()
-    if not isinstance(cells, list) or len(cells) != len(FUND_ATTRIBUTE_FIELD_COLUMNS):
+    if not isinstance(cells, list) or len(cells) != len(columns):
         _raise_noncanonical_source_row_json()
 
     for column_number, (cell, expected_column_name) in enumerate(
-        zip(cells, FUND_ATTRIBUTE_FIELD_COLUMNS.values(), strict=True),
+        zip(cells, columns, strict=True),
         start=1,
     ):
         if not isinstance(cell, dict) or set(cell) != _SOURCE_CELL_JSON_KEYS:
@@ -319,7 +500,7 @@ class FundItemAttribute(BaseModel):
     attribute_code: NormalizedValue[str]
 
 
-class FundItem(BaseModel):
+class _RetiredFundItem(BaseModel):
     """One public fund at the frozen item grain with repeated cell evidence."""
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
@@ -445,7 +626,7 @@ class FundCollapseResult(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
-    items: tuple[FundItem, ...]
+    items: tuple[_RetiredFundItem, ...]
     attributes: tuple[FundItemAttribute, ...]
     issues: tuple[DataQualityIssue, ...]
 
@@ -513,3 +694,6 @@ def _fund_attribute_order_key(
         attribute.attribute_code.raw_value,
         attribute.attribute_code.source.source_row_number,
     )
+
+
+FundItem = PublicFundItem
