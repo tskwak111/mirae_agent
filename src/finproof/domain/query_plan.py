@@ -143,6 +143,20 @@ class AggregationSpec(_FrozenModel):
         return self
 
 
+class MetricTarget(_FrozenModel):
+    product_type: ProductType
+    metrics: Annotated[
+        tuple[Annotated[str, Field(min_length=1, max_length=100)], ...],
+        Field(min_length=1, max_length=20),
+    ]
+
+    @model_validator(mode="after")
+    def _validate_metrics(self) -> Self:
+        if len(set(self.metrics)) != len(self.metrics):
+            raise ValueError("target metrics must be unique")
+        return self
+
+
 class QueryPlan(_FrozenModel):
     intent: Intent
     product_types: Annotated[tuple[ProductType, ...], Field(max_length=6)]
@@ -154,6 +168,7 @@ class QueryPlan(_FrozenModel):
         tuple[Annotated[str, Field(min_length=1, max_length=100)], ...],
         Field(max_length=20),
     ]
+    metric_targets: Annotated[tuple[MetricTarget, ...], Field(max_length=6)] = ()
     sort: Annotated[tuple[SortSpec, ...], Field(max_length=5)]
     aggregation: AggregationSpec | None
     top_k: Annotated[int, Field(ge=1, le=50)]
@@ -167,6 +182,23 @@ class QueryPlan(_FrozenModel):
             raise ValueError("product types must be unique")
         if len(set(self.metrics)) != len(self.metrics):
             raise ValueError("metrics must be unique")
+        if self.metric_targets:
+            if self.intent is not Intent.SCREEN_RANK:
+                raise ValueError("metric targets require screen rank intent")
+            if self.top_k_scope is not TopKScope.PER_PRODUCT_TYPE:
+                raise ValueError("metric targets require per-product-type top-k")
+            if tuple(target.product_type for target in self.metric_targets) != self.product_types:
+                raise ValueError("metric targets must follow selected product types")
+            if {metric for target in self.metric_targets for metric in target.metrics} != set(
+                self.metrics
+            ):
+                raise ValueError("metric targets must cover plan metrics")
+            if any(
+                target.metrics
+                != tuple(metric for metric in self.metrics if metric in target.metrics)
+                for target in self.metric_targets
+            ):
+                raise ValueError("target metrics must preserve plan metric order")
         if (self.intent is Intent.AGGREGATE) != (self.aggregation is not None):
             raise ValueError("aggregation is present exactly for aggregate intent")
         terminal = self.intent in {Intent.CLARIFY, Intent.UNSUPPORTED}

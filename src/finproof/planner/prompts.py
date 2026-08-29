@@ -10,7 +10,7 @@ from finproof.domain.query_plan import ProductType
 from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
-PROMPT_VERSION = "phase4-planner-v4"
+PROMPT_VERSION = "phase4-planner-v5"
 
 _RULES = """interpret only; never answer the financial question.
 Use only canonical names in the supplied compact catalog; never invent identifiers.
@@ -37,6 +37,10 @@ never emit namespaced metric registry IDs in filters, metrics, sort, or aggregat
 BUYABLE_QUANTITY is invalid and raw-lineage-only; never emit buyable_quantity.
 Domestic-bond purchaseability is enforced by organizer state policy, not a plan field.
 Use top_k_scope=per_product_type for explicit 각각 N개; use global only for one compatible rank.
+Use metric_targets=[] unless the question explicitly assigns different metrics to product types.
+For that explicit case only, emit one target per selected product type in product_types order;
+each target uses a nonempty ordered subset of metrics and their union equals metrics.
+A metric may occur in multiple targets only when the question explicitly shares it.
 Emit aggregation={{"function":"none","field":"","group_by":[]}} unless intent=aggregate.
 For count use an empty field; min/max/sum/avg require one canonical field.
 Ask for clarification only under the registered ambiguity policy.

@@ -12,6 +12,7 @@
     "result_grain",
     "filters",
     "metrics",
+    "metric_targets",
     "sort",
     "aggregation",
     "top_k",
@@ -98,6 +99,21 @@
         "direction": {"enum": ["asc", "desc"]}
       }
     },
+    "metric_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["product_type", "metrics"],
+      "properties": {
+        "product_type": {"enum": ["domestic_bond", "domestic_etf", "domestic_etn", "overseas_etf", "overseas_etn", "public_fund"]},
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1, "maxLength": 100}
+        }
+      }
+    },
     "aggregation": {
       "oneOf": [
         {
@@ -150,6 +166,11 @@
       "maxItems": 20,
       "uniqueItems": true,
       "items": {"type": "string", "minLength": 1, "maxLength": 100}
+    },
+    "metric_targets": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/metric_target"}
     },
     "sort": {"type": "array", "maxItems": 5, "items": {"$ref": "#/$defs/sort"}},
     "aggregation": {"anyOf": [{"type": "null"}, {"$ref": "#/$defs/aggregation"}]},

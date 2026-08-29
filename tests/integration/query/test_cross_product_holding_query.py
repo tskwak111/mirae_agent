@@ -304,7 +304,8 @@ def test_constituent_request_keeps_native_segments_and_unavailable_etn_fail_clos
     )
     assert result.trace.segments[1].returned == 0
     answer = result.fact_pack.surface_parts[0].text
-    assert "domestic_etn 구성종목 자료는 제공되지 않아" in answer
+    assert "국내 ETN 구성종목 자료는 제공되지 않아" in answer
+    assert "domestic_etn" not in answer
     assert "보유하지 않았다는 결론" in answer
 
 

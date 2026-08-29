@@ -73,7 +73,7 @@ def test_query_plan_accepts_one_complete_nonaggregate_plan_and_rejects_unknown_f
     """A canonical JSON plan is complete and closed to undeclared members."""
     from finproof.domain.query_plan import Intent, ProductType, QueryPlan, ResultGrain
 
-    payload = {
+    payload: dict[str, object] = {
         "intent": "screen",
         "product_types": ["domestic_bond"],
         "entities": [],
@@ -98,6 +98,63 @@ def test_query_plan_accepts_one_complete_nonaggregate_plan_and_rejects_unknown_f
 
     with pytest.raises(ValidationError):
         QueryPlan.model_validate_json(json.dumps(payload | {"sql": "SELECT 1"}))
+
+
+def test_query_plan_accepts_only_explicit_complete_ordered_metric_targets() -> None:
+    """Product-specific metric routing is explicit, complete, and order preserving."""
+    from finproof.domain.query_plan import ProductType, QueryPlan
+
+    metric_targets: list[dict[str, object]] = [
+        {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+        {"product_type": "domestic_etf", "metrics": ["total_fee"]},
+        {"product_type": "public_fund", "metrics": ["return_1y"]},
+    ]
+    payload: dict[str, object] = {
+        "intent": "screen_rank",
+        "product_types": ["domestic_bond", "domestic_etf", "public_fund"],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": ["buy_yield", "total_fee", "return_1y"],
+        "metric_targets": metric_targets,
+        "sort": [],
+        "aggregation": None,
+        "top_k": 3,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": False,
+        "clarification_reason": "",
+    }
+
+    plan = QueryPlan.model_validate_json(json.dumps(payload))
+
+    assert tuple(target.product_type for target in plan.metric_targets) == (
+        ProductType.DOMESTIC_BOND,
+        ProductType.DOMESTIC_ETF,
+        ProductType.PUBLIC_FUND,
+    )
+    assert tuple(target.metrics for target in plan.metric_targets) == (
+        ("buy_yield",),
+        ("total_fee",),
+        ("return_1y",),
+    )
+
+    invalid = (
+        payload | {"intent": "screen"},
+        payload | {"top_k_scope": "global"},
+        payload | {"metric_targets": metric_targets[1:]},
+        payload
+        | {
+            "metric_targets": [
+                {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+                {"product_type": "domestic_etf", "metrics": ["total_fee"]},
+                {"product_type": "public_fund", "metrics": ["return_1y", "return_1y"]},
+            ]
+        },
+    )
+    for case in invalid:
+        with pytest.raises(ValidationError):
+            QueryPlan.model_validate_json(json.dumps(case))
 
 
 @pytest.mark.parametrize(

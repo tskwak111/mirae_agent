@@ -73,6 +73,7 @@ def _provider_plan(**updates: object) -> dict[str, Any]:
         "result_grain": "listed_product",
         "filters": [],
         "metrics": ["total_fee"],
+        "metric_targets": [],
         "sort": [],
         "aggregation": {"function": "none", "field": "", "group_by": []},
         "top_k": 5,

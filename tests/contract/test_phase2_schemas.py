@@ -22,6 +22,7 @@ def _base_plan() -> dict[str, object]:
         "result_grain": "instrument",
         "filters": [],
         "metrics": ["buy_yield"],
+        "metric_targets": [],
         "sort": [],
         "aggregation": None,
         "top_k": 5,
@@ -74,6 +75,21 @@ def _base_plan() -> dict[str, object]:
             },
             True,
             id="heterogeneous-envelope",
+        ),
+        pytest.param(
+            {
+                "intent": "screen_rank",
+                "product_types": ["domestic_bond", "public_fund"],
+                "result_grain": "product",
+                "metrics": ["buy_yield", "return_1y"],
+                "metric_targets": [
+                    {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+                    {"product_type": "public_fund", "metrics": ["return_1y"]},
+                ],
+                "top_k_scope": "per_product_type",
+            },
+            True,
+            id="explicit-metric-targets",
         ),
         pytest.param({"sql": "select 1"}, False, id="extra"),
         pytest.param(

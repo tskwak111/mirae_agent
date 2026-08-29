@@ -52,6 +52,46 @@ def test_golden_case_requires_review_metadata_and_expected_semantics() -> None:
     assert case.expected_answer.required_concepts == ("2026-07-11",)
 
 
+def test_expected_plan_records_explicit_metric_targets() -> None:
+    expected_plan = {
+        "intent": "screen_rank",
+        "product_types": ["domestic_bond", "public_fund"],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "metrics": ["buy_yield", "return_1y"],
+        "metric_targets": [
+            {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+            {"product_type": "public_fund", "metrics": ["return_1y"]},
+        ],
+        "top_k_scope": "per_product_type",
+        "native_segments": [
+            {"product_type": "domestic_bond", "native_result_grain": "instrument"},
+            {"product_type": "public_fund", "native_result_grain": "fund_item"},
+        ],
+    }
+
+    case = GoldenCase.model_validate(
+        _case(
+            expected_plan=expected_plan,
+            expected_result={"assembled_envelope": True},
+        )
+    )
+
+    assert tuple(target.metrics for target in case.expected_plan.metric_targets or ()) == (
+        ("buy_yield",),
+        ("return_1y",),
+    )
+
+    with pytest.raises(ValidationError, match="metric targets"):
+        GoldenCase.model_validate(
+            _case(
+                expected_plan=expected_plan
+                | {"metric_targets": list(reversed(expected_plan["metric_targets"]))},
+                expected_result={"assembled_envelope": True},
+            )
+        )
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

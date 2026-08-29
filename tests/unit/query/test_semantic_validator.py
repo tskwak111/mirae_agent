@@ -13,6 +13,7 @@ from finproof.domain.query_plan import (
     FilterClause,
     FilterOperator,
     Intent,
+    MetricTarget,
     ProductType,
     QueryPlan,
     ResultGrain,
@@ -86,6 +87,36 @@ def test_semantic_validator_rejects_unknown_field_operator_and_value_type_family
         context=_context(),
     )
     assert validated.plan.filters[0].value == Decimal("1.5")
+
+
+def test_semantic_validator_rejects_unregistered_metric_target_pairs() -> None:
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_BOND, ProductType.PUBLIC_FUND),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("buy_yield", "return_1y"),
+            "metric_targets": (
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    metrics=("return_1y",),
+                ),
+                MetricTarget(
+                    product_type=ProductType.PUBLIC_FUND,
+                    metrics=("buy_yield",),
+                ),
+            ),
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+
+    with pytest.raises(ValueError, match="metric target"):
+        _validator().validate(
+            plan,
+            resolutions=ResolutionBundle(results=()),
+            context=_context(),
+        )
 
 
 def test_resolutions_are_retained_by_identity_and_candidate_or_ambiguous_status_fails_closed() -> (

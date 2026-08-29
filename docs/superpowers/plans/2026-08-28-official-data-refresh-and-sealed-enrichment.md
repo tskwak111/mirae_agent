@@ -1629,6 +1629,14 @@ exact path list.
 - Create: `tests/integration/evaluation/test_organizer_runner.py`
 - Modify: `src/finproof/evaluation/loader.py`
 - Modify: `src/finproof/cli/evaluate.py`
+- Modify: `schemas/query_plan.schema.json`
+- Modify: `schemas/hcx_query_plan.schema.json`
+- Modify: `src/finproof/domain/query_plan.py`
+- Modify: `src/finproof/query/semantic_validator.py`
+- Modify: `src/finproof/query/segmenter.py`
+- Modify: `src/finproof/planner/prompts.py`
+- Modify: `src/finproof/evaluation/models.py`
+- Modify: `src/finproof/evaluation/scoring.py`
 - Modify: `src/finproof/answer/renderer.py`
 - Modify: `src/finproof/evidence/serializer.py`
 - Modify: `tests/unit/answer/test_renderer.py`
@@ -1694,6 +1702,20 @@ v2/v3 for fitting payloads, use v4 only after canonical overflow, preserve every
 field through ordered tables and exact common-context/policy references, and fail closed if
 the lossless v4 still exceeds the bound. Do not reduce `top_k`, remove evidence, or raise
 the 24,000-byte ceiling.
+
+The answer-quality audit also exposed one overlapping-field segmentation error in the
+approved H-005/H-009 plans. Apply D-038 under focused RED/GREEN by adding the explicit
+`metric_targets` plan member to the canonical/provider schemas and HCX prompt. Require
+an empty array unless the question explicitly assigns metrics to product types; otherwise
+require exact selected-product coverage and metric-union equality, validate every target
+pair against the registry, and route metrics plus same-field sorts exactly as declared.
+Keep empty mappings on every shared or ambiguous plan, with the prior all-applicable
+distribution unchanged. Update only H-005/H-009 in a v3 plan packet and obtain renewed
+human plan approval before regenerating expected answers.
+
+```bash
+uv run pytest tests/unit/domain/test_query_plan_models.py tests/contract/test_phase2_schemas.py tests/unit/planner/test_provider_schema.py tests/unit/planner/test_prompts.py tests/unit/query/test_semantic_validator.py tests/unit/query/test_execution_bundle.py tests/unit/evaluation/test_case_schema.py tests/unit/evaluation/test_scoring.py -q -k 'metric_target or provider_schema or query_plan'
+```
 
 ```bash
 uv run pytest tests/unit/answer/test_renderer.py -q -k 'rank and duplicate'

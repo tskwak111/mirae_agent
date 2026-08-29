@@ -12,6 +12,7 @@ from finproof.domain.query_plan import (
     FilterClause,
     FilterOperator,
     Intent,
+    MetricTarget,
     ProductType,
     ResultGrain,
     SortDirection,
@@ -136,6 +137,102 @@ def test_clause_distribution_targets_only_registered_product_types_and_zero_targ
             resolutions=ResolutionBundle(results=()),
             context=_context(),
         )
+
+
+def test_explicit_metric_targets_route_metrics_and_same_field_sorts_exactly() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(
+            ProductType.DOMESTIC_BOND,
+            ProductType.DOMESTIC_ETF,
+            ProductType.PUBLIC_FUND,
+        ),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("buy_yield", "total_fee", "return_1y"),
+            "metric_targets": (
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    metrics=("buy_yield",),
+                ),
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    metrics=("total_fee",),
+                ),
+                MetricTarget(
+                    product_type=ProductType.PUBLIC_FUND,
+                    metrics=("return_1y",),
+                ),
+            ),
+            "sort": (
+                SortSpec(field="buy_yield", direction=SortDirection.DESC),
+                SortSpec(field="total_fee", direction=SortDirection.ASC),
+                SortSpec(field="return_1y", direction=SortDirection.DESC),
+            ),
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    segments = ExecutionBundleBuilder(fields).build(validated, context=_context()).segments
+
+    assert tuple(segment.metrics for segment in segments) == (
+        ("buy_yield",),
+        ("total_fee",),
+        ("return_1y",),
+    )
+    assert tuple(tuple(sort.field for sort in segment.sort) for segment in segments) == (
+        ("buy_yield",),
+        ("total_fee",),
+        ("return_1y",),
+    )
+
+
+def test_explicit_overseas_target_is_not_pruned_by_another_products_return_1y() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.OVERSEAS_ETF),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("return_1y", "total_fee"),
+            "metric_targets": (
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    metrics=("return_1y",),
+                ),
+                MetricTarget(
+                    product_type=ProductType.OVERSEAS_ETF,
+                    metrics=("total_fee",),
+                ),
+            ),
+            "sort": (
+                SortSpec(field="return_1y", direction=SortDirection.DESC),
+                SortSpec(field="total_fee", direction=SortDirection.ASC),
+            ),
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    assert tuple(segment.product_type for segment in bundle.segments) == (
+        ProductType.DOMESTIC_ETF,
+        ProductType.OVERSEAS_ETF,
+    )
+    assert bundle.limitations == ()
 
 
 def test_overseas_region_korean_us_literal_binds_to_official_value_with_policy_id() -> None:

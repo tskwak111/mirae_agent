@@ -5,11 +5,13 @@ from finproof.domain.query_plan import (
     FilterClause,
     FilterOperator,
     Intent,
+    MetricTarget,
     ProductType,
     QueryPlan,
     ResultGrain,
     TopKScope,
 )
+from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.models import (
     ExpectedValue,
     GoldenCase,
@@ -19,7 +21,6 @@ from finproof.evaluation.models import (
     ProductIdentity,
 )
 from finproof.evaluation.scoring import (
-    LatencySummary,
     score_case,
     score_evidence,
     score_filters,
@@ -319,6 +320,75 @@ def test_missing_observed_plan_is_a_zero_score_not_an_invalid_ratio() -> None:
     assert score.plan_fields.numerator == 0
     assert score.plan_fields.denominator >= 4
     assert "observed plan is missing" in score.failures
+
+
+def test_plan_scoring_detects_different_metric_target_routing() -> None:
+    case = GoldenCase.model_validate(
+        {
+            "case_id": "CROSS-TARGET-001",
+            "category": "cross_product",
+            "question": "ETF는 보수, 펀드는 수익률로 비교",
+            "expected_plan": {
+                "intent": "screen_rank",
+                "product_types": ["domestic_etf", "public_fund"],
+                "as_of_date": "2026-08-24",
+                "result_grain": "product",
+                "metrics": ["total_fee", "return_1y"],
+                "metric_targets": [
+                    {"product_type": "domestic_etf", "metrics": ["total_fee"]},
+                    {"product_type": "public_fund", "metrics": ["return_1y"]},
+                ],
+                "top_k_scope": "per_product_type",
+                "native_segments": [
+                    {
+                        "product_type": "domestic_etf",
+                        "native_result_grain": "listed_product",
+                    },
+                    {
+                        "product_type": "public_fund",
+                        "native_result_grain": "fund_item",
+                    },
+                ],
+            },
+            "expected_result": {"assembled_envelope": True},
+            "expected_answer": {"required_concepts": [], "forbidden_concepts": []},
+            "review": {
+                "reviewer": "human",
+                "reviewed_at": "2026-08-29",
+                "source": "reference-engine",
+            },
+        }
+    )
+    observed_plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.PUBLIC_FUND),
+        entities=(),
+        as_of_date=date(2026, 8, 24),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("total_fee", "return_1y"),
+        metric_targets=(
+            MetricTarget(
+                product_type=ProductType.DOMESTIC_ETF,
+                metrics=("total_fee", "return_1y"),
+            ),
+            MetricTarget(
+                product_type=ProductType.PUBLIC_FUND,
+                metrics=("return_1y",),
+            ),
+        ),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+    score = score_case(case, ObservedCase(plan=observed_plan))
+
+    assert score.plan_fields.value < 1
+    assert "metric_targets differs" in score.failures
 
 
 def test_segment_assignment_and_compatibility_partitions_are_scored_separately() -> None:

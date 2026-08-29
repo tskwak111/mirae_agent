@@ -211,6 +211,68 @@
         ]
       }
     },
+    "metric_targets": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "properties": {
+          "product_type": {
+            "type": "string",
+            "enum": [
+              "domestic_bond",
+              "domestic_etf",
+              "domestic_etn",
+              "overseas_etf",
+              "overseas_etn",
+              "public_fund"
+            ]
+          },
+          "metrics": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "string",
+              "enum": [
+                "asset_type",
+                "aum",
+                "buy_yield",
+                "credit_rating",
+                "currency",
+                "holding_constituent",
+                "issue_date",
+                "maturity_date",
+                "mirae_saleable",
+                "product_id",
+                "product_name",
+                "region",
+                "remaining_days_at_as_of",
+                "return_18m",
+                "return_1d",
+                "return_1m",
+                "return_1w",
+                "return_1y",
+                "return_2y",
+                "return_3m",
+                "return_3y",
+                "return_5y",
+                "return_6m",
+                "return_ytd",
+                "risk_grade",
+                "saleable",
+                "total_fee",
+                "tracking_error"
+              ]
+            }
+          }
+        },
+        "required": [
+          "product_type",
+          "metrics"
+        ]
+      }
+    },
     "sort": {
       "type": "array",
       "maxItems": 5,
@@ -383,6 +445,7 @@
     "result_grain",
     "filters",
     "metrics",
+    "metric_targets",
     "sort",
     "aggregation",
     "top_k",

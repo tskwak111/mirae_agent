@@ -208,6 +208,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
             (label, expected)
             for label, expected in (
                 ("metrics", plan_expectation.metrics),
+                ("metric_targets", plan_expectation.metric_targets),
                 ("sort", plan_expectation.sort),
                 ("needs_clarification", plan_expectation.needs_clarification),
                 ("top_k", plan_expectation.top_k),
@@ -226,6 +227,7 @@ def score_case(case: GoldenCase, observed: ObservedCase) -> CaseScore:
         ]
         for label, expected, actual in (
             ("metrics", plan_expectation.metrics, plan.metrics),
+            ("metric_targets", plan_expectation.metric_targets, plan.metric_targets),
             ("sort", plan_expectation.sort, plan.sort),
             (
                 "needs_clarification",

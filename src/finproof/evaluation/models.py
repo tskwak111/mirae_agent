@@ -14,6 +14,7 @@ from finproof.domain.query_plan import (
     AggregationSpec,
     FilterClause,
     Intent,
+    MetricTarget,
     ProductType,
     ResultGrain,
     SortSpec,
@@ -66,6 +67,7 @@ class ExpectedPlan(_FrozenModel):
         ]
         | None
     ) = None
+    metric_targets: Annotated[tuple[MetricTarget, ...], Field(max_length=6)] | None = None
     sort: Annotated[tuple[SortSpec, ...], Field(max_length=5)] | None = None
     top_k: Annotated[int, Field(ge=1, le=50)] | None = None
     needs_clarification: bool | None = None
@@ -90,6 +92,15 @@ class ExpectedPlan(_FrozenModel):
                 for item in value
             ]
         return TypeAdapter(tuple[FilterClause, ...]).validate_json(json.dumps(value))
+
+    @field_validator("metric_targets", mode="before")
+    @classmethod
+    def _parse_metric_targets(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, (list, tuple)) and all(type(item) is MetricTarget for item in value):
+            return tuple(value)
+        return TypeAdapter(tuple[MetricTarget, ...]).validate_json(json.dumps(value))
 
     @field_validator("sort", mode="before")
     @classmethod
@@ -127,6 +138,24 @@ class ExpectedPlan(_FrozenModel):
             raise ValueError("expected product types must be unique")
         if self.metrics is not None and len(set(self.metrics)) != len(self.metrics):
             raise ValueError("expected metrics must be unique")
+        if self.metric_targets:
+            if (
+                self.intent is not Intent.SCREEN_RANK
+                or self.top_k_scope is not TopKScope.PER_PRODUCT_TYPE
+            ):
+                raise ValueError("expected metric targets require per-product screen rank")
+            if tuple(target.product_type for target in self.metric_targets) != self.product_types:
+                raise ValueError("expected metric targets must follow product types")
+            if self.metrics is None or {
+                metric for target in self.metric_targets for metric in target.metrics
+            } != set(self.metrics):
+                raise ValueError("expected metric targets must cover metrics")
+            if any(
+                target.metrics
+                != tuple(metric for metric in self.metrics if metric in target.metrics)
+                for target in self.metric_targets
+            ):
+                raise ValueError("expected metric targets must preserve metric order")
         native_by_product = {
             product: native_result_grain(product) for product in self.product_types
         }

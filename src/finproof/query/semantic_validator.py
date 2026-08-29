@@ -129,6 +129,12 @@ class SemanticValidator:
         for metric in plan.metrics:
             if not _projections(self._fields, metric, plan.product_types):
                 raise ValueError("metric has no selected product target")
+        for target in plan.metric_targets:
+            if any(
+                (metric, target.product_type) not in self._fields.projections
+                for metric in target.metrics
+            ):
+                raise ValueError("metric target is not registered")
         for sort in plan.sort:
             definition = registry_fields.get(sort.field)
             if (

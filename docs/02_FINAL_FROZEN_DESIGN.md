@@ -167,6 +167,7 @@ as_of_date
 result_grain
 filters
 metrics
+metric_targets
 sort
 top_k
 top_k_scope
@@ -176,7 +177,7 @@ clarification_reason
 
 The application injects versions and source policy. Semantic validation prevents invalid product/grain/field/operator/period/currency/state combinations before compilation. `top_k_scope` is either `global` or `per_product_type`. An aggregate plan contains exactly one closed `AggregationSpec`: `count` of the native result grain, or `min`/`max`/`sum`/`avg` of one registry-approved field, optionally grouped by at most two canonical fields.
 
-A validated multi-product plan becomes an immutable `ExecutionBundle`. One `ExecutionSegment` is created per selected product type with its native grain and only the clauses registered for that type. The fixed order is entity resolution and literal filtering, product-specific state and metric eligibility, compatibility partitioning, aggregate or rank/tie calculation, then `top_k`. A compiler consumes one segment at a time; `global` requires exactly one final compatibility partition, while `per_product_type` applies `top_k` independently to every final partition within each product type and traces every split. Heterogeneous results are assembled under the `product` envelope without erasing native identity or evidence.
+A validated multi-product plan becomes an immutable `ExecutionBundle`. One `ExecutionSegment` is created per selected product type with its native grain and only the clauses registered for that type. A flat plan distributes metrics to every registered applicable type. When the language decision explicitly assigns metrics by product type, D-038's validated `metric_targets` is the sole routing authority and the same-field sorts follow it; no applicability or positional inference may invent that assignment. The fixed order is entity resolution and literal filtering, product-specific state and metric eligibility, compatibility partitioning, aggregate or rank/tie calculation, then `top_k`. A compiler consumes one segment at a time; `global` requires exactly one final compatibility partition, while `per_product_type` applies `top_k` independently to every final partition within each product type and traces every split. Heterogeneous results are assembled under the `product` envelope without erasing native identity or evidence.
 
 ## 6. Entity resolution
 

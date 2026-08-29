@@ -38,6 +38,7 @@ def test_provider_schema_uses_only_supported_subset() -> None:
         "result_grain",
         "filters",
         "metrics",
+        "metric_targets",
         "sort",
         "aggregation",
         "top_k",
@@ -68,6 +69,7 @@ def test_provider_field_allowlists_match_the_issued_registry() -> None:
     allowlists = (
         properties["filters"]["items"]["properties"]["field"]["enum"],
         properties["metrics"]["items"]["enum"],
+        properties["metric_targets"]["items"]["properties"]["metrics"]["items"]["enum"],
         properties["sort"]["items"]["properties"]["field"]["enum"],
         properties["aggregation"]["properties"]["group_by"]["items"]["enum"],
     )

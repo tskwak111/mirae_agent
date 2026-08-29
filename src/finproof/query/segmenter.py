@@ -40,6 +40,7 @@ class ExecutionBundleBuilder:
         resolutions = plan.resolutions
         if type(resolutions) is not ResolutionBundle:
             raise TypeError("segment entity resolutions differ")
+        metric_targets = {target.product_type: target.metrics for target in original.metric_targets}
         entity_ids = {
             product_type: tuple(
                 result.selected.product_id
@@ -70,9 +71,13 @@ class ExecutionBundleBuilder:
                 else ()
             ),
         }
-        prune_overseas_1y = "return_1y" in requested_fields and any(
-            product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
-            for product_type in original.product_types
+        prune_overseas_1y = (
+            not metric_targets
+            and "return_1y" in requested_fields
+            and any(
+                product_type in {ProductType.OVERSEAS_ETF, ProductType.OVERSEAS_ETN}
+                for product_type in original.product_types
+            )
         )
         segments = tuple(
             ExecutionSegment(
@@ -96,15 +101,23 @@ class ExecutionBundleBuilder:
                         else ()
                     ),
                 ),
-                metrics=tuple(
-                    metric
-                    for metric in original.metrics
-                    if (metric, product_type) in self._fields.projections
+                metrics=metric_targets.get(
+                    product_type,
+                    tuple(
+                        metric
+                        for metric in original.metrics
+                        if (metric, product_type) in self._fields.projections
+                    ),
                 ),
                 sort=tuple(
                     sort
                     for sort in original.sort
                     if (sort.field, product_type) in self._fields.projections
+                    and (
+                        not metric_targets
+                        or sort.field not in original.metrics
+                        or sort.field in metric_targets[product_type]
+                    )
                 ),
                 aggregation=original.aggregation,
                 top_k=original.top_k,
