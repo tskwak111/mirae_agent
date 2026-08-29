@@ -62,7 +62,8 @@ def test_recommendation_request_renders_conditions_matching_candidates() -> None
         ),
     )
 
-    assert "조건에 부합하는 후보: domestic_bond KR0000000001" in draft.text
+    assert "조건에 부합하는 후보: 국내채권 KR0000000001" in draft.text
+    assert "domestic_bond" not in draft.text
     assert "추천" not in draft.text
     assert any(claim.kind is ClaimKind.CANDIDATE for claim in draft.claims)
     session._close()
@@ -114,7 +115,7 @@ def test_renderer_projects_requested_null_as_grounded_field_unavailable_claim() 
         evidence=evidence,
     )
 
-    assert "buy_yield: 제공 데이터에서 값을 확인할 수 없습니다." in draft.text
+    assert "매수수익률: 제공 데이터에서 값을 확인할 수 없습니다." in draft.text
     unavailable = next(claim for claim in draft.claims if claim.field_id == "buy_yield")
     assert unavailable.value is None
     assert unavailable.evidence_ids == (direct.evidence_id,)
@@ -154,7 +155,7 @@ def test_renderer_keeps_buy_yield_range_as_a_limitation_not_a_scalar_claim() -> 
         evidence=evidence,
     )
 
-    assert "buy_yield:" in draft.text
+    assert "매수수익률" in draft.text
     assert "buy_yield_range:" not in draft.text
     assert all(claim.field_id != "buy_yield_range" for claim in draft.claims)
     session._close()
@@ -293,7 +294,10 @@ def test_rank_answer_does_not_repeat_duplicate_metric_or_internal_partition_coun
     assert next(item.evidence_id for item in direct if item.field_id == "buy_yield") not in (
         metric_claims[0].evidence_ids
     )
-    assert "(1위)" in draft.text
+    assert "1위." in draft.text
+    assert "1위. 국내채권 테스트 채권 (KR0000000001) — 매수수익률 2.25%" in draft.text
+    assert "domestic_bond/instrument" not in draft.text
+    assert "buy_yield" not in draft.text
     assert "- domestic_bond KR0000000001 buy_yield" not in draft.text
     assert "포함 개수" not in draft.text
     assert "결측 개수" not in draft.text
@@ -352,8 +356,9 @@ def test_renderer_keeps_same_product_id_separate_across_product_types() -> None:
         (ProductType.DOMESTIC_BOND, "KR0000000001"),
         (ProductType.DOMESTIC_ETF, "KR0000000001"),
     )
-    assert "domestic_bond KR0000000001" in draft.text
-    assert "domestic_etf KR0000000001" in draft.text
+    assert "국내채권 KR0000000001" in draft.text
+    assert "국내 ETF KR0000000001" in draft.text
+    assert "domestic_" not in draft.text
     session._close()
 
 
@@ -388,6 +393,8 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
             "제공 데이터 기록값",
             "비교 가능 기준",
             "통화별로 결과를 분리했습니다.",
+            "domestic_etf 구성종목 자료는 제공되지 않아 "
+            "보유하지 않았다는 결론을 내리지 않았습니다.",
         ),
     )
 
@@ -419,6 +426,8 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
     assert "제공 데이터 기록값" in text
     assert "비교 가능 기준" in text
     assert "통화별로 결과를 분리했습니다." in text
+    assert "국내 ETF 구성종목 자료는 제공되지 않아" in text
+    assert "domestic_etf" not in text
     assert "지정한 조건을 충족하는 상품을 찾지 못했습니다." in no_result
 
 
@@ -482,11 +491,10 @@ def test_renderer_projects_rank_and_aggregate_included_count_values() -> None:
         evidence=evidence,
     )
 
-    assert "domestic_bond/instrument [yield:KRW] KR0000000001 buy_yield: 2.25 (1위)" in draft.text
-    assert (
-        "domestic_bond/instrument [yield:KRW] currency=KRW buy_yield 평균: 2.10 "
-        "(포함 2건, 제외 1건)"
-    ) in draft.text
+    assert "1위. 국내채권 KR0000000001 — 매수수익률 2.25%" in draft.text
+    assert ("국내채권 통화=KRW 매수수익률 평균: 2.1% (포함 2건, 제외 1건)") in draft.text
+    assert "domestic_bond" not in draft.text
+    assert "buy_yield" not in draft.text
     assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (
         Decimal("2.25"),
         Decimal("2.10"),
@@ -568,7 +576,7 @@ def test_aggregate_renderer_does_not_project_sample_product_rows() -> None:
         evidence=evidence,
     )
 
-    assert "buy_yield 평균: 3.10" in draft.text
+    assert "매수수익률 평균: 3.1%" in draft.text
     assert "분할" not in draft.text
     assert "- domestic_bond KR0000000001" not in draft.text
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
@@ -702,7 +710,9 @@ def test_renderer_projects_recorded_rank_lens_separately() -> None:
     )
 
     assert "제공 데이터 기록값" in draft.text
-    assert "NRGD.K total_fee: 0" in draft.text
+    assert "해외 ETN NRGD.K — 총보수 0%" in draft.text
+    assert "overseas_etn" not in draft.text
+    assert "total_fee" not in draft.text
     assert "실제 무보수인지는 검증되지 않았습니다." in draft.text
     assert next(claim for claim in draft.claims if claim.kind is ClaimKind.NUMERIC).value == 0
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
@@ -740,10 +750,156 @@ def test_renderer_projects_actual_compatibility_partition_identity() -> None:
         evidence=evidence,
     )
 
-    assert "분할 domestic_bond/instrument [yield:KRW]: 2건" in draft.text
+    assert "국내채권 비교 가능 결과: 2건" in draft.text
+    assert "yield:KRW" not in draft.text
     partition_claim = next(claim for claim in draft.claims if claim.kind is ClaimKind.NUMERIC)
     assert partition_claim.partition_key == "yield:KRW"
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+
+
+def test_renderer_formats_named_currency_rank_without_internal_tokens() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import ProductType, ResultGrain
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = list(
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("product_id", "product_name"),
+                ),
+            )
+        )[0]
+        .direct
+    )
+    direct = [
+        item.model_copy(
+            update={
+                "evidence_id": item.evidence_id.replace("domestic_bond", "domestic_etf"),
+                "product_type": ProductType.DOMESTIC_ETF,
+                "value": (
+                    item.value.model_copy(
+                        update={
+                            "raw_value": "테스트 ETF",
+                            "normalized_value": "테스트 ETF",
+                        }
+                    )
+                    if item.field_id == "product_name"
+                    else item.value
+                ),
+            }
+        )
+        for item in direct
+    ]
+    summary = EvidenceSummary(
+        summary_id="summary:rank:aum",
+        kind=EvidenceSummaryKind.RANK,
+        included_count=1,
+        excluded_count=0,
+        evidence_ids=tuple(item.evidence_id for item in direct),
+        policy_versions=("domestic_etf.aum:rank",),
+        validated_plan_sha256="a" * 64,
+        version_bundle_sha256="b" * 64,
+        artifact_manifest_hash="c" * 64,
+        product_types=(ProductType.DOMESTIC_ETF,),
+        native_result_grains=(ResultGrain.LISTED_PRODUCT,),
+        partition_key="aum:KRW:snapshot:same_currency_or_fixed_fx",
+        product_id="KR0000000001",
+        metric_id="aum",
+        rank=1,
+        tie_count=1,
+        value=Decimal("25474814176500.000000000000000000"),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-aum", question="순자산총액 1위"),
+        plan=_plan(),
+        evidence=EvidenceBundle(
+            direct=tuple(direct),
+            derived=(),
+            summaries=(summary,),
+            material_policy_limitations=(),
+        ),
+    )
+
+    assert (
+        "1위. 국내 ETF 테스트 ETF (KR0000000001) — 순자산총액 25,474,814,176,500 KRW"
+    ) in draft.text
+    assert "domestic_etf" not in draft.text
+    assert "listed_product" not in draft.text
+    session._close()
+
+
+def test_renderer_labels_state_counts_by_product_type() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import ProductType, ResultGrain
+
+    common: dict[str, Any] = {
+        "kind": EvidenceSummaryKind.COUNT,
+        "included_count": 20_407,
+        "excluded_count": 90,
+        "evidence_ids": (),
+        "policy_versions": ("state:count",),
+        "validated_plan_sha256": "a" * 64,
+        "version_bundle_sha256": "b" * 64,
+        "artifact_manifest_hash": "c" * 64,
+        "product_types": (ProductType.DOMESTIC_BOND,),
+        "native_result_grains": (ResultGrain.INSTRUMENT,),
+    }
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:source:count",
+                kind=EvidenceSummaryKind.COUNT,
+                included_count=20_497,
+                excluded_count=0,
+                evidence_ids=(),
+                policy_versions=("source:count",),
+                validated_plan_sha256="a" * 64,
+                version_bundle_sha256="b" * 64,
+                artifact_manifest_hash="c" * 64,
+                value=20_497,
+            ),
+            EvidenceSummary(
+                summary_id="summary:state:count",
+                partition_key="state-validated:domestic_bond",
+                value=20_407,
+                **common,
+            ),
+            EvidenceSummary(
+                summary_id="summary:state:difference",
+                partition_key="state-difference:domestic_bond",
+                value=90,
+                **common,
+            ),
+        ),
+        material_policy_limitations=(),
+    )
+
+    text = (
+        AnswerRenderer()
+        .render(
+            request=AnswerRequest(question_id="q-state-count", question="상품 수"),
+            plan=_plan(),
+            evidence=evidence,
+        )
+        .text
+    )
+
+    assert "국내채권 상태 검증 후 상품 개수: 20407" in text
+    assert "국내채권 원천 기록과 상태 검증 개수 차이: 90" in text
 
 
 def _plan() -> "QueryPlan":

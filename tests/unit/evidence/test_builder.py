@@ -931,7 +931,8 @@ def test_builder_exposes_empty_per_product_type_rank_partition_in_answer() -> No
     )
 
     assert (domestic.included_count, domestic.excluded_count, domestic.value) == (0, 1, 0)
-    assert "분할 domestic_etn/listed_product" in draft.text
+    assert "국내 ETN 비교 가능 결과: 0건" in draft.text
+    assert "domestic_etn/listed_product" not in draft.text
     assert "0건" in draft.text
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
     session._close()

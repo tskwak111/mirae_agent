@@ -26,7 +26,8 @@ from finproof.registry.loader import RegistryBundle
 
 class AnswerRenderer:
     def __init__(self) -> None:
-        wording = RegistryBundle.from_package().answers.document["wording"]
+        self._registries = RegistryBundle.from_package()
+        wording = self._registries.answers.document["wording"]
         if not isinstance(wording, Mapping):
             raise TypeError("answer wording registry differs")
         self._wording = wording
@@ -143,7 +144,10 @@ class AnswerRenderer:
                 and summary.value is not None
                 and summary.partition_key.startswith("state-validated:")
             ):
-                count_text = f"상태 검증 후 상품 개수: {summary.value}"
+                count_text = (
+                    f"{_summary_scope(summary, self._registries)} "
+                    f"상태 검증 후 상품 개수: {summary.value}"
+                )
                 lines.append(count_text)
                 claims.append(_summary_numeric_claim(summary=summary, text=count_text))
             elif (
@@ -152,7 +156,10 @@ class AnswerRenderer:
                 and summary.value is not None
                 and summary.partition_key.startswith("state-difference:")
             ):
-                count_text = f"원천 기록과 상태 검증 개수 차이: {summary.value}"
+                count_text = (
+                    f"{_summary_scope(summary, self._registries)} "
+                    f"원천 기록과 상태 검증 개수 차이: {summary.value}"
+                )
                 lines.append(count_text)
                 claims.append(_summary_numeric_claim(summary=summary, text=count_text))
             elif (
@@ -164,8 +171,11 @@ class AnswerRenderer:
             ):
                 population = summary.partition_key.rsplit(":", 1)[-1]
                 label = {"included": "포함", "missing": "결측", "zero": "0값"}[population]
+                product_type = summary.product_types[0]
+                metric_label, _ = _field_display(summary.metric_id, product_type, self._registries)
                 count_text = (
-                    f"{_summary_scope(summary)} {summary.metric_id} {label} 개수: {summary.value}"
+                    f"{_summary_scope(summary, self._registries)} {metric_label} "
+                    f"{label} 개수: {summary.value}"
                 )
                 lines.append(count_text)
                 claims.append(_summary_numeric_claim(summary=summary, text=count_text))
@@ -175,7 +185,9 @@ class AnswerRenderer:
                 and plan.intent is not Intent.AGGREGATE
                 and (summary.value == 0 or summary.partition_key not in ranked_partitions)
             ):
-                partition_text = f"분할 {_summary_scope(summary)}: {summary.value}건"
+                partition_text = (
+                    f"{_summary_scope(summary, self._registries)} 비교 가능 결과: {summary.value}건"
+                )
                 lines.append(partition_text)
                 claims.append(
                     AnswerClaim(
@@ -191,10 +203,7 @@ class AnswerRenderer:
                     )
                 )
             elif summary.kind is EvidenceSummaryKind.RANK and summary.value is not None:
-                rank_text = (
-                    f"{_summary_scope(summary)} {summary.product_id} "
-                    f"{summary.metric_id}: {summary.value} ({summary.rank}위)"
-                )
+                rank_text = _rank_text(summary, evidence, self._registries)
                 lines.append(rank_text)
                 claims.append(
                     AnswerClaim(
@@ -226,14 +235,23 @@ class AnswerRenderer:
                     and summary.partition_key.startswith("source-recorded:")
                     else "제공 데이터 기록값"
                 )
+                product_type = summary.product_types[0]
+                field_label, unit = _field_display(
+                    summary.metric_id, product_type, self._registries
+                )
                 displayed = (
-                    summary.value
+                    _display_value(
+                        summary.value,
+                        unit=unit,
+                        currency=_partition_currency(summary.partition_key),
+                    )
                     if summary.value is not None
                     else "제공 데이터에서 값을 확인할 수 없습니다."
                 )
+                product = _product_display_name(evidence, product_type, summary.product_id)
                 recorded_text = (
-                    f"{source_prefix} {_summary_scope(summary)} {summary.product_id} "
-                    f"{summary.metric_id}: {displayed}"
+                    f"{source_prefix}: {_summary_scope(summary, self._registries)} {product}"
+                    f" — {field_label} {displayed}"
                 )
                 lines.append(recorded_text)
                 claims.append(
@@ -257,7 +275,12 @@ class AnswerRenderer:
                     )
                 )
             elif summary.kind is EvidenceSummaryKind.AGGREGATE and summary.value is not None:
-                groups = " ".join(f"{item.field_id}={item.value}" for item in summary.group_values)
+                product_type = summary.product_types[0]
+                groups = " ".join(
+                    f"{_field_display(item.field_id, product_type, self._registries)[0]}="
+                    f"{_display_value(item.value, unit=None, currency=None)}"
+                    for item in summary.group_values
+                )
                 operation = {
                     "avg": "평균",
                     "sum": "합계",
@@ -265,7 +288,7 @@ class AnswerRenderer:
                     "max": "최댓값",
                     "count": "개수",
                 }.get(summary.policy_versions[0].rsplit(":", 1)[-1], "집계")
-                subject = summary.metric_id or "상품"
+                subject, unit = _field_display(summary.metric_id, product_type, self._registries)
                 prefix = (
                     "원천 기록 기준 "
                     if summary.policy_versions[0].startswith("source-recorded:")
@@ -281,10 +304,17 @@ class AnswerRenderer:
                     if source_count is not None and operation == "개수"
                     else ""
                 )
+                displayed_value = _display_value(
+                    summary.value,
+                    unit=unit,
+                    currency=_partition_currency(summary.partition_key),
+                )
                 aggregate_text = (
-                    f"{_summary_scope(summary)} {groups + ' ' if groups else ''}"
+                    f"{_summary_scope(summary, self._registries)} "
+                    f"{groups + ' ' if groups else ''}"
                     f"{prefix}{subject} "
-                    f"{operation}: {summary.value} "
+                    f"{operation}: "
+                    f"{displayed_value} "
                     f"(포함 {summary.included_count}건, 제외 {summary.excluded_count}건)"
                 )
                 lines.append(aggregate_text)
@@ -318,17 +348,23 @@ class AnswerRenderer:
         for index, limitation in enumerate(evidence.material_policy_limitations):
             if limitation == snapshot:
                 continue
-            lines.append(limitation)
+            displayed_limitation = _display_limitation(limitation)
+            lines.append(displayed_limitation)
             claims.append(
                 AnswerClaim(
                     claim_id=f"claim:limitation:{index}",
                     kind=ClaimKind.LIMITATION,
-                    text=limitation,
+                    text=displayed_limitation,
                     value=limitation,
                     evidence_ids=_limitation_evidence_ids(limitation, evidence),
                 )
             )
-        _append_comparison_conclusions(lines=lines, claims=claims, evidence=evidence)
+        _append_comparison_conclusions(
+            lines=lines,
+            claims=claims,
+            evidence=evidence,
+            registries=self._registries,
+        )
         source_only = {
             (summary.product_types[0], summary.product_id)
             for summary in evidence.summaries
@@ -381,7 +417,11 @@ class AnswerRenderer:
                 if (item.product_type, item.product_id) == (product_type, product_id)
             )
             if recommendation_request:
-                candidate_text = f"조건에 부합하는 후보: {product_type.value} {product_id}"
+                candidate_text = (
+                    f"조건에 부합하는 후보: "
+                    f"{_product_type_label(product_type, self._registries)} "
+                    f"{_product_display_name(evidence, product_type, product_id)}"
+                )
                 lines.append(candidate_text)
                 claims.append(
                     AnswerClaim(
@@ -418,6 +458,8 @@ class AnswerRenderer:
                 _append_value(
                     lines=lines,
                     claims=claims,
+                    evidence=evidence,
+                    registries=self._registries,
                     product_type=product_type,
                     product_id=product_id,
                     field_id=direct_item.field_id,
@@ -434,6 +476,8 @@ class AnswerRenderer:
                 _append_value(
                     lines=lines,
                     claims=claims,
+                    evidence=evidence,
+                    registries=self._registries,
                     product_type=product_type,
                     product_id=product_id,
                     field_id=derived_item.field_id,
@@ -470,6 +514,7 @@ def _append_comparison_conclusions(
     lines: list[str],
     claims: list[AnswerClaim],
     evidence: EvidenceBundle,
+    registries: RegistryBundle,
 ) -> None:
     all_evidence: tuple[DirectEvidence[object] | DerivedEvidence[object], ...] = (
         *evidence.direct,
@@ -498,14 +543,17 @@ def _append_comparison_conclusions(
             continue
         other_id = next(item for item in compared_ids if item != difference.product_id)
         if value:
+            product_type_label = _product_type_label(difference.product_type, registries)
             relation = (
                 "기준일 잔존일수가"
                 if metric_id == "remaining_days_at_as_of"
                 else "만기일이"
                 if metric_id == "maturity_date"
-                else f"{metric_id}가"
+                else f"{_field_display(metric_id, difference.product_type, registries)[0]}이"
             )
-            unit = "일 " if metric_id in {"remaining_days_at_as_of", "maturity_date"} else " "
+            is_days = metric_id in {"remaining_days_at_as_of", "maturity_date"}
+            left = _product_display_name(evidence, difference.product_type, difference.product_id)
+            right = _product_display_name(evidence, difference.product_type, other_id)
             ending = (
                 "깁니다"
                 if metric_id == "remaining_days_at_as_of"
@@ -514,14 +562,18 @@ def _append_comparison_conclusions(
                 else "높습니다"
             )
             line = (
-                f"- {difference.product_type.value} {difference.product_id}의 {relation} "
-                f"{other_id}보다 {value}{unit}{ending}."
+                f"- {product_type_label} "
+                f"{left}의 {relation} {right}보다 "
+                f"{_display_value(value, unit='day' if is_days else None, currency=None)} {ending}."
             )
         else:
             unit = "일" if metric_id in {"remaining_days_at_as_of", "maturity_date"} else ""
             line = (
-                f"- {difference.product_type.value} {compared_ids[0]}과 {compared_ids[1]}의 "
-                f"{metric_id} 차이는 0{unit}입니다."
+                f"- {_product_type_label(difference.product_type, registries)} "
+                f"{_product_display_name(evidence, difference.product_type, compared_ids[0])}과 "
+                f"{_product_display_name(evidence, difference.product_type, compared_ids[1])}의 "
+                f"{_field_display(metric_id, difference.product_type, registries)[0]} "
+                f"차이는 0{unit}입니다."
             )
         lines.append(line)
         claims.append(
@@ -543,6 +595,8 @@ def _append_value(
     *,
     lines: list[str],
     claims: list[AnswerClaim],
+    evidence: EvidenceBundle,
+    registries: RegistryBundle,
     product_type: ProductType,
     product_id: str,
     field_id: str,
@@ -550,11 +604,11 @@ def _append_value(
     value: object,
 ) -> None:
     scalar = _answer_scalar(value)
+    product = _product_display_name(evidence, product_type, product_id)
+    field_label, unit = _field_display(field_id, product_type, registries)
+    prefix = f"- {_product_type_label(product_type, registries)} {product} — {field_label}"
     if scalar is None:
-        line = (
-            f"- {product_type.value} {product_id} {field_id}: "
-            "제공 데이터에서 값을 확인할 수 없습니다."
-        )
+        line = f"{prefix}: 제공 데이터에서 값을 확인할 수 없습니다."
         lines.append(line)
         claims.append(
             AnswerClaim(
@@ -569,7 +623,7 @@ def _append_value(
             )
         )
         return
-    line = f"- {product_type.value} {product_id} {field_id}: {scalar}"
+    line = f"{prefix} {_display_value(scalar, unit=unit, currency=None)}"
     lines.append(line)
     claims.append(
         AnswerClaim(
@@ -667,10 +721,133 @@ def _limitation_evidence_ids(
     return ()
 
 
-def _summary_scope(summary: EvidenceSummary) -> str:
-    product_types = ",".join(item.value for item in summary.product_types)
-    grains = ",".join(item.value for item in summary.native_result_grains)
-    return f"{product_types}/{grains} [{summary.partition_key}]"
+def _summary_scope(summary: EvidenceSummary, registries: RegistryBundle) -> str:
+    return (
+        "·".join(_product_type_label(item, registries) for item in summary.product_types) or "상품"
+    )
+
+
+def _rank_text(
+    summary: EvidenceSummary,
+    evidence: EvidenceBundle,
+    registries: RegistryBundle,
+) -> str:
+    product_type = summary.product_types[0]
+    product = _product_display_name(evidence, product_type, summary.product_id)
+    if summary.metric_id == "product_name" and type(summary.value) is str:
+        product = _product_display_name(
+            evidence,
+            product_type,
+            summary.product_id,
+            fallback=summary.value,
+        )
+        return f"{summary.rank}위. {_product_type_label(product_type, registries)} {product}"
+    field_label, unit = _field_display(summary.metric_id, product_type, registries)
+    value = _display_value(
+        summary.value,
+        unit=unit,
+        currency=_partition_currency(summary.partition_key),
+    )
+    return (
+        f"{summary.rank}위. {_product_type_label(product_type, registries)} {product}"
+        f" — {field_label} {value}"
+    )
+
+
+def _product_display_name(
+    evidence: EvidenceBundle,
+    product_type: ProductType,
+    product_id: str | None,
+    *,
+    fallback: str | None = None,
+) -> str:
+    names = {
+        item.value.normalized_value
+        for item in evidence.direct
+        if item.product_type is product_type
+        and item.product_id == product_id
+        and item.field_id == "product_name"
+        and type(item.value.normalized_value) is str
+        and item.value.normalized_value
+    }
+    name = next(iter(names)) if len(names) == 1 else fallback
+    if product_id is None:
+        return name or "상품"
+    if name is None or name == product_id:
+        return product_id
+    return f"{name} ({product_id})"
+
+
+def _product_type_label(product_type: ProductType, registries: RegistryBundle) -> str:
+    aliases = registries.planner.product_type_aliases[product_type.value]
+    return aliases[0]
+
+
+def _field_display(
+    field_id: str | None,
+    product_type: ProductType,
+    registries: RegistryBundle,
+) -> tuple[str, str | None]:
+    if field_id is None:
+        return "상품", None
+    field = registries.fields.entries.get(field_id)
+    if field is not None:
+        for metric_id in field.metric_ids:
+            metric = registries.metrics.entries[metric_id]
+            if product_type in metric.product_types:
+                return metric.label_ko, metric.unit
+    aliases = registries.planner.field_aliases.get(field_id)
+    if aliases:
+        return aliases[0], None
+    return {
+        "currency": "통화",
+        "product_id": "상품코드",
+        "product_name": "상품명",
+    }.get(field_id, field_id), None
+
+
+def _display_value(value: object, *, unit: str | None, currency: str | None) -> str:
+    if type(value) is Decimal:
+        decimal = value
+        rendered = format(decimal, "f")
+        if "." in rendered:
+            rendered = rendered.rstrip("0").rstrip(".")
+        if not decimal:
+            rendered = "0"
+        if unit == "currency":
+            rendered = f"{Decimal(rendered):,f}"
+        suffix = "%" if unit == "percent" else "일" if unit == "day" else ""
+        return f"{rendered}{suffix}{f' {currency}' if unit == 'currency' and currency else ''}"
+    if type(value) is bool:
+        return "예" if value else "아니요"
+    if type(value) is int:
+        return f"{value}{'일' if unit == 'day' else ''}"
+    return str(value)
+
+
+def _partition_currency(partition_key: str | None) -> str | None:
+    if partition_key is None:
+        return None
+    parts = partition_key.split(":")
+    return parts[1] if len(parts) > 1 and parts[1] in {"KRW", "USD"} else None
+
+
+def _display_limitation(limitation: str) -> str:
+    replacements = {
+        "domestic_bond": "국내채권",
+        "domestic_etf": "국내 ETF",
+        "domestic_etn": "국내 ETN",
+        "overseas_etf": "해외 ETF",
+        "overseas_etn": "해외 ETN",
+        "public_fund": "공모펀드",
+        "bond end state is not source-verifiable": (
+            "채권의 종료 상태는 원천 데이터로 검증할 수 없습니다."
+        ),
+    }
+    displayed = limitation
+    for internal, korean in replacements.items():
+        displayed = displayed.replace(internal, korean)
+    return displayed
 
 
 def _answer_scalar(value: object) -> Decimal | int | str | date | bool | None:
