@@ -595,6 +595,155 @@ def test_builder_preserves_rank_value_identity_and_partition() -> None:
     session._close()
 
 
+def test_explicit_metric_targets_bound_evidence_fields_per_product(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from tests.unit.quality.test_pipeline_order import _listed
+    from tests.unit.query.test_semantic_validator import _context
+
+    from finproof.domain.query_plan import (
+        Intent,
+        MetricTarget,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import PolicyEngine
+    from finproof.query import ExecutionBundleBuilder, ResolutionBundle, SemanticValidator
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+    from finproof.storage.repositories.evidence import (
+        EvidenceLookup,
+        EvidenceRepository,
+        RecordEvidence,
+    )
+
+    session, _ = _bond_evidence_session()
+    repository = EvidenceRepository(session)
+    template = repository.fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("product_id",),
+            ),
+        )
+    )[0].direct[0]
+    plan = QueryPlan(
+        intent=Intent.SCREEN_RANK,
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.OVERSEAS_ETF),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=("total_fee", "return_1d"),
+        metric_targets=(
+            MetricTarget(product_type=ProductType.DOMESTIC_ETF, metrics=("total_fee",)),
+            MetricTarget(product_type=ProductType.OVERSEAS_ETF, metrics=("return_1d",)),
+        ),
+        sort=(
+            SortSpec(field="total_fee", direction=SortDirection.ASC),
+            SortSpec(field="return_1d", direction=SortDirection.DESC),
+        ),
+        aggregation=None,
+        top_k=1,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    validated = SemanticValidator(repository._fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+    bundle = ExecutionBundleBuilder(repository._fields).build(validated, context=_context())
+    rows = {
+        product_type: listed.model_copy(
+            update={
+                "values": (
+                    *listed.values,
+                    RawFieldValue(field_id=field_id, value=value, quality_status="valid"),
+                )
+            }
+        )
+        for product_type, listed, field_id, value in (
+            (
+                ProductType.DOMESTIC_ETF,
+                _listed("KR-ETF", ProductType.DOMESTIC_ETF, "KRW", "100"),
+                "total_fee",
+                Decimal("0.1"),
+            ),
+            (
+                ProductType.OVERSEAS_ETF,
+                _listed("US-ETF", ProductType.OVERSEAS_ETF, "USD", "100"),
+                "return_1d",
+                Decimal("2.0"),
+            ),
+        )
+    }
+    policy = PolicyEngine().apply(
+        RawExecutionResult(
+            segments=tuple(
+                RawSegmentResult(
+                    product_type=product_type,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    rows=(row,),
+                    candidate_count=1,
+                    max_batch_rows=1,
+                )
+                for product_type, row in rows.items()
+            ),
+            candidate_count=2,
+        ),
+        bundle=bundle,
+    )
+    requested: dict[ProductType, tuple[str, ...]] = {}
+
+    def fetch(
+        _repository: EvidenceRepository,
+        requests: tuple[EvidenceLookup, ...],
+    ) -> tuple[RecordEvidence, ...]:
+        records = []
+        for request in requests:
+            requested[request.product_type] = request.field_ids
+            for product_id in request.product_ids:
+                records.append(
+                    RecordEvidence(
+                        product_type=request.product_type,
+                        product_id=product_id,
+                        direct=tuple(
+                            template.model_copy(
+                                update={
+                                    "evidence_id": (
+                                        f"{request.product_type.value}:{product_id}:{field_id}"
+                                    ),
+                                    "product_type": request.product_type,
+                                    "product_id": product_id,
+                                    "field_id": field_id,
+                                }
+                            )
+                            for field_id in request.field_ids
+                        ),
+                        derived=(),
+                    )
+                )
+        return tuple(records)
+
+    monkeypatch.setattr(EvidenceRepository, "fetch_final_record_evidence", fetch)
+    try:
+        EvidenceBuilder().build(plan=validated, policy_result=policy, repository=repository)
+    finally:
+        session._close()
+
+    assert "total_fee" in requested[ProductType.DOMESTIC_ETF]
+    assert "return_1d" not in requested[ProductType.DOMESTIC_ETF]
+    assert "return_1d" in requested[ProductType.OVERSEAS_ETF]
+    assert "total_fee" not in requested[ProductType.OVERSEAS_ETF]
+
+
 def test_cross_product_dual_lens_rank_summaries_stay_within_context_bound(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

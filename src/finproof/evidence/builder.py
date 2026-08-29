@@ -160,6 +160,7 @@ class EvidenceBuilder:
         )
         if len(field_ids) > 20:
             raise ValueError("evidence field bound exceeded")
+        metric_targets = {target.product_type: target.metrics for target in original.metric_targets}
         requests = tuple(
             EvidenceLookup(
                 product_type=product_type,
@@ -172,6 +173,11 @@ class EvidenceBuilder:
                     field_id
                     for field_id in field_ids
                     if (field_id, product_type) in repository._fields.projections
+                    and (
+                        not metric_targets
+                        or field_id not in original.metrics
+                        or field_id in metric_targets[product_type]
+                    )
                 ),
             )
             for product_type in ProductType
