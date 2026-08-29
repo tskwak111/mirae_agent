@@ -63,6 +63,7 @@ def test_query_plan_contract_supports_cross_product_scope() -> None:
     schema = json.loads((ROOT / "schemas/query_plan.schema.json").read_text(encoding="utf-8"))
 
     assert "top_k_scope" in schema["required"]
+    assert "metric_targets" in schema["required"]
     assert set(schema["properties"]["top_k_scope"]["enum"]) == {
         "global",
         "per_product_type",
@@ -77,6 +78,7 @@ def test_hcx_provider_schema_uses_only_supported_subset() -> None:
     assert _unsupported_hcx_schema_keywords(schema) == set()
     assert schema["type"] == "object"
     assert "top_k_scope" in schema["required"]
+    assert "metric_targets" in schema["required"]
     assert "product" in schema["properties"]["result_grain"]["enum"]
 
 
