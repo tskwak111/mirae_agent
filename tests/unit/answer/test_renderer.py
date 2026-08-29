@@ -122,6 +122,187 @@ def test_renderer_projects_requested_null_as_grounded_field_unavailable_claim() 
     session._close()
 
 
+def test_renderer_keeps_buy_yield_range_as_a_limitation_not_a_scalar_claim() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import ProductType
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session(lot_yields=("3.1", "4.2"))
+    record = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("buy_yield",),
+            ),
+        )
+    )[0]
+    evidence = EvidenceBundle(
+        direct=record.direct,
+        derived=record.derived,
+        summaries=(),
+        material_policy_limitations=("매수수익률은 유효 로트 중 최댓값이며 범위는 3.1~4.2입니다.",),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-yield-range", question="매수수익률을 알려줘"),
+        plan=_plan(),
+        evidence=evidence,
+    )
+
+    assert "buy_yield:" in draft.text
+    assert "buy_yield_range:" not in draft.text
+    assert all(claim.field_id != "buy_yield_range" for claim in draft.claims)
+    session._close()
+
+
+def test_renderer_keeps_identity_evidence_for_signatures_without_duplicate_value_claims() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle
+    from finproof.domain.query_plan import ProductType
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    record = EvidenceRepository(session).fetch_final_record_evidence(
+        (
+            EvidenceLookup(
+                product_type=ProductType.DOMESTIC_BOND,
+                product_ids=("KR0000000001",),
+                field_ids=("product_id", "product_name", "buy_yield"),
+            ),
+        )
+    )[0]
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-identity", question="매수수익률을 알려줘"),
+        plan=_plan(),
+        evidence=EvidenceBundle(
+            direct=record.direct,
+            derived=record.derived,
+            summaries=(),
+            material_policy_limitations=(),
+        ),
+    )
+
+    assert {claim.field_id for claim in draft.claims if claim.field_id is not None} == {"buy_yield"}
+    session._close()
+
+
+def test_rank_answer_does_not_repeat_duplicate_metric_or_internal_partition_counts() -> None:
+    from tests.unit.evidence.test_builder import _bond_evidence_session
+
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import Intent, ProductType, SortDirection, SortSpec
+    from finproof.evidence import ClaimVerifier
+    from finproof.storage.repositories.evidence import EvidenceLookup, EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    direct = (
+        EvidenceRepository(session)
+        .fetch_final_record_evidence(
+            (
+                EvidenceLookup(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    product_ids=("KR0000000001",),
+                    field_ids=("product_id", "product_name", "buy_yield"),
+                ),
+            )
+        )[0]
+        .direct
+    )
+    common: dict[str, Any] = {
+        "included_count": 1,
+        "excluded_count": 2,
+        "evidence_ids": tuple(item.evidence_id for item in direct),
+        "validated_plan_sha256": "a" * 64,
+        "version_bundle_sha256": "b" * 64,
+        "artifact_manifest_hash": "c" * 64,
+        "product_types": (ProductType.DOMESTIC_BOND,),
+        "native_result_grains": (_plan().result_grain,),
+    }
+    rank = EvidenceSummary(
+        summary_id="summary:rank:0",
+        kind=EvidenceSummaryKind.RANK,
+        policy_versions=("bond.buy_yield:rank",),
+        partition_key="yield:KRW",
+        product_id="KR0000000001",
+        metric_id="buy_yield",
+        rank=1,
+        tie_count=1,
+        value=Decimal("2.25"),
+        **common,
+    )
+    partition = rank.model_copy(
+        update={
+            "summary_id": "summary:partition:0",
+            "kind": EvidenceSummaryKind.PARTITION,
+            "product_id": None,
+            "metric_id": None,
+            "rank": None,
+            "tie_count": None,
+            "value": 1,
+        }
+    )
+    policy_counts = tuple(
+        rank.model_copy(
+            update={
+                "summary_id": f"summary:policy:buy_yield:{population}",
+                "kind": EvidenceSummaryKind.COUNT,
+                "policy_versions": ("state:1.2.0", "metric:1.2.0", "answer:1.0.0"),
+                "evidence_ids": (),
+                "partition_key": f"policy:bond.buy_yield:{population}",
+                "product_id": None,
+                "rank": None,
+                "tie_count": None,
+                "value": value,
+            }
+        )
+        for population, value in (("included", 1), ("missing", 2), ("zero", 0))
+    )
+    evidence = EvidenceBundle(
+        direct=direct,
+        derived=(),
+        summaries=(*policy_counts, partition, rank),
+        material_policy_limitations=(),
+    )
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("buy_yield",),
+            "sort": (SortSpec(field="buy_yield", direction=SortDirection.DESC),),
+        }
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-rank-compact", question="매수수익률 상위 1개"),
+        plan=plan,
+        evidence=evidence,
+    )
+
+    metric_claims = tuple(claim for claim in draft.claims if claim.field_id == "buy_yield")
+    assert len(metric_claims) == 1
+    assert rank.summary_id in metric_claims[0].evidence_ids
+    assert next(item.evidence_id for item in direct if item.field_id == "buy_yield") not in (
+        metric_claims[0].evidence_ids
+    )
+    assert "(1위)" in draft.text
+    assert "- domestic_bond KR0000000001 buy_yield" not in draft.text
+    assert "포함 개수" not in draft.text
+    assert "결측 개수" not in draft.text
+    assert "0값 개수" not in draft.text
+    assert "분할 domestic_bond" not in draft.text
+    assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+    session._close()
+
+
 def test_renderer_keeps_same_product_id_separate_across_product_types() -> None:
     from tests.unit.evidence.test_builder import _bond_evidence_session
 

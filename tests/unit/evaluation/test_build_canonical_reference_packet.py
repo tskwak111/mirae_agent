@@ -12,7 +12,7 @@ from typing import cast
 import pytest
 from tools import build_canonical_reference_packet as authoring
 
-from finproof.core.settings import Settings
+from finproof.core.settings import ExecutionMode, Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import (
@@ -131,6 +131,7 @@ def test_builds_one_reproducible_pending_packet_with_one_session_and_service(
     def open_session(settings: Settings) -> Iterator[SimpleNamespace]:
         assert settings.hcx_enabled is False
         assert settings.hcx_api_key is None
+        assert settings.execution_mode is ExecutionMode.EXTENDED_DEMO
         events.append(f"open:{settings.__class__.__name__}")
         yield session
         events.append("close")
@@ -145,6 +146,9 @@ def test_builds_one_reproducible_pending_packet_with_one_session_and_service(
             assert plan.intent is Intent.SCREEN_RANK
             events.append(f"answer:{case_id}")
             return _answer(case_id)
+
+        def prepare_plan(self, *_args: object) -> object:
+            raise AssertionError("offline authoring bypassed the demo publication boundary")
 
     monkeypatch.setattr(authoring, "open_runtime_artifact_session", open_session)
     monkeypatch.setattr(authoring, "AnswerService", Service)
@@ -230,6 +234,9 @@ def test_reference_plan_omits_unset_missing_value_filter_field(
 
         def answer_plan(self, request: AnswerRequest, _plan: QueryPlan) -> AnswerResult:
             return _answer(request.question_id)
+
+        def prepare_plan(self, *_args: object) -> object:
+            raise AssertionError("offline authoring bypassed the demo publication boundary")
 
     monkeypatch.setattr(authoring, "open_runtime_artifact_session", open_session)
     monkeypatch.setattr(authoring, "AnswerService", Service)

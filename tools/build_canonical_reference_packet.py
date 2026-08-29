@@ -9,7 +9,7 @@ from datetime import date
 from hashlib import sha256
 from pathlib import Path
 
-from finproof.core.settings import Settings
+from finproof.core.settings import ExecutionMode, Settings
 from finproof.data.artifacts.safe_files import read_held_regular_file
 from finproof.domain.answers import AnswerRequest
 from finproof.domain.query_plan import QueryPlan
@@ -47,6 +47,7 @@ def build_reference_packet(
             "repository_root": repository_root,
             "artifact_dir": artifact_dir,
             "database_path": artifact_dir / "finproof.duckdb",
+            "execution_mode": ExecutionMode.EXTENDED_DEMO,
             "hcx_enabled": False,
             "hcx_api_key": None,
         },
@@ -59,8 +60,7 @@ def build_reference_packet(
         cases = []
         for case_id, category, question, raw_plan, plan in approved_cases:
             result = service.answer_plan(
-                AnswerRequest(question_id=case_id, question=question),
-                plan,
+                AnswerRequest(question_id=case_id, question=question), plan
             )
             retrieved_context = json.loads(
                 result.retrieved_context,

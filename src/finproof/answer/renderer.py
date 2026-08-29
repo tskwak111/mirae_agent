@@ -110,6 +110,19 @@ class AnswerRenderer:
             )
             else None
         )
+        ranked_values = {
+            (summary.product_types[0], summary.product_id, summary.metric_id)
+            for summary in evidence.summaries
+            if summary.kind is EvidenceSummaryKind.RANK
+            and len(summary.product_types) == 1
+            and summary.product_id is not None
+            and summary.metric_id is not None
+        }
+        ranked_partitions = {
+            summary.partition_key
+            for summary in evidence.summaries
+            if summary.kind is EvidenceSummaryKind.RANK and summary.partition_key is not None
+        }
         for summary in evidence.summaries:
             if summary.kind is EvidenceSummaryKind.COUNT and summary is source_count:
                 count_text = f"원천 기록 기준 상품 개수: {summary.value}"
@@ -147,6 +160,7 @@ class AnswerRenderer:
                 and summary.partition_key is not None
                 and summary.value is not None
                 and summary.partition_key.startswith("policy:")
+                and plan.intent is not Intent.SCREEN_RANK
             ):
                 population = summary.partition_key.rsplit(":", 1)[-1]
                 label = {"included": "포함", "missing": "결측", "zero": "0값"}[population]
@@ -159,6 +173,7 @@ class AnswerRenderer:
                 summary.kind is EvidenceSummaryKind.PARTITION
                 and summary.value is not None
                 and plan.intent is not Intent.AGGREGATE
+                and (summary.value == 0 or summary.partition_key not in ranked_partitions)
             ):
                 partition_text = f"분할 {_summary_scope(summary)}: {summary.value}건"
                 lines.append(partition_text)
@@ -341,6 +356,17 @@ class AnswerRenderer:
                 )
             )
         )
+        requested_field_ids = {
+            *plan.metrics,
+            *(item.field for item in plan.filters),
+            *(item.field for item in plan.sort),
+            *(plan.aggregation.group_by if plan.aggregation is not None else ()),
+            *(
+                (plan.aggregation.field,)
+                if plan.aggregation is not None and plan.aggregation.field is not None
+                else ()
+            ),
+        }
         for product_type, product_id in products:
             if (product_type, product_id) in source_only:
                 continue
@@ -380,6 +406,15 @@ class AnswerRenderer:
                     )
                 )
             for direct_item in direct:
+                if (
+                    direct_item.field_id in {"product_id", "product_name"}
+                    and direct_item.field_id not in requested_field_ids
+                ) or (
+                    product_type,
+                    product_id,
+                    direct_item.field_id,
+                ) in ranked_values:
+                    continue
                 _append_value(
                     lines=lines,
                     claims=claims,
@@ -390,7 +425,11 @@ class AnswerRenderer:
                     value=direct_item.value.normalized_value,
                 )
             for derived_item in derived:
-                if derived_item.field_id.endswith("_difference"):
+                if (
+                    derived_item.field_id == "buy_yield_range"
+                    or derived_item.field_id.endswith("_difference")
+                    or (product_type, product_id, derived_item.field_id) in ranked_values
+                ):
                     continue
                 _append_value(
                     lines=lines,

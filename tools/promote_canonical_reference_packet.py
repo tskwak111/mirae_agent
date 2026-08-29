@@ -67,7 +67,7 @@ _APPROVAL_VERSION = "canonical_reference_approval.v1"
 _APPROVED_STATUS = "human_approved_canonical_references"
 _REFERENCE_STATUS = "pending_human_plan_and_expectation_review"
 _APPROVED_CASE_COUNT = 24
-_SNAPSHOT_CONCEPT = "2026-07-11 제공 스냅샷 기준"
+_SUPPORTED_DATASET_VERSIONS = {"2026-07-11", "2026-08-24"}
 _VALUE_TYPES = {
     "decimal": ValueType.DECIMAL,
     "integer": ValueType.INTEGER,
@@ -82,6 +82,10 @@ _SYNTHETIC_VALUE_TYPES = {
         "remaining_days_difference",
         "comparison.remaining_days_difference",
     ): ValueType.INTEGER,
+}
+_HISTORICAL_VALUE_TYPES = {
+    (ProductType.DOMESTIC_BOND, "buyable_quantity"): ValueType.DECIMAL,
+    (ProductType.DOMESTIC_BOND, "buyable_quantity_difference"): ValueType.DECIMAL,
 }
 
 
@@ -286,7 +290,8 @@ def _build_case(
         else (plan.clarification_reason,)
     )
     if executable and (
-        _SNAPSHOT_CONCEPT not in required_concepts or trace.validation is not TraceValidation.PASSED
+        _snapshot_concept(artifact) not in required_concepts
+        or trace.validation is not TraceValidation.PASSED
     ):
         raise ValueError("executable reference lacks its approved snapshot semantics")
     if not executable and trace.validation not in {
@@ -372,15 +377,18 @@ def _expected_values(
         value_type = (
             ValueType.NULL
             if raw_value is None
-            else _SYNTHETIC_VALUE_TYPES.get((product_type, field_id, str(item.get("rule_id"))))
-            or _comparison_difference_value_type(
-                field_id=field_id,
-                rule_id=str(item.get("rule_id")),
-                raw_value=raw_value,
-                product_type=product_type,
-                fields=fields,
+            else (
+                _HISTORICAL_VALUE_TYPES.get((product_type, field_id))
+                or _SYNTHETIC_VALUE_TYPES.get((product_type, field_id, str(item.get("rule_id"))))
+                or _comparison_difference_value_type(
+                    field_id=field_id,
+                    rule_id=str(item.get("rule_id")),
+                    raw_value=raw_value,
+                    product_type=product_type,
+                    fields=fields,
+                )
+                or _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
             )
-            or _VALUE_TYPES[fields.projection(field_id, product_type).value_type]
         )
         values.append(
             ExpectedValue(
@@ -453,9 +461,13 @@ def _validate_artifact(value: object) -> dict[str, str]:
         raise ValueError("artifact identity differs")
     result = {key: str(item) for key, item in artifact.items()}
     _checksum(result["manifest_logical_hash"], "artifact manifest logical hash")
-    if result["dataset_version"] != "2026-07-11":
+    if result["dataset_version"] not in _SUPPORTED_DATASET_VERSIONS:
         raise ValueError("artifact dataset version differs")
     return result
+
+
+def _snapshot_concept(artifact: Mapping[str, str]) -> str:
+    return f"{artifact['dataset_version']} 제공 스냅샷 기준"
 
 
 def _validated_rows(context: Mapping[str, object], name: str) -> tuple[dict[str, object], ...]:

@@ -1,0 +1,8 @@
+{
+  "schema_version": "organizer_question_plan_approval.v1",
+  "suite_id": "organizer_20260824",
+  "review_status": "human_approved_questions_and_draft_plans",
+  "reviewer": "곽태성",
+  "reviewed_at": "2026-08-29",
+  "question_plan_packet_sha256": "c807f4c412be8ba8a080480671b8d74df2699b4d709877a5775d23244b0d1325"
+}

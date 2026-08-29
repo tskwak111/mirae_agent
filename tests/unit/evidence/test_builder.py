@@ -1176,6 +1176,32 @@ def test_aggregate_included_count_and_missing_limitation_are_bound() -> None:
     session._close()
 
 
+def test_aggregate_sample_rows_obey_the_configured_table_bound() -> None:
+    from tests.unit.query.test_semantic_validator import _plan
+
+    from finproof.domain.query_plan import AggregationFunction, AggregationSpec, Intent
+    from finproof.evidence.builder import _bounded_selected_rows, _partition_values_for_evidence
+    from finproof.quality import CompatibilityPartition, PolicyRow
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    session, _ = _bond_evidence_session()
+    plan = _plan().model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.COUNT, field=None, group_by=()
+            ),
+        }
+    )
+    rows = cast(tuple[PolicyRow, ...], tuple(object() for _ in range(50)))
+
+    assert len(_bounded_selected_rows(plan, rows, EvidenceRepository(session))) == 20
+    partitions = cast(tuple[CompatibilityPartition, ...], (object(),))
+    assert _partition_values_for_evidence(plan, (), partitions) == ()
+    session._close()
+
+
 def test_builder_exposes_recorded_zero_with_matching_source_evidence() -> None:
     """Dropping the recorded lens would hide policy-excluded source values."""
     from tests.unit.query.test_semantic_validator import _plan
@@ -2567,7 +2593,7 @@ def test_nonmetric_date_screen_rank_emits_competition_ranks_tie_and_boundary_war
                 EvidenceLookup(
                     product_type=ProductType.DOMESTIC_BOND,
                     product_ids=("KR0000000001",),
-                    field_ids=("product_id", "maturity_date"),
+                    field_ids=("product_id", "product_name", "maturity_date"),
                 ),
             )
         )[0].direct
@@ -2588,16 +2614,16 @@ def test_nonmetric_date_screen_rank_emits_competition_ranks_tie_and_boundary_war
                             "product_id": product_id,
                             "value": templates[field_id].value.model_copy(
                                 update={
-                                    "raw_value": (
-                                        product_id
-                                        if field_id == "product_id"
-                                        else values[product_id]
-                                    ),
-                                    "normalized_value": (
-                                        product_id
-                                        if field_id == "product_id"
-                                        else values[product_id]
-                                    ),
+                                    "raw_value": {
+                                        "product_id": product_id,
+                                        "product_name": f"Bond {product_id}",
+                                        "maturity_date": values[product_id],
+                                    }[field_id],
+                                    "normalized_value": {
+                                        "product_id": product_id,
+                                        "product_name": f"Bond {product_id}",
+                                        "maturity_date": values[product_id],
+                                    }[field_id],
                                 }
                             ),
                         }

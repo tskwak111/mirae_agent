@@ -33,7 +33,13 @@ from finproof.domain.query_plan import (
     TopKScope,
 )
 from finproof.domain.values import DerivedValue
-from finproof.quality import MetricValue, PolicyExecutionResult, PolicyRow, RankPolicyResult
+from finproof.quality import (
+    CompatibilityPartition,
+    MetricValue,
+    PolicyExecutionResult,
+    PolicyRow,
+    RankPolicyResult,
+)
 from finproof.storage.repositories.evidence import (
     EvidenceLookup,
     EvidenceRepository,
@@ -75,12 +81,10 @@ class EvidenceBuilder:
             repository=repository,
         )
         selected: dict[tuple[ProductType, str], None] = {}
-        for row in policy_result.selected_rows:
+        for row in _bounded_selected_rows(original, policy_result.selected_rows, repository):
             selected[(row.raw.product_type, row.raw.product_id)] = None
-        if not ranks:
-            for partition in policy_result.partitions:
-                for value in partition.selected_values:
-                    selected[(value.product_type, value.product_id)] = None
+        for value in _partition_values_for_evidence(original, ranks, policy_result.partitions):
+            selected[(value.product_type, value.product_id)] = None
         for rank in ranks:
             selected[(rank.value.product_type, rank.value.product_id)] = None
         recorded_values = _fit_recorded_values(selected, recorded_values)
@@ -334,7 +338,11 @@ class EvidenceBuilder:
             for product_type in original.product_types:
                 if product_type in partitioned_types:
                     continue
-                projection = repository._fields.projection(original.sort[0].field, product_type)
+                projection = repository._fields.projections.get(
+                    (original.sort[0].field, product_type)
+                )
+                if projection is None:
+                    continue
                 if projection.metric_id is None:
                     raise ValueError("rank partition metric differs")
                 metric = repository._session.registries.metrics.entries[projection.metric_id]
@@ -879,6 +887,29 @@ def _bounded_source_rows(
     if plan.intent is Intent.AGGREGATE:
         return ()
     return source_only[: min(plan.top_k, limit if limit is not None else plan.top_k)]
+
+
+def _bounded_selected_rows(
+    plan: QueryPlan,
+    rows: tuple[PolicyRow, ...],
+    repository: EvidenceRepository,
+) -> tuple[PolicyRow, ...]:
+    if plan.intent is not Intent.AGGREGATE:
+        return rows
+    limits = repository._session.registries.answers.document.get("limits")
+    if not isinstance(limits, Mapping) or type(limits.get("max_table_rows")) is not int:
+        raise ValueError("answer table-row bound differs")
+    return rows[: cast(int, limits["max_table_rows"])]
+
+
+def _partition_values_for_evidence(
+    plan: QueryPlan,
+    ranks: tuple[RankPolicyResult, ...],
+    partitions: tuple[CompatibilityPartition, ...],
+) -> tuple[MetricValue, ...]:
+    if ranks or plan.intent is Intent.AGGREGATE:
+        return ()
+    return tuple(value for partition in partitions for value in partition.selected_values)
 
 
 def _source_lens_summaries(

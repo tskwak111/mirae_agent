@@ -452,6 +452,16 @@ def test_pipeline_ranks_integer_derived_metric_values() -> None:
     )
 
 
+def test_average_is_deterministically_bounded_to_decimal128_scale() -> None:
+    from finproof.domain.query_plan import AggregationFunction
+    from finproof.quality.pipeline import _aggregate
+
+    assert _aggregate(
+        AggregationFunction.AVG,
+        (Decimal("1"), Decimal("2"), Decimal("2")),
+    ) == Decimal("1.666666666666666667")
+
+
 def test_pipeline_preserves_integer_metric_values_for_decimal_aggregation() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 

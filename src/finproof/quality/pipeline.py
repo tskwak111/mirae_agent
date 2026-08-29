@@ -1,7 +1,7 @@
 """Ordered deterministic policy composition."""
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, localcontext
 from typing import Any, cast
 
 from pydantic import BaseModel, ConfigDict
@@ -503,7 +503,11 @@ def _aggregate(function: AggregationFunction, values: tuple[Decimal, ...]) -> De
     if function is AggregationFunction.SUM:
         return sum(values, Decimal(0))
     if function is AggregationFunction.AVG:
-        return sum(values, Decimal(0)) / len(values)
+        with localcontext() as context:
+            context.prec = 38
+            return (sum(values, Decimal(0)) / len(values)).quantize(
+                Decimal("1e-18"), rounding=ROUND_HALF_EVEN
+            )
     if function is AggregationFunction.COUNT:
         return len(values)
     raise ValueError("aggregation function differs")

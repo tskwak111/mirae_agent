@@ -1629,6 +1629,10 @@ exact path list.
 - Create: `tests/integration/evaluation/test_organizer_runner.py`
 - Modify: `src/finproof/evaluation/loader.py`
 - Modify: `src/finproof/cli/evaluate.py`
+- Modify: `src/finproof/answer/renderer.py`
+- Modify: `src/finproof/evidence/serializer.py`
+- Modify: `tests/unit/answer/test_renderer.py`
+- Modify: `tests/unit/evidence/test_serializer.py`
 - Create: versioned August-only expected plans/results/answers and review packets under explicit new paths
 - Create: `tools/create_release_manifest.py`
 - Create: `tools/verify_release_manifest.py`
@@ -1677,6 +1681,31 @@ Do not modify or use the old 265 data-dependent values as active truth. Create a
 
 Use the existing reference-packet workflow and bind reviewer, review date, packet SHA-256, code commit, and artifact logical hash. No model output becomes truth without review.
 
+The first approved 35-plan sealed-artifact execution exposed two bounded projection issues
+before any expected result became truth. Rank answers must not repeat the same
+product/metric/value as a second direct-value claim, and positive partition plus internal
+metric-population summaries stay in evidence but are not repeated as answer claims when
+rank claims already express the requested result. Preserve empty partitions and every
+material limitation. Write focused renderer REDs before the minimum projection change.
+
+The same run proved that valid TOP10 evidence can exceed Q-005 solely because v2 repeats
+summary metadata. Apply D-037 under focused serializer RED/GREEN: retain byte-identical
+v2/v3 for fitting payloads, use v4 only after canonical overflow, preserve every summary
+field through ordered tables and exact common-context/policy references, and fail closed if
+the lossless v4 still exceeds the bound. Do not reduce `top_k`, remove evidence, or raise
+the 24,000-byte ceiling.
+
+```bash
+uv run pytest tests/unit/answer/test_renderer.py -q -k 'rank and duplicate'
+uv run pytest tests/unit/evidence/test_serializer.py -q -k 'v2 or v3 or v4'
+```
+
+The serializer REDs prove the complete existing fitting v2 and v3 bytes remain identical;
+v4 serialization is byte-identical across repeats; its exact field, first-appearance
+policy-table, zero-based index, and original-row ordering reconstruct every original
+canonical summary field/value; unequal common hash triples fail closed; and a lossless v4
+that still exceeds 24,000 bytes fails closed.
+
 - [ ] **Step 4: Run organizer suite and related regressions**
 
 ```bash
@@ -1705,10 +1734,14 @@ uv run pytest tests/contract/test_release_manifest.py -q
 
 - [ ] **Step 7: Commit the exact Task 10 candidate paths**
 
-Stage only the new August suite, its generated/reviewed August packets/results, the two loader/CLI files, exact Task 10 tests, release/compliance implementation files, and immutable run reports produced by this task. Do not use directory-wide staging and do not stage `evaluation/review_batches/*` or historical corpus files.
+Stage only the new August suite, its generated/reviewed August packets/results, the exact
+Task 10 runtime repairs and tests (including renderer/serializer), the two loader/CLI files,
+release/compliance implementation files, and immutable run reports produced by this task.
+Do not use directory-wide staging and do not stage `evaluation/review_batches/*` or
+historical corpus files.
 
 ```bash
-git add evaluation/organizer_20260824 src/finproof/evaluation/loader.py src/finproof/cli/evaluate.py tests/unit/evaluation/test_organizer_case_suite.py tests/integration/evaluation/test_organizer_runner.py tests/contract/test_release_manifest.py tests/contract/test_competition_compliance.py tools/create_release_manifest.py tools/verify_release_manifest.py tools/check_competition_compliance.py tools/check_claim_evidence_report.py scripts/clean_room_reproduce.sh artifacts/evaluation/organizer-20260824.json artifacts/evaluation/final-load.json artifacts/evaluation/final-soak.json
+git add evaluation/organizer_20260824 src/finproof/evaluation/loader.py src/finproof/cli/evaluate.py src/finproof/answer/renderer.py src/finproof/evidence/serializer.py tests/unit/answer/test_renderer.py tests/unit/evidence/test_serializer.py tests/unit/evaluation/test_organizer_case_suite.py tests/integration/evaluation/test_organizer_runner.py tests/contract/test_release_manifest.py tests/contract/test_competition_compliance.py tools/create_release_manifest.py tools/verify_release_manifest.py tools/check_competition_compliance.py tools/check_claim_evidence_report.py scripts/clean_room_reproduce.sh artifacts/evaluation/organizer-20260824.json artifacts/evaluation/final-load.json artifacts/evaluation/final-soak.json
 git commit -m "chore: prepare refreshed FinProof release candidate"
 bash scripts/clean_room_reproduce.sh . "$(git rev-parse HEAD)"
 ```

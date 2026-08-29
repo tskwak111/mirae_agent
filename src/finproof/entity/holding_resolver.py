@@ -79,6 +79,13 @@ class HoldingResolver:
     def resolve(self, text: str) -> HoldingResolutionResult:
         if type(text) is not str or not text:
             raise TypeError("holding constituent must be a nonempty exact string")
+        if not self._candidates:
+            candidate = HoldingResolutionCandidate(
+                constituent_identifier=text,
+                constituent_identifier_type="query_text_exact",
+                display_name=text,
+            )
+            return HoldingResolutionResult(selected=candidate, candidates=(candidate,))
         identifier_matches = tuple(
             candidate for candidate in self._candidates if candidate.constituent_identifier == text
         )

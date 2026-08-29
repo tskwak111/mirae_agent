@@ -68,11 +68,12 @@ def test_multi_pair_name_ambiguity_is_deterministic_and_bounded_to_five() -> Non
     )
 
 
-def test_fuzzy_and_official_zero_row_relation_never_select() -> None:
+def test_fuzzy_never_selects_but_zero_row_relation_preserves_query_for_coverage() -> None:
     fuzzy = _resolver(("KR7005930003", "ISIN", "삼성전자")).resolve("삼성전")
     empty = _resolver().resolve("삼성전자")
 
     assert fuzzy.selected is None
     assert fuzzy.candidates == ()
-    assert empty.selected is None
-    assert empty.candidates == ()
+    assert empty.selected is empty.candidates[0]
+    assert empty.selected.constituent_identifier == "삼성전자"
+    assert empty.selected.constituent_identifier_type == "query_text_exact"

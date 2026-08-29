@@ -186,6 +186,20 @@ def test_promotes_later_canonical_reference_approval_date(tmp_path: Path) -> Non
     assert {case.review.reviewed_at.isoformat() for case in promoted} == {"2026-08-25"}
 
 
+def test_accepts_current_official_artifact_identity_and_snapshot_concept() -> None:
+    module = _promotion()
+    artifact = module._validate_artifact(  # type: ignore[attr-defined]
+        {
+            "artifact_set_id": "finproof-data-artifacts/v1",
+            "artifact_contract_version": "1.0.0",
+            "dataset_version": "2026-08-24",
+            "manifest_logical_hash": "a" * 64,
+        }
+    )
+
+    assert module._snapshot_concept(artifact) == "2026-08-24 제공 스냅샷 기준"  # type: ignore[attr-defined]
+
+
 def test_accepts_repeated_compatibility_segments_but_rejects_reordered_products(
     tmp_path: Path,
 ) -> None:

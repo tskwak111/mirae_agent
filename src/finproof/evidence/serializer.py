@@ -44,6 +44,28 @@ _LOCATOR_FIELDS = (
     "source_column_letter",
     "source_applicable_date",
 )
+_SUMMARY_CONTEXT_FIELDS = (
+    "validated_plan_sha256",
+    "version_bundle_sha256",
+    "artifact_manifest_hash",
+)
+_SUMMARY_FIELDS = (
+    "summary_id",
+    "kind",
+    "included_count",
+    "excluded_count",
+    "evidence_ids",
+    "policy",
+    "product_types",
+    "native_result_grains",
+    "partition_key",
+    "product_id",
+    "metric_id",
+    "rank",
+    "tie_count",
+    "value",
+    "group_values",
+)
 
 
 def context_limit_bytes() -> int:
@@ -64,6 +86,10 @@ def serialize_evidence_context(evidence: EvidenceBundle) -> str:
     if _contains_local_path(payload):
         raise ValueError("evidence context contains a local path")
     encoded = canonical_json_bytes(payload, terminal_newline=False)
+    if len(encoded) > context_limit_bytes() and evidence.summaries:
+        encoded = canonical_json_bytes(
+            _compact_overflow_summaries(payload, evidence), terminal_newline=False
+        )
     if len(encoded) > context_limit_bytes():
         raise ValueError("evidence context exceeds configured bound")
     return encoded.decode()
@@ -100,6 +126,37 @@ def _compact(evidence: EvidenceBundle) -> dict[str, object]:
             item.model_dump(mode="json") for item in evidence.holding_coverage
         ]
     return payload
+
+
+def _compact_overflow_summaries(
+    payload: Mapping[str, object], evidence: EvidenceBundle
+) -> dict[str, object]:
+    rows = tuple(item.model_dump(mode="json") for item in evidence.summaries)
+    contexts = tuple(tuple(row[field] for field in _SUMMARY_CONTEXT_FIELDS) for row in rows)
+    if len(set(contexts)) != 1:
+        raise ValueError("summary context differs")
+    policies = tuple(dict.fromkeys(tuple(_sequence(row["policy_versions"])) for row in rows))
+    policy_indexes = {policy: index for index, policy in enumerate(policies)}
+    compacted = dict(payload)
+    compacted.update(
+        {
+            "format": "evidence_context.v4",
+            "summary_context_fields": _SUMMARY_CONTEXT_FIELDS,
+            "summary_context": contexts[0],
+            "summary_policy_versions": policies,
+            "summary_fields": _SUMMARY_FIELDS,
+            "summaries": [
+                [
+                    policy_indexes[tuple(_sequence(row["policy_versions"]))]
+                    if field == "policy"
+                    else row[field]
+                    for field in _SUMMARY_FIELDS
+                ]
+                for row in rows
+            ],
+        }
+    )
+    return compacted
 
 
 def _source_key(locator: Mapping[str, object]) -> tuple[str, str, str, str, str]:

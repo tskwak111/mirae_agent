@@ -346,3 +346,30 @@ def test_mixed_return_1y_ranks_domestic_and_fund_and_prunes_overseas(
     assert isinstance(wording, Mapping)
     assert answer.startswith(wording["snapshot_assumption"])
     assert "보유하지 않았다는 결론" in answer
+
+
+def test_domestic_and_overseas_return_1y_prunes_overseas_without_field_lookup(
+    tmp_path: Path,
+) -> None:
+    session = _synthetic_session(tmp_path)
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_ETF, ProductType.OVERSEAS_ETF),
+        ranking=True,
+    ).model_copy(update={"filters": (), "top_k_scope": TopKScope.PER_PRODUCT_TYPE})
+    try:
+        from finproof.service.limits import RequestDeadline
+
+        result = AnswerService(session).prepare_plan(
+            AnswerRequest(question_id="Q-RETURN-1Y", question="국내와 해외 ETF 1년 수익률"),
+            plan,
+            RequestDeadline.start(),
+        )
+    finally:
+        session._close()
+
+    assert tuple(segment.product_type for segment in result.trace.segments) == (
+        ProductType.DOMESTIC_ETF,
+    )
+    assert "해외 ETF/ETN의 1년 수익률은 제공 데이터에 없어" in (
+        result.fact_pack.surface_parts[0].text
+    )

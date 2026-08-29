@@ -1,0 +1,297 @@
+{
+  "schema_version": "organizer_question_plan_review.v1",
+  "suite_id": "organizer_20260824",
+  "review_status": "pending_human_question_plan_review",
+  "reviewer": "곽태성",
+  "snapshot_date": "2026-08-24",
+  "artifact_manifest_logical_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+  "target_distribution": {
+    "easy": 10,
+    "medium": 10,
+    "hard": 10,
+    "unanswerable": 5
+  },
+  "coverage_note": "공식 sealed artifact의 holding coverage는 전부 unavailable이므로 active corpus에는 unavailable만 넣고, partial 동작은 합성 integration fixture에서 검증한다. E-007 공모펀드 AUM은 통화 간 직접 비교를 금지하고 통화 파티션별 top 5를 유지하도록 per_product_type scope를 사용한다.",
+  "cases": [
+    {
+      "case_id": "ORG-20260824-E-001",
+      "difficulty": "easy",
+      "coverage_tags": ["bond_rank"],
+      "category": "rank",
+      "question": "2026년 8월 24일 제공 데이터 기준으로 국내채권 중 매수수익률이 높은 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_bond"],"entities":[],"as_of_date":"2026-08-24","result_grain":"instrument","filters":[],"metrics":["buy_yield"],"sort":[{"field":"buy_yield","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-002",
+      "difficulty": "easy",
+      "coverage_tags": ["domestic_etf_fee_rank"],
+      "category": "rank",
+      "question": "국내 ETF 중 총보수가 낮은 상품 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-003",
+      "difficulty": "easy",
+      "coverage_tags": ["overseas_return_1d"],
+      "category": "rank",
+      "question": "해외 ETF 중 1일 수익률이 높은 상품 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[],"metrics":["return_1d"],"sort":[{"field":"return_1d","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-004",
+      "difficulty": "easy",
+      "coverage_tags": ["public_fund_return_rank"],
+      "category": "rank",
+      "question": "공모펀드 중 1년 수익률이 높은 상품 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"fund_item","filters":[],"metrics":["return_1y"],"sort":[{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-005",
+      "difficulty": "easy",
+      "coverage_tags": ["product_name_filter"],
+      "category": "screen",
+      "question": "상품명에 KODEX가 들어간 국내 ETF를 이름순으로 10개 찾아줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[{"field":"product_name","operator":"contains","value":"KODEX"}],"metrics":["product_name"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-006",
+      "difficulty": "easy",
+      "coverage_tags": ["domestic_etf_ytd"],
+      "category": "rank",
+      "question": "국내 ETF의 연초 이후 수익률 상위 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[],"metrics":["return_ytd"],"sort":[{"field":"return_ytd","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-007",
+      "difficulty": "easy",
+      "coverage_tags": ["public_fund_aum"],
+      "category": "rank",
+      "question": "공모펀드 중 AUM이 큰 상품 5개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"fund_item","filters":[],"metrics":["aum"],"sort":[{"field":"aum","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-008",
+      "difficulty": "easy",
+      "coverage_tags": ["bond_maturity_filter"],
+      "category": "screen",
+      "question": "만기일이 2027년 안에 있는 국내채권을 만기일 빠른 순으로 10개 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_bond"],"entities":[],"as_of_date":"2026-08-24","result_grain":"instrument","filters":[{"field":"maturity_date","operator":"between","value":["2026-08-24","2027-12-31"]}],"metrics":["maturity_date"],"sort":[{"field":"maturity_date","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-009",
+      "difficulty": "easy",
+      "coverage_tags": ["missing_zero_policy"],
+      "category": "quality",
+      "question": "추적오차 값이 없는 국내 ETF를 상품명순으로 10개 알려줘.",
+      "plan": {"intent":"screen","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[{"field":"tracking_error","operator":"is_missing"}],"metrics":["tracking_error","product_name"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-E-010",
+      "difficulty": "easy",
+      "coverage_tags": ["buyable_quantity_ignored"],
+      "category": "rank",
+      "question": "현재 구매 가능한 국내채권 중 매수수익률이 높은 5개를 알려줘. BUYABLE_QUANTITY 값은 사용하지 마.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_bond"],"entities":[],"as_of_date":"2026-08-24","result_grain":"instrument","filters":[],"metrics":["buy_yield"],"sort":[{"field":"buy_yield","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-001",
+      "difficulty": "medium",
+      "coverage_tags": ["cross_market_fee_rank"],
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF를 합쳐 총보수가 낮은 순으로 10개 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-002",
+      "difficulty": "medium",
+      "coverage_tags": ["cross_product_return"],
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 1개월 수익률 상위 5개를 상품 유형별로 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["return_1m"],"sort":[{"field":"return_1m","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-003",
+      "difficulty": "medium",
+      "coverage_tags": ["cross_currency_aum_separated"],
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF의 AUM 상위 5개를 통화가 다른 점을 구분해서 상품 유형별로 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["aum","currency"],"sort":[{"field":"aum","direction":"desc"}],"aggregation":null,"top_k":5,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-004",
+      "difficulty": "medium",
+      "coverage_tags": ["fund_risk_aggregate"],
+      "category": "aggregate",
+      "question": "공모펀드 수를 위험등급별로 집계해줘.",
+      "plan": {"intent":"aggregate","product_types":["public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"fund_item","filters":[],"metrics":[],"sort":[],"aggregation":{"function":"count","field":null,"group_by":["risk_grade"]},"top_k":50,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-005",
+      "difficulty": "medium",
+      "coverage_tags": ["bond_yield_aggregate"],
+      "category": "aggregate",
+      "question": "국내채권의 평균 매수수익률을 신용등급별로 알려줘.",
+      "plan": {"intent":"aggregate","product_types":["domestic_bond"],"entities":[],"as_of_date":"2026-08-24","result_grain":"instrument","filters":[],"metrics":["buy_yield"],"sort":[],"aggregation":{"function":"avg","field":"buy_yield","group_by":["credit_rating"]},"top_k":50,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-006",
+      "difficulty": "medium",
+      "coverage_tags": ["missing_zero_policy"],
+      "category": "quality",
+      "question": "AUM 값이 없는 국내 ETF를 상품명순으로 10개 알려줘.",
+      "plan": {"intent":"screen","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[{"field":"aum","operator":"is_missing"}],"metrics":["aum","product_name"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-007",
+      "difficulty": "medium",
+      "coverage_tags": ["missing_zero_policy"],
+      "category": "quality",
+      "question": "1년 수익률이 0으로 기록된 공모펀드를 10개 알려주고 0을 임의로 결측 처리하지 마.",
+      "plan": {"intent":"screen","product_types":["public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"fund_item","filters":[{"field":"return_1y","operator":"eq","value":0}],"metrics":["return_1y","product_name"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-008",
+      "difficulty": "medium",
+      "coverage_tags": ["region_filter"],
+      "category": "screen",
+      "question": "미국 지역에 투자하는 국내 ETF 중 총보수가 낮은 10개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[{"field":"region","operator":"contains","value":"미국"}],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-009",
+      "difficulty": "medium",
+      "coverage_tags": ["validated_sale_state"],
+      "category": "screen",
+      "question": "현재 판매 가능한 국내 ETF 중 총보수가 낮은 10개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"listed_product","filters":[{"field":"saleable","operator":"eq","value":true}],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-M-010",
+      "difficulty": "medium",
+      "coverage_tags": ["plain_etf_excludes_etn"],
+      "category": "cross_product",
+      "question": "국내와 해외 ETF만 대상으로 총보수가 낮은 10개를 알려줘. ETN은 제외해줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-001",
+      "difficulty": "hard",
+      "coverage_tags": ["constituent_cross_product","holding_coverage_unavailable","overseas_return_1y_pruned"],
+      "category": "cross_product",
+      "question": "삼성전자를 보유한 국내 ETF, 해외 ETF와 공모펀드를 1년 수익률 기준으로 상품 유형별 TOP10 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[{"field":"holding_constituent","operator":"eq","value":"삼성전자"}],"metrics":["return_1y"],"sort":[{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-002",
+      "difficulty": "hard",
+      "coverage_tags": ["constituent_cross_product","holding_coverage_unavailable","cross_currency_aum_separated"],
+      "category": "cross_product",
+      "question": "애플을 보유한 국내 ETF, 해외 ETF와 공모펀드를 찾아 AUM 상위 10개를 상품 유형과 통화별로 구분해줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[{"field":"holding_constituent","operator":"eq","value":"애플"}],"metrics":["aum","currency"],"sort":[{"field":"aum","direction":"desc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-003",
+      "difficulty": "hard",
+      "coverage_tags": ["cross_product_return"],
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 1년 수익률 상위 10개를 각 상품 유형별로 비교해줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["return_1y"],"sort":[{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-004",
+      "difficulty": "hard",
+      "coverage_tags": ["constituent_cross_product","holding_coverage_unavailable"],
+      "category": "cross_product",
+      "question": "엔비디아를 보유한 국내 ETF·ETN, 해외 ETF·ETN과 공모펀드를 상품 유형별로 10개씩 찾아줘.",
+      "plan": {"intent":"screen","product_types":["domestic_etf","domestic_etn","overseas_etf","overseas_etn","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[{"field":"holding_constituent","operator":"eq","value":"엔비디아"}],"metrics":["product_name"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-005",
+      "difficulty": "hard",
+      "coverage_tags": ["heterogeneous_native_segments"],
+      "category": "cross_product",
+      "question": "국내채권, 국내 ETF와 공모펀드에서 각각 대표 수익·비용 지표가 높은 순 또는 낮은 순인 상품 3개씩 보여줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_bond","domestic_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["buy_yield","total_fee","return_1y"],"sort":[{"field":"buy_yield","direction":"desc"},{"field":"total_fee","direction":"asc"},{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":3,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-006",
+      "difficulty": "hard",
+      "coverage_tags": ["constituent_cross_product","holding_coverage_unavailable"],
+      "category": "cross_product",
+      "question": "삼성전자를 보유한 국내 ETF와 해외 ETF 중 총보수가 낮은 상품 10개를 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[{"field":"holding_constituent","operator":"eq","value":"삼성전자"}],"metrics":["total_fee"],"sort":[{"field":"total_fee","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"global","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-007",
+      "difficulty": "hard",
+      "coverage_tags": ["missing_zero_policy","cross_currency_aum_separated"],
+      "category": "quality",
+      "question": "AUM이 0으로 기록된 국내 ETF, 해외 ETF와 공모펀드를 상품 유형별로 10개씩 알려주고 0을 임의로 결측 처리하지 마.",
+      "plan": {"intent":"screen","product_types":["domestic_etf","overseas_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[{"field":"aum","operator":"eq","value":0}],"metrics":["aum","currency"],"sort":[{"field":"product_name","direction":"asc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-008",
+      "difficulty": "hard",
+      "coverage_tags": ["overseas_return_1y_pruned"],
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF를 1년 수익률 기준으로 상위 10개씩 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_etf","overseas_etf"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["return_1y"],"sort":[{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-009",
+      "difficulty": "hard",
+      "coverage_tags": ["heterogeneous_native_segments","buyable_quantity_ignored"],
+      "category": "cross_product",
+      "question": "현재 구매 가능한 국내채권과 국내 ETF, 공모펀드에서 채권은 매수수익률, ETF는 총보수, 펀드는 1년 수익률 기준으로 3개씩 알려줘.",
+      "plan": {"intent":"screen_rank","product_types":["domestic_bond","domestic_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":["buy_yield","total_fee","return_1y"],"sort":[{"field":"buy_yield","direction":"desc"},{"field":"total_fee","direction":"asc"},{"field":"return_1y","direction":"desc"}],"aggregation":null,"top_k":3,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-H-010",
+      "difficulty": "hard",
+      "coverage_tags": ["heterogeneous_native_segments","cross_product_count"],
+      "category": "aggregate",
+      "question": "국내채권, 국내 ETF, 해외 ETF와 공모펀드의 상품 수를 상품 유형별로 집계해줘.",
+      "plan": {"intent":"aggregate","product_types":["domestic_bond","domestic_etf","overseas_etf","public_fund"],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":{"function":"count","field":null,"group_by":[]},"top_k":50,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":""}
+    },
+    {
+      "case_id": "ORG-20260824-U-001",
+      "difficulty": "unanswerable",
+      "coverage_tags": ["code_table_unsupported"],
+      "category": "quality",
+      "question": "공모펀드의 prfd_attr_cd 코드별 한글 의미와 공식 코드명을 모두 알려줘.",
+      "plan": {"intent":"unsupported","product_types":[],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":"공식 코드 값 테이블이 제공되지 않아 코드의 의미를 추정하거나 공식 명칭으로 매핑할 수 없습니다."}
+    },
+    {
+      "case_id": "ORG-20260824-U-002",
+      "difficulty": "unanswerable",
+      "coverage_tags": ["forecast_unsupported"],
+      "category": "adversarial",
+      "question": "앞으로 1년 동안 수익률이 가장 높을 ETF를 확실하게 예측해줘.",
+      "plan": {"intent":"unsupported","product_types":[],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":"제공 데이터는 미래 수익률 예측이나 확정적 전망을 뒷받침하지 않습니다."}
+    },
+    {
+      "case_id": "ORG-20260824-U-003",
+      "difficulty": "unanswerable",
+      "coverage_tags": ["recommendation_unsupported"],
+      "category": "adversarial",
+      "question": "손실 가능성이 전혀 없고 반드시 돈을 버는 상품 하나만 추천해줘.",
+      "plan": {"intent":"unsupported","product_types":[],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":"무손실 보장이나 확정적 투자 추천은 제공 데이터로 검증할 수 없습니다."}
+    },
+    {
+      "case_id": "ORG-20260824-U-004",
+      "difficulty": "unanswerable",
+      "coverage_tags": ["realtime_unsupported"],
+      "category": "quality",
+      "question": "지금 이 순간의 해외 ETF 실시간 가격과 수익률을 알려줘.",
+      "plan": {"intent":"unsupported","product_types":[],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":false,"clarification_reason":"평가 모드는 2026-08-24 공식 스냅샷만 사용하므로 실시간 값은 제공할 수 없습니다."}
+    },
+    {
+      "case_id": "ORG-20260824-U-005",
+      "difficulty": "unanswerable",
+      "coverage_tags": ["clarification_required"],
+      "category": "clarification",
+      "question": "수익률 좋은 상품을 알려줘.",
+      "plan": {"intent":"clarify","product_types":[],"entities":[],"as_of_date":"2026-08-24","result_grain":"product","filters":[],"metrics":[],"sort":[],"aggregation":null,"top_k":10,"top_k_scope":"per_product_type","needs_clarification":true,"clarification_reason":"상품 유형과 수익률 기간을 지정해 주세요."}
+    }
+  ]
+}
