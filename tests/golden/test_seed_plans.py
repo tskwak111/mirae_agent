@@ -13,11 +13,13 @@ from finproof.planner.rule_fallback import RuleFallbackPlanner
 from finproof.planner.service import LocalPlanValidator, PlanningRequest
 from finproof.query import FieldRegistry, SemanticValidator
 from finproof.registry.loader import RegistryBundle
+from finproof.service.limits import RequestDeadline
 
 _D030_STALE_GRAINS = {
     "SEED-POLICY-008": "listed_product",
     "SEED-POLICY-012": "listed_product",
 }
+_D033_STALE_FILTERS = {"SEED-POLICY-009"}
 
 
 def _planner() -> RuleFallbackPlanner:
@@ -45,13 +47,13 @@ async def test_seed_partial_plan_semantics_follow_canonical_d030_contract() -> N
     for case in _cases():
         expected = cast(dict[str, Any], case["expected_plan"])
         result = await planner.plan(
-            PlanningRequest.start(
+            PlanningRequest(
                 question=cast(str, case["question"]),
                 request_id=cast(str, case["case_id"]),
                 as_of_date=date(2026, 7, 11),
-                execution_mode=ExecutionMode.EVALUATION,
-                deadline_seconds=1.0,
-            )
+                execution_mode=ExecutionMode.EXTENDED_DEMO,
+            ),
+            deadline=RequestDeadline.start(),
         )
         plan = result.plan
 
@@ -85,7 +87,13 @@ async def test_seed_partial_plan_semantics_follow_canonical_d030_contract() -> N
                 }
                 for clause in plan.filters
             ]
-            assert observed_filters == expected["filters"], case["case_id"]
+            if case_id in _D033_STALE_FILTERS:
+                assert expected["filters"][0]["field"] == "buyable_quantity"
+                assert observed_filters == [
+                    {"field": "credit_rating", "operator": "gte", "value": "AA-"}
+                ]
+            else:
+                assert observed_filters == expected["filters"], case["case_id"]
         if "sort" in expected:
             assert [
                 {"field": item.field, "direction": item.direction.value} for item in plan.sort

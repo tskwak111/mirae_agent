@@ -10,7 +10,7 @@ from finproof.registry.loader import RegistryBundle
 def test_system_prompt_is_versioned_and_self_checksummed() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == PROMPT_VERSION == "phase4-planner-v3"
+    assert prompt.version == PROMPT_VERSION == "phase4-planner-v4"
     assert prompt.checksum == sha256(prompt.text.encode("utf-8")).hexdigest()
     assert len(prompt.checksum) == 64
 
@@ -53,7 +53,7 @@ def test_system_prompt_contains_the_closed_planning_contract_and_compact_catalog
 def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == "phase4-planner-v3"
+    assert prompt.version == "phase4-planner-v4"
     assert "domestic_bond=instrument" in prompt.text
     assert "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product" in prompt.text
     assert "public_fund=fund_item" in prompt.text
@@ -75,6 +75,16 @@ def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
         prompt.text.split("\ncompact_catalog=", 1)[1].split("\nprovider_schema=", 1)[0]
     )
     assert set(compact_catalog) == {"products", "fields", "aliases"}
+
+
+def test_system_prompt_separates_qualitative_rank_from_explicit_filters() -> None:
+    prompt = build_system_prompt(
+        RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11)
+    ).text
+
+    assert "낮은/높은 with top-k define sort direction, not a filter" in prompt
+    assert "Without an explicit literal value, set, range, or missing-state condition" in prompt
+    assert "emit filters=[]; never invent a threshold" in prompt
 
 
 def test_system_prompt_cannot_include_source_rows_secrets_or_local_paths() -> None:

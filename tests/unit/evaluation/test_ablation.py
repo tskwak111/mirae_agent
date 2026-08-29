@@ -46,6 +46,7 @@ from finproof.quality import PolicyExecutionResult
 from finproof.quality.metric_policy import MetricPolicyResult
 from finproof.registry.loader import RegistryBundle
 from finproof.runtime import RuntimeArtifactSession
+from finproof.service.limits import RequestDeadline
 from finproof.storage.repositories.products import (
     RawExecutionResult,
     RawFieldValue,
@@ -129,7 +130,14 @@ async def test_ablation_paces_hcx_calls_from_the_remaining_token_budget() -> Non
     sleeps: list[float] = []
 
     class Client:
-        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+        async def generate(
+            self,
+            _request: HcxRequest,
+            _request_id: str,
+            *,
+            deadline: RequestDeadline,
+        ) -> HcxResponse:
+            assert deadline.remaining_work_seconds() > 0
             return response
 
     async def sleep(delay: float) -> None:
@@ -144,8 +152,12 @@ async def test_ablation_paces_hcx_calls_from_the_remaining_token_budget() -> Non
         seed=17,
     )
 
-    await generator.run(lambda: generator.generate(request, "first"))
-    await generator.run(lambda: generator.generate(request, "second"))
+    await generator.run(
+        lambda: generator.generate(request, "first", deadline=RequestDeadline.start())
+    )
+    await generator.run(
+        lambda: generator.generate(request, "second", deadline=RequestDeadline.start())
+    )
 
     assert sleeps == [13.2576]
 
@@ -168,8 +180,15 @@ async def test_ablation_waits_for_token_reset_before_a_larger_next_request() -> 
     attempts = 0
 
     class Client:
-        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+        async def generate(
+            self,
+            _request: HcxRequest,
+            _request_id: str,
+            *,
+            deadline: RequestDeadline,
+        ) -> HcxResponse:
             nonlocal attempts
+            assert deadline.remaining_work_seconds() > 0
             attempts += 1
             return response
 
@@ -192,8 +211,12 @@ async def test_ablation_waits_for_token_reset_before_a_larger_next_request() -> 
         seed=17,
     )
 
-    await generator.run(lambda: generator.generate(small, "small"))
-    await generator.run(lambda: generator.generate(large, "large"))
+    await generator.run(
+        lambda: generator.generate(small, "small", deadline=RequestDeadline.start())
+    )
+    await generator.run(
+        lambda: generator.generate(large, "large", deadline=RequestDeadline.start())
+    )
 
     assert attempts == 2
     assert sleeps == [13.2576, 60.0]
@@ -212,8 +235,15 @@ async def test_ablation_retries_one_rate_limited_hcx_call_after_reset() -> None:
     attempts = 0
 
     class Client:
-        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+        async def generate(
+            self,
+            _request: HcxRequest,
+            _request_id: str,
+            *,
+            deadline: RequestDeadline,
+        ) -> HcxResponse:
             nonlocal attempts
+            assert deadline.remaining_work_seconds() > 0
             attempts += 1
             if attempts == 1:
                 raise HcxRateLimitError(
@@ -231,7 +261,9 @@ async def test_ablation_retries_one_rate_limited_hcx_call_after_reset() -> None:
     generator = _RecordingGenerator(cast(HcxClient, Client()), sleep=sleep)
     request = cast(HcxRequest, object())
 
-    observed = await generator.run(lambda: generator.generate(request, "rate-limited"))
+    observed = await generator.run(
+        lambda: generator.generate(request, "rate-limited", deadline=RequestDeadline.start())
+    )
 
     assert observed is response
     assert attempts == 2
@@ -243,7 +275,14 @@ async def test_ablation_carries_a_second_rate_limit_reset_to_the_next_call() -> 
     sleeps: list[float] = []
 
     class Client:
-        async def generate(self, _request: HcxRequest, _request_id: str) -> HcxResponse:
+        async def generate(
+            self,
+            _request: HcxRequest,
+            _request_id: str,
+            *,
+            deadline: RequestDeadline,
+        ) -> HcxResponse:
+            assert deadline.remaining_work_seconds() > 0
             raise HcxRateLimitError(
                 "42902",
                 HcxRateLimitSnapshot(reset_tokens_seconds=4.0),
@@ -256,9 +295,13 @@ async def test_ablation_carries_a_second_rate_limit_reset_to_the_next_call() -> 
     request = cast(HcxRequest, object())
 
     with pytest.raises(HcxRateLimitError):
-        await generator.run(lambda: generator.generate(request, "first"))
+        await generator.run(
+            lambda: generator.generate(request, "first", deadline=RequestDeadline.start())
+        )
     with pytest.raises(HcxRateLimitError):
-        await generator.run(lambda: generator.generate(request, "second"))
+        await generator.run(
+            lambda: generator.generate(request, "second", deadline=RequestDeadline.start())
+        )
 
     assert sleeps == [4.0, 4.0, 4.0]
 

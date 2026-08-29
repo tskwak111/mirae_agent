@@ -57,6 +57,42 @@ def test_strict_json_request_disables_hcx_007_thinking() -> None:
     assert request.to_payload()["thinking"] == {"effort": "none"}
 
 
+def test_both_provider_schemas_use_only_the_official_structured_subset() -> None:
+    answer_schema = cast(
+        dict[str, Any],
+        json.loads(Path("schemas/hcx_answer.schema.json").read_text(encoding="utf-8")),
+    )
+    for schema in (_query_plan_schema(), answer_schema):
+        assert _schema_keywords(schema) <= {
+            "type",
+            "properties",
+            "required",
+            "items",
+            "enum",
+            "minItems",
+            "maxItems",
+            "minimum",
+            "maximum",
+            "format",
+            "anyOf",
+        }
+
+
+def _schema_keywords(schema: object, *, property_map: bool = False) -> set[str]:
+    if isinstance(schema, list):
+        return set().union(*(_schema_keywords(item) for item in schema), set())
+    if not isinstance(schema, dict):
+        return set()
+    keys = set() if property_map else set(schema)
+    return keys | set().union(
+        *(
+            _schema_keywords(value, property_map=key == "properties")
+            for key, value in schema.items()
+        ),
+        set(),
+    )
+
+
 def test_structured_schema_and_emitted_payload_cannot_mutate_the_request() -> None:
     schema = _query_plan_schema()
     request = HcxRequest.structured(

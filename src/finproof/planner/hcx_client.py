@@ -15,6 +15,7 @@ from pydantic import SecretStr
 from finproof.core.errors import FinProofError
 from finproof.planner.models import HcxRequest, HcxResponse, HcxUsage
 from finproof.planner.rate_limits import HcxRateLimitSnapshot
+from finproof.service.limits import RequestDeadline
 
 type HcxHttpClientFactory = Callable[[], AbstractAsyncContextManager[httpx.AsyncClient]]
 
@@ -103,8 +104,17 @@ class HcxClient:
         self._http_client = http_client
         self._api_key = api_key
 
-    async def generate(self, request: HcxRequest, request_id: str) -> HcxResponse:
+    async def generate(
+        self,
+        request: HcxRequest,
+        request_id: str,
+        *,
+        deadline: RequestDeadline,
+    ) -> HcxResponse:
         """Send one bounded request and validate the native response envelope."""
+        remaining = deadline.remaining_work_seconds()
+        if remaining <= 0:
+            raise TimeoutError("HCX work cutoff exceeded")
         url = f"{self.API_ORIGIN}/v3/chat-completions/{quote(request.model_name, safe='')}"
         headers = {
             "Authorization": f"Bearer {self._api_key.get_secret_value()}",
@@ -118,7 +128,13 @@ class HcxClient:
                 url,
                 json=request.to_payload(),
                 headers=headers,
-                timeout=self._TIMEOUT,
+                timeout=httpx.Timeout(
+                    timeout=remaining,
+                    connect=min(remaining, 5.0),
+                    read=min(remaining, 15.0),
+                    write=min(remaining, 5.0),
+                    pool=min(remaining, 5.0),
+                ),
             ) as response:
                 body = await self._read_bounded(response)
                 return self._parse_response(response, body)

@@ -5,6 +5,7 @@ from finproof.planner.provider_schema import (
     build_hcx_query_plan_schema,
     unsupported_schema_keywords,
 )
+from finproof.registry.loader import RegistryBundle
 
 HCX_ALLOWED_SCHEMA_KEYWORDS = {
     "type",
@@ -57,3 +58,18 @@ def test_provider_schema_uses_only_supported_subset() -> None:
     ]
     assert aggregation["properties"]["group_by"]["maxItems"] == 2
     assert "product" in schema["properties"]["result_grain"]["enum"]
+
+
+def test_provider_field_allowlists_match_the_issued_registry() -> None:
+    schema = build_hcx_query_plan_schema()
+    properties = schema["properties"]
+    field_ids = set(RegistryBundle.from_package().fields.entries)
+
+    allowlists = (
+        properties["filters"]["items"]["properties"]["field"]["enum"],
+        properties["metrics"]["items"]["enum"],
+        properties["sort"]["items"]["properties"]["field"]["enum"],
+        properties["aggregation"]["properties"]["group_by"]["items"]["enum"],
+    )
+    assert all(set(allowlist) == field_ids for allowlist in allowlists)
+    assert set(properties["aggregation"]["properties"]["field"]["enum"]) == field_ids | {""}

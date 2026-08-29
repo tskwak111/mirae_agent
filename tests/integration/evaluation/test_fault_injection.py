@@ -6,11 +6,12 @@ from time import monotonic
 
 import httpx
 import pytest
-from tests.e2e.test_evaluation_api import evaluation_app
+from tests.e2e.test_evaluation_api import _recorded_hcx, evaluation_app
 from tests.integration.service.test_orchestrator_fallbacks import (
     FailingAnswerService,
+    IdentityVerbalizer,
     ImmediatePlanner,
-    _request,
+    _answer,
 )
 
 from finproof.api.app import create_app
@@ -76,10 +77,11 @@ async def test_database_read_failure_returns_verified_safe_contract() -> None:
     orchestrator = EvaluationOrchestrator(
         planner=ImmediatePlanner(),
         answer_service=FailingAnswerService(),
+        verbalizer=IdentityVerbalizer(),
         execution_mode=ExecutionMode.EVALUATION,
     )
 
-    result = await orchestrator.answer(_request())
+    result = await _answer(orchestrator)
 
     assert result.trace.validation is TraceValidation.SAFE_FAILURE
     assert "database failed" not in result.model_dump_json()
@@ -111,8 +113,7 @@ async def test_process_restart_reopens_runtime_and_keeps_only_answer_public(tmp_
         runtime_root.mkdir()
         app = evaluation_app(
             runtime_root,
-            httpx.MockTransport(lambda _: httpx.Response(500)),
-            hcx_enabled=False,
+            httpx.MockTransport(_recorded_hcx),
         )
         async with (
             app.router.lifespan_context(app),

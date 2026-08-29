@@ -1,9 +1,17 @@
 import json
+from asyncio import new_event_loop
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
+from typing import cast
+
+import pytest
+from pydantic import SecretStr
 
 from finproof.cli.main import _parser, _run_main
+from finproof.core.settings import ExecutionMode, Settings
 from finproof.evaluation.runner import EvaluationMode
+from finproof.service.orchestrator import EvaluationOrchestrator
 
 
 def test_parser_accepts_canonical_evaluate_command() -> None:
@@ -37,6 +45,35 @@ def test_parser_accepts_robustness_evaluate_command() -> None:
     )
 
     assert args.suite == "robustness"
+
+
+def test_cli_evaluation_replay_rejects_non_hcx_007_model() -> None:
+    from finproof.cli.evaluate import _LocalEvaluationService
+
+    versions = SimpleNamespace(
+        runtime_facts=lambda: {
+            "artifact_manifest_hash": "artifact",
+            "planner_version": "planner",
+        },
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+    loop = new_event_loop()
+    try:
+        service = _LocalEvaluationService(
+            session=cast(object, SimpleNamespace(versions=versions)),
+            orchestrator=cast(EvaluationOrchestrator, object()),
+            loop=loop,
+            settings=Settings(
+                hcx_enabled=True,
+                hcx_api_key=SecretStr("test-key"),
+                hcx_model_name="HCX-DASH-002",
+            ),
+        )
+
+        with pytest.raises(ValueError, match="HCX-007"):
+            service.replay_versions()
+    finally:
+        loop.close()
 
 
 def test_evaluate_dispatches_exact_suite_mode_and_output(

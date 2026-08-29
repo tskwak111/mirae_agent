@@ -14,8 +14,13 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
+from finproof.answer.hcx_verbalizer import (
+    ANSWER_PROMPT_VERSION,
+    answer_schema_sha256,
+)
+from finproof.api.dependencies import ApiDependencies
 from finproof.core.errors import FinProofError
-from finproof.core.settings import Settings
+from finproof.core.settings import ExecutionMode, Settings
 from finproof.domain.answers import AnswerRequest, AnswerResult, ClaimKind
 from finproof.domain.execution import TraceValidation
 from finproof.domain.query_plan import (
@@ -25,7 +30,6 @@ from finproof.domain.query_plan import (
     QueryPlan,
     ResultGrain,
 )
-from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
 from finproof.evaluation.adversarial import (
     AdversarialCase,
     AdversarialObservation,
@@ -56,20 +60,13 @@ from finproof.evaluation.runner import (
     EvaluationService,
     ReplayVersions,
 )
-from finproof.planner.hcx_client import HcxClient, create_hcx_http_client
-from finproof.planner.json_planner import StrictJsonPlanner
 from finproof.planner.prompts import PROMPT_VERSION
-from finproof.planner.rule_fallback import RuleFallbackPlanner
-from finproof.planner.service import (
-    LocalPlanValidator,
-    PlannerProtocol,
-    PlannerService,
-    PlanningRequest,
-)
-from finproof.query import FieldRegistry, SemanticValidator
+from finproof.planner.service import PlanningRequest
 from finproof.runtime import open_runtime_artifact_session
 from finproof.runtime.session import RuntimeArtifactSession
-from finproof.service import AnswerService
+from finproof.service.limits import RequestDeadline
+from finproof.service.orchestrator import EvaluationOrchestrator
+from finproof.service.publication import build_safe_publication
 
 
 def run_evaluation(
@@ -92,6 +89,8 @@ def run_evaluation(
             quality, paraphrases = _robustness_cases(root)
             cases = (*quality, *paraphrases)
         if service is not None:
+            if service.replay_versions().execution_mode is ExecutionMode.EVALUATION:
+                raise ValueError("evaluation service graph cannot be overridden")
             report = _run_suite(suite, root, mode, cases, service)
         else:
             with _open_local_service(Settings(repository_root=root)) as local_service:
@@ -150,18 +149,14 @@ class _LocalEvaluationService:
         self,
         *,
         session: RuntimeArtifactSession,
-        planner: PlannerProtocol,
-        answer_service: AnswerService,
+        orchestrator: EvaluationOrchestrator,
         loop: asyncio.AbstractEventLoop,
-        hcx_enabled: bool,
-        planner_model: str | None,
+        settings: Settings,
     ) -> None:
         self._session = session
-        self._planner = planner
-        self._answer_service = answer_service
+        self._orchestrator = orchestrator
         self._loop = loop
-        self._hcx_enabled = hcx_enabled
-        self._planner_model = planner_model
+        self._settings = settings
 
     def replay_versions(self) -> ReplayVersions:
         facts = self._session.versions.runtime_facts()
@@ -173,49 +168,72 @@ class _LocalEvaluationService:
                 if key.endswith("_version") and key not in {"planner_version"}
             },
             prompt_version=PROMPT_VERSION,
+            answer_prompt_version=ANSWER_PROMPT_VERSION,
+            answer_schema_sha256=answer_schema_sha256(),
+            wording_verification_mode="exact-application-surface-v1",
             planner_version=facts["planner_version"],
-            hcx_enabled=self._hcx_enabled,
-            planner_model=self._planner_model,
-            fallback_enabled=True,
-            structured_outputs_enabled=False,
+            execution_mode=ExecutionMode.EVALUATION,
+            hcx_enabled=True,
+            planner_model=self._settings.hcx_model_name,
+            fallback_enabled=False,
+            structured_outputs_enabled=True,
         )
 
     def observe(self, case: GoldenCase, mode: EvaluationMode) -> ObservedCase:
-        planned = self._loop.run_until_complete(
-            self._planner.plan(
-                PlanningRequest.start(
-                    question=case.question,
-                    request_id=case.case_id,
-                    as_of_date=case.expected_plan.as_of_date,
-                    execution_mode=self._session.versions.execution_mode,
-                    deadline_seconds=15.0,
-                )
-            )
+        deadline = RequestDeadline.start()
+        planning_request = PlanningRequest(
+            question=case.question,
+            request_id=case.case_id,
+            as_of_date=case.expected_plan.as_of_date,
+            execution_mode=self._session.versions.execution_mode,
         )
         if mode is EvaluationMode.PLAN_ONLY:
-            return ObservedCase(plan=planned.plan, latency_ms=(planned.latency_ms,))
+            plan_only_result = self._loop.run_until_complete(
+                self._orchestrator.plan(planning_request, deadline=deadline)
+            )
+            return ObservedCase(
+                plan=plan_only_result.plan,
+                latency_ms=(plan_only_result.latency_ms,),
+            )
         if mode is EvaluationMode.DETERMINISTIC_CORE:
             raise ValueError("deterministic-core CLI replay requires executable reviewed plans")
-        result = self._answer_service.answer_plan(
-            AnswerRequest(question_id=case.case_id, question=case.question),
-            planned.plan,
+        request = AnswerRequest(question_id=case.case_id, question=case.question)
+        safe = build_safe_publication(
+            request,
+            correlation_id=f"cli-{case.case_id}"[:200],
+            snapshot_date=self._settings.dataset_snapshot_date,
+            deadline=deadline,
+        ).result
+        planned, result = self._loop.run_until_complete(
+            self._orchestrator.answer_with_plan(request, deadline=deadline, safe_result=safe)
         )
+        if planned is None:
+            return ObservedCase(answer_text=result.answer.text)
         return _observed(case, planned.plan, result, planned.latency_ms)
 
     def observe_adversarial(self, case: AdversarialCase) -> AdversarialObservation:
         try:
-            request = PlanningRequest.start(
+            request = AnswerRequest(question_id=case.case_id, question=case.question)
+            deadline = RequestDeadline.start()
+            _ = PlanningRequest(
                 question=case.question,
                 request_id=case.case_id,
-                as_of_date=date(2026, 7, 11),
+                as_of_date=self._settings.dataset_snapshot_date,
                 execution_mode=self._session.versions.execution_mode,
-                deadline_seconds=15.0,
             )
-            answer_request = AnswerRequest(question_id=case.case_id, question=case.question)
         except ValidationError:
             return AdversarialObservation(rejected=True)
-        planned = self._loop.run_until_complete(self._planner.plan(request))
-        result = self._answer_service.answer_plan(answer_request, planned.plan)
+        safe = build_safe_publication(
+            request,
+            correlation_id=f"cli-{case.case_id}"[:200],
+            snapshot_date=self._settings.dataset_snapshot_date,
+            deadline=deadline,
+        ).result
+        planned, result = self._loop.run_until_complete(
+            self._orchestrator.answer_with_plan(request, deadline=deadline, safe_result=safe)
+        )
+        if planned is None:
+            return AdversarialObservation(answer=result.answer, trace=result.trace)
         return AdversarialObservation(
             plan=planned.plan,
             validated=True,
@@ -227,42 +245,25 @@ class _LocalEvaluationService:
 @contextmanager
 def _open_local_service(settings: Settings) -> Iterator[_LocalEvaluationService]:
     loop = asyncio.new_event_loop()
-    http_context = None
+    orchestrator_context = None
+    orchestrator_open = False
     try:
         with open_runtime_artifact_session(settings) as session:
-            fields = FieldRegistry.from_bundle(session.registries)
-            validator = LocalPlanValidator(
-                SemanticValidator(fields),
-                entity_resolver=EntityResolver(EntityIndex.from_session(session)),
-                holding_resolver=HoldingResolver.from_session(session),
-            )
-            fallback = RuleFallbackPlanner(validator=validator)
-            planner: PlannerProtocol = fallback
-            if settings.hcx_enabled:
-                if settings.hcx_api_key is None:
-                    raise ValueError("HCX API key is missing")
-                http_context = create_hcx_http_client()
-                client = loop.run_until_complete(http_context.__aenter__())
-                planner = PlannerService(
-                    strict_json_planner=StrictJsonPlanner(
-                        generator=HcxClient(http_client=client, api_key=settings.hcx_api_key),
-                        validator=validator,
-                        registries=session.registries,
-                        model_name=settings.hcx_model_name,
-                    ),
-                    rule_fallback=fallback,
-                )
+            dependencies = ApiDependencies()
+            orchestrator_context = dependencies.open_orchestrator(session, settings)
+            orchestrator = loop.run_until_complete(orchestrator_context.__aenter__())
+            orchestrator_open = True
+            if type(orchestrator) is not EvaluationOrchestrator:
+                raise TypeError("evaluation graph differs")
             yield _LocalEvaluationService(
                 session=session,
-                planner=planner,
-                answer_service=AnswerService(session),
+                orchestrator=orchestrator,
                 loop=loop,
-                hcx_enabled=settings.hcx_enabled,
-                planner_model=settings.hcx_model_name if settings.hcx_enabled else None,
+                settings=settings,
             )
     finally:
-        if http_context is not None:
-            loop.run_until_complete(http_context.__aexit__(None, None, None))
+        if orchestrator_context is not None and orchestrator_open:
+            loop.run_until_complete(orchestrator_context.__aexit__(None, None, None))
         loop.close()
 
 

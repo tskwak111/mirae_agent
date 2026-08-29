@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from finproof.core.settings import ExecutionMode
 from finproof.domain.query_plan import (
     Intent,
     ProductType,
@@ -73,7 +74,11 @@ def _versions() -> ReplayVersions:
         artifact_version="artifact-sha256",
         config_versions={"metric": "1.0.0", "state": "1.1.0"},
         prompt_version="prompt-1.0.0",
+        answer_prompt_version=None,
+        answer_schema_sha256=None,
+        wording_verification_mode=None,
         planner_version="planner-1.0.0",
+        execution_mode=ExecutionMode.EXTENDED_DEMO,
         hcx_enabled=False,
         planner_model=None,
         fallback_enabled=True,
@@ -98,7 +103,11 @@ def test_replay_versions_label_fallback_only_and_hash_actual_configuration() -> 
         artifact_version="artifact-sha256",
         config_versions={"state": "1.1.0", "metric": "1.0.0"},
         prompt_version="prompt-1.0.0",
+        answer_prompt_version=None,
+        answer_schema_sha256=None,
+        wording_verification_mode=None,
         planner_version="planner-1.0.0",
+        execution_mode=ExecutionMode.EXTENDED_DEMO,
         hcx_enabled=False,
         planner_model=None,
         fallback_enabled=True,
@@ -108,7 +117,11 @@ def test_replay_versions_label_fallback_only_and_hash_actual_configuration() -> 
         artifact_version="artifact-sha256",
         config_versions={"metric": "1.0.0", "state": "1.1.0"},
         prompt_version="prompt-1.0.0",
+        answer_prompt_version=None,
+        answer_schema_sha256=None,
+        wording_verification_mode=None,
         planner_version="planner-1.0.0",
+        execution_mode=ExecutionMode.EXTENDED_DEMO,
         hcx_enabled=False,
         planner_model=None,
         fallback_enabled=True,
@@ -118,20 +131,77 @@ def test_replay_versions_label_fallback_only_and_hash_actual_configuration() -> 
         artifact_version="artifact-sha256",
         config_versions={"metric": "1.0.0", "state": "1.1.0"},
         prompt_version="prompt-1.0.0",
+        answer_prompt_version="answer-prompt-v1",
+        answer_schema_sha256="a" * 64,
+        wording_verification_mode="exact-application-surface-v1",
         planner_version="planner-1.0.0",
+        execution_mode=ExecutionMode.EVALUATION,
         hcx_enabled=True,
         planner_model="HCX-007",
-        fallback_enabled=True,
-        structured_outputs_enabled=False,
+        fallback_enabled=False,
+        structured_outputs_enabled=True,
     )
 
     assert first.planner_mode == "fallback-only"
     assert first.planner_provider == "local-rule-fallback"
     assert first.planner_model is None
     assert first.configuration_sha256 == reordered.configuration_sha256
-    assert hcx.planner_mode == "hcx-strict-json-with-fallback"
+    assert hcx.planner_mode == "hcx-structured-outputs-verified-wording"
     assert hcx.planner_provider == "naver-hyperclova-x"
     assert hcx.configuration_sha256 != first.configuration_sha256
+
+
+def test_evaluation_replay_requires_both_hcx_stages_without_fallback() -> None:
+    versions = ReplayVersions.from_configuration(
+        artifact_version="artifact-sha256",
+        config_versions={"metric": "1.0.0"},
+        prompt_version="planner-prompt-v1",
+        answer_prompt_version="answer-prompt-v1",
+        answer_schema_sha256="a" * 64,
+        wording_verification_mode="exact-application-surface-v1",
+        planner_version="planner-1.0.0",
+        execution_mode=ExecutionMode.EVALUATION,
+        hcx_enabled=True,
+        planner_model="HCX-007",
+        fallback_enabled=False,
+        structured_outputs_enabled=True,
+    )
+
+    assert versions.planner_mode == "hcx-structured-outputs-verified-wording"
+    assert versions.execution_mode is ExecutionMode.EVALUATION
+    assert versions.answer_prompt_version == "answer-prompt-v1"
+    assert versions.answer_schema_sha256 == "a" * 64
+    with pytest.raises(ValueError, match="evaluation"):
+        ReplayVersions.from_configuration(
+            artifact_version="artifact-sha256",
+            config_versions={"metric": "1.0.0"},
+            prompt_version="planner-prompt-v1",
+            answer_prompt_version="answer-prompt-v1",
+            answer_schema_sha256="a" * 64,
+            wording_verification_mode="exact-application-surface-v1",
+            planner_version="planner-1.0.0",
+            execution_mode=ExecutionMode.EVALUATION,
+            hcx_enabled=False,
+            planner_model=None,
+            fallback_enabled=True,
+            structured_outputs_enabled=False,
+        )
+
+    with pytest.raises(ValueError, match="structured"):
+        ReplayVersions.from_configuration(
+            artifact_version="artifact-sha256",
+            config_versions={"metric": "1.0.0"},
+            prompt_version="planner-prompt-v1",
+            answer_prompt_version="answer-prompt-v1",
+            answer_schema_sha256="a" * 64,
+            wording_verification_mode="exact-application-surface-v1",
+            planner_version="planner-1.0.0",
+            execution_mode=ExecutionMode.EVALUATION,
+            hcx_enabled=True,
+            planner_model="HCX-007",
+            fallback_enabled=False,
+            structured_outputs_enabled=False,
+        )
 
 
 def test_code_commit_resolves_linked_worktree_commondir_and_packed_refs(

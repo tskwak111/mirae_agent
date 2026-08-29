@@ -140,6 +140,7 @@ class EvidenceBuilder:
             dict.fromkeys(
                 (
                     "product_id",
+                    "product_name",
                     *original.metrics,
                     *(item.field for item in original.sort),
                     *(original.aggregation.group_by if original.aggregation else ()),

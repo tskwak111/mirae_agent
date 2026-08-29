@@ -14,9 +14,10 @@ from finproof.domain.query_plan import (
 from finproof.entity import EntityResolver
 from finproof.entity.index import EntityIndex, _IndexedProduct
 from finproof.planner.rule_fallback import RuleFallbackPlanner
-from finproof.planner.service import LocalPlanValidator, PlanningRequest
+from finproof.planner.service import LocalPlanValidator, PlannedQuery, PlanningRequest
 from finproof.query import FieldRegistry, SemanticValidator
 from finproof.registry.loader import RegistryBundle
+from finproof.service.limits import RequestDeadline
 
 
 def _planner() -> RuleFallbackPlanner:
@@ -45,18 +46,21 @@ def _planner() -> RuleFallbackPlanner:
 
 
 def _request(question: str) -> PlanningRequest:
-    return PlanningRequest.start(
+    return PlanningRequest(
         question=question,
         request_id="rule-test",
         as_of_date=date(2026, 7, 11),
         execution_mode=ExecutionMode.EVALUATION,
-        deadline_seconds=1.0,
     )
+
+
+async def _plan(question: str) -> PlannedQuery:
+    return await _planner().plan(_request(question), deadline=RequestDeadline.start())
 
 
 @pytest.mark.asyncio
 async def test_rule_fallback_resolves_exact_ticker_lookup() -> None:
-    result = await _planner().plan(_request("SPY 총보수 알려줘"))
+    result = await _plan("SPY 총보수 알려줘")
 
     assert result.plan.intent is Intent.LOOKUP
     assert result.plan.product_types == (ProductType.OVERSEAS_ETF,)
@@ -74,7 +78,7 @@ async def test_rule_fallback_resolves_exact_ticker_lookup() -> None:
 )
 @pytest.mark.asyncio
 async def test_rule_fallback_parses_simple_numeric_filter(question: str) -> None:
-    result = await _planner().plan(_request(question))
+    result = await _plan(question)
 
     assert result.plan.intent is Intent.SCREEN
     assert result.plan.product_types == (ProductType.OVERSEAS_ETF,)
@@ -86,7 +90,7 @@ async def test_rule_fallback_parses_simple_numeric_filter(question: str) -> None
 
 @pytest.mark.asyncio
 async def test_rule_fallback_plain_etf_top_k_excludes_etn() -> None:
-    result = await _planner().plan(_request("국내 ETF 중 추적오차가 낮은 5개"))
+    result = await _plan("국내 ETF 중 추적오차가 낮은 5개")
 
     assert result.plan.intent is Intent.SCREEN_RANK
     assert result.plan.product_types == (ProductType.DOMESTIC_ETF,)
@@ -97,11 +101,9 @@ async def test_rule_fallback_plain_etf_top_k_excludes_etn() -> None:
 
 @pytest.mark.asyncio
 async def test_rule_fallback_separates_cross_currency_aum_rank() -> None:
-    result = await _planner().plan(
-        _request(
-            "국내 ETF와 해외 ETF의 AUM 상위 5개를 하나의 순위로 합치지 말고 "
-            "통화별로 분리해 보여 주세요."
-        )
+    result = await _plan(
+        "국내 ETF와 해외 ETF의 AUM 상위 5개를 하나의 순위로 합치지 말고 "
+        "통화별로 분리해 보여 주세요."
     )
 
     assert result.plan.intent is Intent.SCREEN_RANK
@@ -110,7 +112,7 @@ async def test_rule_fallback_separates_cross_currency_aum_rank() -> None:
 
 @pytest.mark.asyncio
 async def test_rule_fallback_current_uses_frozen_snapshot_assumption() -> None:
-    result = await _planner().plan(_request("현재 국내 ETF만 보여줘"))
+    result = await _plan("현재 국내 ETF만 보여줘")
 
     assert result.plan.as_of_date == date(2026, 7, 11)
     assert result.safe_assumptions == ("snapshot_date=2026-07-11",)
@@ -118,7 +120,7 @@ async def test_rule_fallback_current_uses_frozen_snapshot_assumption() -> None:
 
 @pytest.mark.asyncio
 async def test_rule_fallback_purchaseable_bond_never_emits_quantity_clause() -> None:
-    result = await _planner().plan(_request("매수 가능한 국내채권을 보여줘"))
+    result = await _plan("매수 가능한 국내채권을 보여줘")
 
     assert result.plan.intent is Intent.SCREEN
     assert result.plan.product_types == (ProductType.DOMESTIC_BOND,)
@@ -128,7 +130,7 @@ async def test_rule_fallback_purchaseable_bond_never_emits_quantity_clause() -> 
 
 @pytest.mark.asyncio
 async def test_rule_fallback_ambiguous_return_period_fails_closed() -> None:
-    result = await _planner().plan(_request("수익률 높은 상품 알려줘"))
+    result = await _plan("수익률 높은 상품 알려줘")
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.needs_clarification is True
@@ -140,7 +142,7 @@ async def test_rule_fallback_ambiguous_return_period_fails_closed() -> None:
 
 @pytest.mark.asyncio
 async def test_rule_fallback_unknown_field_never_becomes_executable() -> None:
-    result = await _planner().plan(_request("국내 ETF 중 샤프지수가 높은 5개"))
+    result = await _plan("국내 ETF 중 샤프지수가 높은 5개")
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.filters == ()
@@ -151,7 +153,7 @@ async def test_rule_fallback_unknown_field_never_becomes_executable() -> None:
 
 @pytest.mark.asyncio
 async def test_rule_fallback_rejects_unknown_rank_clause_mixed_with_known_filter() -> None:
-    result = await _planner().plan(_request("미국 ETF 중 총보수 0.2% 이하이고 샤프지수가 높은 5개"))
+    result = await _plan("미국 ETF 중 총보수 0.2% 이하이고 샤프지수가 높은 5개")
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.filters == ()
@@ -172,7 +174,7 @@ async def test_rule_fallback_rejects_unknown_rank_clause_mixed_with_known_filter
 async def test_rule_fallback_rejects_unreviewed_comparison_or_date_syntax(
     question: str,
 ) -> None:
-    result = await _planner().plan(_request(question))
+    result = await _plan(question)
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.needs_clarification is True
@@ -183,7 +185,7 @@ async def test_rule_fallback_rejects_unreviewed_comparison_or_date_syntax(
 
 @pytest.mark.asyncio
 async def test_rule_fallback_does_not_bind_unknown_comparison_to_other_known_metric() -> None:
-    result = await _planner().plan(_request("미국 ETF 중 총보수도 보여주고 배당률 5% 이상 5개"))
+    result = await _plan("미국 ETF 중 총보수도 보여주고 배당률 5% 이상 5개")
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.needs_clarification is True
@@ -194,7 +196,7 @@ async def test_rule_fallback_does_not_bind_unknown_comparison_to_other_known_met
 
 @pytest.mark.asyncio
 async def test_rule_fallback_unresolved_ticker_returns_clarification() -> None:
-    result = await _planner().plan(_request("ZZZZ 총보수 알려줘"))
+    result = await _plan("ZZZZ 총보수 알려줘")
 
     assert result.plan.intent is Intent.CLARIFY
     assert result.plan.entities == ()
@@ -212,7 +214,7 @@ async def test_rule_fallback_unresolved_ticker_returns_clarification() -> None:
 )
 @pytest.mark.asyncio
 async def test_rule_fallback_advice_and_forecast_are_unsupported(question: str) -> None:
-    result = await _planner().plan(_request(question))
+    result = await _plan(question)
 
     assert result.plan.intent is Intent.UNSUPPORTED
     assert result.plan.needs_clarification is False

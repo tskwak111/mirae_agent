@@ -4,6 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from finproof.api.models import EvaluationResponse
+from finproof.data.artifacts.hashing import canonical_json_bytes
 
 
 def _response(**changes: object) -> EvaluationResponse:
@@ -28,6 +29,11 @@ def test_evaluation_response_has_exact_five_string_fields() -> None:
         "think_trace": "validation=passed",
         "answer": "답변",
     }
+    assert canonical_json_bytes(response.model_dump(mode="json"), terminal_newline=False) == (
+        b'{"answer":"\xeb\x8b\xb5\xeb\xb3\x80","question":"\xec\xa7\x88\xeb\xac\xb8",'
+        b'"question_id":"Q1","retrieved_context":"{}",'
+        b'"think_trace":"validation=passed"}'
+    )
 
 
 @pytest.mark.parametrize(

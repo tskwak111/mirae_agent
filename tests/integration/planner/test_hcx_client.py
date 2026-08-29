@@ -21,6 +21,7 @@ from finproof.planner.hcx_client import (
     HcxTransportError,
 )
 from finproof.planner.models import HcxMessage, HcxRequest
+from finproof.service.limits import RequestDeadline
 
 _URL = "https://clovastudio.stream.ntruss.com/v3/chat-completions/HCX-007"
 _RATE_HEADERS = {
@@ -60,6 +61,10 @@ def _valid_request() -> HcxRequest:
     )
 
 
+def _deadline() -> RequestDeadline:
+    return RequestDeadline.start()
+
+
 @pytest_asyncio.fixture
 async def hcx_client() -> AsyncIterator[HcxClient]:
     async with httpx.AsyncClient() as http_client:
@@ -76,7 +81,7 @@ async def test_hcx_client_posts_headers_and_parses_message(
         headers=_RATE_HEADERS,
     )
 
-    response = await hcx_client.generate(_valid_request(), request_id="req-1")
+    response = await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert route.called
     sent = route.calls[0].request
@@ -99,6 +104,20 @@ async def test_hcx_client_posts_headers_and_parses_message(
 
 
 @pytest.mark.asyncio
+async def test_hcx_client_requires_the_shared_work_deadline(
+    hcx_client: HcxClient, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.post(_URL).respond(200, json=_fixture("structured_success"))
+    deadline = RequestDeadline.start(clock=lambda: 0.0)
+
+    response = await hcx_client.generate(
+        _valid_request(), request_id="req-deadline", deadline=deadline
+    )
+
+    assert response.status_code == "20000"
+
+
+@pytest.mark.asyncio
 async def test_non_20000_api_status_is_typed_error(
     hcx_client: HcxClient, respx_mock: respx.MockRouter
 ) -> None:
@@ -108,7 +127,7 @@ async def test_non_20000_api_status_is_typed_error(
     )
 
     with pytest.raises(HcxApiStatusError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.status_code == "40000"
 
@@ -120,7 +139,7 @@ async def test_20400_without_message_is_no_content_error(
     respx_mock.post(_URL).respond(200, json=_fixture("no_content_20400"))
 
     with pytest.raises(HcxNoContentError):
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
 
 @pytest.mark.asyncio
@@ -130,7 +149,7 @@ async def test_empty_http_204_is_no_content_error(
     respx_mock.post(_URL).respond(204)
 
     with pytest.raises(HcxNoContentError):
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
 
 @pytest.mark.asyncio
@@ -140,7 +159,7 @@ async def test_malformed_body_is_typed_error(
     respx_mock.post(_URL).respond(200, json=_fixture("malformed_success"))
 
     with pytest.raises(HcxMalformedResponseError):
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
 
 @pytest.mark.asyncio
@@ -150,7 +169,7 @@ async def test_oversized_stream_stops_before_json_parse(
     respx_mock.post(_URL).mock(httpx.Response(200, stream=_OversizedChunkedStream()))
 
     with pytest.raises(HcxResponseTooLargeError):
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
 
 @pytest.mark.asyncio
@@ -160,7 +179,7 @@ async def test_q005_response_cap_rejects_byte_256001(
     respx_mock.post(_URL).mock(httpx.Response(200, stream=_Q005BoundaryStream()))
 
     with pytest.raises(HcxResponseTooLargeError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.maximum_bytes == 256_000
 
@@ -177,7 +196,7 @@ async def test_429_api_status_is_rate_limit_error(
     respx_mock.post(_URL).respond(429, json=body, headers=_RATE_HEADERS)
 
     with pytest.raises(HcxRateLimitError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.status_code == api_status
     assert caught.value.rate_limits.reset_requests_seconds == 23.0
@@ -202,7 +221,7 @@ async def test_timeout_is_mapped_to_stable_transport_category(
     respx_mock.post(_URL).mock(side_effect=timeout_type("provider timeout"))
 
     with pytest.raises(HcxTransportError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.timeout_kind is expected_kind
 
@@ -214,7 +233,7 @@ async def test_non_success_http_status_is_typed_error(
     respx_mock.post(_URL).respond(503, content=b"unavailable")
 
     with pytest.raises(HcxHttpError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.http_status == 503
 
@@ -227,7 +246,7 @@ async def test_error_surface_redacts_key_and_raw_body(
     respx_mock.post(_URL).respond(200, content=sensitive_body)
 
     with pytest.raises(HcxMalformedResponseError) as caught:
-        await hcx_client.generate(_valid_request(), request_id="req-1")
+        await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     exposed = f"{caught.value!r}\n{caplog.text}"
     assert "secret" not in exposed

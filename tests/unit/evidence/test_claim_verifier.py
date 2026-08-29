@@ -1,8 +1,83 @@
 """Focused structured-claim verification contracts."""
 
+from datetime import date
 from decimal import Decimal
 
 import pytest
+
+
+def test_valid_ids_cannot_cover_a_changed_answer_byte() -> None:
+    from finproof.domain.answers import (
+        ClaimKind,
+        ClaimSignature,
+        FactPack,
+        PreparedAnswer,
+        ProviderWording,
+        SurfacePart,
+    )
+    from finproof.domain.execution import ExecutionTrace, TraceValidation
+    from finproof.domain.query_plan import Intent, ResultGrain, TopKScope
+    from finproof.evidence import ClaimVerificationError, ClaimVerifier
+    from finproof.service.limits import RequestDeadline
+
+    text = "2026-08-24 기준 수익률은 3.10%입니다."
+    pack = FactPack(
+        surface_parts=(
+            SurfacePart(
+                part_id="surface:answer",
+                text=text,
+                claim_ids=("claim:return",),
+                limitation_codes=("snapshot_assumption",),
+            ),
+        ),
+        claim_signatures=(
+            ClaimSignature(
+                claim_id="claim:return",
+                kind=ClaimKind.NUMERIC,
+                surface_text=text,
+                entities=(),
+                values=(),
+                rank=None,
+                tie_count=None,
+                partition=None,
+                comparison=None,
+                evidence_ids=(),
+                limitation_codes=("snapshot_assumption",),
+            ),
+        ),
+        required_claim_ids=("claim:return",),
+        required_limitation_codes=("snapshot_assumption",),
+        evidence_context_sha256="a" * 64,
+    )
+    prepared = PreparedAnswer(
+        fact_pack=pack,
+        claims=(),
+        trace=ExecutionTrace(
+            correlation_id="corr",
+            intent=Intent.LOOKUP,
+            product_types=(),
+            as_of_date=date(2026, 8, 24),
+            result_grain=ResultGrain.PRODUCT,
+            top_k_scope=TopKScope.GLOBAL,
+            segments=(),
+            candidate_counts={"raw": 0, "eligible": 0, "returned": 0},
+            tools=(),
+            policy_ids=(),
+            validation=TraceValidation.PASSED,
+            versions={},
+            latency_ms={},
+        ),
+        retrieved_context="{}",
+    )
+    wording = ProviderWording(
+        answer=text.replace("3.10", "3.11"),
+        surface_part_ids=("surface:answer",),
+        claim_ids=("claim:return",),
+        limitation_codes=("snapshot_assumption",),
+    )
+
+    with pytest.raises(ClaimVerificationError):
+        ClaimVerifier().verify_wording(wording, prepared, RequestDeadline.start())
 
 
 def test_claim_verifier_rejects_numeric_claim_without_evidence() -> None:

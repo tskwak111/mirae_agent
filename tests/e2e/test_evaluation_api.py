@@ -16,6 +16,7 @@ from finproof.api.app import create_app
 from finproof.api.dependencies import ApiDependencies
 from finproof.core.settings import ExecutionMode, Settings
 from finproof.core.versions import VersionBundle
+from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.data.artifacts.serialization import serialize_table_row
 from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
@@ -26,12 +27,30 @@ from tests.helpers.query_runtime import verified_artifacts
 from tests.helpers.source_rows import source_row
 
 
-def _recorded_hcx(_: httpx.Request) -> httpx.Response:
+def _recorded_hcx(request: httpx.Request) -> httpx.Response:
+    request_payload = json.loads(request.content)
+    user_content = request_payload["messages"][-1]["content"]
+    try:
+        fact_pack = json.loads(user_content)
+    except json.JSONDecodeError:
+        fact_pack = None
+    if isinstance(fact_pack, dict) and fact_pack.get("format") == "finproof.fact-pack.v1":
+        surface_parts = fact_pack["surface_parts"]
+        content = json.dumps(
+            {
+                "answer": "".join(part["text"] for part in surface_parts),
+                "surface_part_ids": [part["part_id"] for part in surface_parts],
+                "claim_ids": fact_pack["required_claim_ids"],
+                "limitation_codes": fact_pack["required_limitation_codes"],
+            },
+            ensure_ascii=False,
+        )
+        return _hcx_response(content)
     plan = {
         "intent": "screen_rank",
         "product_types": ["domestic_etf"],
         "entities": [],
-        "as_of_date": "2026-07-11",
+        "as_of_date": "2026-08-24",
         "result_grain": "listed_product",
         "filters": [],
         "metrics": ["tracking_error"],
@@ -42,12 +61,16 @@ def _recorded_hcx(_: httpx.Request) -> httpx.Response:
         "needs_clarification": False,
         "clarification_reason": "",
     }
+    return _hcx_response(json.dumps(plan))
+
+
+def _hcx_response(content: str) -> httpx.Response:
     return httpx.Response(
         200,
         json={
             "status": {"code": "20000", "message": "OK"},
             "result": {
-                "message": {"role": "assistant", "content": json.dumps(plan)},
+                "message": {"role": "assistant", "content": content},
                 "usage": {"promptTokens": 10, "completionTokens": 5, "totalTokens": 15},
                 "finishReason": "stop",
                 "seed": 17,
@@ -92,7 +115,7 @@ def _small_runtime_session(root: Path) -> Iterator[RuntimeArtifactSession]:
                 },
                 excel_row=index + 2,
             ),
-            date(2026, 7, 11),
+            date(2026, 8, 24),
         )
         assert result.record is not None
         records.append(
@@ -148,5 +171,8 @@ async def test_full_question_path_returns_verified_contract(tmp_path: Path) -> N
         "answer",
     }
     assert all(type(value) is str for value in payload.values())
+    assert response.content == canonical_json_bytes(payload, terminal_newline=False)
     assert "공동" in payload["answer"]
-    assert "PREF01N001" in payload["retrieved_context"]
+    fact_pack = json.loads(payload["retrieved_context"])
+    assert fact_pack["format"] == "finproof.fact-pack.v1"
+    assert "공동순위 ETF" in payload["retrieved_context"]

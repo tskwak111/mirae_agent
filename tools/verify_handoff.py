@@ -217,7 +217,7 @@ def verify_manifest(errors: list[str]) -> None:
 
 
 def verify_json_and_schema_contracts(errors: list[str]) -> None:
-    provider_schema_name = "hcx_query_plan.schema.json"
+    provider_schema_names = {"hcx_query_plan.schema.json", "hcx_answer.schema.json"}
     for path in sorted((ROOT / "schemas").glob("*.json")):
         try:
             document = load_json(path)
@@ -225,7 +225,7 @@ def verify_json_and_schema_contracts(errors: list[str]) -> None:
             errors.append(f"invalid JSON {path.relative_to(ROOT)}: {exc}")
             continue
         if (
-            path.name != provider_schema_name
+            path.name not in provider_schema_names
             and document.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
         ):
             errors.append(f"unexpected JSON Schema draft: {path.relative_to(ROOT)}")

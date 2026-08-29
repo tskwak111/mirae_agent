@@ -44,12 +44,16 @@ def test_clarify_and_unsupported_answers_execute_no_repository_query(
         clarification_reason="상품 조건을 확인해 주세요.",
     )
 
-    result = AnswerService(session).answer_plan(
-        AnswerRequest(question_id=f"q-{intent}", question="질문"), plan
+    from finproof.service.limits import RequestDeadline
+
+    result = AnswerService(session).prepare_plan(
+        AnswerRequest(question_id=f"q-{intent}", question="질문"),
+        plan,
+        RequestDeadline.start(),
     )
 
     assert connection.calls == 0
-    assert result.answer.text
+    assert result.fact_pack.surface_parts[0].text
     assert set(result.trace.latency_ms) == {"database", "evidence", "render"}
     session._close()
 
@@ -319,11 +323,16 @@ def test_answer_service_composes_exact_runtime_resolution_validation_execution_p
         clarification_reason="",
     )
 
-    result = service.answer_plan(
-        AnswerRequest(question_id="q-order", question="KR0000000001 알려줘"), plan
+    from finproof.service.limits import RequestDeadline
+
+    result = service.prepare_plan(
+        AnswerRequest(question_id="q-order", question="KR0000000001 알려줘"),
+        plan,
+        RequestDeadline.start(),
     )
 
-    assert result.answer == verified
+    assert result.fact_pack.surface_parts[0].text == verified.text
+    assert result.claims == verified.claims
     assert order == [
         "resolution",
         "validation",
@@ -421,18 +430,23 @@ def test_official_runtime_returns_one_verified_evidence_backed_answer_and_trace(
         clarification_reason="",
     )
 
-    result = AnswerService(session).answer_plan(
+    from finproof.service.limits import RequestDeadline
+
+    result = AnswerService(session).prepare_plan(
         AnswerRequest(question_id="q-official-runtime", question="이 채권 수익률 알려줘"),
         plan,
+        RequestDeadline.start(),
     )
 
     context = json.loads(result.retrieved_context)
-    numeric = tuple(claim for claim in result.answer.claims if claim.kind is ClaimKind.NUMERIC)
-    assert "KR0000000001" in result.answer.text
-    assert "2.25" in result.answer.text
+    numeric = tuple(claim for claim in result.claims if claim.kind is ClaimKind.NUMERIC)
+    answer = result.fact_pack.surface_parts[0].text
+    assert "KR0000000001" in answer
+    assert "2.25" in answer
     assert numeric
     assert numeric[0].evidence_ids
-    assert context["direct"]
+    assert context["format"] == "finproof.fact-pack.v1"
+    assert context["claim_signatures"]
     assert result.trace.validation is TraceValidation.PASSED
     assert tuple(segment.partition_key for segment in result.trace.segments) == (
         "bond_buy_yield:None:yield_to_maturity_like_source_field:"

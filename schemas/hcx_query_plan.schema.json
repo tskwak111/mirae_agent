@@ -79,7 +79,37 @@
         "type": "object",
         "properties": {
           "field": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "asset_type",
+              "aum",
+              "buy_yield",
+              "credit_rating",
+              "currency",
+              "holding_constituent",
+              "issue_date",
+              "maturity_date",
+              "mirae_saleable",
+              "product_id",
+              "product_name",
+              "region",
+              "remaining_days_at_as_of",
+              "return_18m",
+              "return_1d",
+              "return_1m",
+              "return_1w",
+              "return_1y",
+              "return_2y",
+              "return_3m",
+              "return_3y",
+              "return_5y",
+              "return_6m",
+              "return_ytd",
+              "risk_grade",
+              "saleable",
+              "total_fee",
+              "tracking_error"
+            ]
           },
           "operator": {
             "type": "string",
@@ -148,7 +178,37 @@
       "type": "array",
       "maxItems": 20,
       "items": {
-        "type": "string"
+        "type": "string",
+        "enum": [
+          "asset_type",
+          "aum",
+          "buy_yield",
+          "credit_rating",
+          "currency",
+          "holding_constituent",
+          "issue_date",
+          "maturity_date",
+          "mirae_saleable",
+          "product_id",
+          "product_name",
+          "region",
+          "remaining_days_at_as_of",
+          "return_18m",
+          "return_1d",
+          "return_1m",
+          "return_1w",
+          "return_1y",
+          "return_2y",
+          "return_3m",
+          "return_3y",
+          "return_5y",
+          "return_6m",
+          "return_ytd",
+          "risk_grade",
+          "saleable",
+          "total_fee",
+          "tracking_error"
+        ]
       }
     },
     "sort": {
@@ -158,7 +218,37 @@
         "type": "object",
         "properties": {
           "field": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "asset_type",
+              "aum",
+              "buy_yield",
+              "credit_rating",
+              "currency",
+              "holding_constituent",
+              "issue_date",
+              "maturity_date",
+              "mirae_saleable",
+              "product_id",
+              "product_name",
+              "region",
+              "remaining_days_at_as_of",
+              "return_18m",
+              "return_1d",
+              "return_1m",
+              "return_1w",
+              "return_1y",
+              "return_2y",
+              "return_3m",
+              "return_3y",
+              "return_5y",
+              "return_6m",
+              "return_ytd",
+              "risk_grade",
+              "saleable",
+              "total_fee",
+              "tracking_error"
+            ]
           },
           "direction": {
             "type": "string",
@@ -189,13 +279,74 @@
           ]
         },
         "field": {
-          "type": "string"
+          "type": "string",
+          "enum": [
+            "",
+            "asset_type",
+            "aum",
+            "buy_yield",
+            "credit_rating",
+            "currency",
+            "holding_constituent",
+            "issue_date",
+            "maturity_date",
+            "mirae_saleable",
+            "product_id",
+            "product_name",
+            "region",
+            "remaining_days_at_as_of",
+            "return_18m",
+            "return_1d",
+            "return_1m",
+            "return_1w",
+            "return_1y",
+            "return_2y",
+            "return_3m",
+            "return_3y",
+            "return_5y",
+            "return_6m",
+            "return_ytd",
+            "risk_grade",
+            "saleable",
+            "total_fee",
+            "tracking_error"
+          ]
         },
         "group_by": {
           "type": "array",
           "maxItems": 2,
           "items": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "asset_type",
+              "aum",
+              "buy_yield",
+              "credit_rating",
+              "currency",
+              "holding_constituent",
+              "issue_date",
+              "maturity_date",
+              "mirae_saleable",
+              "product_id",
+              "product_name",
+              "region",
+              "remaining_days_at_as_of",
+              "return_18m",
+              "return_1d",
+              "return_1m",
+              "return_1w",
+              "return_1y",
+              "return_2y",
+              "return_3m",
+              "return_3y",
+              "return_5y",
+              "return_6m",
+              "return_ytd",
+              "risk_grade",
+              "saleable",
+              "total_fee",
+              "tracking_error"
+            ]
           }
         }
       },

@@ -10,15 +10,21 @@ from typing import cast
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.integration.planner.test_planner_service import _validator
+from pydantic import SecretStr
+from tests.integration.service.test_orchestrator_fallbacks import (
+    IdentityVerbalizer,
+    ImmediateAnswerService,
+    ImmediatePlanner,
+)
 
 from finproof.api.app import create_app
 from finproof.api.dependencies import AnswerOrchestrator, ApiDependencies
 from finproof.core.settings import ExecutionMode, Settings
+from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
-from finproof.planner.rule_fallback import RuleFallbackPlanner
+from finproof.service.limits import RequestDeadline
 from finproof.service.orchestrator import EvaluationOrchestrator
 
 
@@ -26,9 +32,19 @@ class StubOrchestrator:
     def __init__(self, *, failure: bool = False) -> None:
         self.failure = failure
         self.calls: list[AnswerRequest] = []
+        self.deadlines: list[RequestDeadline] = []
+        self.safe_results: list[AnswerResult] = []
 
-    async def answer(self, request: AnswerRequest) -> AnswerResult:
+    async def answer(
+        self,
+        request: AnswerRequest,
+        *,
+        deadline: RequestDeadline,
+        safe_result: AnswerResult,
+    ) -> AnswerResult:
         self.calls.append(request)
+        self.deadlines.append(deadline)
+        self.safe_results.append(safe_result)
         if self.failure:
             raise RuntimeError("/Users/example/secret-path")
         return AnswerResult(
@@ -56,7 +72,14 @@ class InvalidResultOrchestrator:
     def __init__(self, result: object) -> None:
         self._result = result
 
-    async def answer(self, _: AnswerRequest) -> AnswerResult:
+    async def answer(
+        self,
+        _: AnswerRequest,
+        *,
+        deadline: RequestDeadline,
+        safe_result: AnswerResult,
+    ) -> AnswerResult:
+        del deadline, safe_result
         return cast(AnswerResult, self._result)
 
 
@@ -94,7 +117,7 @@ def _client_for(orchestrator: AnswerOrchestrator) -> TestClient:
 
     return TestClient(
         create_app(
-            Settings(),
+            Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
             dependencies=ApiDependencies(
                 open_session=open_session,
                 create_orchestrator=lambda _: orchestrator,
@@ -119,7 +142,7 @@ def test_client(stub_orchestrator: StubOrchestrator) -> Generator[TestClient, No
         return stub_orchestrator
 
     app = create_app(
-        Settings(execution_mode=ExecutionMode.EVALUATION),
+        Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
         dependencies=ApiDependencies(
             open_session=open_session,
             create_orchestrator=create_orchestrator,
@@ -149,11 +172,16 @@ def test_answer_echoes_raw_request_and_returns_exact_schema(
     assert stub_orchestrator.calls[0] == AnswerRequest(
         question_id="Q-001", question="미국 ETF 총보수 알려줘"
     )
+    assert (
+        stub_orchestrator.deadlines[0].outer_at - stub_orchestrator.deadlines[0].started_at == 295
+    )
+    assert stub_orchestrator.safe_results[0].answer.text == "요청을 처리할 수 없습니다."
     trace = json.loads(response.json()["think_trace"])
     assert set(trace) == set(ExecutionTrace.model_fields)
     assert trace["correlation_id"] != "service-correlation"
     assert "prompt" not in trace
     assert "reasoning" not in trace
+    assert response.content == canonical_json_bytes(response.json(), terminal_newline=False)
 
 
 def test_api_orchestrator_trace_and_structured_log_share_one_correlation_id(
@@ -161,8 +189,9 @@ def test_api_orchestrator_trace_and_structured_log_share_one_correlation_id(
 ) -> None:
     caplog.set_level(logging.INFO, logger="finproof")
     orchestrator = EvaluationOrchestrator(
-        planner=RuleFallbackPlanner(validator=_validator()),
-        answer_service=DeterministicAnswerService(),
+        planner=ImmediatePlanner(),
+        answer_service=ImmediateAnswerService(),
+        verbalizer=IdentityVerbalizer(),
         execution_mode=ExecutionMode.EVALUATION,
     )
 
@@ -227,7 +256,7 @@ def test_answer_internal_error_reuses_route_correlation_and_logs_redacted_event(
         return orchestrator
 
     app = create_app(
-        Settings(),
+        Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
         dependencies=ApiDependencies(
             open_session=open_session,
             create_orchestrator=create_orchestrator,
@@ -264,7 +293,7 @@ def test_pre_orchestrator_failure_logs_the_safe_response_correlation(
         yield object()
 
     app = create_app(
-        Settings(),
+        Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
         dependencies=ApiDependencies(
             open_session=open_session,
             create_orchestrator=lambda _: cast(AnswerOrchestrator, object()),
@@ -296,7 +325,7 @@ def test_lifespan_opens_before_orchestrator_and_closes_after_client_shutdown() -
         return StubOrchestrator()
 
     app = create_app(
-        Settings(),
+        Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
         dependencies=ApiDependencies(
             open_session=open_session,
             create_orchestrator=create_orchestrator,
@@ -328,7 +357,7 @@ def test_lifespan_startup_failure_never_creates_orchestrator() -> None:
         return StubOrchestrator()
 
     app = create_app(
-        Settings(),
+        Settings(execution_mode=ExecutionMode.EXTENDED_DEMO),
         dependencies=ApiDependencies(
             open_session=open_session,
             create_orchestrator=create_orchestrator,
@@ -338,6 +367,20 @@ def test_lifespan_startup_failure_never_creates_orchestrator() -> None:
     with pytest.raises(RuntimeError, match="artifact verification failed"), TestClient(app):
         pass
     assert events == ["open"]
+
+
+@pytest.mark.asyncio
+async def test_evaluation_dependency_requires_exact_hcx_007_model() -> None:
+    settings = Settings(
+        execution_mode=ExecutionMode.EVALUATION,
+        hcx_enabled=True,
+        hcx_api_key=SecretStr("test-key"),
+        hcx_model_name="HCX-DASH-002",
+    )
+
+    with pytest.raises(RuntimeError, match="HCX-007"):
+        async with ApiDependencies().open_orchestrator(object(), settings):
+            raise AssertionError("invalid model must not open evaluation")
 
 
 @pytest.mark.parametrize(

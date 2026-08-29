@@ -10,7 +10,7 @@ from finproof.domain.query_plan import ProductType
 from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
-PROMPT_VERSION = "phase4-planner-v3"
+PROMPT_VERSION = "phase4-planner-v4"
 
 _RULES = """interpret only; never answer the financial question.
 Use only canonical names in the supplied compact catalog; never invent identifiers.
@@ -24,6 +24,9 @@ public_fund=fund_item.
 국내채권 means product_types=[domestic_bond], never an entity.
 A multi-product filtering or exclusion request uses intent=screen unless the user asks
 to produce ranked, compared, or aggregated results; display/warning does not change intent.
+Qualitative ranking words such as 낮은/높은 with top-k define sort direction, not a filter.
+Without an explicit literal value, set, range, or missing-state condition,
+emit filters=[]; never invent a threshold.
 Never emit an entity with empty text; product categories and criteria are not entities.
 Map 구성종목, 보유종목, 편입종목 at most once to one holding_constituent filter as one scalar eq.
 Permit holding_constituent only for domestic_etf, domestic_etn, overseas_etf,

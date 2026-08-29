@@ -26,6 +26,7 @@ from finproof.planner.service import (
     PlannerAttemptSummary,
     PlanningRequest,
 )
+from finproof.service.limits import RequestDeadline
 
 _ALL_REVIEWED_PRODUCTS = (
     ProductType.DOMESTIC_BOND,
@@ -70,7 +71,7 @@ class RuleFallbackPlanner:
     def __init__(self, *, validator: LocalPlanValidator) -> None:
         self._validator = validator
 
-    async def plan(self, request: PlanningRequest) -> PlannedQuery:
+    async def plan(self, request: PlanningRequest, *, deadline: RequestDeadline) -> PlannedQuery:
         started = monotonic()
         plan = _parse(request.question, request.as_of_date)
         try:
@@ -104,7 +105,7 @@ class RuleFallbackPlanner:
             latency_ms=max(0, int((monotonic() - started) * 1000)),
             fallback_path=("rule_fallback",),
             safe_assumptions=(f"snapshot_date={request.as_of_date.isoformat()}",),
-            request_deadline_at=request.deadline_at,
+            request_deadline_at=deadline.work_cutoff_at,
         )
 
 

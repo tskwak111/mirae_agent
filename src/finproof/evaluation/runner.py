@@ -13,9 +13,11 @@ from typing import Protocol, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from finproof.core.settings import ExecutionMode
+from finproof.evaluation.latency import LatencySummary
 from finproof.evaluation.loader import suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
-from finproof.evaluation.scoring import CaseScore, LatencySummary, RatioScore, score_case
+from finproof.evaluation.scoring import CaseScore, RatioScore, score_case
 
 
 class _FrozenModel(BaseModel):
@@ -30,14 +32,18 @@ class EvaluationMode(StrEnum):
 
 class PlannerRuntimeMode(StrEnum):
     FALLBACK_ONLY = "fallback-only"
-    HCX_STRICT_JSON_WITH_FALLBACK = "hcx-strict-json-with-fallback"
+    HCX_STRUCTURED_OUTPUTS_VERIFIED_WORDING = "hcx-structured-outputs-verified-wording"
 
 
 class ReplayVersions(_FrozenModel):
     artifact_version: str = Field(min_length=1)
     config_versions: dict[str, str]
     prompt_version: str = Field(min_length=1)
+    answer_prompt_version: str | None
+    answer_schema_sha256: str | None = Field(pattern=r"^[0-9a-f]{64}$")
+    wording_verification_mode: str | None
     planner_version: str = Field(min_length=1)
+    execution_mode: ExecutionMode
     planner_mode: PlannerRuntimeMode
     planner_provider: str = Field(min_length=1)
     planner_model: str | None
@@ -53,26 +59,57 @@ class ReplayVersions(_FrozenModel):
         artifact_version: str,
         config_versions: Mapping[str, str],
         prompt_version: str,
+        answer_prompt_version: str | None,
+        answer_schema_sha256: str | None,
+        wording_verification_mode: str | None,
         planner_version: str,
+        execution_mode: ExecutionMode,
         hcx_enabled: bool,
         planner_model: str | None,
         fallback_enabled: bool,
         structured_outputs_enabled: bool,
     ) -> "ReplayVersions":
         if hcx_enabled:
-            mode = PlannerRuntimeMode.HCX_STRICT_JSON_WITH_FALLBACK
+            mode = PlannerRuntimeMode.HCX_STRUCTURED_OUTPUTS_VERIFIED_WORDING
             provider = "naver-hyperclova-x"
-            if not planner_model:
-                raise ValueError("enabled HCX replay requires a planner model")
+            if planner_model != "HCX-007":
+                raise ValueError("enabled HCX replay requires exact HCX-007")
+            if not structured_outputs_enabled:
+                raise ValueError("evaluation HCX replay requires structured outputs")
+            if (
+                not answer_prompt_version
+                or not answer_schema_sha256
+                or wording_verification_mode != "exact-application-surface-v1"
+            ):
+                raise ValueError("HCX replay requires verified wording identities")
         else:
             mode = PlannerRuntimeMode.FALLBACK_ONLY
             provider = "local-rule-fallback"
-            if planner_model is not None:
+            if execution_mode is not ExecutionMode.EXTENDED_DEMO:
+                raise ValueError("evaluation replay requires HCX")
+            if planner_model is not None or not fallback_enabled:
                 raise ValueError("fallback-only replay cannot identify an unused HCX model")
+            if structured_outputs_enabled:
+                raise ValueError("fallback-only replay cannot enable structured outputs")
+            if any(
+                value is not None
+                for value in (
+                    answer_prompt_version,
+                    answer_schema_sha256,
+                    wording_verification_mode,
+                )
+            ):
+                raise ValueError("fallback-only replay cannot identify HCX wording")
+        if execution_mode is ExecutionMode.EVALUATION and (not hcx_enabled or fallback_enabled):
+            raise ValueError("evaluation replay requires HCX without fallback")
         configuration = {
             "config_versions": dict(config_versions),
             "prompt_version": prompt_version,
+            "answer_prompt_version": answer_prompt_version,
+            "answer_schema_sha256": answer_schema_sha256,
+            "wording_verification_mode": wording_verification_mode,
             "planner_version": planner_version,
+            "execution_mode": execution_mode.value,
             "planner_mode": mode.value,
             "planner_provider": provider,
             "planner_model": planner_model,
@@ -92,7 +129,11 @@ class ReplayVersions(_FrozenModel):
             artifact_version=artifact_version,
             config_versions=dict(config_versions),
             prompt_version=prompt_version,
+            answer_prompt_version=answer_prompt_version,
+            answer_schema_sha256=answer_schema_sha256,
+            wording_verification_mode=wording_verification_mode,
             planner_version=planner_version,
+            execution_mode=execution_mode,
             planner_mode=mode,
             planner_provider=provider,
             planner_model=planner_model,

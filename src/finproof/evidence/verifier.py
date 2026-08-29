@@ -10,11 +10,19 @@ from finproof.domain.answers import (
     AnswerClaim,
     AnswerDraft,
     ClaimKind,
+    PreparedAnswer,
+    ProviderWording,
     ValueSign,
     VerifiedAnswer,
 )
 from finproof.domain.evidence import EvidenceBundle, EvidenceSummaryValue
 from finproof.domain.query_plan import ProductType, ResultGrain
+from finproof.service.limits import RequestDeadline
+
+
+class ClaimVerificationError(ValueError):
+    """Provider wording differs from the application-issued answer surface."""
+
 
 _EvidenceValue = tuple[
     tuple[ProductType, ...],
@@ -128,6 +136,30 @@ class ClaimVerifier:
             ):
                 raise ValueError("claim differs from evidence")
         return VerifiedAnswer(text=draft.text, claims=draft.claims)
+
+    def verify_wording(
+        self,
+        wording: ProviderWording,
+        prepared: PreparedAnswer,
+        deadline: RequestDeadline,
+    ) -> VerifiedAnswer:
+        if (
+            type(wording) is not ProviderWording
+            or type(prepared) is not PreparedAnswer
+            or type(deadline) is not RequestDeadline
+        ):
+            raise TypeError("wording verification inputs differ")
+        if deadline.remaining_work_seconds() <= 0:
+            raise ClaimVerificationError("wording verification deadline exceeded")
+        pack = prepared.fact_pack
+        if (
+            wording.answer != "".join(part.text for part in pack.surface_parts)
+            or wording.surface_part_ids != tuple(part.part_id for part in pack.surface_parts)
+            or wording.claim_ids != pack.required_claim_ids
+            or wording.limitation_codes != pack.required_limitation_codes
+        ):
+            raise ClaimVerificationError("provider wording differs from issued surface")
+        return VerifiedAnswer(text=wording.answer, claims=prepared.claims)
 
 
 def _matches_value_claim(

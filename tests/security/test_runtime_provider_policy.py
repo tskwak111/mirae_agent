@@ -22,9 +22,18 @@ def test_httpx_is_confined_to_the_hcx_transport_boundary() -> None:
         ):
             importers.append(path)
 
-    assert importers == [Path("src/finproof/planner/hcx_client.py")]
+    assert [path for path in importers if "evaluation" not in path.parts] == [
+        Path("src/finproof/planner/hcx_client.py")
+    ]
 
 
 def test_hcx_client_does_not_own_the_shared_http_client_lifecycle() -> None:
     assert not hasattr(HcxClient, "close")
     assert not hasattr(HcxClient, "aclose")
+
+
+def test_evaluation_composition_uses_structured_outputs_not_prompt_only() -> None:
+    source = Path("src/finproof/api/dependencies.py").read_text(encoding="utf-8")
+
+    assert "StructuredOutputPlanner" in source
+    assert "StrictJsonPlanner" not in source

@@ -14,7 +14,7 @@ from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME
 from finproof.data.holdings import HoldingCoverageRecord, HoldingRecord
 from finproof.data.normalization.domestic_listed import normalize_domestic_listed
 from finproof.data.normalization.public_funds import normalize_public_fund_item
-from finproof.domain.answers import AnswerRequest, AnswerResult
+from finproof.domain.answers import AnswerRequest
 from finproof.domain.query_plan import (
     FilterClause,
     FilterOperator,
@@ -284,27 +284,28 @@ def test_constituent_request_keeps_native_segments_and_unavailable_etn_fail_clos
             (product_type.value, CONSTITUENT_ID, CONSTITUENT_ID_TYPE)
             for product_type in plan.product_types
         )
-        result = AnswerService(session).answer_plan(
+        from finproof.service.limits import RequestDeadline
+
+        result = AnswerService(session).prepare_plan(
             AnswerRequest(question_id="Q-HOLDING", question="삼성전자 보유 상품 추천"),
             plan,
+            RequestDeadline.start(),
         )
     finally:
         session._close()
 
     payload = json.loads(result.retrieved_context)
-    assert payload["format"] == "evidence_context.v3"
-    assert {
-        (item["owner_product_type"], item["owner_product_id"])
-        for item in payload["holding_records"]
-    } == {("domestic_etf", "KR7000000001"), ("public_fund", "KR5114601001")}
+    assert payload["format"] == "finproof.fact-pack.v1"
+    assert {item["claim_id"] for item in payload["claim_signatures"]}
     assert tuple(segment.product_type for segment in result.trace.segments) == (
         ProductType.DOMESTIC_ETF,
         ProductType.DOMESTIC_ETN,
         ProductType.PUBLIC_FUND,
     )
     assert result.trace.segments[1].returned == 0
-    assert "domestic_etn 구성종목 자료는 제공되지 않아" in result.answer.text
-    assert "보유하지 않았다는 결론" in result.answer.text
+    answer = result.fact_pack.surface_parts[0].text
+    assert "domestic_etn 구성종목 자료는 제공되지 않아" in answer
+    assert "보유하지 않았다는 결론" in answer
 
 
 def test_mixed_return_1y_ranks_domestic_and_fund_and_prunes_overseas(
@@ -312,7 +313,9 @@ def test_mixed_return_1y_ranks_domestic_and_fund_and_prunes_overseas(
 ) -> None:
     session = _synthetic_session(tmp_path)
     try:
-        result: AnswerResult = AnswerService(session).answer_plan(
+        from finproof.service.limits import RequestDeadline
+
+        result = AnswerService(session).prepare_plan(
             AnswerRequest(
                 question_id="Q-HOLDING-RANK",
                 question="삼성전자를 보유한 ETF와 공모펀드의 1년 수익률 TOP10",
@@ -325,22 +328,21 @@ def test_mixed_return_1y_ranks_domestic_and_fund_and_prunes_overseas(
                 ),
                 ranking=True,
             ),
+            RequestDeadline.start(),
         )
     finally:
         session._close()
 
     payload = json.loads(result.retrieved_context)
-    ranks = [item for item in payload["summaries"] if item["kind"] == "rank"]
-    assert [(item["product_types"], item["rank"]) for item in ranks] == [
-        (["domestic_etf"], 1),
-        (["public_fund"], 2),
-    ]
+    ranks = [item for item in payload["claim_signatures"] if item["rank"] is not None]
+    assert [item["rank"] for item in ranks] == [1, 2]
     assert tuple(segment.product_type for segment in result.trace.segments) == (
         ProductType.DOMESTIC_ETF,
         ProductType.PUBLIC_FUND,
     )
-    assert "해외 ETF/ETN의 1년 수익률은 제공 데이터에 없어" in result.answer.text
+    answer = result.fact_pack.surface_parts[0].text
+    assert "해외 ETF/ETN의 1년 수익률은 제공 데이터에 없어" in answer
     wording = RegistryBundle.from_package().answers.document["wording"]
     assert isinstance(wording, Mapping)
-    assert result.answer.text.startswith(wording["snapshot_assumption"])
-    assert "보유하지 않았다는 결론" in result.answer.text
+    assert answer.startswith(wording["snapshot_assumption"])
+    assert "보유하지 않았다는 결론" in answer

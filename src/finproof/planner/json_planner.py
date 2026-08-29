@@ -13,8 +13,10 @@ from finproof.planner.service import (
     PlannerOutputError,
     PlannerSemanticError,
     PlanningRequest,
+    semantic_reason_code,
 )
 from finproof.registry.loader import RegistryBundle
+from finproof.service.limits import RequestDeadline
 
 
 class StrictJsonPlanner:
@@ -33,14 +35,24 @@ class StrictJsonPlanner:
         self._registries = registries
         self._model_name = model_name
 
-    async def plan(self, request: PlanningRequest) -> PlannedQuery:
-        return await self._attempt(request, invalid_content=None)
+    async def plan(self, request: PlanningRequest, *, deadline: RequestDeadline) -> PlannedQuery:
+        return await self._attempt(request, invalid_content=None, deadline=deadline)
 
-    async def repair(self, request: PlanningRequest, invalid_content: str) -> PlannedQuery:
-        return await self._attempt(request, invalid_content=invalid_content)
+    async def repair(
+        self,
+        request: PlanningRequest,
+        invalid_content: str,
+        *,
+        deadline: RequestDeadline,
+    ) -> PlannedQuery:
+        return await self._attempt(request, invalid_content=invalid_content, deadline=deadline)
 
     async def _attempt(
-        self, request: PlanningRequest, *, invalid_content: str | None
+        self,
+        request: PlanningRequest,
+        *,
+        invalid_content: str | None,
+        deadline: RequestDeadline,
     ) -> PlannedQuery:
         started = monotonic()
         prompt = build_system_prompt(self._registries, snapshot_date=request.as_of_date)
@@ -68,16 +80,25 @@ class StrictJsonPlanner:
             raise PlannerOutputError(invalid_content or "") from None
         attempt_name = "repair" if invalid_content is not None else "plan"
         response = await self._generator.generate(
-            provider_request, request_id=f"{request.request_id}-{attempt_name}"
+            provider_request,
+            request_id=f"{request.request_id}-{attempt_name}",
+            deadline=deadline,
         )
         try:
             plan = parse_provider_plan(response.message_content)
-        except ProviderPlanError:
-            raise PlannerOutputError(response.message_content) from None
+        except ProviderPlanError as error:
+            raise PlannerOutputError(
+                response.message_content,
+                validation_stage=error.stage.value,
+                canonical_substage=error.canonical_substage,
+                canonical_path=error.canonical_path,
+                canonical_keyword=error.canonical_keyword,
+                filter_shape_category=error.filter_shape_category,
+            ) from None
         try:
             validated = self._validator.validate(plan, request)
-        except (TypeError, ValueError):
-            raise PlannerSemanticError("planner semantic validation failed") from None
+        except (TypeError, ValueError) as error:
+            raise PlannerSemanticError(semantic_reason_code(error)) from None
         return PlannedQuery(
             plan=plan,
             validated_plan=validated,
@@ -92,5 +113,5 @@ class StrictJsonPlanner:
             latency_ms=max(0, int((monotonic() - started) * 1000)),
             fallback_path=("repair" if invalid_content is not None else "strict_json",),
             safe_assumptions=(f"snapshot_date={request.as_of_date.isoformat()}",),
-            request_deadline_at=request.deadline_at,
+            request_deadline_at=deadline.work_cutoff_at,
         )

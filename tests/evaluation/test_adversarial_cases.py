@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from finproof.core.settings import ExecutionMode
 from finproof.domain.answers import AnswerClaim, ClaimKind, VerifiedAnswer
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import (
@@ -21,6 +22,7 @@ from finproof.evaluation.adversarial import (
 )
 from finproof.evaluation.models import GoldenCase, ObservedCase
 from finproof.evaluation.runner import EvaluationMode, ReplayVersions
+from finproof.service.limits import RequestDeadline
 
 _CASES = Path("evaluation/adversarial_cases.jsonl")
 
@@ -183,7 +185,7 @@ async def test_non_oversized_adversarial_questions_produce_allowed_bounded_plans
     for case in load_adversarial_cases(_CASES):
         if case.expect_input_rejection:
             continue
-        plan = (await planner.plan(_request(case.question))).plan
+        plan = (await planner.plan(_request(case.question), deadline=RequestDeadline.start())).plan
         assert plan.intent in case.allowed_intents, case.case_id
         assert plan.top_k <= 50
 
@@ -215,7 +217,11 @@ def test_robustness_cli_report_combines_quality_paraphrase_and_adversarial_suite
                 artifact_version="artifact-test",
                 config_versions={},
                 prompt_version="prompt-test",
+                answer_prompt_version=None,
+                answer_schema_sha256=None,
+                wording_verification_mode=None,
                 planner_version="planner-test",
+                execution_mode=ExecutionMode.EXTENDED_DEMO,
                 hcx_enabled=False,
                 planner_model=None,
                 fallback_enabled=True,

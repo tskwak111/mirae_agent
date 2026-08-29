@@ -1,18 +1,18 @@
 """FastAPI composition for the organizer evaluation contract."""
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from finproof.api.dependencies import ApiDependencies
-from finproof.api.errors import safe_failure
 from finproof.api.routes.answer import router as answer_router
 from finproof.core.settings import Settings
+from finproof.service.limits import RequestDeadline
 
 _LOGGER = logging.getLogger("finproof.api")
 
@@ -39,8 +39,17 @@ def create_app(
         openapi_url=None,
         lifespan=lifespan,
     )
+    app.state.settings = runtime_settings
     app.router.redirect_slashes = False
     app.include_router(answer_router)
+
+    @app.middleware("http")
+    async def issue_deadline(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        request.state.deadline = RequestDeadline.start(clock=runtime_dependencies.clock)
+        return await call_next(request)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_: Request, error: RequestValidationError) -> JSONResponse:
@@ -55,7 +64,7 @@ def create_app(
         )
 
     @app.exception_handler(Exception)
-    async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+    async def unexpected_error(request: Request, error: Exception) -> Response:
         correlation_id = getattr(request.state, "correlation_id", None)
         if type(correlation_id) is not str:
             correlation_id = uuid4().hex
@@ -66,11 +75,13 @@ def create_app(
                 "exception_type": type(error).__name__,
             },
         )
-        response = safe_failure(
-            question_id=request.query_params.get("question_id", ""),
-            question=request.query_params.get("question", ""),
-            correlation_id=correlation_id,
+        publication = getattr(request.state, "safe_publication", None)
+        if publication is None:
+            return JSONResponse(status_code=500, content={"detail": "evaluation failure"})
+        return Response(
+            status_code=500,
+            content=publication.body,
+            media_type="application/json",
         )
-        return JSONResponse(status_code=500, content=response.model_dump(mode="json"))
 
     return app

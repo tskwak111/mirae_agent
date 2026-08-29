@@ -64,6 +64,7 @@ from finproof.query import (
 from finproof.registry.loader import RegistryBundle
 from finproof.runtime import RuntimeArtifactSession, open_runtime_artifact_session
 from finproof.service import AnswerService
+from finproof.service.limits import RequestDeadline
 from finproof.storage.repositories.products import RawExecutionResult
 
 _DIRECT_PROMPT_VERSION = "ablation-direct-answer.v1"
@@ -107,14 +108,20 @@ class _RecordingGenerator:
         self._reset_tokens_seconds: float | None = None
         self.responses: list[HcxResponse] = []
 
-    async def generate(self, request: HcxRequest, request_id: str) -> HcxResponse:
+    async def generate(
+        self,
+        request: HcxRequest,
+        request_id: str,
+        *,
+        deadline: RequestDeadline,
+    ) -> HcxResponse:
         if (
             self._remaining_tokens is not None
             and self._reset_tokens_seconds is not None
             and _reserved_token_upper_bound(request) > self._remaining_tokens
         ):
             raise _QuotaWaitRequired(min(self._reset_tokens_seconds, _MAX_QUOTA_WAIT_SECONDS))
-        response = await self._client.generate(request, request_id)
+        response = await self._client.generate(request, request_id, deadline=deadline)
         self.responses.append(response)
         self._pending_delay = _quota_delay_seconds(request, response)
         self._remaining_tokens = response.rate_limits.remaining_tokens
@@ -179,12 +186,11 @@ class _Experiment:
         )
 
     def _planning_request(self, case: GoldenCase) -> PlanningRequest:
-        return PlanningRequest.start(
+        return PlanningRequest(
             question=case.question,
             request_id=case.case_id,
             as_of_date=case.expected_plan.as_of_date,
             execution_mode=self.session.versions.execution_mode,
-            deadline_seconds=15.0,
         )
 
     async def run_case(
@@ -198,7 +204,9 @@ class _Experiment:
         planning_started = monotonic()
         try:
             planned = await self.generator.run(
-                lambda: self.planner.plan(self._planning_request(case))
+                lambda: self.planner.plan(
+                    self._planning_request(case), deadline=RequestDeadline.start()
+                )
             )
         except Exception:  # provider/domain errors become measured failures
             elapsed = _elapsed_ms(planning_started)
@@ -305,6 +313,7 @@ class _Experiment:
                 lambda: self.generator.generate(
                     _direct_request(self.settings.hcx_model_name, case, raw),
                     request_id=f"{case.case_id}-ablation-a-{repeat}",
+                    deadline=RequestDeadline.start(),
                 )
             )
             answer = _parse_direct_answer(response.message_content)
