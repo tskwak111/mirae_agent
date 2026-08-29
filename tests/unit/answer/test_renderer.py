@@ -392,6 +392,7 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
         material_policy_limitations=(
             "제공 데이터 기록값",
             "비교 가능 기준",
+            "일부 지표값은 비교 가능 기준에서 제외했습니다.",
             "통화별로 결과를 분리했습니다.",
             "domestic_etf 구성종목 자료는 제공되지 않아 "
             "보유하지 않았다는 결론을 내리지 않았습니다.",
@@ -425,6 +426,7 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
     assert "공동순위" in text
     assert "제공 데이터에 기록된 원천값은 그대로 보존했습니다." in text
     assert "순위·비교·집계는 비교 가능 기준을 통과한 값만 사용했습니다." in text
+    assert "일부 지표값은 비교 가능 기준에서 제외했습니다." in text
     assert "\n제공 데이터 기록값\n" not in text
     assert "\n비교 가능 기준\n" not in text
     assert "통화별로 결과를 분리했습니다." in text

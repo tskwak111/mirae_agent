@@ -857,9 +857,13 @@ def _partition_currency(partition_key: str | None) -> str | None:
 
 
 def _display_limitation(limitation: str) -> str:
-    replacements = {
+    exact = {
         "제공 데이터 기록값": "제공 데이터에 기록된 원천값은 그대로 보존했습니다.",
         "비교 가능 기준": "순위·비교·집계는 비교 가능 기준을 통과한 값만 사용했습니다.",
+    }
+    if limitation in exact:
+        return exact[limitation]
+    replacements = {
         "domestic_bond": "국내채권",
         "domestic_etf": "국내 ETF",
         "domestic_etn": "국내 ETN",
