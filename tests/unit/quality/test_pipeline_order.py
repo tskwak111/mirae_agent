@@ -1606,6 +1606,106 @@ def test_pipeline_retains_recorded_and_comparison_valid_metric_views() -> None:
     assert result.dual_lens_labels == ("recorded", "comparison_valid")
 
 
+def test_per_product_rank_uses_each_segment_sort_direction() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import (
+        Intent,
+        MetricTarget,
+        ProductType,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+        TopKScope,
+    )
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_BOND, ProductType.DOMESTIC_ETF),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.SCREEN_RANK,
+            "metrics": ("buy_yield", "total_fee"),
+            "metric_targets": (
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    metrics=("buy_yield",),
+                ),
+                MetricTarget(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    metrics=("total_fee",),
+                ),
+            ),
+            "sort": (
+                SortSpec(field="buy_yield", direction=SortDirection.DESC),
+                SortSpec(field="total_fee", direction=SortDirection.ASC),
+            ),
+            "top_k": 1,
+            "top_k_scope": TopKScope.PER_PRODUCT_TYPE,
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    def etf(product_id: str, fee: str) -> RawProductRow:
+        base = _listed(product_id, ProductType.DOMESTIC_ETF, "KRW", "100")
+        return base.model_copy(
+            update={
+                "values": (
+                    *base.values,
+                    RawFieldValue(
+                        field_id="total_fee",
+                        value=Decimal(fee),
+                        quality_status="valid",
+                    ),
+                )
+            }
+        )
+
+    result = PolicyEngine().apply(
+        RawExecutionResult(
+            segments=(
+                RawSegmentResult(
+                    product_type=ProductType.DOMESTIC_BOND,
+                    native_result_grain=ResultGrain.INSTRUMENT,
+                    rows=(
+                        _bond("B-LOW", "10", date(2030, 1, 1), yield_value="3"),
+                        _bond("B-HIGH", "10", date(2030, 1, 1), yield_value="5"),
+                    ),
+                    candidate_count=2,
+                    max_batch_rows=2,
+                ),
+                RawSegmentResult(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    rows=(etf("E-LOW", "0.1"), etf("E-HIGH", "0.9")),
+                    candidate_count=2,
+                    max_batch_rows=2,
+                ),
+            ),
+            candidate_count=4,
+        ),
+        bundle=bundle,
+    )
+
+    assert tuple((rank.value.product_type, rank.value.product_id) for rank in result.ranks) == (
+        (ProductType.DOMESTIC_BOND, "B-HIGH"),
+        (ProductType.DOMESTIC_ETF, "E-LOW"),
+    )
+
+
 def test_aggregate_metric_policy_excludes_out_of_domain_value_with_count() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 

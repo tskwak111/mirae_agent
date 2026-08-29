@@ -83,6 +83,22 @@ class AnswerRenderer:
             ),
             None,
         )
+        zero_result_summary = next(
+            (
+                summary
+                for summary in evidence.summaries
+                if summary.value == 0
+                and (
+                    summary.kind is EvidenceSummaryKind.PARTITION
+                    or (
+                        summary.kind is EvidenceSummaryKind.COUNT
+                        and summary.partition_key is not None
+                        and summary.partition_key.endswith(":included")
+                    )
+                )
+            ),
+            None,
+        )
         source_count = (
             count_summary
             if (
@@ -490,17 +506,23 @@ class AnswerRenderer:
             and (
                 not evidence.summaries
                 or (count_summary is not None and count_summary.included_count == 0)
+                or zero_result_summary is not None
             )
         ):
             no_result = wording_text(self._wording, "no_result")
             lines.append(no_result)
-            if count_summary is not None:
+            no_result_evidence = zero_result_summary or (
+                count_summary
+                if count_summary is not None and count_summary.included_count == 0
+                else None
+            )
+            if no_result_evidence is not None:
                 claims.append(
                     AnswerClaim(
                         claim_id="claim:no-result",
                         kind=ClaimKind.TEXT,
                         text=no_result,
-                        evidence_ids=(count_summary.summary_id,),
+                        evidence_ids=(no_result_evidence.summary_id,),
                     )
                 )
         return AnswerDraft(
@@ -836,6 +858,8 @@ def _partition_currency(partition_key: str | None) -> str | None:
 
 def _display_limitation(limitation: str) -> str:
     replacements = {
+        "제공 데이터 기록값": "제공 데이터에 기록된 원천값은 그대로 보존했습니다.",
+        "비교 가능 기준": "순위·비교·집계는 비교 가능 기준을 통과한 값만 사용했습니다.",
         "domestic_bond": "국내채권",
         "domestic_etf": "국내 ETF",
         "domestic_etn": "국내 ETN",

@@ -423,12 +423,81 @@ def test_renderer_handles_joint_tie_dual_lens_currency_split_and_no_result() -> 
     ).text
 
     assert "공동순위" in text
-    assert "제공 데이터 기록값" in text
-    assert "비교 가능 기준" in text
+    assert "제공 데이터에 기록된 원천값은 그대로 보존했습니다." in text
+    assert "순위·비교·집계는 비교 가능 기준을 통과한 값만 사용했습니다." in text
+    assert "\n제공 데이터 기록값\n" not in text
+    assert "\n비교 가능 기준\n" not in text
     assert "통화별로 결과를 분리했습니다." in text
     assert "국내 ETF 구성종목 자료는 제공되지 않아" in text
     assert "domestic_etf" not in text
     assert "지정한 조건을 충족하는 상품을 찾지 못했습니다." in no_result
+
+
+def test_renderer_states_no_result_when_only_policy_summaries_remain() -> None:
+    from finproof.answer import AnswerRenderer
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.evidence import EvidenceBundle, EvidenceSummary, EvidenceSummaryKind
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        ResultGrain,
+        SortDirection,
+        SortSpec,
+    )
+
+    evidence = EvidenceBundle(
+        direct=(),
+        derived=(),
+        summaries=(
+            EvidenceSummary(
+                summary_id="summary:count",
+                kind=EvidenceSummaryKind.COUNT,
+                included_count=316,
+                excluded_count=16,
+                evidence_ids=(),
+                policy_versions=("policy:1.0.0",),
+                validated_plan_sha256="a" * 64,
+                version_bundle_sha256="b" * 64,
+                artifact_manifest_hash="c" * 64,
+            ),
+            EvidenceSummary(
+                summary_id="summary:policy:total_fee:included",
+                kind=EvidenceSummaryKind.COUNT,
+                included_count=0,
+                excluded_count=316,
+                evidence_ids=(),
+                policy_versions=("policy:1.0.0",),
+                validated_plan_sha256="a" * 64,
+                version_bundle_sha256="b" * 64,
+                artifact_manifest_hash="c" * 64,
+                product_types=(ProductType.DOMESTIC_ETF,),
+                native_result_grains=(ResultGrain.LISTED_PRODUCT,),
+                partition_key="policy:domestic_etf.total_fee:included",
+                metric_id="total_fee",
+                value=0,
+            ),
+        ),
+        material_policy_limitations=("결측 지표값은 순위에서 제외했습니다.",),
+    )
+
+    draft = AnswerRenderer().render(
+        request=AnswerRequest(question_id="q-policy-only", question="조건별 순위를 알려줘"),
+        plan=_plan().model_copy(
+            update={
+                "intent": Intent.SCREEN_RANK,
+                "product_types": (ProductType.DOMESTIC_ETF,),
+                "result_grain": ResultGrain.LISTED_PRODUCT,
+                "metrics": ("total_fee",),
+                "sort": (SortSpec(field="total_fee", direction=SortDirection.ASC),),
+            }
+        ),
+        evidence=evidence,
+    )
+
+    assert "지정한 조건을 충족하는 상품을 찾지 못했습니다." in draft.text
+    assert next(
+        claim for claim in draft.claims if claim.claim_id == "claim:no-result"
+    ).evidence_ids == ("summary:policy:total_fee:included",)
 
 
 def test_renderer_projects_rank_and_aggregate_included_count_values() -> None:

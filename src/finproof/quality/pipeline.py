@@ -266,13 +266,27 @@ class PolicyEngine:
             and len(partitions) > 1
         ):
             raise ValueError("global scope requires one final partition")
-        descending = bool(
+        default_descending = bool(
             bundle.validated_plan.plan.sort
             and bundle.validated_plan.plan.sort[0].direction is SortDirection.DESC
         )
         selected_partitions: list[CompatibilityPartition] = []
         rank_results: list[RankPolicyResult] = []
         for partition in partitions:
+            descending = default_descending
+            if (
+                bundle.validated_plan.plan.intent is Intent.SCREEN_RANK
+                and bundle.top_k_scope is TopKScope.PER_PRODUCT_TYPE
+            ):
+                product_type = partition.values[0].product_type
+                metric_id = partition.values[0].metric_id
+                descending = next(
+                    sort.direction is SortDirection.DESC
+                    for segment in bundle.segments
+                    if segment.product_type is product_type
+                    for sort in segment.sort
+                    if self._fields.projection(sort.field, product_type).metric_id == metric_id
+                )
             if bundle.validated_plan.plan.intent is Intent.SCREEN_RANK:
                 ranked = TiePolicy().rank(partition.values, descending=descending)
                 selected = tuple(
