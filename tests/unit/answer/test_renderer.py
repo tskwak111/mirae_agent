@@ -478,7 +478,10 @@ def test_renderer_projects_rank_and_aggregate_included_count_values() -> None:
                 partition_key="yield:KRW",
                 metric_id="buy_yield",
                 value=Decimal("2.10"),
-                group_values=(EvidenceSummaryValue(field_id="currency", value="KRW"),),
+                group_values=(
+                    EvidenceSummaryValue(field_id="currency", value="KRW"),
+                    EvidenceSummaryValue(field_id="credit_rating", value=None),
+                ),
                 **common,
             ),
         ),
@@ -492,7 +495,10 @@ def test_renderer_projects_rank_and_aggregate_included_count_values() -> None:
     )
 
     assert "1위. 국내채권 KR0000000001 — 매수수익률 2.25%" in draft.text
-    assert ("국내채권 통화=KRW 매수수익률 평균: 2.1% (포함 2건, 제외 1건)") in draft.text
+    assert (
+        "국내채권 통화=KRW 신용등급=값 없음 매수수익률 평균: 2.1% (포함 2건, 제외 1건)"
+    ) in draft.text
+    assert "None" not in draft.text
     assert "domestic_bond" not in draft.text
     assert "buy_yield" not in draft.text
     assert tuple(claim.value for claim in draft.claims if claim.kind is ClaimKind.NUMERIC) == (

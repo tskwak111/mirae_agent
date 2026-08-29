@@ -807,6 +807,8 @@ def _field_display(
 
 
 def _display_value(value: object, *, unit: str | None, currency: str | None) -> str:
+    if value is None:
+        return "값 없음"
     if type(value) is Decimal:
         decimal = value
         rendered = format(decimal, "f")
