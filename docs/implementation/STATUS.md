@@ -1,8 +1,9 @@
 # Implementation Status
 
-**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 8.
-Constituent filtering/evidence and overseas 1Y pruning are implemented and reviewed;
-Task 9 plan correction and independent plan re-review are next.
+**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 9.
+Mandatory HCX Structured Outputs planning, verified HCX wording, bounded publication,
+and the shared 295-second deadline are implemented and independently reviewed; Task 10
+release verification is next.
 
 ## Frozen baseline
 
@@ -62,10 +63,37 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Official-data refresh Task 9: correct the HCX-only evaluation composition, async
-verbalizer/fact-pack verification, safe-response ownership, and ingress-to-serialization
-295-second deadline plan; obtain an independent 0C/0I plan review before writing any
-RED.** Phase 4 Task 3 resumes after the official refresh/release plan is closed.
+**Official-data refresh Task 10: build the exact 35-case organizer suite, run the
+release/API/load/soak/compliance checks, obtain final independent 0C/0I review, and
+produce the covered release manifest.** Phase 4 Task 3 resumes after this official
+refresh/release plan is closed.
+
+## Official-data refresh Task 9 closure
+
+- Implementation commit: `826aeba` (`feat: require verified HCX answer pipeline`).
+  Single bounded review-correction commit: `177c4e1` (`fix: bind verified facts in
+  evaluation`).
+- Focused TDD closed the ingress +293/+295 deadline, centralized five-string
+  publication, mandatory HCX-007 Structured Outputs planner, exact fact-pack wording
+  verification, two-call ceilings, one shared client/deadline identity, and safe
+  terminal publication. Approved non-content diagnostics isolated provider plan
+  failures without printing credentials or provider content; field allowlists,
+  native-grain repair guidance, and qualitative-rank guidance were corrected without
+  weakening canonical or semantic validation.
+- The final authorized live acceptance ran once after the qualitative-rank correction
+  and passed: `1 passed, 2 deselected in 10.30s`. The provider plan, repaired plan,
+  verbalizer response, and local exact-surface verification completed without fallback.
+- The first independent code review returned Critical 0 / Important 2. Focused RED
+  reproduced empty END_TO_END observations and a missing right-side comparison entity;
+  focused GREEN was 3 passed, the related bundle was 38 passed, and the correction now
+  observes verified claims from the FactPack result and binds both evidence-derived
+  comparison entity IDs/names fail-closed.
+- The corrected Task 9 candidate gate passed: 254 tests, 3 expected non-opted-in live
+  skips, and one upstream TestClient deprecation warning; scoped Ruff format/check,
+  mypy over 38 files, the 53,375-row source audit, 61-file/9-input handoff verification,
+  and diff checks all passed. Bounded re-review returned Critical 0 / Important 0.
+- Pre-existing evaluation JSON changes, both untracked PDFs, and user-owned
+  `evaluation/review_batches/*` remained untouched and unstaged.
 
 ## Official-data refresh Task 8 closure
 
