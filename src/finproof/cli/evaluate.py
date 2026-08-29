@@ -21,7 +21,7 @@ from finproof.answer.hcx_verbalizer import (
 from finproof.api.dependencies import ApiDependencies
 from finproof.core.errors import FinProofError
 from finproof.core.settings import ExecutionMode, Settings
-from finproof.domain.answers import AnswerRequest, AnswerResult, ClaimKind
+from finproof.domain.answers import AnswerClaim, AnswerRequest, AnswerResult, ClaimKind, FactPack
 from finproof.domain.execution import TraceValidation
 from finproof.domain.query_plan import (
     AggregationFunction,
@@ -274,22 +274,16 @@ def _observed(
     planner_latency_ms: int,
 ) -> ObservedCase:
     payload = json.loads(result.retrieved_context)
-    direct = _rows(payload, "direct")
-    derived = _rows(payload, "derived")
-    summaries = tuple(value for value in payload.get("summaries", ()) if isinstance(value, Mapping))
+    fact_pack = FactPack.model_validate_json(result.retrieved_context)
+    claims = result.answer.claims
+    if tuple(claim.claim_id for claim in claims) != fact_pack.required_claim_ids:
+        raise ValueError("observed fact-pack claims differ")
     evidence_ids = tuple(
-        dict.fromkeys(
-            (
-                *(str(value["evidence_id"]) for value in direct),
-                *(str(value["evidence_id"]) for value in derived),
-                *(str(value["summary_id"]) for value in summaries),
-            )
-        )
+        dict.fromkeys(evidence_id for claim in claims for evidence_id in claim.evidence_ids)
     )
-    products = _observed_products(plan, (*direct, *derived), summaries)
-    values = _observed_values(case.expected_result.values, (*direct, *derived), summaries)
-    aggregates = _observed_aggregates(case.expected_result.aggregates, summaries)
-    limitations = payload.get("material_policy_limitations", ())
+    products = _observed_claim_products(plan, claims)
+    values = _observed_claim_values(case.expected_result.values, claims)
+    aggregates = _observed_claim_aggregates(plan, case.expected_result.aggregates, claims)
     signature = sha256(
         json.dumps(
             {
@@ -309,7 +303,7 @@ def _observed(
         aggregates=aggregates,
         answer_text=result.answer.text,
         evidence_ids=evidence_ids,
-        limitation_present=bool(limitations)
+        limitation_present=bool(fact_pack.required_limitation_codes)
         or any(claim.kind is ClaimKind.LIMITATION for claim in result.answer.claims),
         clarification_present=result.trace.validation is TraceValidation.CLARIFY,
         repeat_signatures=(signature,),
@@ -330,6 +324,105 @@ def _observed(
         ),
         latency_ms=(planner_latency_ms + sum(result.trace.latency_ms.values()),),
     )
+
+
+def _observed_claim_products(
+    plan: QueryPlan,
+    claims: Sequence[AnswerClaim],
+) -> tuple[ProductIdentity, ...]:
+    if plan.intent is Intent.AGGREGATE:
+        return ()
+    return tuple(
+        dict.fromkeys(
+            ProductIdentity(
+                product_type=claim.product_type,
+                native_result_grain=native_result_grain(claim.product_type),
+                product_id=claim.product_id,
+            )
+            for claim in claims
+            if claim.product_type is not None and claim.product_id is not None
+        )
+    )
+
+
+def _observed_claim_values(
+    expected: Sequence[ExpectedValue],
+    claims: Sequence[AnswerClaim],
+) -> tuple[ObservedValue, ...]:
+    by_key: dict[tuple[str | None, str], object] = {
+        (claim.product_id, claim.field_id): claim.value
+        for claim in claims
+        if claim.product_id is not None and claim.field_id is not None
+    }
+    return tuple(
+        ObservedValue(
+            product_id=item.product_id,
+            field_id=item.field_id,
+            value_type=item.value_type,
+            value=_typed_value(item.value_type, by_key[(item.product_id, item.field_id)]),
+        )
+        for item in expected
+        if (item.product_id, item.field_id) in by_key
+    )
+
+
+def _observed_claim_aggregates(
+    plan: QueryPlan,
+    expected: Sequence[ExpectedAggregate],
+    claims: Sequence[AnswerClaim],
+) -> tuple[ObservedAggregate, ...]:
+    if plan.aggregation is None:
+        return ()
+    observed: list[ObservedAggregate] = []
+    for claim in claims:
+        if (
+            claim.product_type is None
+            or len(claim.native_result_grains) != 1
+            or claim.partition_key is None
+            or claim.field_id != plan.aggregation.field
+            or claim.value is None
+        ):
+            continue
+        candidates = tuple(
+            item
+            for item in expected
+            if item.function is plan.aggregation.function
+            and item.field_id == claim.field_id
+            and item.product_type is claim.product_type
+            and item.native_result_grain is claim.native_result_grains[0]
+            and item.partition_key == claim.partition_key
+            and tuple((value.field_id, value.value) for value in item.group_values)
+            == tuple((value.field_id, value.value) for value in claim.group_values)
+        )
+        if len(candidates) > 1:
+            raise ValueError("aggregate claim identity is ambiguous")
+        value_type = (
+            candidates[0].value_type
+            if candidates
+            else ValueType.INTEGER
+            if plan.aggregation.function is AggregationFunction.COUNT
+            else ValueType.DECIMAL
+        )
+        group_values = (
+            tuple(value.model_dump(mode="python") for value in candidates[0].group_values)
+            if candidates
+            else tuple(_inferred_group_value(value.model_dump()) for value in claim.group_values)
+        )
+        observed.append(
+            ObservedAggregate.model_validate(
+                {
+                    "function": plan.aggregation.function,
+                    "field_id": claim.field_id,
+                    "product_type": claim.product_type,
+                    "native_result_grain": claim.native_result_grains[0],
+                    "partition_key": claim.partition_key,
+                    "group_values": group_values,
+                    "value_type": value_type,
+                    "value": _typed_value(value_type, claim.value),
+                }
+            )
+        )
+    return tuple(observed)
 
 
 def _observed_products(

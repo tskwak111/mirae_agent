@@ -451,19 +451,32 @@ def _claim_signature(
     )
     if len(ranks) > 1 or len(ties) > 1 or len(partitions) > 1:
         raise ValueError("claim rank binding is ambiguous")
+    comparison = _comparison(claim, evidence)
     entities: tuple[EntitySignature, ...] = ()
-    if claim.product_id is not None:
+    entity_ids = tuple(
+        dict.fromkeys(
+            item
+            for item in (
+                claim.product_id,
+                comparison.left_product_id if comparison is not None else None,
+                comparison.right_product_id if comparison is not None else None,
+            )
+            if item is not None
+        )
+    )
+    if entity_ids:
         product_type = claim.product_type or (
             claim.product_types[0] if len(claim.product_types) == 1 else None
         )
         if product_type is None:
             raise ValueError("claim entity product type is missing")
-        entities = (
+        entities = tuple(
             EntitySignature(
                 product_type=product_type,
-                product_id=claim.product_id,
-                display_name=_display_name(evidence, product_type, claim.product_id),
-            ),
+                product_id=product_id,
+                display_name=_display_name(evidence, product_type, product_id),
+            )
+            for product_id in entity_ids
         )
     values: tuple[ValueSignature, ...] = ()
     if claim.value is not None and (claim.field_id is not None or claim.kind.value == "numeric"):
@@ -487,7 +500,7 @@ def _claim_signature(
         rank=next(iter(ranks), None),
         tie_count=next(iter(ties), None),
         partition=next(iter(partitions), None),
-        comparison=_comparison(claim, evidence),
+        comparison=comparison,
         evidence_ids=claim.evidence_ids,
         limitation_codes=limitation_codes,
     )

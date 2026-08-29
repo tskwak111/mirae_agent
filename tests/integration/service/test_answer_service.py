@@ -457,3 +457,87 @@ def test_official_runtime_returns_one_verified_evidence_backed_answer_and_trace(
         result.trace.versions["artifact_manifest_hash"] == session.versions.artifact_manifest_hash
     )
     session._close()
+
+
+def test_comparison_fact_signature_binds_both_evidence_derived_entities() -> None:
+    from decimal import Decimal
+    from pathlib import PurePosixPath
+    from typing import cast
+
+    from finproof.domain.answers import AnswerClaim, ClaimKind
+    from finproof.domain.evidence import DirectEvidence, EvidenceBundle
+    from finproof.domain.locators import SourceCellLocator
+    from finproof.domain.quality import QualityStatus
+    from finproof.domain.query_plan import ProductType
+    from finproof.domain.values import NormalizedValue
+    from finproof.registry.loader import RegistryBundle
+    from finproof.service.answer_service import _claim_signature
+
+    def direct(product_id: str, field_id: str, value: str | Decimal) -> DirectEvidence[object]:
+        return cast(
+            DirectEvidence[object],
+            DirectEvidence[str | Decimal](
+                evidence_id=f"direct:{product_id}:{field_id}",
+                product_type=ProductType.DOMESTIC_ETF,
+                product_id=product_id,
+                field_id=field_id,
+                value=NormalizedValue[str | Decimal](
+                    raw_value=str(value),
+                    normalized_value=value,
+                    quality_status=QualityStatus.VALID,
+                    rule_id=f"domestic_etf.{field_id}",
+                    rule_version="1.0.0",
+                    source=SourceCellLocator(
+                        source_table="PREF01N001",
+                        source_file=PurePosixPath("domestic.xlsx"),
+                        source_sheet="datarows",
+                        source_row_number=2 if product_id == "ETF-1" else 3,
+                        source_column_name=field_id,
+                        source_column_number=1,
+                        source_column_letter="A",
+                        source_checksum="a" * 64,
+                        source_snapshot_date=date(2026, 8, 24),
+                        source_applicable_date=date(2026, 8, 22),
+                    ),
+                ),
+            ),
+        )
+
+    names = (
+        direct("ETF-1", "product_name", "첫 번째 ETF"),
+        direct("ETF-2", "product_name", "두 번째 ETF"),
+    )
+    metrics = (
+        direct("ETF-1", "return_1y", Decimal("3.10")),
+        direct("ETF-2", "return_1y", Decimal("2.10")),
+    )
+    evidence = EvidenceBundle(
+        direct=(*names, *metrics),
+        derived=(),
+        summaries=(),
+        material_policy_limitations=(),
+    )
+    claim = AnswerClaim(
+        claim_id="claim:comparison",
+        kind=ClaimKind.NUMERIC,
+        text="ETF-1의 1년 수익률이 ETF-2보다 1.00 높습니다.",
+        product_type=ProductType.DOMESTIC_ETF,
+        product_id="ETF-1",
+        field_id="return_1y_difference",
+        value=Decimal("1.00"),
+        evidence_ids=("difference:return_1y",),
+    )
+
+    signature = _claim_signature(claim, (), evidence, RegistryBundle.from_package())
+
+    assert tuple((item.product_id, item.display_name) for item in signature.entities) == (
+        ("ETF-1", "첫 번째 ETF"),
+        ("ETF-2", "두 번째 ETF"),
+    )
+    with pytest.raises(ValueError, match="entity name is missing or ambiguous"):
+        _claim_signature(
+            claim,
+            (),
+            evidence.model_copy(update={"direct": (*names[:1], *metrics)}),
+            RegistryBundle.from_package(),
+        )

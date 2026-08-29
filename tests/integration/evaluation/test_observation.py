@@ -5,7 +5,16 @@ from decimal import Decimal
 import pytest
 
 from finproof.cli.evaluate import _observed, _observed_aggregates, _observed_products
-from finproof.domain.answers import AnswerResult, VerifiedAnswer
+from finproof.domain.answers import (
+    AnswerClaim,
+    AnswerResult,
+    ClaimKind,
+    ClaimSignature,
+    EntitySignature,
+    FactPack,
+    SurfacePart,
+    VerifiedAnswer,
+)
 from finproof.domain.evidence import (
     EvidenceBundle,
     EvidenceSummary,
@@ -118,24 +127,59 @@ def _answer_result(
     segments: tuple[ExecutionTraceSegment, ...],
     product: tuple[ProductType, str] | None,
 ) -> AnswerResult:
-    direct_fields = ("evidence_id", "product_type", "product_id", "field_id")
-    direct = (
-        []
+    claim = (
+        None
         if product is None
-        else [[f"evidence:{product[1]}", product[0].value, product[1], "product_id"]]
+        else AnswerClaim(
+            claim_id=f"claim:{product[1]}",
+            kind=ClaimKind.TEXT,
+            text=f"{product[0].value} {product[1]}",
+            product_type=product[0],
+            product_id=product[1],
+            evidence_ids=(f"evidence:{product[1]}",),
+        )
+    )
+    claims = () if claim is None else (claim,)
+    text = "2026-07-11 제공 스냅샷 기준"
+    pack = FactPack(
+        surface_parts=(
+            SurfacePart(
+                part_id="surface:answer",
+                text=text,
+                claim_ids=tuple(item.claim_id for item in claims),
+                limitation_codes=("snapshot_assumption",),
+            ),
+        ),
+        claim_signatures=tuple(
+            ClaimSignature(
+                claim_id=item.claim_id,
+                kind=item.kind,
+                surface_text=item.text,
+                entities=(
+                    EntitySignature(
+                        product_type=item.product_type,
+                        product_id=item.product_id,
+                        display_name=item.product_id,
+                    ),
+                ),
+                values=(),
+                rank=None,
+                tie_count=None,
+                partition=None,
+                comparison=None,
+                evidence_ids=item.evidence_ids,
+                limitation_codes=(),
+            )
+            for item in claims
+            if item.product_type is not None and item.product_id is not None
+        ),
+        required_claim_ids=tuple(item.claim_id for item in claims),
+        required_limitation_codes=("snapshot_assumption",),
+        evidence_context_sha256="c" * 64,
     )
     return AnswerResult(
-        answer=VerifiedAnswer(text="2026-07-11 제공 스냅샷 기준", claims=()),
-        retrieved_context=json.dumps(
-            {
-                "direct_fields": direct_fields,
-                "direct": direct,
-                "derived_fields": (),
-                "derived": (),
-                "summaries": (),
-                "material_policy_limitations": (),
-            }
-        ),
+        answer=VerifiedAnswer(text=text, claims=claims),
+        retrieved_context=pack.model_dump_json(),
         trace=ExecutionTrace(
             correlation_id="trace-envelope",
             intent=plan.intent,
@@ -216,6 +260,300 @@ def test_product_trace_with_only_one_native_grain_is_not_an_assembled_envelope()
     )
 
     assert observed.assembled_envelope is False
+
+
+def test_end_to_end_observation_reads_verified_claims_from_fact_pack_result() -> None:
+    from finproof.domain.answers import (
+        AnswerClaim,
+        ClaimKind,
+        ClaimSignature,
+        EntitySignature,
+        FactPack,
+        SurfacePart,
+        ValueSignature,
+    )
+
+    plan = _plan(
+        intent=Intent.SCREEN_RANK,
+        products=(ProductType.DOMESTIC_ETF,),
+        grain=ResultGrain.LISTED_PRODUCT,
+    )
+    claim = AnswerClaim(
+        claim_id="claim:rank",
+        kind=ClaimKind.NUMERIC,
+        text="ETF-1 return_1y: 3.10 (1위)",
+        product_type=ProductType.DOMESTIC_ETF,
+        product_types=(ProductType.DOMESTIC_ETF,),
+        native_result_grains=(ResultGrain.LISTED_PRODUCT,),
+        partition_key="return_1y:KRW",
+        product_id="ETF-1",
+        field_id="return_1y",
+        value=Decimal("3.10"),
+        evidence_ids=("summary:rank:0", "direct:ETF-1:return_1y"),
+    )
+    pack = FactPack(
+        surface_parts=(
+            SurfacePart(
+                part_id="surface:answer",
+                text=claim.text,
+                claim_ids=(claim.claim_id,),
+                limitation_codes=("snapshot_assumption",),
+            ),
+        ),
+        claim_signatures=(
+            ClaimSignature(
+                claim_id=claim.claim_id,
+                kind=claim.kind,
+                surface_text=claim.text,
+                entities=(
+                    EntitySignature(
+                        product_type=ProductType.DOMESTIC_ETF,
+                        product_id="ETF-1",
+                        display_name="테스트 ETF",
+                    ),
+                ),
+                values=(
+                    ValueSignature(
+                        field_id="return_1y",
+                        canonical_normalized_json='"3.10"',
+                        display_text="3.10",
+                        unit="percent",
+                    ),
+                ),
+                rank=1,
+                tie_count=1,
+                partition="return_1y:KRW",
+                comparison=None,
+                evidence_ids=claim.evidence_ids,
+                limitation_codes=(),
+            ),
+        ),
+        required_claim_ids=(claim.claim_id,),
+        required_limitation_codes=("snapshot_assumption",),
+        evidence_context_sha256="a" * 64,
+    )
+    case = GoldenCase.model_validate(
+        {
+            "case_id": "FACT-PACK-OBSERVATION-001",
+            "category": "rank",
+            "question": "1년 수익률 상위 ETF",
+            "expected_plan": {
+                "intent": "screen_rank",
+                "product_types": ["domestic_etf"],
+                "as_of_date": "2026-07-11",
+                "result_grain": "listed_product",
+                "top_k_scope": "global",
+            },
+            "expected_result": {
+                "products": [
+                    {
+                        "product_type": "domestic_etf",
+                        "native_result_grain": "listed_product",
+                        "product_id": "ETF-1",
+                    }
+                ],
+                "values": [
+                    {
+                        "product_id": "ETF-1",
+                        "field_id": "return_1y",
+                        "value_type": "decimal",
+                        "value": "3.10",
+                    }
+                ],
+            },
+            "expected_answer": {
+                "required_concepts": [],
+                "forbidden_concepts": [],
+                "expect_limitation": True,
+            },
+            "review": {
+                "reviewer": "test-reviewer",
+                "reviewed_at": "2026-08-29",
+                "source": "fact-pack-observation-regression",
+            },
+        }
+    )
+    result = AnswerResult(
+        answer=VerifiedAnswer(text=claim.text, claims=(claim,)),
+        retrieved_context=pack.model_dump_json(),
+        trace=ExecutionTrace(
+            correlation_id="fact-pack-observation",
+            intent=plan.intent,
+            product_types=plan.product_types,
+            as_of_date=plan.as_of_date,
+            result_grain=plan.result_grain,
+            top_k_scope=plan.top_k_scope,
+            segments=(
+                ExecutionTraceSegment(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    partition_key="return_1y:KRW",
+                    candidate_counts={"raw": 1, "eligible": 1},
+                    returned=1,
+                ),
+            ),
+            candidate_counts={"raw": 1, "eligible": 1, "returned": 1},
+            tools=(),
+            policy_ids=(),
+            validation=TraceValidation.PASSED,
+            versions={},
+            latency_ms={},
+        ),
+    )
+
+    observed = _observed(case, plan, result, 0)
+
+    assert tuple(item.product_id for item in observed.products) == ("ETF-1",)
+    assert tuple(item.value for item in observed.values) == (Decimal("3.10"),)
+    assert observed.evidence_ids == claim.evidence_ids
+    assert observed.limitation_present is True
+
+
+def test_end_to_end_observation_reads_aggregate_claim_from_fact_pack_result() -> None:
+    from finproof.domain.answers import (
+        AnswerClaim,
+        ClaimKind,
+        ClaimSignature,
+        FactPack,
+        SurfacePart,
+        ValueSignature,
+    )
+
+    aggregation = AggregationSpec(
+        function=AggregationFunction.AVG,
+        field="return_1y",
+        group_by=("currency",),
+    )
+    plan = _plan(
+        intent=Intent.AGGREGATE,
+        products=(ProductType.DOMESTIC_ETF,),
+        grain=ResultGrain.LISTED_PRODUCT,
+        aggregation=aggregation,
+    )
+    claim = AnswerClaim.model_validate(
+        {
+            "claim_id": "claim:aggregate",
+            "kind": ClaimKind.NUMERIC,
+            "text": "currency=KRW return_1y 평균: 3.10",
+            "product_type": ProductType.DOMESTIC_ETF,
+            "product_types": (ProductType.DOMESTIC_ETF,),
+            "native_result_grains": (ResultGrain.LISTED_PRODUCT,),
+            "partition_key": "return_1y:KRW",
+            "field_id": "return_1y",
+            "value": Decimal("3.10"),
+            "group_values": ({"field_id": "currency", "value": "KRW"},),
+            "evidence_ids": ("summary:aggregate:0",),
+        }
+    )
+    pack = FactPack(
+        surface_parts=(
+            SurfacePart(
+                part_id="surface:answer",
+                text=claim.text,
+                claim_ids=(claim.claim_id,),
+                limitation_codes=(),
+            ),
+        ),
+        claim_signatures=(
+            ClaimSignature(
+                claim_id=claim.claim_id,
+                kind=claim.kind,
+                surface_text=claim.text,
+                entities=(),
+                values=(
+                    ValueSignature(
+                        field_id="return_1y",
+                        canonical_normalized_json='"3.10"',
+                        display_text="3.10",
+                        unit="percent",
+                    ),
+                ),
+                rank=None,
+                tie_count=None,
+                partition="return_1y:KRW",
+                comparison=None,
+                evidence_ids=claim.evidence_ids,
+                limitation_codes=(),
+            ),
+        ),
+        required_claim_ids=(claim.claim_id,),
+        required_limitation_codes=(),
+        evidence_context_sha256="b" * 64,
+    )
+    case = GoldenCase.model_validate(
+        {
+            "case_id": "FACT-PACK-OBSERVATION-AGGREGATE-001",
+            "category": "aggregate",
+            "question": "통화별 1년 수익률 평균",
+            "expected_plan": {
+                "intent": "aggregate",
+                "product_types": ["domestic_etf"],
+                "as_of_date": "2026-07-11",
+                "result_grain": "listed_product",
+                "top_k_scope": "global",
+                "aggregation": {
+                    "function": "avg",
+                    "field": "return_1y",
+                    "group_by": ["currency"],
+                },
+            },
+            "expected_result": {
+                "aggregates": [
+                    {
+                        "function": "avg",
+                        "field_id": "return_1y",
+                        "product_type": "domestic_etf",
+                        "native_result_grain": "listed_product",
+                        "partition_key": "return_1y:KRW",
+                        "group_values": [
+                            {"field_id": "currency", "value_type": "text", "value": "KRW"}
+                        ],
+                        "value_type": "decimal",
+                        "value": "3.10",
+                    }
+                ]
+            },
+            "expected_answer": {"required_concepts": [], "forbidden_concepts": []},
+            "review": {
+                "reviewer": "test-reviewer",
+                "reviewed_at": "2026-08-29",
+                "source": "fact-pack-aggregate-observation-regression",
+            },
+        }
+    )
+    result = AnswerResult(
+        answer=VerifiedAnswer(text=claim.text, claims=(claim,)),
+        retrieved_context=pack.model_dump_json(),
+        trace=ExecutionTrace(
+            correlation_id="fact-pack-aggregate-observation",
+            intent=plan.intent,
+            product_types=plan.product_types,
+            as_of_date=plan.as_of_date,
+            result_grain=plan.result_grain,
+            top_k_scope=plan.top_k_scope,
+            segments=(
+                ExecutionTraceSegment(
+                    product_type=ProductType.DOMESTIC_ETF,
+                    native_result_grain=ResultGrain.LISTED_PRODUCT,
+                    partition_key="return_1y:KRW",
+                    candidate_counts={"raw": 1, "eligible": 1},
+                    returned=1,
+                ),
+            ),
+            candidate_counts={"raw": 1, "eligible": 1, "returned": 1},
+            tools=(),
+            policy_ids=(),
+            validation=TraceValidation.PASSED,
+            versions={},
+            latency_ms={},
+        ),
+    )
+
+    observed = _observed(case, plan, result, 0)
+
+    assert len(observed.aggregates) == 1
+    assert observed.aggregates[0].value == Decimal("3.10")
+    assert observed.aggregates[0].group_values[0].value == "KRW"
 
 
 def test_serialized_rank_summaries_preserve_compatible_multi_product_order() -> None:
