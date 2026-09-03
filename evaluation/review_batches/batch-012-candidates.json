@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 149,
-  "prompt_version": "canonical-question-candidates-v15",
-  "prompt_sha256": "b52ca3b3cf45da65a1d5b4d575b392a68292354e740724d3fb18e2b46c8f5f7e",
-  "generated_at": "2026-09-03T11:36:56Z",
+  "prompt_version": "canonical-question-candidates-v27",
+  "prompt_sha256": "6001f4fee1f8da794baebbcdfae7b6ceea37012ce9c3b92ba41809e04907b11e",
+  "generated_at": "2026-09-03T13:23:45Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -22,122 +22,122 @@
     {
       "candidate_id": "CQ-012-001",
       "category": "lookup",
-      "question": "어떤 국내채권의 만기일과 매수수익률을 같은 기준일로 조회할 수 있나요?"
+      "question": "2026-08-24 기준 국내채권 KR101501DA16의 만기일·잔존일수·매수수익률을 조회해줘"
     },
     {
       "candidate_id": "CQ-012-002",
       "category": "lookup",
-      "question": "어떤 국내 ETF의 총보수와 1년 수익률을 함께 조회할 수 있나요? (ETN 제외)"
+      "question": "국내 ETF KR7305080004의 총보수와 1년 수익률을 조회해줘"
     },
     {
       "candidate_id": "CQ-012-003",
       "category": "lookup",
-      "question": "어떤 해외 ETF의 AUM과 총보수를 함께 조회할 수 있나요? (ETN 제외)"
+      "question": "해외 ETF VOO의 AUM과 총보수를 조회해줘"
     },
     {
       "candidate_id": "CQ-012-004",
       "category": "lookup",
-      "question": "어떤 공모펀드의 3개월 수익률과 1년 수익률을 함께 조회할 수 있나요?"
+      "question": "공모펀드 KR5114420158의 3개월·1년 수익률과 위험등급을 조회해줘"
     },
     {
       "candidate_id": "CQ-012-005",
       "category": "screen",
-      "question": "만기일과 신용등급 조건을 만족하면서 매수가능수량이 양수인 국내채권을 필터링해 주세요."
+      "question": "만기일이 2026-08-24 이후 2027-08-24 이하이고 신용등급이 AA- 이상인 국내채권을 찾아줘"
     },
     {
       "candidate_id": "CQ-012-006",
       "category": "screen",
-      "question": "3개월 수익률과 총보수 조건을 동시에 만족하며 ETN을 제외한 국내 ETF를 필터링해 주세요."
+      "question": "3개월 수익률이 5% 이상이고 총보수가 0.5% 이하인 국내 ETF를 찾아줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-012-007",
       "category": "screen",
-      "question": "AUM과 거래통화 조건을 동시에 만족하며 ETN을 제외한 해외 ETF를 필터링해 주세요."
+      "question": "AUM이 1억 USD 이상이고 거래통화가 USD인 해외 ETF를 찾아줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-012-008",
       "category": "screen",
-      "question": "6개월 수익률이 높고 위험등급이 낮은 공모펀드를 필터링해 주세요."
+      "question": "6개월 수익률이 5% 이상이고 위험등급이 있는 공모펀드를 찾아줘"
     },
     {
       "candidate_id": "CQ-012-009",
       "category": "screen",
-      "question": "연초이후 수익률과 추적오차를 동시에 만족하는 국내 ETN을 필터링해 주세요."
+      "question": "연초이후 수익률이 10% 이상이고 추적오차가 1% 이하인 국내 ETN을 찾아줘"
     },
     {
       "candidate_id": "CQ-012-010",
       "category": "rank",
-      "question": "매수가능수량이 양수인 국내채권을 매수수익률 기준으로 상위 5개를 정렬해 주세요."
+      "question": "신용등급이 AA- 이상인 국내채권을 매수수익률 높은 순으로 5개 보여줘"
     },
     {
       "candidate_id": "CQ-012-011",
       "category": "rank",
-      "question": "국내 ETF 중 1년 수익률이 가장 낮은 하위 5개를 정렬해 주세요. (ETN 제외)"
+      "question": "국내 ETF를 1년 수익률 낮은 순으로 5개 보여줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-012-012",
       "category": "rank",
-      "question": "해외 ETF 중 총보수가 가장 낮은 상위 5개를 정렬해 주세요. (ETN 제외)"
+      "question": "해외 ETF를 총보수 높은 순으로 5개 보여줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-012-013",
       "category": "rank",
-      "question": "2년 수익률이 높은 공모펀드 상위 5개를 정렬해 주세요."
+      "question": "공모펀드를 2년 수익률 높은 순으로 5개 보여줘"
     },
     {
       "candidate_id": "CQ-012-014",
       "category": "compare",
-      "question": "두 개의 국내채권의 만기일과 신용등급을 어떻게 비교하나요?"
+      "question": "국내채권 KR101501DA16과 KR350105G9C6의 만기일과 신용등급을 비교해줘"
     },
     {
       "candidate_id": "CQ-012-015",
       "category": "compare",
-      "question": "두 개의 국내 ETF의 AUM과 총보수를 어떻게 비교하나요? (ETN 제외)"
+      "question": "국내 ETF KR7305080004와 KR7371160003의 AUM과 총보수를 비교해줘"
     },
     {
       "candidate_id": "CQ-012-016",
       "category": "compare",
-      "question": "두 개의 공모펀드의 1년 수익률과 위험등급을 어떻게 비교하나요?"
+      "question": "공모펀드 KR5114420158과 KR5138490078의 1년 수익률과 위험등급을 비교해줘"
     },
     {
       "candidate_id": "CQ-012-017",
       "category": "aggregate",
-      "question": "국내 ETF의 총보수 평균과 AUM 평균을 각각 계산해 주세요. (ETN 제외)"
+      "question": "AUM이 1천억원 이상인 국내 ETF의 총보수 평균을 집계해줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-012-018",
       "category": "aggregate",
-      "question": "공모펀드의 3개월 수익률 평균과 1년 수익률 평균을 각각 계산해 주세요."
+      "question": "1년 수익률이 0% 이상인 공모펀드의 3개월 수익률 평균을 집계해줘"
     },
     {
       "candidate_id": "CQ-012-019",
       "category": "cross_product",
-      "question": "국내 ETF와 공모펀드의 6개월 수익률 상위 4개를 유형별로 분리하여 보여주세요."
+      "question": "국내 ETF와 공모펀드의 6개월 수익률 상위 4개를 유형별로 나눠줘"
     },
     {
       "candidate_id": "CQ-012-020",
       "category": "cross_product",
-      "question": "국내채권은 매수수익률, 국내 ETF는 1년 수익률 기준으로 각각 상위 4개를 유형별로 보여주세요."
+      "question": "국내채권은 매수수익률, 국내 ETF는 1년 수익률 상위 4개를 유형별로 나눠줘"
     },
     {
       "candidate_id": "CQ-012-021",
       "category": "clarification",
-      "question": "기록된 0% 수익률과 누락된 수익률을 동일하게 취급하지 않는 기준은 무엇인가요?"
+      "question": "수익률이 0이거나 누락된 금융상품을 찾아줘"
     },
     {
       "candidate_id": "CQ-012-022",
       "category": "quality",
-      "question": "AUM 순위에서 기록된 0 및 누락값을 제외하고 몇 개의 항목을 제외했는지 표시해 주세요."
+      "question": "해외 ETF AUM 하위 5개와 기록된 0·누락으로 제외된 수를 따로 보여줘"
     },
     {
       "candidate_id": "CQ-012-023",
       "category": "quality",
-      "question": "해외 ETF의 보유종목 전체 목록을 요구하는 요청 시 어떤 제한 사항이 있나요?"
+      "question": "해외 ETF VOO의 보유종목 전체와 종목별 비중을 알려줘"
     },
     {
       "candidate_id": "CQ-012-024",
       "category": "quality",
-      "question": "고정 환율 없이 서로 다른 통화 AUM을 하나의 순위로 합칠 수 없는 이유는 무엇인가요?"
+      "question": "실시간 환율로 국내 ETF와 해외 ETF의 AUM을 원화로 환산해 상위 5개를 통합해줘"
     }
   ]
 }

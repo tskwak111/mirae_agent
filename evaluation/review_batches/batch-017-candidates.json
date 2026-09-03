@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 209,
-  "prompt_version": "canonical-question-candidates-v20",
-  "prompt_sha256": "7a473a511a7f5eeb1365cd2f9c1614c8a91a36ede1f2471a286e4183e8d19697",
-  "generated_at": "2026-09-03T11:39:32Z",
+  "prompt_version": "canonical-question-candidates-v26",
+  "prompt_sha256": "1f783d1d300336f6d861ed214faed045b532c33a18e86f09b2849cec29b22774",
+  "generated_at": "2026-09-03T12:47:14Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -22,122 +22,122 @@
     {
       "candidate_id": "CQ-017-001",
       "category": "lookup",
-      "question": "국내 ETF와 공모펀드의 1년 수익률은 어떻게 되나요?"
+      "question": "국내 ETF KR7305080004와 공모펀드 KR5114420158의 1년 수익률을 유형별로 조회해줘"
     },
     {
       "candidate_id": "CQ-017-002",
       "category": "lookup",
-      "question": "국내 ETF와 해외 ETF의 총보수와 AUM은 통화별로 어떻게 구분되나요?"
+      "question": "국내 ETF KR7069500007과 해외 ETF VOO의 총보수·AUM·거래통화를 유형별로 조회해줘"
     },
     {
       "candidate_id": "CQ-017-003",
       "category": "lookup",
-      "question": "특정 날짜에 상환되는 국내 채권들의 만기일과 매수수익률 및 매수가능수량은 무엇인가요?"
+      "question": "2026-08-24 기준 국내채권 KR353601DE34의 만기일과 매수수익률을 조회해줘"
     },
     {
       "candidate_id": "CQ-017-004",
       "category": "lookup",
-      "question": "공모펀드의 1년 수익률과 현재 자산 규모(AUM)는 어떻게 되나요?"
+      "question": "공모펀드 KR5138490078의 1년 수익률과 AUM을 조회해줘"
     },
     {
       "candidate_id": "CQ-017-005",
       "category": "screen",
-      "question": "수익률이 일정 이상이고 총보수가 낮은 국내 ETF 중에서 ETN을 제외한 상품을 찾습니다."
+      "question": "6개월 수익률이 3% 이상이고 총보수가 0.3% 이하인 국내 ETF를 찾아줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-017-006",
       "category": "screen",
-      "question": "AUM이 일정 금액 이상이고 거래통화가 특정한 해외 ETF 중에서 ETN을 제외한 상품을 찾습니다."
+      "question": "AUM이 5천만 USD 이상이고 총보수가 0.25% 이하인 해외 ETF를 찾아줘, ETN 제외"
     },
     {
       "candidate_id": "CQ-017-007",
       "category": "screen",
-      "question": "최근 3개월간 수익률이 일정 비율 이하이면서 위험등급이 특정 등급 이하인 공모펀드를 찾습니다."
+      "question": "3개월 수익률이 5% 이상이고 위험등급이 있는 공모펀드를 찾아줘"
     },
     {
       "candidate_id": "CQ-017-008",
       "category": "screen",
-      "question": "매수가능수량이 양수인 국내 채권을 만기일이 특정일 이전이고 신용등급이 특정 등급 이상인 것으로 찾습니다."
+      "question": "만기일이 2026-08-24 이후 2028-08-24 이하이고 신용등급이 A+ 이상인 국내채권을 찾아줘"
     },
     {
       "candidate_id": "CQ-017-009",
       "category": "screen",
-      "question": "특정 기업을 보유하고 있는 국내 ETF를 찾는다면 해당 기업의 정확한 식별자를 사용하여 검색하나요?"
+      "question": "국내 ETF KR7102110004의 보유종목에서 삼성전자를 찾아줘"
     },
     {
       "candidate_id": "CQ-017-010",
       "category": "rank",
-      "question": "특정 섹터에 대한 노출도가 높은 해외 ETF들 중 AUM 순으로 상위 몇 개의 ETF는 무엇인가요?"
+      "question": "반도체 섹터에 노출된 해외 ETF를 AUM 높은 순으로 5개 보여줘"
     },
     {
       "candidate_id": "CQ-017-011",
       "category": "rank",
-      "question": "특정 기업 주식을 보유하고 있는지 여부에 따라 국내 ETF들을 순위 매길 수 있습니까?"
+      "question": "삼성전자를 보유한 국내 ETF를 1년 수익률 높은 순으로 5개 보여줘"
     },
     {
       "candidate_id": "CQ-017-012",
       "category": "rank",
-      "question": "편입된 종목 수가 많은 순으로 공모펀드를 순위 매길 수 있을까요?"
+      "question": "공모펀드를 편입종목 수가 많은 순으로 5개 보여줘"
     },
     {
       "candidate_id": "CQ-017-013",
       "category": "rank",
-      "question": "특정 산업에 투자하는 ETF들 중 가장 높은 수익률을 기록한 것은 무엇인가요?"
+      "question": "기술 섹터에 노출된 국내 ETF를 6개월 수익률 높은 순으로 7개 보여줘"
     },
     {
       "candidate_id": "CQ-017-014",
       "category": "compare",
-      "question": "두 개의 국내 ETF가 공통적으로 보유하고 있는 종목이 무엇인지 비교할 수 있나요?"
+      "question": "국내 ETF KR7305080004와 KR7371160003의 공통 보유종목을 비교해줘"
     },
     {
       "candidate_id": "CQ-017-015",
       "category": "compare",
-      "question": "해외 ETF와 국내 ETF 간의 섹터 구성이 어떻게 다른지 비교할 수 있나요?"
+      "question": "해외 ETF VOO와 국내 ETF KR7069500007의 섹터 구성을 비교해줘"
     },
     {
       "candidate_id": "CQ-017-016",
       "category": "compare",
-      "question": "ETF와 공모펀드가 동일한 특정 기업을 보유하고 있는지 여부를 비교할 수 있나요?"
+      "question": "국내 ETF KR7305080004와 공모펀드 KR5114420158의 삼성전자 보유 여부를 비교해줘"
     },
     {
       "candidate_id": "CQ-017-017",
       "category": "aggregate",
-      "question": "특정 섹터에 투자하는 ETF의 수는 얼마나 되나요?"
+      "question": "기술 섹터에 노출된 해외 ETF 수를 집계해줘"
     },
     {
       "candidate_id": "CQ-017-018",
       "category": "aggregate",
-      "question": "특정 기업에 투자하는 상품들의 AUM 평균은 얼마인가요?"
+      "question": "삼성전자를 보유한 국내 ETF와 공모펀드의 AUM 평균을 유형별로 집계해줘"
     },
     {
       "candidate_id": "CQ-017-019",
       "category": "cross_product",
-      "question": "국내 ETF와 해외 ETF들이 동일하게 특정 기업을 보유하고 있는지 여부를 확인할 수 있나요?"
+      "question": "반도체 기업을 보유한 국내 ETF와 해외 ETF를 유형별로 나눠줘"
     },
     {
       "candidate_id": "CQ-017-020",
       "category": "cross_product",
-      "question": "국내 ETF와 해외 ETF 간에 특정 기업을 동시에 보유하고 있는 경우가 있나요?"
+      "question": "삼성전자를 보유한 국내 ETF와 공모펀드를 유형별로 나눠줘"
     },
     {
       "candidate_id": "CQ-017-021",
       "category": "clarification",
-      "question": "기록된 0% 수익률과 누락된 수익률 중 어느 쪽을 고려하여 분석하시겠습니까?"
+      "question": "미국 기술주 비중이 높은 ETF 5개를 알려줘"
     },
     {
       "candidate_id": "CQ-017-022",
       "category": "quality",
-      "question": "AUM이 0인 것과 누락된 AUM을 같은 값으로 간주하여 순위나 평균 계산 시 포함시키겠습니까?"
+      "question": "보유종목 정보가 비어 있는 국내 ETF를 삼성전자 미보유 상품으로 분류해도 되는지 알려줘"
     },
     {
       "candidate_id": "CQ-017-023",
       "category": "quality",
-      "question": "AUM이 0인 경우와 누락된 경우를 별도로 처리해야 할까요?"
+      "question": "총보수가 0%로 기록된 국내 ETF 수를 집계하고 총보수 누락값은 제외 수로 알려줘"
     },
     {
       "candidate_id": "CQ-017-024",
       "category": "quality",
-      "question": "AUM이 0인 경우와 누락된 경우를 같은 값으로 취급하면 안 되는 이유는 무엇인가요?"
+      "question": "국내 ETF를 추적오차 낮은 순으로 5개 보여주고 기록된 0 공동순위와 누락 제외 수를 알려줘"
     }
   ]
 }
