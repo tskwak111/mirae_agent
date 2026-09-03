@@ -53,6 +53,34 @@ def test_blind_development_batch_identity(batch_id: str, seed: int, version: str
 
 
 def test_blind_development_slots_have_approved_family_distribution() -> None:
+    expected_by_batch = {
+        "012": {"cross_metric": 20, "missing_zero": 2, "unsupported": 2},
+        "013": {"cross_metric": 4, "holding_sector": 18, "unsupported": 2},
+        "014": {
+            "cross_metric": 4,
+            "holding_sector": 2,
+            "missing_zero": 16,
+            "unsupported": 2,
+        },
+        "015": {
+            "cross_metric": 2,
+            "missing_zero": 2,
+            "unsupported": 18,
+            "entity_variant": 2,
+        },
+        "016": {
+            "cross_metric": 4,
+            "holding_sector": 2,
+            "missing_zero": 2,
+            "entity_variant": 16,
+        },
+        "017": {"cross_metric": 8, "holding_sector": 14, "missing_zero": 2},
+    }
+
+    assert {
+        batch_id: dict(Counter(families))
+        for batch_id, families in generator._BLIND_DEVELOPMENT_FAMILIES.items()
+    } == expected_by_batch
     totals = Counter(
         family
         for batch_id in ("012", "013", "014", "015", "016", "017")
@@ -400,6 +428,75 @@ def test_authoring_timeout_extends_only_the_read_window() -> None:
     assert generator._AuthoringHcxClient._TIMEOUT.connect == 5.0
     assert generator._AuthoringHcxClient._TIMEOUT.write == 5.0
     assert generator._AuthoringHcxClient._TIMEOUT.pool == 5.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("batch_id", ["012", "013", "014", "015", "016", "017"])
+async def test_blind_development_batches_emit_validated_ordered_packets(batch_id: str) -> None:
+    client = _Client(_content())
+
+    packet = await generate_review_packet(
+        client,
+        batch_id=batch_id,
+        generated_at=datetime(2026, 9, 3, tzinfo=UTC),
+    )
+
+    candidates = cast(list[dict[str, str]], packet["candidates"])
+    assert [candidate["category"] for candidate in candidates] == list(_CATEGORIES)
+    assert [candidate["candidate_id"] for candidate in candidates] == [
+        f"CQ-{batch_id}-{index:03d}" for index in range(1, 25)
+    ]
+    assert client.requests[0][1] == f"finproof-canonical-question-candidates-{batch_id}"
+
+
+@pytest.mark.parametrize("batch_id", ["012", "013", "014", "015", "016", "017"])
+def test_blind_development_batches_reject_misordered_raw_categories(batch_id: str) -> None:
+    content = json.loads(_content())
+    candidates = content["candidates"]
+    candidates[0]["category"], candidates[4]["category"] = (
+        candidates[4]["category"],
+        candidates[0]["category"],
+    )
+
+    with pytest.raises(ValueError, match="candidate order"):
+        generator._validate_candidates(json.dumps(content, ensure_ascii=False), batch_id=batch_id)
+
+
+@pytest.mark.parametrize("batch_id", ["012", "013", "014", "015", "016", "017"])
+def test_blind_development_batches_cli_writes_selected_packet(
+    batch_id: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    async def fake_request(api_key: SecretStr, *, batch_id: str) -> dict[str, object]:
+        observed["api_key"] = api_key
+        observed["batch_id"] = batch_id
+        return await generate_review_packet(
+            _Client(_content()),
+            batch_id=batch_id,
+            generated_at=datetime(2026, 9, 3, tzinfo=UTC),
+        )
+
+    monkeypatch.setattr(generator, "_request_with_hcx", fake_request)
+    output = tmp_path / "review" / f"batch-{batch_id}.json"
+
+    assert (
+        generator.main(
+            ["--output", str(output), "--batch-id", batch_id],
+            environ={"FINPROOF_HCX_API_KEY": "not-a-real-key"},
+            repository_root=tmp_path,
+        )
+        == 0
+    )
+
+    written = json.loads(output.read_text(encoding="utf-8"))
+    assert isinstance(observed["api_key"], SecretStr)
+    assert observed["batch_id"] == batch_id
+    assert [candidate["candidate_id"] for candidate in written["candidates"]] == [
+        f"CQ-{batch_id}-{index:03d}" for index in range(1, 25)
+    ]
 
 
 @pytest.mark.asyncio
