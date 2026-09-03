@@ -4,6 +4,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,17 @@ def _git_binary() -> str:
 
 
 _GIT = _git_binary()
+
+
+def test_verify_release_manifest_script_entrypoint_is_importable() -> None:
+    completed = subprocess.run(
+        [sys.executable, "tools/verify_release_manifest.py", "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
 
 
 def _git(root: Path, *args: str) -> str:

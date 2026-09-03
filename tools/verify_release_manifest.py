@@ -10,19 +10,34 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from tools.create_release_manifest import (
-    _COMMIT,
-    _IMAGE_DIGEST,
-    _REPORTS,
-    _artifact_manifest,
-    _covered_paths,
-    _git,
-    _git_bytes,
-    _image_digest,
-    _sha256,
-    _validate_artifact_inputs,
-    manifest_checksum,
-)
+if __package__:
+    from tools.create_release_manifest import (
+        _COMMIT,
+        _IMAGE_DIGEST,
+        _REPORTS,
+        _artifact_manifest,
+        _covered_paths,
+        _git,
+        _git_bytes,
+        _image_digest,
+        _sha256,
+        _validate_artifact_inputs,
+        manifest_checksum,
+    )
+else:
+    from create_release_manifest import (  # type: ignore[import-not-found,no-redef]
+        _COMMIT,
+        _IMAGE_DIGEST,
+        _REPORTS,
+        _artifact_manifest,
+        _covered_paths,
+        _git,
+        _git_bytes,
+        _image_digest,
+        _sha256,
+        _validate_artifact_inputs,
+        manifest_checksum,
+    )
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _KEYS = {
