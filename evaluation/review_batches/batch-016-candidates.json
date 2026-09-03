@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 197,
-  "prompt_version": "canonical-question-candidates-v25",
-  "prompt_sha256": "c4fb0d71b349b5255544e8ac9fea694f5205c6f6cbf648e9e21e0f1cc9e77880",
-  "generated_at": "2026-09-03T12:46:38Z",
+  "prompt_version": "canonical-question-candidates-v28",
+  "prompt_sha256": "55a238b724c3553c86452dad55266119c06591b5cc02a95ae6a718307d2d7973",
+  "generated_at": "2026-09-03T14:19:09Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -137,7 +137,7 @@
     {
       "candidate_id": "CQ-016-024",
       "category": "quality",
-      "question": "해외 ETF QQQ와 QQQ.O가 같은 상품인지 알려줘"
+      "question": "해외 ETF VOO의 원천 상품명이 Vanguard 500 Index Fund ETF인지 조회해줘"
     }
   ]
 }
