@@ -36,7 +36,7 @@ _CATEGORIES = (
 @pytest.mark.parametrize(
     ("batch_id", "seed", "version"),
     [
-        ("012", 149, "canonical-question-candidates-v21"),
+        ("012", 149, "canonical-question-candidates-v27"),
         ("013", 161, "canonical-question-candidates-v22"),
         ("014", 173, "canonical-question-candidates-v23"),
         ("015", 185, "canonical-question-candidates-v24"),
@@ -50,6 +50,22 @@ def test_blind_development_batch_identity(batch_id: str, seed: int, version: str
     assert (actual_seed, actual_version) == (seed, version)
     assert request_id == f"finproof-canonical-question-candidates-{batch_id}"
     assert "공식 2026-08-24 배포본" in prompt
+
+
+def test_batch_012_slots_add_semantics_that_break_frozen_plan_collisions() -> None:
+    _, version, prompt, _ = generator._batch_contract("012")
+    slots = generator._BLIND_DEVELOPMENT_SLOTS["012"]
+    required_by_position = {
+        1: ("잔존일수",),
+        4: ("위험등급",),
+        10: ("신용등급", "AA- 이상"),
+    }
+
+    assert version == "canonical-question-candidates-v27"
+    for position, required_phrases in required_by_position.items():
+        slot = slots[position - 1]
+        assert all(phrase in slot for phrase in required_phrases)
+        assert slot in prompt
 
 
 def test_blind_development_slots_have_approved_family_distribution() -> None:

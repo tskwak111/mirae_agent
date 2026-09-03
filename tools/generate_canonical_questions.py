@@ -491,7 +491,7 @@ _NEW_BATCH_METADATA = {
 }
 
 _BLIND_DEVELOPMENT_METADATA = {
-    "012": (149, "canonical-question-candidates-v21"),
+    "012": (149, "canonical-question-candidates-v27"),
     "013": (161, "canonical-question-candidates-v22"),
     "014": (173, "canonical-question-candidates-v23"),
     "015": (185, "canonical-question-candidates-v24"),
@@ -501,16 +501,16 @@ _BLIND_DEVELOPMENT_METADATA = {
 
 _BLIND_DEVELOPMENT_SLOTS = {
     "012": (
-        "lookup: 2026-08-24 기준 국내채권 KR101501DA16의 만기일과 매수수익률을 조회해줘",
+        "lookup: 2026-08-24 기준 국내채권 KR101501DA16의 만기일·잔존일수·매수수익률을 조회해줘",
         "lookup: 국내 ETF KR7305080004의 총보수와 1년 수익률을 조회해줘",
         "lookup: 해외 ETF VOO의 AUM과 총보수를 조회해줘",
-        "lookup: 공모펀드 KR5114420158의 3개월 수익률과 1년 수익률을 조회해줘",
+        "lookup: 공모펀드 KR5114420158의 3개월·1년 수익률과 위험등급을 조회해줘",
         "screen: 만기일이 2026-08-24 이후 2027-08-24 이하이고 신용등급이 AA- 이상인 국내채권을 찾아줘",
         "screen: 3개월 수익률이 5% 이상이고 총보수가 0.5% 이하인 국내 ETF를 찾아줘, ETN 제외",
         "screen: AUM이 1억 USD 이상이고 거래통화가 USD인 해외 ETF를 찾아줘, ETN 제외",
         "screen: 6개월 수익률이 5% 이상이고 위험등급이 있는 공모펀드를 찾아줘",
         "screen: 연초이후 수익률이 10% 이상이고 추적오차가 1% 이하인 국내 ETN을 찾아줘",
-        "rank: 국내채권을 매수수익률 높은 순으로 5개 보여줘",
+        "rank: 신용등급이 AA- 이상인 국내채권을 매수수익률 높은 순으로 5개 보여줘",
         "rank: 국내 ETF를 1년 수익률 낮은 순으로 5개 보여줘, ETN 제외",
         "rank: 해외 ETF를 총보수 높은 순으로 5개 보여줘, ETN 제외",
         "rank: 공모펀드를 2년 수익률 높은 순으로 5개 보여줘",
