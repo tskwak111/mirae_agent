@@ -13,7 +13,7 @@ from finproof.evaluation.holdout import (
     HoldoutSummary,
     summarize_holdout,
 )
-from finproof.evaluation.latency import LatencySummary
+from finproof.evaluation.latency import LatencySample, LatencySummary
 from finproof.evaluation.load import LoadReport, LoadSample
 from finproof.evaluation.runner import (
     EvaluationMode,
@@ -231,6 +231,52 @@ def test_holdout_summary_cross_checks_request_counts_against_samples() -> None:
 
     with pytest.raises(ValueError, match="holdout identity differs"):
         _summarize(load=load.model_copy(update={"samples": tuple(samples)}))
+
+
+def test_holdout_summary_rejects_unexpected_latency_stage() -> None:
+    load = _load()
+    samples = list(load.samples)
+    samples[0] = samples[0].model_copy(update={"stage_ms": {"HOLDOUT-001 secret question": 1}})
+    latency = LatencySummary.from_samples(
+        tuple(
+            LatencySample(
+                total_ms=sample.total_ms,
+                stage_ms=sample.stage_ms,
+                succeeded=sample.request_succeeded,
+            )
+            for sample in samples
+        )
+    )
+
+    with pytest.raises(ValueError, match="holdout latency differs"):
+        _summarize(load=load.model_copy(update={"samples": tuple(samples), "latency": latency}))
+
+
+def test_holdout_summary_rejects_latency_aggregate_not_rebuilt_from_samples() -> None:
+    load = _load()
+
+    with pytest.raises(ValueError, match="holdout latency differs"):
+        _summarize(
+            load=load.model_copy(update={"latency": load.latency.model_copy(update={"p95_ms": 11})})
+        )
+
+
+@pytest.mark.parametrize("mismatch", ["evaluation_duplicate", "load_duplicate", "load_other"])
+def test_holdout_summary_rejects_repeated_or_mismatched_case_ids(mismatch: str) -> None:
+    evaluation = _evaluation()
+    load = _load()
+    if mismatch == "evaluation_duplicate":
+        scores = list(evaluation.case_scores)
+        scores[-1] = scores[-1].model_copy(update={"case_id": scores[0].case_id})
+        evaluation = evaluation.model_copy(update={"case_scores": tuple(scores)})
+    else:
+        samples = list(load.samples)
+        case_id = samples[0].case_id if mismatch == "load_duplicate" else "OTHER-047"
+        samples[-1] = samples[-1].model_copy(update={"case_id": case_id})
+        load = load.model_copy(update={"samples": tuple(samples)})
+
+    with pytest.raises(ValueError, match="holdout identity differs"):
+        _summarize(evaluation=evaluation, load=load)
 
 
 @pytest.mark.parametrize(

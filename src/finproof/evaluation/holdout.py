@@ -6,7 +6,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from finproof.core.settings import ExecutionMode
-from finproof.evaluation.latency import LatencySummary
+from finproof.evaluation.latency import LatencySample, LatencySummary
 from finproof.evaluation.load import LoadReport
 from finproof.evaluation.runner import EvaluationMode, EvaluationReport, PlannerRuntimeMode
 from finproof.evaluation.scoring import RatioScore
@@ -40,6 +40,7 @@ _AGGREGATE_KEYS = frozenset(
         "repeat_stability",
     }
 )
+_LATENCY_STAGES = frozenset({"planner", "database", "evidence", "render", "wording"})
 
 
 def _is_utc(value: datetime) -> bool:
@@ -126,6 +127,8 @@ def summarize_holdout(
 ) -> HoldoutSummary:
     """Validate a frozen replay and return only aggregate holdout evidence."""
     replay = evaluation.replay
+    evaluation_ids = {score.case_id for score in evaluation.case_scores}
+    load_ids = {sample.case_id for sample in load.samples}
     if (
         manifest.suite_checksum != candidate.suite_checksum
         or manifest.artifact_version != candidate.artifact_version
@@ -149,6 +152,9 @@ def summarize_holdout(
         or not _is_utc(replay.ended_at)
         or candidate.frozen_at > replay.started_at
         or len(evaluation.case_scores) != manifest.case_count
+        or len(evaluation_ids) != manifest.case_count
+        or len(load_ids) != manifest.case_count
+        or evaluation_ids != load_ids
     ):
         raise ValueError("holdout identity differs")
     if set(evaluation.aggregates) != _AGGREGATE_KEYS:
@@ -172,6 +178,20 @@ def summarize_holdout(
     (response_version,) = response_versions
     if response_version != candidate.response_version_sha256:
         raise ValueError("holdout response version differs")
+    if any(not set(sample.stage_ms) <= _LATENCY_STAGES for sample in load.samples):
+        raise ValueError("holdout latency differs")
+    latency = LatencySummary.from_samples(
+        tuple(
+            LatencySample(
+                total_ms=sample.total_ms,
+                stage_ms=sample.stage_ms,
+                succeeded=sample.request_succeeded,
+            )
+            for sample in load.samples
+        )
+    )
+    if latency != load.latency:
+        raise ValueError("holdout latency differs")
     aggregates = {
         key: value.model_copy(update={"failures": ()})
         for key, value in evaluation.aggregates.items()
@@ -190,5 +210,5 @@ def summarize_holdout(
         family_counts=dict(manifest.family_counts),
         aggregates=aggregates,
         request_failure_count=load.failure_count,
-        latency=load.latency,
+        latency=latency,
     )
