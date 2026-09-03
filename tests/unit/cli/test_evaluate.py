@@ -8,9 +8,13 @@ from typing import cast
 import pytest
 from pydantic import SecretStr
 
+from finproof.cli import evaluate as cli_evaluate
+from finproof.cli.evaluate import run_evaluation
 from finproof.cli.main import _parser, _run_main
 from finproof.core.settings import ExecutionMode, Settings
-from finproof.evaluation.runner import EvaluationMode
+from finproof.evaluation.loader import load_golden_cases
+from finproof.evaluation.models import GoldenCase, ObservedCase
+from finproof.evaluation.runner import EvaluationMode, ReplayVersions
 from finproof.runtime.session import RuntimeArtifactSession
 from finproof.service.orchestrator import EvaluationOrchestrator
 
@@ -54,6 +58,64 @@ def test_parser_accepts_blind_development_evaluation() -> None:
     )
 
     assert args.suite == "blind_development"
+
+
+@pytest.mark.parametrize("suite", ["blind_development", "blind_holdout"])
+def test_evaluation_routes_blind_suites_only_through_blind_loader(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    suite: str,
+) -> None:
+    case = load_golden_cases((Path("evaluation/canonical/clarification.jsonl"),))[0]
+    calls: list[tuple[str, Path]] = []
+
+    class Service:
+        def replay_versions(self) -> ReplayVersions:
+            return ReplayVersions.from_configuration(
+                artifact_version="artifact",
+                config_versions={},
+                prompt_version="prompt",
+                answer_prompt_version=None,
+                answer_schema_sha256=None,
+                wording_verification_mode=None,
+                planner_version="planner",
+                execution_mode=ExecutionMode.EXTENDED_DEMO,
+                hcx_enabled=False,
+                planner_model=None,
+                fallback_enabled=True,
+                structured_outputs_enabled=False,
+            )
+
+        def observe(self, observed_case: GoldenCase, mode: EvaluationMode) -> ObservedCase:
+            assert observed_case is case
+            assert mode is EvaluationMode.PLAN_ONLY
+            return ObservedCase()
+
+    def blind_loader(name: str, *, repository_root: Path) -> tuple[GoldenCase, ...]:
+        calls.append((name, repository_root))
+        return (case,)
+
+    monkeypatch.setattr(cli_evaluate, "load_blind_suite", blind_loader)
+    monkeypatch.setattr(
+        cli_evaluate,
+        "load_golden_cases",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("canonical loader used")),
+    )
+    monkeypatch.setattr(
+        cli_evaluate,
+        "load_suite",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("organizer loader used")),
+    )
+
+    run_evaluation(
+        suite,
+        tmp_path / f"{suite}.json",
+        EvaluationMode.PLAN_ONLY,
+        repository_root=tmp_path,
+        service=Service(),
+    )
+
+    assert calls == [(suite, tmp_path)]
 
 
 def test_parser_accepts_organizer_deterministic_core_command() -> None:
