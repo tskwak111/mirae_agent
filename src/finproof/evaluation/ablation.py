@@ -11,7 +11,12 @@ from typing import Annotated, Self
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from finproof.evaluation.latency import LatencySummary
-from finproof.evaluation.loader import load_golden_cases, suite_checksum
+from finproof.evaluation.loader import (
+    load_blind_suite,
+    load_golden_cases,
+    load_suite,
+    suite_checksum,
+)
 from finproof.evaluation.models import GoldenCase
 
 
@@ -113,6 +118,7 @@ def produce_raw_measurements(
     *,
     artifact_dir: Path,
     repeats: int,
+    suite: str = "canonical",
 ) -> None:
     """Run the evaluation-only experiment and write one raw file per variant."""
     from finproof.evaluation.ablation_experiment import produce_raw_measurements as produce
@@ -122,6 +128,17 @@ def produce_raw_measurements(
         destination,
         artifact_dir=artifact_dir,
         repeats=repeats,
+        suite=suite,
+    )
+
+
+def _suite_cases(repository_root: Path, suite: str) -> tuple[GoldenCase, ...]:
+    if suite in {"blind_development", "blind_holdout"}:
+        return load_blind_suite(suite, repository_root=repository_root)
+    if suite == "organizer_20260824":
+        return load_suite(suite, repository_root=repository_root)
+    return load_golden_cases(
+        tuple(sorted((repository_root / "evaluation" / "canonical").glob("*.jsonl")))
     )
 
 
@@ -141,9 +158,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--produce", action="store_true")
     parser.add_argument("--artifact-dir", type=Path, default=Path("artifacts"))
     parser.add_argument("--repeats", type=int, default=2)
+    parser.add_argument(
+        "--suite",
+        choices=("canonical", "organizer_20260824", "blind_development", "blind_holdout"),
+        default="canonical",
+    )
     args = parser.parse_args(argv)
     repository_root: Path = args.repository_root
     measurement_dir: Path = args.measurement_dir
+    suite: str = args.suite
     if args.produce:
         if args.repeats < 2:
             parser.error("--repeats must be at least 2")
@@ -152,10 +175,9 @@ def main(argv: list[str] | None = None) -> int:
             measurement_dir,
             artifact_dir=args.artifact_dir,
             repeats=args.repeats,
+            suite=suite,
         )
-    cases = load_golden_cases(
-        tuple(sorted((repository_root / "evaluation" / "canonical").glob("*.jsonl")))
-    )
+    cases = _suite_cases(repository_root, suite)
 
     def measure(
         variant: AblationVariant,

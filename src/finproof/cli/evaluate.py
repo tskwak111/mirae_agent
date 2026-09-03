@@ -45,7 +45,7 @@ from finproof.evaluation.adversarial import (
     RobustnessReport,
     load_adversarial_cases,
 )
-from finproof.evaluation.loader import load_golden_cases, load_suite
+from finproof.evaluation.loader import load_blind_suite, load_golden_cases, load_suite
 from finproof.evaluation.metamorphic import MetamorphicKind
 from finproof.evaluation.models import (
     ExpectedAggregate,
@@ -87,7 +87,13 @@ def run_evaluation(
 ) -> None:
     root = repository_root or Path(__file__).resolve().parents[3]
     try:
-        if suite not in {"canonical", "robustness", "organizer_20260824"}:
+        if suite not in {
+            "canonical",
+            "robustness",
+            "organizer_20260824",
+            "blind_development",
+            "blind_holdout",
+        }:
             raise ValueError("unknown evaluation suite")
         if suite == "canonical":
             cases = load_golden_cases(
@@ -95,6 +101,8 @@ def run_evaluation(
             )
         elif suite == "organizer_20260824":
             cases = load_suite(suite, repository_root=root)
+        elif suite in {"blind_development", "blind_holdout"}:
+            cases = load_blind_suite(suite, repository_root=root)
         else:
             quality, paraphrases = _robustness_cases(root)
             cases = (*quality, *paraphrases)

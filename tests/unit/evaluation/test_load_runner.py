@@ -1,12 +1,44 @@
 import hashlib
 import json
 import time
+from pathlib import Path
 
 import httpx
 import pytest
 
 from finproof.evaluation import load
-from finproof.evaluation.load import LoadCase, LoadConfig, LoadRunner
+from finproof.evaluation.load import LoadCase, LoadConfig, LoadRunner, reviewed_suite_mix
+
+
+def _write_blind_suite_fixture(root: Path) -> list[dict[str, object]]:
+    template = json.loads(
+        Path("evaluation/canonical/rank.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    )
+    cases = [
+        {
+            **template,
+            "case_id": f"CQ-{batch:03d}-{number:03d}",
+            "question": f"blind {batch:03d} {number:03d}",
+        }
+        for batch in range(12, 18)
+        for number in range(1, 25)
+    ]
+    path = root / "evaluation/blind_development/rank.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        "\n".join(json.dumps(case, ensure_ascii=False) for case in cases) + "\n",
+        encoding="utf-8",
+    )
+    return cases
+
+
+def test_reviewed_suite_mix_uses_every_blind_case_once(tmp_path: Path) -> None:
+    cases = _write_blind_suite_fixture(tmp_path)
+
+    mix = reviewed_suite_mix(tmp_path, "blind_development")
+
+    assert [case.case_id for case in mix] == [case["case_id"] for case in cases]
+    assert {case.weight for case in mix} == {1}
 
 
 def _response(request: httpx.Request) -> httpx.Response:

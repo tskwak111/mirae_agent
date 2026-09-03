@@ -26,9 +26,9 @@ from finproof.domain.answers import AnswerRequest
 from finproof.domain.execution import ExecutionSegment
 from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
 from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
-from finproof.evaluation.ablation import AblationMeasurement, AblationVariant
+from finproof.evaluation.ablation import AblationMeasurement, AblationVariant, _suite_cases
 from finproof.evaluation.latency import LatencySample, LatencySummary
-from finproof.evaluation.loader import load_golden_cases, suite_checksum
+from finproof.evaluation.loader import suite_checksum
 from finproof.evaluation.models import (
     AggregateGroupValue,
     GoldenCase,
@@ -336,14 +336,19 @@ def produce_raw_measurements(
     *,
     artifact_dir: Path,
     repeats: int,
+    suite: str = "canonical",
 ) -> None:
-    """Run all five variants over the exact canonical cases and atomically persist summaries."""
+    """Run all five variants over one reviewed suite and atomically persist summaries."""
     if repeats < 2:
         raise ValueError("ablation requires at least two repeats")
     root = repository_root.resolve(strict=True)
     artifacts = artifact_dir.resolve(strict=True)
-    cases = load_golden_cases(tuple(sorted((root / "evaluation/canonical").glob("*.jsonl"))))
-    plans = _approved_plans(root, cases)
+    cases = _suite_cases(root, suite)
+    plans = (
+        _approved_plans(root, cases)
+        if suite == "canonical"
+        else {case.case_id: _plan_from_case(case, ()) for case in cases}
+    )
     settings = Settings(
         repository_root=root,
         artifact_dir=artifacts,

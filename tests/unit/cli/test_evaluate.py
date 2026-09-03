@@ -48,6 +48,14 @@ def test_parser_accepts_robustness_evaluate_command() -> None:
     assert args.suite == "robustness"
 
 
+def test_parser_accepts_blind_development_evaluation() -> None:
+    args = _parser().parse_args(
+        ["evaluate", "--suite", "blind_development", "--output", "report.json"]
+    )
+
+    assert args.suite == "blind_development"
+
+
 def test_parser_accepts_organizer_deterministic_core_command() -> None:
     args = _parser().parse_args(
         [

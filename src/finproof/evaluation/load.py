@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.evaluation.latency import LatencySample, LatencySummary
-from finproof.evaluation.loader import load_suite
+from finproof.evaluation.loader import load_blind_suite, load_suite
 
 
 class _FrozenModel(BaseModel):
@@ -295,6 +295,17 @@ def reviewed_benchmark_mix(repository_root: Path) -> tuple[LoadCase, ...]:
     )
 
 
+def reviewed_suite_mix(repository_root: Path, suite: str) -> tuple[LoadCase, ...]:
+    return tuple(
+        LoadCase(
+            case_id=case.case_id,
+            question=case.question,
+            question_type=case.category.value,
+        )
+        for case in load_blind_suite(suite, repository_root=repository_root)
+    )
+
+
 def _write_report(path: Path, report: LoadReport) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
@@ -309,11 +320,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--rate-per-second", type=float, default=0)
     parser.add_argument("--max-requests", type=int)
+    parser.add_argument("--suite", choices=("blind_development", "blind_holdout"))
     parser.add_argument("--output", type=Path, default=Path("artifacts/evaluation/load.json"))
     args = parser.parse_args(argv)
     config = LoadConfig(
         base_url=cast(str, args.base_url),
-        cases=reviewed_benchmark_mix(Path.cwd()),
+        cases=(
+            reviewed_benchmark_mix(Path.cwd())
+            if args.suite is None
+            else reviewed_suite_mix(Path.cwd(), cast(str, args.suite))
+        ),
         concurrency=cast(int, args.concurrency),
         rate_per_second=cast(float, args.rate_per_second),
         duration_seconds=cast(float, args.duration_seconds),

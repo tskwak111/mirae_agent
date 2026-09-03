@@ -48,7 +48,13 @@ def _parser() -> argparse.ArgumentParser:
     evaluate = subcommands.add_parser("evaluate", help="Run a reviewed evaluation suite")
     evaluate.add_argument(
         "--suite",
-        choices=("canonical", "robustness", "organizer_20260824"),
+        choices=(
+            "canonical",
+            "robustness",
+            "organizer_20260824",
+            "blind_development",
+            "blind_holdout",
+        ),
         required=True,
     )
     evaluate.add_argument("--output", type=Path, required=True)

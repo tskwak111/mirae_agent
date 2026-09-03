@@ -30,7 +30,7 @@ from finproof.evaluation.ablation_experiment import (
     _measurement as _experiment_measurement,
 )
 from finproof.evaluation.latency import LatencySummary
-from finproof.evaluation.loader import load_golden_cases, suite_checksum
+from finproof.evaluation.loader import load_golden_cases, load_suite, suite_checksum
 from finproof.evaluation.models import GoldenCase, ObservedCase
 from finproof.planner.hcx_client import HcxClient, HcxRateLimitError
 from finproof.planner.models import HcxMessage, HcxRequest, HcxResponse, HcxUsage
@@ -432,7 +432,7 @@ def test_ablation_command_can_produce_then_validate_raw_measurements(
     cases = load_golden_cases(tuple(sorted(Path("evaluation/canonical").glob("*.jsonl"))))
     measurement_dir = tmp_path / "raw"
     output = tmp_path / "ablation.json"
-    observed: list[tuple[Path, Path, int]] = []
+    observed: list[tuple[Path, Path, int, str]] = []
 
     def produce_raw_measurements(
         repository_root: Path,
@@ -440,8 +440,9 @@ def test_ablation_command_can_produce_then_validate_raw_measurements(
         *,
         artifact_dir: Path,
         repeats: int,
+        suite: str,
     ) -> None:
-        observed.append((repository_root, artifact_dir, repeats))
+        observed.append((repository_root, artifact_dir, repeats, suite))
         destination.mkdir()
         for variant in AblationVariant:
             (destination / f"{variant.name}.json").write_text(
@@ -469,7 +470,72 @@ def test_ablation_command_can_produce_then_validate_raw_measurements(
         )
         == 0
     )
-    assert observed == [(Path.cwd(), tmp_path / "official-artifacts", 2)]
+    assert observed == [(Path.cwd(), tmp_path / "official-artifacts", 2, "canonical")]
+
+
+def test_ablation_command_binds_organizer_suite_to_all_five_variants(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cases = load_suite("organizer_20260824")
+    measurement_dir = tmp_path / "raw"
+    output = tmp_path / "ablation.json"
+    loaded: list[str] = []
+
+    def organizer_loader(name: str, *, repository_root: Path) -> tuple[GoldenCase, ...]:
+        assert repository_root == Path.cwd()
+        loaded.append(name)
+        return cases
+
+    def produce_raw_measurements(
+        repository_root: Path,
+        destination: Path,
+        *,
+        artifact_dir: Path,
+        repeats: int,
+        suite: str,
+    ) -> None:
+        assert repository_root == Path.cwd()
+        assert artifact_dir == tmp_path / "official-artifacts"
+        assert repeats == 2
+        assert suite == "organizer_20260824"
+        destination.mkdir()
+        for variant in AblationVariant:
+            (destination / f"{variant.name}.json").write_text(
+                _measurement(variant, len(cases), suite_checksum(cases)).model_dump_json(),
+                encoding="utf-8",
+            )
+
+    monkeypatch.setattr(ablation, "load_suite", organizer_loader, raising=False)
+    monkeypatch.setattr(ablation, "produce_raw_measurements", produce_raw_measurements)
+
+    assert (
+        main(
+            [
+                "--repository-root",
+                str(Path.cwd()),
+                "--measurement-dir",
+                str(measurement_dir),
+                "--output",
+                str(output),
+                "--produce",
+                "--artifact-dir",
+                str(tmp_path / "official-artifacts"),
+                "--suite",
+                "organizer_20260824",
+                "--repeats",
+                "2",
+            ]
+        )
+        == 0
+    )
+    report = ablation.AblationReport.model_validate_json(output.read_text(encoding="utf-8"))
+    assert loaded == ["organizer_20260824"]
+    assert report.case_checksum == suite_checksum(cases)
+    assert [result.case_count for result in report.results] == [35] * 5
+    assert all(
+        ablation._identity(result) == ablation._identity(report.results[0])
+        for result in report.results[1:]
+    )
 
 
 def test_ablation_experiment_loads_an_approved_plan_for_every_canonical_case() -> None:
