@@ -1,9 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-08-29 — The official-data refresh plan is closed through Task 9.
-Mandatory HCX Structured Outputs planning, verified HCX wording, bounded publication,
-and the shared 295-second deadline are implemented and independently reviewed; Task 10
-release verification is next.
+**Last updated:** 2026-09-03 — Official-data refresh Task 10 is closed. The 35-case
+organizer corpus, final HCX load/soak evidence, independent 0C/0I review, clean-room
+image, and covered release manifest are sealed against commit `b0cf204`.
 
 ## Frozen baseline
 
@@ -57,16 +56,48 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
   clarification case)
 - [x] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
 - [ ] Task 3: ablation and latency/load/resilience/soak measurement
-- [ ] Task 4: competition compliance and independent review closure
-- [ ] Task 5: clean-room reproduction, immutable release manifest, and submission freeze
+- [x] Task 4: competition compliance and independent review closure
+- [x] Task 5: clean-room reproduction, immutable release manifest, and submission freeze
 - [ ] Phase 4 gate passed
 
 ## Current next task
 
-**Official-data refresh Task 10: build the exact 35-case organizer suite, run the
-release/API/load/soak/compliance checks, obtain final independent 0C/0I review, and
-produce the covered release manifest.** Phase 4 Task 3 resumes after this official
-refresh/release plan is closed.
+**Phase 4 Task 3: reconcile and close the existing ablation outputs and proposal
+measurements without changing the sealed runtime candidate.** If that work requires a
+behavior/data/prompt/policy/image change, create and verify a new covered candidate.
+
+## Official-data refresh Task 10 closure
+
+- Candidate commits: `af16c1d` (release candidate), `347f53a` (single bounded review
+  correction), `4cf620c`/`ecda44e`/`424d06f` (mandatory-gate August fixture alignment),
+  and `b0cf204` (direct release-verifier CLI correction). Final covered commit:
+  `b0cf204f27d41811df69c52d02c8791afb69cfa0`.
+- The approved organizer corpus contains 35 cases: easy 10, medium 10, hard 10, and
+  unanswerable 5. Reviewer 곽태성 approved v3 questions/plans and expected
+  results/answers on 2026-08-29; the expected packet SHA-256 is
+  `859602d78d005b66e4417a8093c4585a8198cde6890f6066c7216100a625f38c`.
+- Final live acceptance: 35/35 load requests, zero failures, mean 7,347.939 ms and p95
+  11,351.361 ms; 20 soak cycles/80 observations, 517.0632837210433 active seconds,
+  zero failures, and zero drift. D-041 explicitly does not claim a 24-hour soak.
+- Initial independent review returned Critical 0 / Important 3. The single bounded
+  correction closed all three; re-review returned Critical 0 / Important 0 / READY.
+- Focused release-CLI RED failed with `ModuleNotFoundError: tools`; GREEN passed, and
+  the related release-manifest aggregate passed 8 tests. Earlier focused August profile
+  corrections passed their three official integration cases and a 474-test aggregate.
+- Final clean-clone gate on `b0cf204`: Ruff format/check PASS (335 files), mypy PASS
+  (335 files), pytest `2963 passed, 9 skipped, 5 warnings in 3122.83s`, source audit
+  PASS at 53,375 rows, and handoff PASS at 61 files / 9 inputs / 19,074,953 bytes.
+- Clean-room reproduction checked out the exact detached commit, passed compliance and
+  release contracts (`12 passed`), and built image
+  `sha256:5ef62fa1e665ec2626b84d5878eb2c084b5ac74c100da162efa80797a7f8a7be`.
+  Artifact logical hash is
+  `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`;
+  `release/manifest.json` verification passed.
+- Residual risks: the clean soak is short-duration, sealed holdings coverage is
+  unavailable, and hidden organizer latency scoring is unknown. The organizer
+  `repeat_stability` 0/0 axis is not used as evidence.
+- User-owned ablation JSON changes, both PDFs, and `evaluation/review_batches/*`
+  remained untouched and unstaged.
 
 ## Official-data refresh Task 9 closure
 
