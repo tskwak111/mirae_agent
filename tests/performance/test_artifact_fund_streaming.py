@@ -11,14 +11,13 @@ pytestmark = pytest.mark.performance
 
 def test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.config import ArtifactBuildConfig, ArtifactBuildOptions
     from finproof.data.artifacts.silver import SilverArtifactEmitter
-    from finproof.data.artifacts.staging import ArtifactBuildSession
-    from finproof.data.normalization import public_funds
-    from finproof.data.normalization.public_funds import normalize_public_fund_item_group
+    from finproof.data.artifacts.staging import ArtifactBuildSession, ExternalOrderRelation
+    from finproof.data.normalization.public_funds import normalize_public_fund_item
+    from finproof.domain.public_funds import PublicFundItem
     from finproof.domain.source import SourceRow
     from finproof.registry.rating import RatingRegistry
     from tests.helpers.artifacts import artifact_build_input_identity
@@ -37,16 +36,17 @@ def test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds(
             "PRFD01N001",
             {
                 "itm_no": f"KR{item:010d}",
-                "prfd_attr_cd": f"C{attribute:03d}",
+                "prfd_attr_cds": ",".join(f"C{attribute:03d}" for attribute in range(16)),
+                "prfd_attr_cnt": "16",
             },
-            excel_row=item * 16 + attribute + 2,
+            excel_row=item + 2,
         )
-        for item in range(1, 101)
-        for attribute in range(16)
+        for item in range(1, 1601)
     )
     expected = tuple(
-        normalize_public_fund_item_group(rows[offset : offset + 16])
-        for offset in range(0, len(rows), 16)
+        result.record
+        for row in rows
+        if (result := normalize_public_fund_item(row)).record is not None
     )
     source_iterations = 0
 
@@ -62,11 +62,6 @@ def test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds(
         def __len__(self) -> int:
             raise AssertionError("source rows must not be sized")
 
-    monkeypatch.setattr(
-        public_funds,
-        "normalize_public_funds",
-        lambda *_args, **_kwargs: pytest.fail("global public-fund collapse was called"),
-    )
     with ArtifactBuildSession.initialize(
         settings,
         versions,
@@ -84,9 +79,18 @@ def test_silver_fund_and_relation_pipeline_stays_within_closed_streaming_bounds(
         for row in OnePassRows():
             emitter.consume(row)
 
-        observed = tuple(emitter._iter_normalized_fund_groups())
+        batches = tuple(
+            emitter._order_store.iter_ordered_batches(
+                relation=ExternalOrderRelation.SILVER_FUND_ITEM
+            )
+        )
+        observed = tuple(
+            PublicFundItem.model_validate_json(staged.payload_json)
+            for batch in batches
+            for staged in batch
+        )
 
         assert observed == expected
-        assert emitter._max_live_fund_group_rows <= 16
-        assert emitter._max_relation_batch_rows <= 65_536
+        assert emitter._max_live_fund_group_rows == 0
+        assert max(map(len, batches)) <= 65_536
         assert source_iterations == 1

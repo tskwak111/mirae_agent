@@ -189,26 +189,26 @@ def test_silver_observations_preserve_exact_bronze_prefix_and_reject_forged_or_c
         for table in source_names
     )
     bronze = BronzeSourceAuditObservations.from_bronze(
-        source_snapshot_date=date(2026, 7, 11),
+        source_snapshot_date=date(2026, 8, 24),
         source_manifest_sha256="a" * 64,
         schema_catalog_sha256="b" * 64,
         source_tables=source_tables,
     )
     silver_names: tuple[
         Literal[
+            "bond_sale_lot",
             "bond_instrument",
             "domestic_listed_product",
             "overseas_listed_product",
             "fund_item",
-            "fund_item_attribute",
         ],
         ...,
     ] = (
+        "bond_sale_lot",
         "bond_instrument",
         "domestic_listed_product",
         "overseas_listed_product",
         "fund_item",
-        "fund_item_attribute",
     )
     silver_counts = tuple(
         NamedExpectedObservedCount(name=name, expected=1, observed=1) for name in silver_names

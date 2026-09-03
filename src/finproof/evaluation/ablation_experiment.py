@@ -533,7 +533,7 @@ def _plan_from_case(case: GoldenCase, entities: object) -> QueryPlan:
     for clause in payload.get("filters") or ():
         if clause.get("operator") in {"is_missing", "is_not_missing"}:
             clause.pop("value", None)
-    for field in ("filters", "metrics", "sort"):
+    for field in ("filters", "metrics", "metric_targets", "sort"):
         payload[field] = payload[field] or []
     payload["entities"] = entities
     return QueryPlan.model_validate_json(json.dumps(payload, ensure_ascii=False))

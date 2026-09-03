@@ -18,6 +18,7 @@ from tools.generate_canonical_questions import (
 
 from finproof.planner.hcx_client import HcxClient
 from finproof.planner.models import HcxRequest
+from finproof.service.limits import RequestDeadline
 
 _CATEGORIES = (
     *("lookup" for _ in range(4)),
@@ -307,9 +308,13 @@ class _Client:
     def __init__(self, content: str) -> None:
         self._content = content
         self.requests: list[tuple[HcxRequest, str]] = []
+        self.deadlines: list[RequestDeadline] = []
 
-    async def generate(self, request: HcxRequest, request_id: str) -> _Response:
+    async def generate(
+        self, request: HcxRequest, request_id: str, *, deadline: RequestDeadline
+    ) -> _Response:
         self.requests.append((request, request_id))
+        self.deadlines.append(deadline)
         return _Response(self._content)
 
 
@@ -356,6 +361,7 @@ async def test_batches_006_011_emit_exact_pending_review_contracts(
     ]
     request, observed_request_id = client.requests[0]
     assert observed_request_id == request_id
+    assert type(client.deadlines[0]) is RequestDeadline
     assert request.seed == seed
     assert request.temperature == 0.0
     assert request.messages[0].content == expected_prompt

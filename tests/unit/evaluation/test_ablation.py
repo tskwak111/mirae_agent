@@ -56,7 +56,8 @@ from finproof.storage.repositories.products import (
 
 
 class _FailingPlanner:
-    async def plan(self, _request: PlanningRequest) -> PlannedQuery:
+    async def plan(self, _request: PlanningRequest, *, deadline: RequestDeadline) -> PlannedQuery:
+        del deadline
         raise ValueError("local plan validation failed")
 
 

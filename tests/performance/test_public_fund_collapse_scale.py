@@ -9,7 +9,7 @@ import pytest
 
 import finproof.data.normalization.public_funds as public_funds
 from finproof.domain.normalization import NormalizationResult
-from finproof.domain.public_funds import FundAttributeRow
+from finproof.domain.public_funds import PublicFundItem
 from finproof.domain.source import SourceRow
 from tests.helpers.source_rows import source_row
 
@@ -25,7 +25,11 @@ def _unique_item_rows(size: int) -> tuple[SourceRow, ...]:
     return tuple(
         source_row(
             "PRFD01N001",
-            {"itm_no": f"KR{index:010d}", "prfd_attr_cd": "A001"},
+            {
+                "itm_no": f"KR{index:010d}",
+                "prfd_attr_cds": "A001",
+                "prfd_attr_cnt": "1",
+            },
             excel_row=index + 2,
         )
         for index in range(size)
@@ -37,9 +41,15 @@ def _transient_bytes(size: int) -> int:
     gc.collect()
     tracemalloc.start()
     try:
-        result = public_funds.normalize_public_funds(iter(rows))
+        item_count = 0
+        for row in rows:
+            result: NormalizationResult[PublicFundItem] = public_funds.normalize_public_fund_item(
+                row
+            )
+            assert result.record is not None
+            item_count += 1
         current_bytes, peak_bytes = tracemalloc.get_traced_memory()
-        assert (len(result.items), len(result.attributes)) == (size, size)
+        assert item_count == size
         return peak_bytes - current_bytes
     finally:
         tracemalloc.stop()
@@ -57,15 +67,15 @@ def test_authoritative_path_transient_slope_is_bounded(
     assert large_bytes <= limit, (small_bytes, large_bytes, limit)
 
 
-def test_authoritative_path_releases_each_normalized_group(
+def test_authoritative_path_releases_each_normalized_item(
     monkeypatch: pytest.MonkeyPatch,
     record_property: Callable[[str, object], None],
 ) -> None:
     """Normalized row records must die before the next single-row group advances."""
-    original = public_funds.normalize_fund_attribute
+    original = public_funds.normalize_public_fund_item
     live = peak_live = 0
 
-    def tracked(row: SourceRow) -> NormalizationResult[FundAttributeRow]:
+    def tracked(row: SourceRow) -> NormalizationResult[PublicFundItem]:
         nonlocal live, peak_live
         result = original(row)
         if result.record is not None:
@@ -79,10 +89,12 @@ def test_authoritative_path_releases_each_normalized_group(
             weakref.finalize(result.record, released)
         return result
 
-    monkeypatch.setattr(public_funds, "normalize_fund_attribute", tracked)
-    result = public_funds.normalize_public_funds(iter(_unique_item_rows(512)))
+    monkeypatch.setattr(public_funds, "normalize_public_fund_item", tracked)
+    for row in _unique_item_rows(512):
+        result = public_funds.normalize_public_fund_item(row)
+        assert result.record is not None
+    del result
     gc.collect()
     record_property("peak_live_fund_attribute_rows", peak_live)
-    assert (len(result.items), len(result.attributes)) == (512, 512)
     assert 1 <= peak_live <= 4
     assert live == 0

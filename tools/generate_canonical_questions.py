@@ -20,6 +20,7 @@ from pydantic import SecretStr
 
 from finproof.planner.hcx_client import HcxClient, create_hcx_http_client
 from finproof.planner.models import HcxMessage, HcxRequest
+from finproof.service.limits import RequestDeadline
 
 BATCH_ID = "001"
 PROVIDER = "naver-hyperclova-x"
@@ -577,7 +578,9 @@ class _Response(Protocol):
 
 
 class _Client(Protocol):
-    async def generate(self, request: HcxRequest, request_id: str) -> _Response: ...
+    async def generate(
+        self, request: HcxRequest, request_id: str, *, deadline: RequestDeadline
+    ) -> _Response: ...
 
 
 class _AuthoringHcxClient(HcxClient):
@@ -608,7 +611,11 @@ async def generate_review_packet(
         temperature=0.0,
         seed=seed,
     )
-    response = await client.generate(request, request_id=request_id)
+    response = await client.generate(
+        request,
+        request_id=request_id,
+        deadline=RequestDeadline.start(),
+    )
     candidates = _validate_candidates(response.message_content, batch_id=batch_id)
     timestamp = generated_at or datetime.now(UTC)
     if timestamp.tzinfo is None:
