@@ -374,6 +374,45 @@ def test_refuses_noncanonical_contract_violations_before_artifact_open(
     assert not output.exists()
 
 
+def test_rejects_question_collision_with_reviewed_suite_before_artifact_open(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    review_root = repository / "evaluation" / "review_batches"
+    canonical = repository / "evaluation" / "canonical"
+    review_root.mkdir(parents=True)
+    canonical.mkdir(parents=True)
+    packet = _approved_packet()
+    packet["cases"][0]["question"] = "중복   질문"
+    input_path = review_root / "approved-plans.json"
+    input_path.write_text(json.dumps(packet, ensure_ascii=False), encoding="utf-8")
+    existing = json.loads(
+        (Path(__file__).resolve().parents[3] / "evaluation/canonical/rank.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
+    existing["case_id"] = "existing-case"
+    existing["question"] = "중복\n질문"
+    (canonical / "rank.jsonl").write_text(
+        json.dumps(existing, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        authoring,
+        "open_runtime_artifact_session",
+        lambda _settings: pytest.fail("collision reached artifact verification"),
+    )
+
+    with pytest.raises(ValueError, match="normalized question"):
+        authoring.build_reference_packet(
+            input_path,
+            review_root / "reference.json",
+            artifact_dir=tmp_path / "artifact",
+            repository_root=repository,
+        )
+
+
 def test_existing_output_is_never_overwritten_and_leaves_no_temporary_file(
     tmp_path: Path,
 ) -> None:

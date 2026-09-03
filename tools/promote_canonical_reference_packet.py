@@ -25,6 +25,7 @@ from finproof.domain.answers import AnswerClaim, ClaimKind, FactPack, VerifiedAn
 from finproof.domain.evidence import EvidenceSummary
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import EntityMention, Intent, ProductType, QueryPlan, ResultGrain
+from finproof.evaluation.loader import reject_promoted_case_collisions
 from finproof.evaluation.models import (
     EvaluationCategory,
     ExpectedAggregate,
@@ -104,16 +105,29 @@ def promote_reference_packet(
     canonical_dir: Path,
     *,
     repository_root: Path,
+    review_authority: str = "human",
 ) -> None:
     """Validate and atomically replace each affected category file."""
     review_dir = (repository_root / "evaluation/review_batches").resolve()
-    expected_canonical = (repository_root / "evaluation/canonical").resolve()
+    destinations = {
+        (repository_root / "evaluation/canonical").resolve(): "canonical",
+        (repository_root / "evaluation/blind_development").resolve(): "blind_development",
+        (repository_root / "evaluation/blind_holdout").resolve(): "blind_holdout",
+    }
     if (
         reference_path.resolve().parent != review_dir
         or approval_path.resolve().parent != review_dir
     ):
         raise ValueError("reference and approval must be under evaluation/review_batches")
-    if canonical_dir.resolve() != expected_canonical:
+    destination = destinations.get(canonical_dir.resolve())
+    if review_authority not in {"human", "independent_blind_curator"}:
+        raise ValueError("review authority differs")
+    if review_authority == "independent_blind_curator" and destination not in {
+        "blind_development",
+        "blind_holdout",
+    }:
+        raise ValueError("canonical and organizer admission require human review")
+    if destination is None:
         raise ValueError("canonical output path differs")
 
     reference_raw = read_held_regular_file(_absolute(reference_path))
@@ -122,6 +136,11 @@ def promote_reference_packet(
     reference = _load_json(reference_raw, "reference packet")
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     cases = _build_cases(reference, approval, reference_path.name, fields)
+    reject_promoted_case_collisions(
+        cases,
+        repository_root=repository_root,
+        destination=destination,
+    )
     existing, existing_ids = _load_existing(canonical_dir)
     incoming_ids = {case.case_id for case in cases}
     duplicates = existing_ids & incoming_ids
@@ -741,12 +760,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--approval", required=True, type=Path)
     parser.add_argument("--canonical-dir", required=True, type=Path)
     parser.add_argument("--repository-root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--review-authority",
+        choices=("human", "independent_blind_curator"),
+        default="human",
+    )
     args = parser.parse_args(argv)
     promote_reference_packet(
         args.reference,
         args.approval,
         args.canonical_dir,
         repository_root=args.repository_root,
+        review_authority=args.review_authority,
     )
     return 0
 

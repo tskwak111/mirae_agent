@@ -581,3 +581,42 @@ def test_rejects_reference_outside_review_batch_before_writing(tmp_path: Path) -
         _promote(repository, unsafe, approval, canonical)
 
     assert tuple(canonical.glob("*.jsonl")) == (canonical / "clarification.jsonl",)
+
+
+def test_independent_curator_cannot_promote_into_canonical(tmp_path: Path) -> None:
+    repository, reference, approval, canonical = _workspace(tmp_path)
+    module = _promotion()
+
+    with pytest.raises(ValueError, match="human review"):
+        module.promote_reference_packet(  # type: ignore[attr-defined]
+            reference,
+            approval,
+            canonical,
+            repository_root=repository,
+            review_authority="independent_blind_curator",
+        )
+
+
+def test_cli_defaults_to_human_review_authority_and_allows_the_blind_curator(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    module = _promotion()
+    observed: list[str] = []
+
+    def promote(*_args: object, **kwargs: object) -> None:
+        observed.append(cast(str, kwargs["review_authority"]))
+
+    monkeypatch.setattr(module, "promote_reference_packet", promote)
+    base = [
+        "--reference",
+        str(tmp_path / "reference.json"),
+        "--approval",
+        str(tmp_path / "approval.json"),
+        "--canonical-dir",
+        str(tmp_path / "evaluation/blind_development"),
+    ]
+
+    assert module.main(base) == 0  # type: ignore[attr-defined]
+    assert module.main([*base, "--review-authority", "independent_blind_curator"]) == 0  # type: ignore[attr-defined]
+    assert observed == ["human", "independent_blind_curator"]

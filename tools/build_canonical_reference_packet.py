@@ -13,6 +13,7 @@ from finproof.core.settings import ExecutionMode, Settings
 from finproof.data.artifacts.safe_files import read_held_regular_file
 from finproof.domain.answers import AnswerRequest
 from finproof.domain.query_plan import QueryPlan
+from finproof.evaluation.loader import reject_draft_case_collisions
 from finproof.evaluation.models import EvaluationCategory
 from finproof.runtime.session import open_runtime_artifact_session
 from finproof.service.answer_service import AnswerService
@@ -42,6 +43,10 @@ def build_reference_packet(
     _validate_output_path(output, repository_root=repository_root)
     raw_input = read_held_regular_file(_absolute(input_path))
     source, approved_cases = _load_approved_packet(raw_input)
+    reject_draft_case_collisions(
+        tuple((question, plan) for _, _, question, _, plan in approved_cases),
+        repository_root=repository_root,
+    )
     settings = Settings.model_validate(
         {
             "repository_root": repository_root,

@@ -1,7 +1,8 @@
 """JSONL loader for canonical, category-split golden cases."""
 
 import json
-from collections.abc import Sequence
+import re
+from collections.abc import Mapping, Sequence
 from enum import StrEnum
 from hashlib import sha256
 from pathlib import Path
@@ -9,8 +10,14 @@ from typing import Self
 
 from pydantic import model_validator
 
-from finproof.domain.query_plan import Intent
+from finproof.domain.query_plan import Intent, QueryPlan
 from finproof.evaluation.models import EvaluationCategory, GoldenCase
+
+_BLIND_SUITES = {
+    "blind_development": (frozenset(f"{number:03d}" for number in range(12, 18)), 144),
+    "blind_holdout": (frozenset({"018", "019"}), 48),
+}
+_BLIND_CASE_ID = re.compile(r"^CQ-(\d{3})-\d{3}$")
 
 
 class OrganizerDifficulty(StrEnum):
@@ -106,6 +113,125 @@ def load_suite(
     if not cases:
         raise ValueError("organizer suite is empty")
     return tuple(cases)
+
+
+def load_blind_suite(
+    name: str,
+    *,
+    repository_root: Path | None = None,
+) -> tuple[GoldenCase, ...]:
+    """Load one reviewed blind suite with its fixed batch and case-count contract."""
+    try:
+        allowed_batches, expected_count = _BLIND_SUITES[name]
+    except KeyError as exc:
+        raise ValueError("unknown blind evaluation suite") from exc
+    root = repository_root or Path(__file__).resolve().parents[3]
+    try:
+        cases = load_golden_cases(tuple(sorted((root / "evaluation" / name).glob("*.jsonl"))))
+    except ValueError as exc:
+        raise ValueError(f"{name.replace('_', ' ')} suite shape differs") from exc
+    batches: set[str] = set()
+    for case in cases:
+        match = _BLIND_CASE_ID.fullmatch(case.case_id)
+        if match is None:
+            raise ValueError(f"{name.replace('_', ' ')} case ID differs")
+        batches.add(match.group(1))
+    if len(cases) != expected_count or batches != allowed_batches:
+        raise ValueError(f"{name.replace('_', ' ')} suite shape differs")
+    _reject_cross_suite_collisions(root, name, cases)
+    return cases
+
+
+def reject_draft_case_collisions(
+    cases: Sequence[tuple[str, QueryPlan]],
+    *,
+    repository_root: Path,
+) -> None:
+    """Reject reviewed-suite question or declared-plan collisions before execution."""
+    existing = _reviewed_suite_cases(repository_root)
+    question_keys = {
+        _normalized_question(case.question)
+        for suite_cases in existing.values()
+        for case in suite_cases
+    }
+    plan_keys = {
+        _plan_signature(case.expected_plan.model_dump(mode="json", exclude_none=True))
+        for suite_cases in existing.values()
+        for case in suite_cases
+    }
+    for question, plan in cases:
+        if _normalized_question(question) in question_keys:
+            raise ValueError("draft case duplicates a reviewed normalized question")
+        if _plan_signature(plan.model_dump(mode="json", exclude_none=True)) in plan_keys:
+            raise ValueError("draft case duplicates a reviewed semantic plan")
+
+
+def reject_promoted_case_collisions(
+    cases: Sequence[GoldenCase],
+    *,
+    repository_root: Path,
+    destination: str,
+) -> None:
+    """Reject cross-suite duplicates while allowing existing canonical review history."""
+    _reject_cross_suite_collisions(repository_root, destination, cases)
+
+
+def _reject_cross_suite_collisions(
+    root: Path,
+    destination: str,
+    incoming: Sequence[GoldenCase],
+) -> None:
+    suites = _reviewed_suite_cases(root)
+    suites[destination] = (*suites.get(destination, ()), *incoming)
+    seen_questions: dict[str, str] = {}
+    seen_plans: dict[str, str] = {}
+    for name, cases in suites.items():
+        for case in cases:
+            label = f"{name}:{case.case_id}"
+            question = _normalized_question(case.question)
+            signature = _plan_signature(
+                case.expected_plan.model_dump(mode="json", exclude_none=True)
+            )
+            if question in seen_questions and seen_questions[question].split(":", 1)[0] != name:
+                raise ValueError("reviewed suites contain a duplicate normalized question")
+            if signature in seen_plans and seen_plans[signature].split(":", 1)[0] != name:
+                raise ValueError("reviewed suites contain a duplicate semantic plan")
+            seen_questions[question] = label
+            seen_plans[signature] = label
+
+
+def _reviewed_suite_cases(root: Path) -> dict[str, tuple[GoldenCase, ...]]:
+    suites: dict[str, tuple[GoldenCase, ...]] = {}
+    canonical_paths = tuple(sorted((root / "evaluation/canonical").glob("*.jsonl")))
+    if canonical_paths:
+        suites["canonical"] = load_golden_cases(canonical_paths)
+    organizer_dir = root / "evaluation/organizer_20260824"
+    if tuple(sorted(path.name for path in organizer_dir.glob("*.jsonl"))) == (
+        "easy.jsonl",
+        "hard.jsonl",
+        "medium.jsonl",
+        "unanswerable.jsonl",
+    ):
+        suites["organizer_20260824"] = load_suite("organizer_20260824", repository_root=root)
+    for name in _BLIND_SUITES:
+        paths = tuple(sorted((root / "evaluation" / name).glob("*.jsonl")))
+        if paths:
+            suites[name] = load_golden_cases(paths)
+    return suites
+
+
+def _normalized_question(question: str) -> str:
+    return " ".join(question.split()).casefold()
+
+
+def _plan_signature(plan: Mapping[str, object]) -> str:
+    normalized = {
+        key: value for key, value in plan.items() if key not in {"entities", "native_segments"}
+    }
+    payload = json.dumps(
+        normalized, ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    ).encode()
+    return sha256(payload).hexdigest()
 
 
 def suite_checksum(cases: Sequence[GoldenCase]) -> str:
