@@ -1,6 +1,6 @@
 # Blind Evaluation and Submission Hardening Design
 
-**Status:** In-chat design approved on 2026-09-03; written-spec review pending
+**Status:** Approved by the user on 2026-09-03
 
 **Scope:** Add a 192-case latest-data evaluation program, preserve a genuinely unseen
 48-case holdout through the only allowed correction, close the official ontology and
