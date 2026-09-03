@@ -37,11 +37,11 @@ _CATEGORIES = (
 @pytest.mark.parametrize(
     ("batch_id", "seed", "version"),
     [
-        ("012", 149, "canonical-question-candidates-v27"),
-        ("013", 161, "canonical-question-candidates-v22"),
-        ("014", 173, "canonical-question-candidates-v23"),
-        ("015", 185, "canonical-question-candidates-v24"),
-        ("016", 197, "canonical-question-candidates-v28"),
+        ("012", 149, "canonical-question-candidates-v29"),
+        ("013", 161, "canonical-question-candidates-v30"),
+        ("014", 173, "canonical-question-candidates-v31"),
+        ("015", 185, "canonical-question-candidates-v32"),
+        ("016", 197, "canonical-question-candidates-v33"),
         ("017", 209, "canonical-question-candidates-v26"),
     ],
 )
@@ -62,7 +62,7 @@ def test_batch_012_slots_add_semantics_that_break_frozen_plan_collisions() -> No
         10: ("신용등급", "AA- 이상"),
     }
 
-    assert version == "canonical-question-candidates-v27"
+    assert version == "canonical-question-candidates-v29"
     for position, required_phrases in required_by_position.items():
         slot = slots[position - 1]
         assert all(phrase in slot for phrase in required_phrases)
@@ -75,7 +75,7 @@ def test_batch_016_slot_24_is_distinct_ticker_name_quality_request() -> None:
     families = generator._BLIND_DEVELOPMENT_FAMILIES["016"]
     slot = slots[23]
 
-    assert version == "canonical-question-candidates-v28"
+    assert version == "canonical-question-candidates-v33"
     assert slot.startswith("quality: ")
     assert families[23] == "entity_variant"
     assert "QQQ" not in slot
@@ -84,6 +84,26 @@ def test_batch_016_slot_24_is_distinct_ticker_name_quality_request() -> None:
     assert "원천 상품명" in slot
     assert slot != slots[14]
     assert slot in prompt
+
+
+def test_blind_development_slots_use_current_bond_and_bound_wide_screen() -> None:
+    slots = generator._BLIND_DEVELOPMENT_SLOTS
+
+    assert not any(
+        stale in slot
+        for batch_slots in slots.values()
+        for slot in batch_slots
+        for stale in ("KR101501DA16", "KR101501DAI6")
+    )
+    for batch_id, positions in {
+        "012": (1, 14),
+        "013": (3,),
+        "014": (15,),
+        "015": (2,),
+        "016": (2,),
+    }.items():
+        assert all("KR350103G9B0" in slots[batch_id][position - 1] for position in positions)
+    assert all("최대 30개" in slot for slot in slots["014"][6:9])
 
 
 def test_blind_development_slots_have_approved_family_distribution() -> None:
@@ -204,7 +224,7 @@ def test_blind_development_entity_family_contains_concrete_variants() -> None:
                 "KODEX 200",
                 "코덱스200",
                 "QQQ",
-                "KR101501DAI6",
+                "KR350103G9BO",
                 "Vanguard 500 Index Fund ETF",
                 "삼성 KODEX 200 증권상장지수투자신탁[주식]",
             )
