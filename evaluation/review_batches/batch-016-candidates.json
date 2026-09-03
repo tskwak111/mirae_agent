@@ -1,0 +1,143 @@
+{
+  "batch_id": "016",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 197,
+  "prompt_version": "canonical-question-candidates-v19",
+  "prompt_sha256": "c268f89ce42612dac0796764d667b594961096f8f7cd377da8e62b33037c1c32",
+  "generated_at": "2026-09-03T11:39:08Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-016-001",
+      "category": "lookup",
+      "question": "국내 ETF와 공모펀드의 1개월 수익률은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-002",
+      "category": "lookup",
+      "question": "국내채권의 매수수익률과 해외 ETF의 1일 수익률을 같은 성과 순위로 합칠 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-016-003",
+      "category": "lookup",
+      "question": "국내 ETF와 해외 ETF의 AUM은 통화별로 어떻게 분리되어 조회되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-004",
+      "category": "lookup",
+      "question": "공모펀드의 3개월과 1년 수익률은 같은 상품 기준으로 어떻게 조회하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-005",
+      "category": "screen",
+      "question": "특정 기업을 보유한 국내 ETF를 요청하려면 어떤 절차를 따라야 하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-006",
+      "category": "screen",
+      "question": "해외 ETF 중 특정 산업군에 노출된 상품을 찾는 방법은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-016-007",
+      "category": "screen",
+      "question": "총보수 0%와 총보수 누락인 국내 ETF를 어떻게 구분하여 필터링하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-008",
+      "category": "screen",
+      "question": "BUYABLE_QUANTITY가 유효하지 않은 국내채권은 매수 가능 조건에서 어떻게 제외되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-009",
+      "category": "screen",
+      "question": "KODEX 200의 이름 변형이 있는 경우, 이를 정확한 상품 식별자와 어떻게 연결하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-010",
+      "category": "rank",
+      "question": "국내 ETF의 티커 및 별칭은 정확한 식별자가 확인된 경우에만 같은 상품으로 순위화되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-011",
+      "category": "rank",
+      "question": "해외 ETF의 점 포함 티커와 이름 변형은 정확한 등록 식별자로만 연결되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-012",
+      "category": "rank",
+      "question": "공모펀드 상품명의 변형은 itm_no가 일치한 경우에만 동일한 상품으로 처리되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-013",
+      "category": "rank",
+      "question": "채권 종목코드의 오탈자 후보는 유사도만으로 자동 보정되지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-014",
+      "category": "compare",
+      "question": "두 ETF의 유사한 상품명을 가진 경우, 정확한 식별자 확인 전에 동일 상품 비교로 처리하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-015",
+      "category": "compare",
+      "question": "ETF의 티커와 ISIN은 정확한 등록 연결이 있을 때만 같은 상품으로 비교되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-016",
+      "category": "compare",
+      "question": "공모펀드의 클래스명이 유사한 경우에도 명시적 클래스 통합 요청 없이는 가족으로 추론하지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-017",
+      "category": "aggregate",
+      "question": "중복 표기된 ETF 이름은 정확한 상품 식별자 기준으로만 집계되나요?"
+    },
+    {
+      "candidate_id": "CQ-016-018",
+      "category": "aggregate",
+      "question": "공모펀드의 같은 이름 항목은 itm_no 기준으로만 중복 여부를 판단하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF의 동명 상품은 정확한 식별자 연결 전 같은 상품으로 합쳐지지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-020",
+      "category": "cross_product",
+      "question": "채권과 ETF의 유사 발행사명은 교차상품 링크를 만들지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-021",
+      "category": "clarification",
+      "question": "KODEX 200을 요청할 때는 정확한 티커 또는 상품 식별자를 확인해야 하나요?"
+    },
+    {
+      "candidate_id": "CQ-016-022",
+      "category": "quality",
+      "question": "상품명 띄어쓰기의 차이는 후보 제안만 하고 자동 병합하지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-023",
+      "category": "quality",
+      "question": "한글 및 영문 브랜드명의 변형은 정확한 식별자 연결 전까지 동일 상품으로 단정하지 않나요?"
+    },
+    {
+      "candidate_id": "CQ-016-024",
+      "category": "quality",
+      "question": "해외 티커의 접미사 차이는 정확한 등록 식별자 확인 후에만 연결되나요?"
+    }
+  ]
+}

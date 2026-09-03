@@ -1,0 +1,143 @@
+{
+  "batch_id": "012",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 149,
+  "prompt_version": "canonical-question-candidates-v15",
+  "prompt_sha256": "b52ca3b3cf45da65a1d5b4d575b392a68292354e740724d3fb18e2b46c8f5f7e",
+  "generated_at": "2026-09-03T11:36:56Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-012-001",
+      "category": "lookup",
+      "question": "어떤 국내채권의 만기일과 매수수익률을 같은 기준일로 조회할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-012-002",
+      "category": "lookup",
+      "question": "어떤 국내 ETF의 총보수와 1년 수익률을 함께 조회할 수 있나요? (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-003",
+      "category": "lookup",
+      "question": "어떤 해외 ETF의 AUM과 총보수를 함께 조회할 수 있나요? (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-004",
+      "category": "lookup",
+      "question": "어떤 공모펀드의 3개월 수익률과 1년 수익률을 함께 조회할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-012-005",
+      "category": "screen",
+      "question": "만기일과 신용등급 조건을 만족하면서 매수가능수량이 양수인 국내채권을 필터링해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-006",
+      "category": "screen",
+      "question": "3개월 수익률과 총보수 조건을 동시에 만족하며 ETN을 제외한 국내 ETF를 필터링해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-007",
+      "category": "screen",
+      "question": "AUM과 거래통화 조건을 동시에 만족하며 ETN을 제외한 해외 ETF를 필터링해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-008",
+      "category": "screen",
+      "question": "6개월 수익률이 높고 위험등급이 낮은 공모펀드를 필터링해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-009",
+      "category": "screen",
+      "question": "연초이후 수익률과 추적오차를 동시에 만족하는 국내 ETN을 필터링해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-010",
+      "category": "rank",
+      "question": "매수가능수량이 양수인 국내채권을 매수수익률 기준으로 상위 5개를 정렬해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-011",
+      "category": "rank",
+      "question": "국내 ETF 중 1년 수익률이 가장 낮은 하위 5개를 정렬해 주세요. (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-012",
+      "category": "rank",
+      "question": "해외 ETF 중 총보수가 가장 낮은 상위 5개를 정렬해 주세요. (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-013",
+      "category": "rank",
+      "question": "2년 수익률이 높은 공모펀드 상위 5개를 정렬해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-014",
+      "category": "compare",
+      "question": "두 개의 국내채권의 만기일과 신용등급을 어떻게 비교하나요?"
+    },
+    {
+      "candidate_id": "CQ-012-015",
+      "category": "compare",
+      "question": "두 개의 국내 ETF의 AUM과 총보수를 어떻게 비교하나요? (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-016",
+      "category": "compare",
+      "question": "두 개의 공모펀드의 1년 수익률과 위험등급을 어떻게 비교하나요?"
+    },
+    {
+      "candidate_id": "CQ-012-017",
+      "category": "aggregate",
+      "question": "국내 ETF의 총보수 평균과 AUM 평균을 각각 계산해 주세요. (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-012-018",
+      "category": "aggregate",
+      "question": "공모펀드의 3개월 수익률 평균과 1년 수익률 평균을 각각 계산해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 6개월 수익률 상위 4개를 유형별로 분리하여 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-012-020",
+      "category": "cross_product",
+      "question": "국내채권은 매수수익률, 국내 ETF는 1년 수익률 기준으로 각각 상위 4개를 유형별로 보여주세요."
+    },
+    {
+      "candidate_id": "CQ-012-021",
+      "category": "clarification",
+      "question": "기록된 0% 수익률과 누락된 수익률을 동일하게 취급하지 않는 기준은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-012-022",
+      "category": "quality",
+      "question": "AUM 순위에서 기록된 0 및 누락값을 제외하고 몇 개의 항목을 제외했는지 표시해 주세요."
+    },
+    {
+      "candidate_id": "CQ-012-023",
+      "category": "quality",
+      "question": "해외 ETF의 보유종목 전체 목록을 요구하는 요청 시 어떤 제한 사항이 있나요?"
+    },
+    {
+      "candidate_id": "CQ-012-024",
+      "category": "quality",
+      "question": "고정 환율 없이 서로 다른 통화 AUM을 하나의 순위로 합칠 수 없는 이유는 무엇인가요?"
+    }
+  ]
+}

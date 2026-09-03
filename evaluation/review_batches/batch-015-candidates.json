@@ -1,0 +1,143 @@
+{
+  "batch_id": "015",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 185,
+  "prompt_version": "canonical-question-candidates-v18",
+  "prompt_sha256": "4e8f0ad906bb387c8f226f3daf69d031f0c25ca735e451eafb66b385b6881f6a",
+  "generated_at": "2026-09-03T11:38:44Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-015-001",
+      "category": "lookup",
+      "question": "국내 ETF와 해외 ETF의 AUM을 통화별 및 유형별로 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-015-002",
+      "category": "lookup",
+      "question": "국내채권의 매수수익률과 공모펀드의 1년 수익률을 각각의 유형별로 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-015-003",
+      "category": "lookup",
+      "question": "기록된 0% 수익률과 누락된 수익률을 구분하여 공모펀드 상품을 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-015-004",
+      "category": "lookup",
+      "question": "BUYABLE_QUANTITY가 유효하지 않은 국내채권을 매수가능수량을 해석하지 않고 조회해 주세요."
+    },
+    {
+      "candidate_id": "CQ-015-005",
+      "category": "screen",
+      "question": "미래 한 달 동안의 수익률이 높을 것으로 예상되는 국내 ETF를 찾는 요청은 예측 정보를 제공하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-006",
+      "category": "screen",
+      "question": "해외 ETF의 1년 수익률 조건을 요구하는 요청은 해당 기간에 대한 데이터가 없습니다."
+    },
+    {
+      "candidate_id": "CQ-015-007",
+      "category": "screen",
+      "question": "임의의 환율을 사용하여 국내외 ETF의 AUM을 동일한 기준으로 필터링하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-008",
+      "category": "screen",
+      "question": "실시간 거래 정지 여부를 확인하는 요청은 공식 배포본 기준에서만 가능합니다."
+    },
+    {
+      "candidate_id": "CQ-015-009",
+      "category": "screen",
+      "question": "비공개 편입 종목을 기준으로 ETF를 필터링하는 요청은 보유 종목 범위에 제한이 있습니다."
+    },
+    {
+      "candidate_id": "CQ-015-010",
+      "category": "rank",
+      "question": "모든 상품 유형의 수익률을 동일하게 비교하기 위해 같은 기간과 단위를 사용하지 않는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-011",
+      "category": "rank",
+      "question": "해외 ETF의 1년 수익률 순위를 요구하는 요청은 데이터를 생성하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-012",
+      "category": "rank",
+      "question": "향후 가장 많이 상승할 ETF를 순위화하려는 요청은 투자 예측을 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-013",
+      "category": "rank",
+      "question": "외부 신용 평가가 없는 채권의 신용 등급을 추정하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-014",
+      "category": "compare",
+      "question": "유사한 이름만으로 두 ETF를 동일한 상품으로 간주하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-015",
+      "category": "compare",
+      "question": "실시간 환율로 서로 다른 통화 AUM을 비교하는 요청은 공식적으로 고정된 환율이 없습니다."
+    },
+    {
+      "candidate_id": "CQ-015-016",
+      "category": "compare",
+      "question": "외부 뉴스 정보로 공모펀드 성과를 비교하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-017",
+      "category": "aggregate",
+      "question": "해외 ETF와 공모펀드 AUM을 환전 없이 합산하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-018",
+      "category": "aggregate",
+      "question": "누락된 수익률을 0으로 간주하여 평균 내는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF의 보유 종목을 외부 데이터로 결합하여 비교하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-020",
+      "category": "cross_product",
+      "question": "채권의 매수수익률과 ETF 수익률을 하나의 성과 순위로 통합하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-021",
+      "category": "clarification",
+      "question": "가장 안전한 투자 상품을 추천해 달라는 요청은 추천 대신 기준 확인이 필요합니다."
+    },
+    {
+      "candidate_id": "CQ-015-022",
+      "category": "quality",
+      "question": "원천 판매 상태가 없는 해외 상품을 검증된 매수 가능 상태로 변경하는 요청은 지원하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-023",
+      "category": "quality",
+      "question": "KODEX 200의 별칭, 띄어쓰기, 티커 후보는 정확한 식별자를 확인하기 전까지 자동으로 병합하지 않습니다."
+    },
+    {
+      "candidate_id": "CQ-015-024",
+      "category": "quality",
+      "question": "공모펀드 상품명의 변형은 itm_no가 정확히 일치할 때에만 동일한 상품으로 연결됩니다."
+    }
+  ]
+}

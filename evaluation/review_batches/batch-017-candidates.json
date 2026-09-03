@@ -1,0 +1,143 @@
+{
+  "batch_id": "017",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 209,
+  "prompt_version": "canonical-question-candidates-v20",
+  "prompt_sha256": "7a473a511a7f5eeb1365cd2f9c1614c8a91a36ede1f2471a286e4183e8d19697",
+  "generated_at": "2026-09-03T11:39:32Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-017-001",
+      "category": "lookup",
+      "question": "국내 ETF와 공모펀드의 1년 수익률은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-017-002",
+      "category": "lookup",
+      "question": "국내 ETF와 해외 ETF의 총보수와 AUM은 통화별로 어떻게 구분되나요?"
+    },
+    {
+      "candidate_id": "CQ-017-003",
+      "category": "lookup",
+      "question": "특정 날짜에 상환되는 국내 채권들의 만기일과 매수수익률 및 매수가능수량은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-017-004",
+      "category": "lookup",
+      "question": "공모펀드의 1년 수익률과 현재 자산 규모(AUM)는 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-017-005",
+      "category": "screen",
+      "question": "수익률이 일정 이상이고 총보수가 낮은 국내 ETF 중에서 ETN을 제외한 상품을 찾습니다."
+    },
+    {
+      "candidate_id": "CQ-017-006",
+      "category": "screen",
+      "question": "AUM이 일정 금액 이상이고 거래통화가 특정한 해외 ETF 중에서 ETN을 제외한 상품을 찾습니다."
+    },
+    {
+      "candidate_id": "CQ-017-007",
+      "category": "screen",
+      "question": "최근 3개월간 수익률이 일정 비율 이하이면서 위험등급이 특정 등급 이하인 공모펀드를 찾습니다."
+    },
+    {
+      "candidate_id": "CQ-017-008",
+      "category": "screen",
+      "question": "매수가능수량이 양수인 국내 채권을 만기일이 특정일 이전이고 신용등급이 특정 등급 이상인 것으로 찾습니다."
+    },
+    {
+      "candidate_id": "CQ-017-009",
+      "category": "screen",
+      "question": "특정 기업을 보유하고 있는 국내 ETF를 찾는다면 해당 기업의 정확한 식별자를 사용하여 검색하나요?"
+    },
+    {
+      "candidate_id": "CQ-017-010",
+      "category": "rank",
+      "question": "특정 섹터에 대한 노출도가 높은 해외 ETF들 중 AUM 순으로 상위 몇 개의 ETF는 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-017-011",
+      "category": "rank",
+      "question": "특정 기업 주식을 보유하고 있는지 여부에 따라 국내 ETF들을 순위 매길 수 있습니까?"
+    },
+    {
+      "candidate_id": "CQ-017-012",
+      "category": "rank",
+      "question": "편입된 종목 수가 많은 순으로 공모펀드를 순위 매길 수 있을까요?"
+    },
+    {
+      "candidate_id": "CQ-017-013",
+      "category": "rank",
+      "question": "특정 산업에 투자하는 ETF들 중 가장 높은 수익률을 기록한 것은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-017-014",
+      "category": "compare",
+      "question": "두 개의 국내 ETF가 공통적으로 보유하고 있는 종목이 무엇인지 비교할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-017-015",
+      "category": "compare",
+      "question": "해외 ETF와 국내 ETF 간의 섹터 구성이 어떻게 다른지 비교할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-017-016",
+      "category": "compare",
+      "question": "ETF와 공모펀드가 동일한 특정 기업을 보유하고 있는지 여부를 비교할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-017-017",
+      "category": "aggregate",
+      "question": "특정 섹터에 투자하는 ETF의 수는 얼마나 되나요?"
+    },
+    {
+      "candidate_id": "CQ-017-018",
+      "category": "aggregate",
+      "question": "특정 기업에 투자하는 상품들의 AUM 평균은 얼마인가요?"
+    },
+    {
+      "candidate_id": "CQ-017-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF들이 동일하게 특정 기업을 보유하고 있는지 여부를 확인할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-017-020",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF 간에 특정 기업을 동시에 보유하고 있는 경우가 있나요?"
+    },
+    {
+      "candidate_id": "CQ-017-021",
+      "category": "clarification",
+      "question": "기록된 0% 수익률과 누락된 수익률 중 어느 쪽을 고려하여 분석하시겠습니까?"
+    },
+    {
+      "candidate_id": "CQ-017-022",
+      "category": "quality",
+      "question": "AUM이 0인 것과 누락된 AUM을 같은 값으로 간주하여 순위나 평균 계산 시 포함시키겠습니까?"
+    },
+    {
+      "candidate_id": "CQ-017-023",
+      "category": "quality",
+      "question": "AUM이 0인 경우와 누락된 경우를 별도로 처리해야 할까요?"
+    },
+    {
+      "candidate_id": "CQ-017-024",
+      "category": "quality",
+      "question": "AUM이 0인 경우와 누락된 경우를 같은 값으로 취급하면 안 되는 이유는 무엇인가요?"
+    }
+  ]
+}

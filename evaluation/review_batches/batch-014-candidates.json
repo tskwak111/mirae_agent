@@ -1,0 +1,143 @@
+{
+  "batch_id": "014",
+  "provider": "naver-hyperclova-x",
+  "model": "HCX-007",
+  "seed": 173,
+  "prompt_version": "canonical-question-candidates-v17",
+  "prompt_sha256": "21be1c979bc84eb94cab5cd8b4b2ed8822e69d4b9ba86b25e5ccd40485027241",
+  "generated_at": "2026-09-03T11:38:10Z",
+  "review_status": "pending_human_review",
+  "reviewer": "곽태성",
+  "target_distribution": {
+    "lookup": 4,
+    "screen": 5,
+    "rank": 4,
+    "compare": 3,
+    "aggregate": 2,
+    "cross_product": 2,
+    "clarification": 1,
+    "quality": 3
+  },
+  "candidates": [
+    {
+      "candidate_id": "CQ-014-001",
+      "category": "lookup",
+      "question": "국내 ETF와 공모펀드의 6개월 수익률은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-002",
+      "category": "lookup",
+      "question": "특정 날짜를 기준으로 국내 채권의 매수수익률과 만기일은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-003",
+      "category": "lookup",
+      "question": "해외 ETF의 AUM(운용 자산)과 1일 수익률은 어떻게 되나요? (ETN 제외)"
+    },
+    {
+      "candidate_id": "CQ-014-004",
+      "category": "lookup",
+      "question": "공모펀드의 1년 수익률과 위험 등급은 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-005",
+      "category": "screen",
+      "question": "어떤 특정 기업을 보유하고 있는 국내 ETF는 어떤 것들이 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-006",
+      "category": "screen",
+      "question": "해외 ETF 중에서 특정 섹터에 노출된 상품을 찾고 싶습니다."
+    },
+    {
+      "candidate_id": "CQ-014-007",
+      "category": "screen",
+      "question": "총보수가 누락된 국내 ETF는 몇 개인가요?"
+    },
+    {
+      "candidate_id": "CQ-014-008",
+      "category": "screen",
+      "question": "기록된 0% 추적 오차와 누락된 추적 오차를 구분하여 국내 ETF를 필터링할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-009",
+      "category": "screen",
+      "question": "해외 ETF의 기록된 0 AUM과 누락된 AUM을 구분하여 AUM 조건을 적용할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-010",
+      "category": "rank",
+      "question": "매수가능수량이 0 또는 누락된 국내 채권 중 가장 유리한 것은 무엇인가요?"
+    },
+    {
+      "candidate_id": "CQ-014-011",
+      "category": "rank",
+      "question": "국내 ETF의 총보수 누락값을 제외한 수수료 순위는 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-012",
+      "category": "rank",
+      "question": "해외 ETF의 AUM 0과 누락 AUM을 분리하여 순위를 매길 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-013",
+      "category": "rank",
+      "question": "공모펀드의 1년 수익률 누락값을 제외한 수익률 순위는 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-014",
+      "category": "compare",
+      "question": "한 상품의 0% 수익률과 다른 상품의 누락된 수익률을 동일하게 비교할 수는 없나요?"
+    },
+    {
+      "candidate_id": "CQ-014-015",
+      "category": "compare",
+      "question": "두 국내 채권의 BUYABLE_QUANTITY가 유효하지 않을 때 매수가능수량을 비교할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-016",
+      "category": "compare",
+      "question": "두 ETF의 AUM이 서로 다른 통화이거나 누락되었을 때 통합적으로 비교할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-017",
+      "category": "aggregate",
+      "question": "국내 ETF의 총보수 평균 계산 시 누락값을 제외하면 결과는 어떻게 되나요?"
+    },
+    {
+      "candidate_id": "CQ-014-018",
+      "category": "aggregate",
+      "question": "공모펀드의 3개월 수익률 평균 계산 시 기록된 0과 누락값을 어떻게 처리하나요?"
+    },
+    {
+      "candidate_id": "CQ-014-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 1년 수익률을 유형별로 분리하고 누락값을 제외할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-020",
+      "category": "cross_product",
+      "question": "국내 ETF와 해외 ETF의 AUM을 통화별로 분리하고 0 및 누락을 구분할 수 있나요?"
+    },
+    {
+      "candidate_id": "CQ-014-021",
+      "category": "clarification",
+      "question": "수익률이 좋은 ETF를 찾을 때 기간은 어떻게 설정해야 하나요?"
+    },
+    {
+      "candidate_id": "CQ-014-022",
+      "category": "quality",
+      "question": "알 수 없는 내부 코드의 의미는 추정하지 않고 이용 불가로 표시하나요?"
+    },
+    {
+      "candidate_id": "CQ-014-023",
+      "category": "quality",
+      "question": "외부 시장 가격이나 실시간 수익률을 요구하는 요청은 공식 배포본 범위를 벗어나나요?"
+    },
+    {
+      "candidate_id": "CQ-014-024",
+      "category": "quality",
+      "question": "해외 ETF/ETN의 1년 수익률을 요구하는 요청은 해당 기간을 제공하지 않나요?"
+    }
+  ]
+}
