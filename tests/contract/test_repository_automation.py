@@ -19,7 +19,7 @@ def test_environment_example_loads_without_secrets(
     settings = Settings()
 
     assert settings.execution_mode is ExecutionMode.EVALUATION
-    assert settings.dataset_snapshot_date.isoformat() == "2026-07-11"
+    assert settings.dataset_snapshot_date.isoformat() == "2026-08-24"
     assert "SECRET" not in example
     assert "API_KEY" not in example
 

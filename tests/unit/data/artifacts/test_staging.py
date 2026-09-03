@@ -1731,7 +1731,7 @@ def test_external_order_store_closed_quality_join_revalidates_exact_live_staged_
         session.open_external_order_store(config=config) as store,
     ):
         verifications = []
-        for spec in TABLE_SPECS[:9]:
+        for spec in TABLE_SPECS[:11]:
             leaf = session.claim_parquet_leaf(spec)
             ParquetBatchWriter(spec, leaf).close()
             verifications.append(verify_staged_parquet_table(owner=session, leaf=leaf, spec=spec))
@@ -1780,7 +1780,7 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
         ExternalOrderJoinOperation,
         ExternalOrderJoinRow,
     )
-    from finproof.data.artifacts.table_specs import TABLE_SPECS
+    from finproof.data.artifacts.table_specs import TABLE_SPEC_BY_NAME, TABLE_SPECS
     from finproof.data.normalization.domestic_listed import normalize_domestic_listed
     from finproof.data.normalization.public_funds import normalize_public_fund_item
     from tests.helpers.source_rows import source_row
@@ -1842,8 +1842,14 @@ def test_external_order_store_cp6_forward_routes_stream_static_typed_rows(
         "bronze_source_cell": (serialize_table_row(TABLE_SPECS[2], bronze_cell),),
         "silver_domestic_listed_product": (serialize_table_row(TABLE_SPECS[5], domestic),),
         "silver_fund_item": (serialize_table_row(TABLE_SPECS[7], fund),),
-        "gold_exact_cross_source_link": (serialize_table_row(TABLE_SPECS[9], link),),
-        "gold_exact_cross_source_link_evidence": (serialize_table_row(TABLE_SPECS[10], evidence),),
+        "gold_exact_cross_source_link": (
+            serialize_table_row(TABLE_SPEC_BY_NAME["gold_exact_cross_source_link"], link),
+        ),
+        "gold_exact_cross_source_link_evidence": (
+            serialize_table_row(
+                TABLE_SPEC_BY_NAME["gold_exact_cross_source_link_evidence"], evidence
+            ),
+        ),
     }
     settings = _staging_settings(tmp_path / "repository")
     config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)

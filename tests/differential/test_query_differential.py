@@ -111,8 +111,8 @@ def test_duckdb_and_reference_raw_projections_are_equal() -> None:
                 RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
                 RawFieldValue(field_id="buy_yield", value=value, quality_status="valid"),
                 RawFieldValue(
-                    field_id="buyable_quantity",
-                    value=Decimal("10"),
+                    field_id="issue_date",
+                    value=date(2020, 1, 1),
                     quality_status="valid",
                 ),
                 RawFieldValue(
@@ -129,7 +129,7 @@ def test_duckdb_and_reference_raw_projections_are_equal() -> None:
         "CREATE TABLE silver_bond_instrument ("
         "product_id VARCHAR, product_id__quality_status VARCHAR, "
         "buy_yield DECIMAL(38, 18), buy_yield__quality_status VARCHAR, "
-        "buyable_quantity DECIMAL(38, 18), buyable_quantity__quality_status VARCHAR, "
+        "issue_date DATE, issue_date__quality_status VARCHAR, "
         "maturity_date DATE, maturity_date__quality_status VARCHAR)"
     )
     connection.executemany(
@@ -140,7 +140,7 @@ def test_duckdb_and_reference_raw_projections_are_equal() -> None:
                 "valid",
                 next(value.value for value in row.values if value.field_id == "buy_yield"),
                 "valid",
-                Decimal("10"),
+                date(2020, 1, 1),
                 "valid",
                 date(2027, 7, 11),
                 "valid",

@@ -75,13 +75,13 @@ def test_locator_is_built_only_from_exact_row_and_cell_lineage() -> None:
     locator = SourceCellLocator.from_row(row, "PD_NO")
     assert locator.source_table == "PRBD01N001"
     assert locator.source_file.as_posix() == "data/PRBD01N001_fixture.xlsx"
-    assert locator.source_sheet == "datarows"
+    assert locator.source_sheet == "data"
     assert locator.source_row_number == 19
     assert locator.source_column_name == "PD_NO"
     assert locator.source_column_number == 1
     assert locator.source_column_letter == "A"
     assert locator.source_checksum == "a" * 64
-    assert locator.source_snapshot_date == date(2026, 7, 11)
+    assert locator.source_snapshot_date == date(2026, 8, 24)
     assert locator.source_applicable_date == date(2026, 7, 10)
     with pytest.raises(KeyError, match="pd_no"):
         SourceCellLocator.from_row(row, "pd_no")

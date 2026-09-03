@@ -19,7 +19,7 @@ def test_latest_official_rules_are_versioned_without_rewriting_history() -> None
     assert "code-table meanings are not queried or guessed" in normalized_decisions
     assert "zero or missing value is omitted or reported unavailable" in normalized_decisions
     assert "buyable_quantity is invalid" in normalized_decisions
-    assert "ended or delisted evidence excludes a bond" in normalized_decisions
+    assert "ended or delisted evidence excludes a product" in normalized_decisions
     assert "HCX is mandatory for intent analysis and final answer wording" in decisions
     assert "295-second outer deadline" in decisions
     assert "A-005" in decisions

@@ -32,16 +32,16 @@ def test_version_bundle_has_no_defaults_and_is_issued_from_verified_runtime_fact
         execution_mode=ExecutionMode.EVALUATION,
     )
     assert versions.runtime_facts() == {
-        "dataset_version": "2026-07-11",
+        "dataset_version": "2026-08-24",
         "artifact_manifest_hash": verified.overall_manifest_logical_hash,
         "dataset_registry_version": "1.0.0",
-        "field_registry_version": "1.1.0",
-        "metric_registry_version": "1.0.0",
-        "state_rule_version": "1.1.0",
-        "quality_rule_version": "1.0.0",
+        "field_registry_version": "1.3.0",
+        "metric_registry_version": "1.2.0",
+        "state_rule_version": "1.2.0",
+        "quality_rule_version": "1.1.0",
         "rating_rule_version": "1.0.0",
         "answer_policy_version": "1.0.0",
-        "planner_version": "1.0.0",
+        "planner_version": "1.2.0",
         "execution_mode": "evaluation",
     }
     versions.require_runtime(verified=verified, registries=registries)

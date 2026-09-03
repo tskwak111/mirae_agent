@@ -145,7 +145,7 @@ def _quality_staged_set(session: Any, *, case: str = "valid") -> Any:
         )
 
     verifications = []
-    for spec in TABLE_SPECS[:9]:
+    for spec in TABLE_SPECS[:11]:
         leaf = session.claim_parquet_leaf(spec)
         writer = ParquetBatchWriter(spec, leaf)
         rows = row_by_table.get(spec.table_name, ())
@@ -553,6 +553,10 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
                     key=("a" * 64, 0, 0),
                     values=("KR7000000001", 1),
                 ),
+                ExternalOrderJoinRow(
+                    key=("a" * 64, 1, 0),
+                    values=("KR7000000001", 1),
+                ),
             )
             return
         assert exact_ids == ("product-1",)
@@ -560,12 +564,7 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
 
     monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
     settings = artifact_staging_settings(tmp_path / "repository")
-    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
-        mode="python"
-    )
-    payload["exact_links"]["links"] = 1
-    payload["exact_links"]["evidence"] = 1
-    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
     with ArtifactBuildSession.initialize(
         settings,
         VersionBundle(),
@@ -578,7 +577,7 @@ def test_cp6_forward_verifier_consumes_only_typed_static_join_batches(
 
         custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
         assert tuple(custody.iter_candidate_join_batches()) == ()
-        gold_evidence = _exact_evidence_rows()[:1]
+        gold_evidence = _exact_evidence_rows()
         custody.admit_exact_evidence(gold_evidence)
         tables = _empty_staged_set(session, count=11)
         verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
@@ -615,13 +614,7 @@ def test_candidate_custody_issues_one_exact_closed_relation_verifier_without_sto
         ExactLinkCandidateStoreCustody,
     )
 
-    payload = dict(_EXPECTED_ARTIFACT_CONFIG)
-    payload["exact_links"] = {
-        "links": 0,
-        "evidence": 0,
-        "pair_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    }
-    config = ArtifactBuildConfig.model_validate(payload)
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
     settings = artifact_staging_settings(tmp_path / "repository")
     with ArtifactBuildSession.initialize(
         settings,
@@ -693,12 +686,7 @@ def test_evidence_to_bronze_consumes_sealed_admission_equals_reopened_gold_and_r
 
     monkeypatch.setattr(ExternalOrderStore, "iter_join_batches", typed_batches)
     settings = artifact_staging_settings(tmp_path / "repository")
-    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
-        mode="python"
-    )
-    payload["exact_links"]["links"] = 1
-    payload["exact_links"]["evidence"] = 2
-    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
     evidence = _exact_evidence_rows()
     gold = evidence
     if gold_case == "missing":

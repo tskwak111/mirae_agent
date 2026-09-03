@@ -48,18 +48,13 @@ def test_build_verified_candidate_stage_invokes_complete_core_before_return(
         {**source, "rows": 1, "cells": source["columns"]} for source in payload["sources"]
     )
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 0,
-        "evidence": 0,
-        "pair_sha256": hashlib.sha256(b"").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
 
     def small_config(

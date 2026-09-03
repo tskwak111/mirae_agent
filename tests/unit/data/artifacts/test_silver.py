@@ -682,7 +682,7 @@ def test_silver_finalize_requires_exact_bronze_result_owner_input_set_observatio
         assert result.input_identity is bronze_result.input_identity
 
 
-def test_silver_finalize_drains_relations_and_extends_exact_set_from_three_to_nine(
+def test_silver_finalize_drains_relations_and_extends_exact_set_from_three_to_eleven(
     tmp_path: Path,
 ) -> None:
     from finproof.core.versions import VersionBundle
@@ -729,6 +729,8 @@ def test_silver_finalize_drains_relations_and_extends_exact_set_from_three_to_ni
             "silver_overseas_listed_product",
             "silver_fund_item",
             "silver_quality_issue",
+            "silver_product_holding",
+            "silver_product_holding_coverage",
         )
 
 

@@ -57,18 +57,17 @@ def test_exact_link_candidate_and_evidence_pipeline_stays_within_closed_one_pass
                 raise AssertionError("candidate relation was iterated twice")
             yield from self._rows
 
-    payload = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG).model_dump(
-        mode="python"
-    )
-    payload["exact_links"]["links"] = 2
-    payload["exact_links"]["evidence"] = 4
-    config = ArtifactBuildConfig.model_validate(payload, strict=True)
+    config = ArtifactBuildConfig.model_validate(_EXPECTED_ARTIFACT_CONFIG)
     limits = ExternalOrderStoreTestLimits(batch_rows=7, memory_limit_bytes=1 << 20)
 
     def run_pipeline(*, reverse: bool) -> bytes:
-        matches = (
-            _candidate(raw="MATCH-A", left_id="L-A", right_id="R-A"),
-            _candidate(raw="MATCH-Z", left_id="L-Z", right_id="R-Z"),
+        matches = tuple(
+            _candidate(
+                raw=f"MATCH-{index:03d}",
+                left_id=f"L-{index:03d}",
+                right_id=f"R-{index:03d}",
+            )
+            for index in range(217)
         )
         irrelevant_left = tuple(
             _candidate(raw=f"LEFT-{index:04d}", left_id=f"IL-{index:04d}").left
@@ -128,13 +127,13 @@ def test_exact_link_candidate_and_evidence_pipeline_stays_within_closed_one_pass
             custody = ExactLinkCandidateStoreCustody._issue(owner=session, store=store)
             candidates, maximum = _consume_candidate_batches(
                 custody.iter_candidate_join_batches(),
-                expected_links=2,
+                expected_links=217,
             )
-            assert len(candidates) == 2
+            assert len(candidates) == 217
             assert maximum <= limits.batch_rows
             links, evidence = _build_link_and_evidence_records(candidates)
-            assert len(links) == 2
-            assert len(evidence) == 4
+            assert len(links) == 217
+            assert len(evidence) == 434
             custody.admit_exact_evidence(iter(evidence))
             verifier = StagedBoundedRelationVerifier.for_candidate_custody(custody)
             admitted = tuple(
@@ -144,9 +143,10 @@ def test_exact_link_candidate_and_evidence_pipeline_stays_within_closed_one_pass
             )
             assert admitted == evidence
             custody.close()
-            return canonical_link_pair_tsv(links, expected_links=2)
+            return canonical_link_pair_tsv(links, expected_links=217)
 
-    assert run_pipeline(reverse=False) == run_pipeline(reverse=True) == b"L-A\tR-A\nL-Z\tR-Z\n"
+    expected = b"".join(f"L-{index:03d}\tR-{index:03d}\n".encode() for index in range(217))
+    assert run_pipeline(reverse=False) == run_pipeline(reverse=True) == expected
 
     conflict_rows: tuple[ExactLinkCandidateJoinRow, ...] = (
         _candidate(raw="A", left_id="L-DUP", right_id="R-1"),

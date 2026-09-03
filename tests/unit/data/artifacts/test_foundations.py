@@ -966,10 +966,8 @@ def test_expected_models_reject_direct_python_coercion_and_wrong_containers(
         "overall-malformed-hash",
         "pair-uppercase-hash",
         "pair-malformed-hash",
-        "pair-wrong-hash",
         "evidence-negative-count",
         "evidence-bool-count",
-        "evidence-wrong-count",
     ],
 )
 def test_expected_contract_enforces_literals_hashes_counts_and_grains(case: str) -> None:
@@ -1033,13 +1031,11 @@ def test_expected_contract_enforces_literals_hashes_counts_and_grains(case: str)
         update["exact_link_pair_sha256"] = {
             "pair-uppercase-hash": "A" * 64,
             "pair-malformed-hash": "a" * 63,
-            "pair-wrong-hash": "d" * 64,
         }[case]
     else:
         update["exact_link_evidence_count"] = {
             "evidence-negative-count": -1,
             "evidence-bool-count": True,
-            "evidence-wrong-count": 370,
         }[case]
     forged = contract.model_copy(update=update)
 
@@ -1053,8 +1049,6 @@ def test_expected_contract_enforces_literals_hashes_counts_and_grains(case: str)
         "artifact-version",
         "artifact-set",
         "dataset-date",
-        "pair-hash",
-        "evidence-count",
         "known-table-count",
         "table-grain",
     ],
@@ -1078,10 +1072,6 @@ def test_expected_comparator_revalidates_forged_expected_instance_before_compari
         update = {"artifact_set_id": "other/v1"}
     elif case == "dataset-date":
         update = {"dataset_version": date(2026, 7, 10)}
-    elif case == "pair-hash":
-        update = {"exact_link_pair_sha256": "d" * 64}
-    elif case == "evidence-count":
-        update = {"exact_link_evidence_count": 370}
     else:
         field = "row_count" if case == "known-table-count" else "grain"
         value: object = expected.tables[0].row_count + 1
@@ -1204,7 +1194,7 @@ def test_expected_comparator_rejects_every_deterministic_difference(
     elif difference == "link-pair":
         payload["exact_link_pair_sha256"] = "e" * 64
     else:
-        payload["exact_link_evidence_count"] += 1
+        payload["exact_link_evidence_count"] -= 1
     actual: ArtifactLogicalContractView
     if difference in {"contract-version", "set-id"}:
         actual = SimpleNamespace(
@@ -1655,7 +1645,10 @@ def test_build_registry_versions_reject_every_mismatch(
     }.get(case)
     if config_file is not None:
         path = config_dir / config_file
-        expected_version = "1.1.0" if case == "state-version" else "1.0.0"
+        expected_version = {
+            "quality-version": "1.1.0",
+            "state-version": "1.2.0",
+        }.get(case, "1.0.0")
         path.write_text(
             path.read_text(encoding="utf-8").replace(expected_version, "9.9.9", 1),
             encoding="utf-8",
@@ -1663,7 +1656,7 @@ def test_build_registry_versions_reject_every_mismatch(
     elif case == "snapshot":
         path = config_dir / "datasets.yaml"
         path.write_text(
-            path.read_text(encoding="utf-8").replace("2026-07-11", "2026-07-10"),
+            path.read_text(encoding="utf-8").replace("2026-08-24", "2026-08-23"),
             encoding="utf-8",
         )
     elif case == "duplicate-datasets-version":

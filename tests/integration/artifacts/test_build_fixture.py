@@ -1,6 +1,5 @@
 """CP7C private core outcome and bounded telemetry contracts."""
 
-import hashlib
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -232,18 +231,13 @@ def test_private_transform_returns_verified_outcome_after_exact_candidate_cleanu
         {**source, "rows": 1, "cells": source["columns"]} for source in payload["sources"]
     )
     payload["silver_counts"] = {
+        "bond_sale_lot": 1,
         "bond_instrument": 1,
         "domestic_listed_product": 1,
         "overseas_listed_product": 1,
         "fund_item": 1,
-        "fund_item_attribute": 1,
     }
     payload["quarantine_source_rows"] = 0
-    payload["exact_links"] = {
-        "links": 0,
-        "evidence": 0,
-        "pair_sha256": hashlib.sha256(b"").hexdigest(),
-    }
     config = ArtifactBuildConfig.model_validate(payload, strict=True)
 
     def small_config(

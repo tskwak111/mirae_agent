@@ -381,7 +381,7 @@ def test_preadmission_and_preextension_faults_leave_no_successor_or_result(
                 owner=session,
             )
         assert session._staged_sets.get(id(prefix), (None,))[0] is prefix
-        assert all(len(item[0].verifications) == 9 for item in session._staged_sets.values())
+        assert all(len(item[0].verifications) == 11 for item in session._staged_sets.values())
 
 
 def test_complete_builder_follows_exact_order_closes_custody_then_issues_exact_six_field_result(
@@ -480,7 +480,7 @@ def test_complete_builder_closes_exact_custody_once_across_link_and_postextensio
             assert custody._candidate_state == "CLOSED"
         registered = tuple(item[0] for item in session._staged_sets.values())
         assert len(registered) == 1
-        assert len(registered[0].verifications) == (9 if fault == "link-build" else 11)
+        assert len(registered[0].verifications) == (11 if fault == "link-build" else 13)
 
 
 def test_complete_result_validator_rejects_copy_forge_mutation_open_custody_and_nonlive_successor(

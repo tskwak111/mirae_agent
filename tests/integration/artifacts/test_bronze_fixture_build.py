@@ -68,7 +68,7 @@ def test_bronze_ingestion_opens_and_iterates_each_workbook_once(
         )
         assert tuple(
             verification.logical.row_count for verification in result.staged_tables.verifications
-        ) == (207, 4, 207)
+        ) == (280, 4, 280)
 
     assert opened == {
         "PRBD01N001": 1,
@@ -123,9 +123,9 @@ def test_bronze_ingestion_accepts_none_consumer_without_rescan(
             b"artifact_set_id: forged",
         ),
         ("datasets.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
-        ("quality_rules.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
+        ("quality_rules.yaml", b'version: "1.1.0"', b'version: "9.9.9"'),
         ("rating_scale.yaml", b'version: "1.0.0"', b'version: "9.9.9"'),
-        ("state_rules.yaml", b'version: "1.1.0"', b'version: "9.9.9"'),
+        ("state_rules.yaml", b'version: "1.2.0"', b'version: "9.9.9"'),
     ],
 )
 def test_bronze_ingestion_rejects_invalid_held_config_before_workbook_iteration(
