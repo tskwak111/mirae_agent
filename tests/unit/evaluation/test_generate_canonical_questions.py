@@ -36,12 +36,12 @@ _CATEGORIES = (
 @pytest.mark.parametrize(
     ("batch_id", "seed", "version"),
     [
-        ("012", 149, "canonical-question-candidates-v15"),
-        ("013", 161, "canonical-question-candidates-v16"),
-        ("014", 173, "canonical-question-candidates-v17"),
-        ("015", 185, "canonical-question-candidates-v18"),
-        ("016", 197, "canonical-question-candidates-v19"),
-        ("017", 209, "canonical-question-candidates-v20"),
+        ("012", 149, "canonical-question-candidates-v21"),
+        ("013", 161, "canonical-question-candidates-v22"),
+        ("014", 173, "canonical-question-candidates-v23"),
+        ("015", 185, "canonical-question-candidates-v24"),
+        ("016", 197, "canonical-question-candidates-v25"),
+        ("017", 209, "canonical-question-candidates-v26"),
     ],
 )
 def test_blind_development_batch_identity(batch_id: str, seed: int, version: str) -> None:
@@ -104,6 +104,15 @@ def test_blind_development_slots_have_approved_family_distribution() -> None:
     )
 
 
+@pytest.mark.parametrize("batch_id", ["012", "013", "014", "015", "016", "017"])
+def test_blind_development_slot_prefixes_match_fixed_positions(batch_id: str) -> None:
+    actual = tuple(slot.partition(": ")[0] for slot in generator._BLIND_DEVELOPMENT_SLOTS[batch_id])
+
+    assert tuple(zip(actual, _CATEGORIES, strict=True)) == tuple(
+        (category, category) for category in _CATEGORIES
+    )
+
+
 def test_blind_development_slots_are_safe_registered_instructions() -> None:
     slots = tuple(slot for batch in generator._BLIND_DEVELOPMENT_SLOTS.values() for slot in batch)
     instructions = tuple(slot.partition(": ")[2] for slot in slots)
@@ -112,6 +121,62 @@ def test_blind_development_slots_are_safe_registered_instructions() -> None:
     assert len({" ".join(instruction.split()) for instruction in instructions}) == len(instructions)
     assert not any("BUYABLE_QUANTITY=" in instruction for instruction in instructions)
     assert not any("외부 사실로 단정" in instruction for instruction in instructions)
+
+
+def test_blind_development_slots_are_direct_requests_without_answer_leakage() -> None:
+    instructions = tuple(
+        slot.partition(": ")[2]
+        for slots in generator._BLIND_DEVELOPMENT_SLOTS.values()
+        for slot in slots
+    )
+
+    assert not any(
+        phrase in instruction
+        for instruction in instructions
+        for phrase in (
+            "요청은",
+            "요청에서",
+            "지원하지 않",
+            "제한을 명시",
+            "범위 제한",
+            "추정하지 않",
+            "단정하지 않",
+            "먼저 확인",
+            "경우만 사용",
+            "경우에만",
+            "자동 병합하지 않",
+        )
+    )
+
+
+def test_blind_development_entity_family_contains_concrete_variants() -> None:
+    entity_slots = tuple(
+        slot.partition(": ")[2]
+        for batch_id, slots in generator._BLIND_DEVELOPMENT_SLOTS.items()
+        for slot, family in zip(
+            slots,
+            generator._BLIND_DEVELOPMENT_FAMILIES[batch_id],
+            strict=True,
+        )
+        if family == "entity_variant"
+    )
+
+    assert len(entity_slots) == 18
+    assert all(
+        any(
+            variant in instruction
+            for variant in (
+                "KODEX200",
+                "KODEX 200",
+                "코덱스200",
+                "QQQ",
+                "KR101501DAI6",
+                "Vanguard 500 Index Fund ETF",
+                "삼성 KODEX 200 증권상장지수투자신탁[주식]",
+            )
+        )
+        for instruction in entity_slots
+    )
 
 
 def test_blind_development_prompt_preserves_august_safety_boundaries() -> None:
@@ -132,6 +197,33 @@ def test_blind_development_prompt_preserves_august_safety_boundaries() -> None:
             "정확히 일치하는 식별자",
             "보유종목 범위가 봉인된 데이터에 없으면",
         )
+    )
+
+
+def test_blind_development_prompt_forbids_policy_answers_in_questions() -> None:
+    prompt = generator._blind_development_prompt(("lookup: 등록 상품명을 직접 조회해줘",))
+
+    assert all(
+        phrase in prompt
+        for phrase in (
+            "질문 자체에는 예상 답, 거절 사유, 정책 설명 또는 제한 문구를 넣지 마십시오",
+            "현재 빌드에는 봉인 승인된 외부 보유종목 원천이 없습니다",
+            "외부 데이터가 일반적으로 금지된다는 뜻은 아닙니다",
+            "보유종목·섹터 슬롯도 직접적인 사용자 요청으로 작성",
+            "지원 가능 슬롯에서는 실시간 값이나 이후 값을 요구하지 마십시오",
+            "지원 가능 슬롯에서 BUYABLE_QUANTITY가 유효하지 않으면",
+            "지원 가능 슬롯에서 알 수 없거나 등록되지 않은 내부 코드",
+            "지원 가능 슬롯에서 누락값과 기록된 0은 같은 값이 아니며",
+            "지원 가능 슬롯에서는 해외 ETF/ETN의 1년 수익률을 만들지 마십시오",
+            "지원 가능 슬롯에서는 통화가 다른 AUM",
+            "지원 가능 슬롯의 교차상품 질문은",
+            "지원 가능 슬롯에서 상품명·티커·별칭이 비슷해도",
+            "실패 경계를 직접 묻는 슬롯은 요청형을 그대로 보존",
+        )
+    )
+    assert "실시간 값이나 이후 값을 요구하지 마십시오" not in prompt.replace(
+        "지원 가능 슬롯에서는 실시간 값이나 이후 값을 요구하지 마십시오",
+        "",
     )
 
 
