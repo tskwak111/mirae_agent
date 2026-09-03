@@ -294,11 +294,17 @@ HyperCLOVA X is mandatory at two evaluation stages:
 
 Evaluation has no rule-planner or deterministic substantive-answer fallback. Planning
 may perform one bounded HCX repair after schema failure. The answer verbalizer returns
-a strict object containing the answer plus used claim/limitation IDs. Local claim
-verification checks every material entity, number, comparison, rank, omission, and
-warning. One bounded HCX answer repair is allowed. A second failure returns a fixed
-non-substantive safe response; it never calls another model or publishes an
-unverified answer.
+a strict object containing one HCX-produced, non-material `presentation` value from the
+checked-in two-value allowlist. HCX receives the complete application-issued fact pack.
+The application joins the accepted presentation, one newline, and the byte-exact
+deterministic fact surface. Local verification therefore checks every material entity,
+number, comparison, rank, omission, and warning against the unchanged fact pack while
+HCX cannot rewrite those facts. Under D-040, one bounded second wording call is allowed:
+either the existing schema/parse repair or one identical-prompt retry for a retryable
+provider failure, never both. Any second-call error or invalid wording returns a fixed
+non-substantive safe response; an initial local-verification failure also fails closed
+without a second call. It never calls another model or publishes unverified material
+text. The retry hardening is accepted only after zero-failure final load and soak runs.
 
 The endpoint continues to return exactly five strings: `question_id`, `question`,
 `retrieved_context`, `think_trace`, and `answer`.

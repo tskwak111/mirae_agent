@@ -1119,6 +1119,64 @@ publication. `StrictJsonPlanner` remains offline/extended-demo only. This correc
 supersedes Task 9 references to evaluation "strict JSON" below; it does not reopen
 Steps 1-8 except for the focused provider-mode and replay assertions listed in Step 9.
 
+**2026-08-30 Task 10 blocker correction (D-039):** Credentialed realistic-answer
+diagnostics invalidated only D-036's full-surface echo assumption. An answer-only
+935-character synthetic target was shortened to 311 characters under both English and
+Korean exact-copy instructions, and a one-line 116-character four-field target still
+changed the answer. Token expansion, input projection, and the sole repair did not make
+byte equality reliable. Do not add chunk calls, relax material-claim verification, or
+publish an HCX paraphrase.
+
+The final wording provider object is now exactly
+`{"presentation": "<allowlisted lead-in>"}`. The checked-in provider schema admits only
+`"조회 결과입니다."` and `"확인 결과입니다."`; `ProviderWording` contains only
+that typed field. `HcxVerbalizer` sends the complete canonical `FactPack`, requests at
+most 64 completion tokens, and may make the existing one schema/parse repair. It never
+sends previous invalid provider content in the repair. `ClaimVerifier.verify_wording`
+accepts only the typed presentation and returns the exact publication text
+`presentation + "\n" + fact_pack.surface_parts[0].text` with the already verified
+`PreparedAnswer.claims`. Thus HCX supplies the final answer's non-material wording, while
+every material byte remains deterministic and evidence-bound. No deterministic
+substantive fallback, alternate model, extra provider call, provider-issued fact, or
+deadline reset is introduced. Replay identity becomes
+`allowlisted-presentation-plus-exact-surface-v1` and the answer prompt/schema identities
+remain mandatory.
+
+Implement this correction only after focused REDs prove: the provider schema is the
+exact one-field/two-enum shape; full `FactPack` input and a 64-token ceiling; invalid
+provider content is absent from repair; both allowlisted values publish with one newline
+and the unchanged surface/claims; any other/extra/malformed value fails closed; recorded
+API/CLI paths still make HCX mandatory; replay metadata rejects the old verification
+identity; and a credentialed realistic synthetic acceptance succeeds before rebuilding
+the final container. Run the existing wording/orchestrator/API/replay aggregate once
+after the focused GREENs. This correction supersedes Task 9 prose requiring HCX to echo
+the full answer/four ID tuples and the corresponding exact-provider-tuple stop condition;
+all planner, FactPack, evidence, call-ceiling, deadline, ownership, publication, and
+no-fallback rules remain unchanged.
+
+**2026-08-30 Task 10 reliability correction (D-040):** An explicitly approved
+six-transfer H009 full-pipeline diagnostic reproduced the intermittent load failure as
+the bounded public category `wording_provider_failure` on transfer six after five
+successes; planner, deterministic preparation, and the other wording calls were valid,
+but that category intentionally does not reveal the typed provider subtype. Preserve D-036/D-039's exact
+two-call wording ceiling by making the second call mutually exclusive: initial
+schema/parse failure uses the existing repair, while initial retryable provider failure
+uses one identical-prompt retry. Reuse the planner's retryability boundary
+(`HcxTransportError`, HTTP 5xx, or 429 only when reset fits the shared deadline).
+Non-retryable errors, an out-of-budget reset, an initial local-verification failure, and
+every second-call failure or invalid wording publish the existing safe response. A retry
+response never opens a third repair,
+and no deadline, model, client, FactPack, schema, prompt, token ceiling, material answer,
+or fallback behavior changes.
+
+Before implementation, focused REDs must prove: retryable transport, HTTP 5xx, and a 429
+whose reset fits the shared deadline each make exactly one identical-prompt retry; HTTP
+4xx, an absent/out-of-budget 429 reset, and every other provider error make no retry;
+initial schema/parse invalidity still makes exactly one repair; initial local-verification
+failure makes no second call; and every invalid/error response after retry or repair
+fails closed without a third call. The corrected final endpoint is accepted only after a
+zero-failure load and soak; recurrence is a blocker and does not widen the retry set.
+
 **Files:**
 
 - Create: `schemas/hcx_answer.schema.json`
@@ -1199,7 +1257,8 @@ Steps 1-8 except for the focused provider-mode and replay assertions listed in S
 - `EvaluationOrchestrator.answer(request: AnswerRequest, *, deadline:
   RequestDeadline, safe_result: AnswerResult) -> AnswerResult` awaits planning,
   runs `prepare_plan` through one bounded `asyncio.to_thread`, awaits HCX wording
-  and at most one wording repair, then calls local wording verification.
+  and at most one mutually exclusive wording transport retry or schema repair, then
+  calls local wording verification.
 - `HcxVerbalizer.verbalize(fact_pack: FactPack, *, request_id: str, deadline:
   RequestDeadline) -> ProviderWording` and `repair(..., invalid_content: str,
   ...) -> ProviderWording` are async and reuse `HcxClient.generate`.
@@ -1245,7 +1304,7 @@ Steps 1-8 except for the focused provider-mode and replay assertions listed in S
   `execution_mode=EVALUATION`, `hcx_enabled=True`, `fallback_enabled=False`, the
   HCX planner model/provider, `PROMPT_VERSION`, `ANSWER_PROMPT_VERSION`, the
   checked-in answer-schema SHA-256, and
-  `wording_verification_mode="exact-application-surface-v1"` in the replay object
+  `wording_verification_mode="allowlisted-presentation-plus-exact-surface-v1"` in the replay object
   and `configuration_sha256`. `ReplayVersions.from_configuration` rejects any
   evaluation combination that omits those identities, names a model other than exact
   `HCX-007`, sets `structured_outputs_enabled=False`, enables fallback, or disables
@@ -1265,12 +1324,12 @@ required_limitation_codes: tuple[str, ...]
 evidence_context_sha256: 64 lowercase hex characters
 ```
 
-Task 9 uses the smallest fail-closed surface: exactly one application-issued
+The fact pack uses the smallest fail-closed material surface: exactly one application-issued
 `SurfacePart(part_id="surface:answer", text=<deterministic AnswerDraft.text>,
 claim_ids=<all required claim IDs>, limitation_codes=<all required codes>)`.
-Therefore the application answer is exactly `"".join(part.text for part in
-surface_parts)` and covers every byte; there is no unbound prefix, suffix, or
-separator.
+It covers every material answer byte with no unbound material prefix, suffix, or
+separator. D-039's final application answer is exactly the accepted HCX allowlisted
+`presentation`, one newline, and `"".join(part.text for part in surface_parts)`.
 
 Each `ClaimSignature` is derived locally from `AnswerClaim`, `EvidenceBundle`, and
 the issued registries and contains the exact claim kind and surface text; every
@@ -1299,20 +1358,17 @@ JSON-Schema subset. The only provider object is:
 
 ```json
 {
-  "answer": "<exact application surface>",
-  "surface_part_ids": ["surface:answer"],
-  "claim_ids": ["<every required claim ID in application order>"],
-  "limitation_codes": ["<every required code in application order>"]
+  "presentation": "<one checked-in allowlisted lead-in>"
 }
 ```
 
 `src/finproof/answer/hcx_verbalizer.py` owns the checked-in schema loader, strict
 JSON parser, `ANSWER_PROMPT_VERSION`, prompt checksum, and the adapter. Local
-verification requires all four fields to equal the application-issued values
-exactly. Unknown or duplicate IDs, reordering, partial coverage, missing
-limitations, changed entity/number/comparison/rank, extra text, and any answer not
-equal to the exact application surface fail even when the provider cites otherwise
-valid IDs.
+verification requires `presentation` to be one of the two schema/Pydantic literals and
+constructs the final answer only from that value, one newline, and the unchanged
+application surface. HCX has no provider field capable of supplying an entity, number,
+comparison, rank, omission, warning, arbitrary prefix/suffix, claim ID, or limitation
+code; those remain exclusively bound by the prepared fact pack and claims.
 
 **Closed planner transition table:**
 
@@ -1331,6 +1387,21 @@ retry are mutually exclusive; a retry response never opens a third repair. Exact
 one invalid-output repair is possible. Terminal planner errors are typed and contain
 only bounded categories/counters for logging, never provider content, key, path, or
 prompt.
+
+**Closed wording transition table (D-040):**
+
+| Initial HCX outcome | Second call | Second outcome | Evaluation result |
+|---|---|---|---|
+| valid schema and local verification | none | n/a | publish verified answer |
+| schema/parse invalid | one wording repair | valid schema and local verification | publish verified repaired answer |
+| schema/parse invalid | one wording repair | any failure or invalid wording | centralized safe response |
+| retryable provider failure | one identical-prompt retry | valid schema and local verification | publish verified retried answer |
+| retryable provider failure | one identical-prompt retry | any failure or invalid wording | centralized safe response; never repair |
+| non-retryable provider failure, elapsed work cutoff, or 429 reset outside budget | none | n/a | centralized safe response |
+
+The wording ceiling is exactly two HCX calls. Repair and transport retry are mutually
+exclusive, reuse the same deadline/client/FactPack/schema/prompt, and never reset the
+deadline or open a third call.
 
 - [x] **Step 1: Write request-deadline and publication REDs**
 
@@ -1464,8 +1535,10 @@ and serialization reserve boundaries. Prove no call starts at/after
 `work_cutoff_at`; DB timeout/cancellation shields the worker, retains the limiter
 permit until completion, and `aclose` drains it before the artifact session/HTTP
 client closes. Prove valid CLARIFY and UNSUPPORTED responses each make one wording
-call. Prove initial invalid wording gets exactly one repair and any second failure or
-transport failure returns the prebuilt safe publication.
+call. Under D-040, prove initial schema/parse invalidity gets exactly one repair;
+retryable transport, HTTP 5xx, and an in-budget 429 get one identical-prompt retry;
+initial local-verification failure, non-retryable provider failure, and every second-call
+failure return the prebuilt safe publication without a third call.
 
 ```bash
 uv run pytest tests/integration/service/test_orchestrator_fallbacks.py tests/integration/evaluation/test_fault_injection.py tests/evaluation/test_adversarial_cases.py tests/integration/api/test_answer_endpoint.py tests/e2e/test_evaluation_api.py tests/unit/cli/test_evaluate.py -q
@@ -1477,9 +1550,11 @@ prose and existing stages consume/reset independent remaining-time values.
 - [x] **Step 8: Implement orchestration, API, and CLI publication**
 
 Change the orchestrator to the async planner -> bounded `to_thread(prepare_plan)` ->
-async verbalizer -> local verify flow. Word repair is allowed only for strict parse,
-schema, or local surface/signature verification failure; it is the final wording call.
-Route every terminal typed failure to the supplied safe result. Preserve the existing
+async verbalizer -> local verify flow. Word repair is allowed only for strict parse or
+schema failure; a typed retryable provider failure may instead use the same second-call
+budget for one identical-prompt retry. Local surface/signature verification failure and
+every failure after the mutually exclusive second call route to the supplied safe result.
+Preserve the existing
 shield/permit-retention/drain mechanics. Adapt `/answer` and CLI observations to the
 new result and publication contracts; no API exception path may build a second safe
 shape.
@@ -1566,8 +1641,9 @@ candidate gate.
 - Planner behavior matches every transition-table row, has at most two calls and one
   repair, and never executes a semantic-invalid or fallback plan.
 - Deterministic code alone prepares data/evidence/facts. Every substantive,
-  clarification, and unsupported evaluation answer is returned by HCX and then
-  accepted only when it equals the entire application-issued surface and all
+  clarification, and unsupported evaluation answer contains an HCX-produced
+  allowlisted presentation and is accepted only when its remaining bytes equal one
+  newline plus the entire application-issued fact surface with unchanged
   evidence-derived signatures/codes.
 - All adversarial wording cases fail closed, including valid IDs paired with changed
   entity, number, comparison, rank, tie, partition, unit, or limitation.
@@ -1595,8 +1671,9 @@ candidate gate.
 - Stop if a material fact lacks an exact evidence-derived entity name/ID, normalized
   and display value/unit, rank/tie/partition, comparison operands/relation, or
   limitation/omission code. Return the fixed safe response; do not weaken equality.
-- Stop if any output byte can lie outside the single application-issued surface, or if
-  provider-reported IDs are accepted without exact application tuple equality.
+- Stop if any output byte lies outside the accepted allowlisted presentation, the one
+  fixed newline, and the single application-issued fact surface, or if any provider
+  field can introduce or alter a material claim byte.
 - Stop if a third planner or wording call is possible, if transport retry and repair
   can both occur, or if CLARIFY/UNSUPPORTED bypass HCX.
 - Stop if an evaluation `ReplayVersions` can carry the stale `WITH_FALLBACK` mode,
