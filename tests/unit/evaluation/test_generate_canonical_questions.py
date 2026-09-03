@@ -9,6 +9,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import cast
 
+import httpx
 import pytest
 from pydantic import SecretStr
 from tools import generate_canonical_questions as generator
@@ -536,6 +537,46 @@ def test_authoring_timeout_extends_only_the_read_window() -> None:
     assert generator._AuthoringHcxClient._TIMEOUT.connect == 5.0
     assert generator._AuthoringHcxClient._TIMEOUT.write == 5.0
     assert generator._AuthoringHcxClient._TIMEOUT.pool == 5.0
+
+
+@pytest.mark.asyncio
+async def test_authoring_client_applies_extended_read_timeout_to_request() -> None:
+    observed_timeout: dict[str, float] = {}
+
+    async def handle(request: httpx.Request) -> httpx.Response:
+        observed_timeout.update(cast(dict[str, float], request.extensions["timeout"]))
+        return httpx.Response(
+            200,
+            json={
+                "status": {"code": "20000", "message": "OK"},
+                "result": {
+                    "usage": {
+                        "promptTokens": 1,
+                        "completionTokens": 1,
+                        "totalTokens": 2,
+                    },
+                    "message": {"content": _content()},
+                },
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as http_client:
+        client = generator._AuthoringHcxClient(
+            http_client=http_client,
+            api_key=SecretStr("test-key"),
+        )
+        await generate_review_packet(
+            client,
+            batch_id="012",
+            generated_at=datetime(2026, 9, 3, tzinfo=UTC),
+        )
+
+    assert observed_timeout == {
+        "connect": 5.0,
+        "read": 60.0,
+        "write": 5.0,
+        "pool": 5.0,
+    }
 
 
 @pytest.mark.asyncio

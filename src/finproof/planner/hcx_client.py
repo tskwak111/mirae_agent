@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from enum import StrEnum
-from typing import Any, NoReturn
+from typing import Any, NoReturn, cast
 from urllib.parse import quote
 
 import httpx
@@ -156,10 +156,10 @@ class HcxClient:
                 headers=headers,
                 timeout=httpx.Timeout(
                     timeout=remaining,
-                    connect=min(remaining, 5.0),
-                    read=min(remaining, 15.0),
-                    write=min(remaining, 5.0),
-                    pool=min(remaining, 5.0),
+                    connect=min(remaining, cast(float, self._TIMEOUT.connect)),
+                    read=min(remaining, cast(float, self._TIMEOUT.read)),
+                    write=min(remaining, cast(float, self._TIMEOUT.write)),
+                    pool=min(remaining, cast(float, self._TIMEOUT.pool)),
                 ),
             ) as response:
                 body = await self._read_bounded(response)
