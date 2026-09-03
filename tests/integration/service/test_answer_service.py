@@ -6,6 +6,26 @@ import pytest
 from tests.integration.query.test_executor import _session
 
 
+def test_interrupt_stops_the_runtime_connection() -> None:
+    from finproof.service import AnswerService
+
+    class Connection:
+        interrupt_calls = 0
+
+        def interrupt(self) -> None:
+            self.interrupt_calls += 1
+
+        def close(self) -> None: ...
+
+    connection = Connection()
+    session = _session(connection)  # type: ignore[arg-type]
+
+    AnswerService(session).interrupt()
+
+    assert connection.interrupt_calls == 1
+    session._close()
+
+
 @pytest.mark.parametrize(
     ("intent", "needs_clarification"), [("clarify", True), ("unsupported", False)]
 )
@@ -55,6 +75,63 @@ def test_clarify_and_unsupported_answers_execute_no_repository_query(
     assert connection.calls == 0
     assert result.fact_pack.surface_parts[0].text
     assert set(result.trace.latency_ms) == {"database", "evidence", "render"}
+    session._close()
+
+
+def test_entity_free_plan_does_not_build_the_full_entity_index(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from types import SimpleNamespace
+
+    from finproof.domain.answers import AnswerRequest
+    from finproof.domain.query_plan import (
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.entity import EntityIndex
+    from finproof.service import AnswerService
+    from finproof.service.limits import RequestDeadline
+
+    class Connection:
+        def close(self) -> None: ...
+
+    session = _session(Connection())  # type: ignore[arg-type]
+    service = AnswerService(session)
+    monkeypatch.setattr(
+        EntityIndex,
+        "from_session",
+        lambda _session: (_ for _ in ()).throw(AssertionError("entity index must stay lazy")),
+    )
+    service._validator = SimpleNamespace(validate=lambda *_args, **_kwargs: object())
+    service._segmenter = SimpleNamespace(build=lambda *_args, **_kwargs: object())
+    service._executor = SimpleNamespace(execute=lambda *_args, **_kwargs: object())
+    service._policy = SimpleNamespace(apply=lambda *_args, **_kwargs: object())
+    service._evidence_builder = SimpleNamespace(build=lambda *_args, **_kwargs: object())
+    monkeypatch.setattr(service, "_result", lambda **_kwargs: object())
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.DOMESTIC_BOND,),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.INSTRUMENT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+
+    service.prepare_plan(
+        AnswerRequest(question_id="q-no-entities", question="국내채권 5개"),
+        plan,
+        RequestDeadline.start(),
+    )
     session._close()
 
 
@@ -298,15 +375,15 @@ def test_answer_service_composes_exact_runtime_resolution_validation_execution_p
             order.append("verify")
             return verified
 
-    service._resolver = Resolver()  # type: ignore[assignment]
-    service._validator = Validator()  # type: ignore[assignment]
-    service._segmenter = Segmenter()  # type: ignore[assignment]
-    service._executor = Executor()  # type: ignore[assignment]
-    service._policy = Policy()  # type: ignore[assignment]
-    service._evidence_builder = Evidence()  # type: ignore[assignment]
-    service._evidence_repository = object()  # type: ignore[assignment]
-    service._renderer = Renderer()  # type: ignore[assignment]
-    service._verifier = Verifier()  # type: ignore[assignment]
+    service._resolver = Resolver()
+    service._validator = Validator()
+    service._segmenter = Segmenter()
+    service._executor = Executor()
+    service._policy = Policy()
+    service._evidence_builder = Evidence()
+    service._evidence_repository = object()
+    service._renderer = Renderer()
+    service._verifier = Verifier()
     plan = QueryPlan(
         intent=Intent.LOOKUP,
         product_types=(ProductType.DOMESTIC_BOND,),

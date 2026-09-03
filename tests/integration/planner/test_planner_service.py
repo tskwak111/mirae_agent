@@ -1,14 +1,21 @@
 import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import date
 from time import monotonic
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
 from finproof.core.settings import ExecutionMode
-from finproof.domain.query_plan import AggregationFunction, Intent, ProductType
+from finproof.domain.query_plan import (
+    AggregationFunction,
+    Intent,
+    ProductType,
+    ResultGrain,
+    TopKScope,
+)
 from finproof.entity import EntityResolver, HoldingResolver
 from finproof.entity.index import EntityIndex
 from finproof.planner.hcx_client import (
@@ -211,6 +218,183 @@ async def test_valid_structured_output_is_locally_validated_once() -> None:
     assert client.requests[0].to_payload()["thinking"] == {"effort": "none"}
 
 
+@pytest.mark.asyncio
+async def test_invalid_provider_plan_logs_only_its_validation_stage(caplog: object) -> None:
+    capture = cast(Any, caplog)
+    capture.set_level(logging.INFO, logger="finproof")
+    client = ScriptedHcx(["not-json"])
+    planner = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    with pytest.raises(PlannerOutputError):
+        await planner.plan(_request("국내 ETF만 보여줘"), deadline=_deadline())
+
+    events = [
+        record.__dict__
+        for record in reversed(capture.records)
+        if getattr(record, "event", None) == "hcx_output_invalid"
+    ]
+    assert len(events) == 1
+    event = events[0]
+    assert event["provider_request_id"] == "planner-test-structured"
+    assert event["validation_stage"] == "invalid_json"
+    serialized = json.dumps(event, default=str, ensure_ascii=False)
+    assert "not-json" not in serialized
+    assert "국내 ETF만 보여줘" not in serialized
+
+
+@pytest.mark.parametrize(
+    ("question", "intent", "needs_clarification", "expected_reason"),
+    [
+        (
+            "공모펀드의 prfd_attr_cd 코드별 한글 의미와 공식 코드명을 모두 알려줘.",
+            "unsupported",
+            False,
+            "공식 코드 값 테이블이 제공되지 않아 코드의 의미를 추정하거나 공식 명칭으로 "
+            "매핑할 수 없습니다.",
+        ),
+        (
+            "앞으로 1년 동안 수익률이 가장 높을 ETF를 확실하게 예측해줘.",
+            "unsupported",
+            False,
+            "제공 데이터는 미래 수익률 예측이나 확정적 전망을 뒷받침하지 않습니다.",
+        ),
+        (
+            "손실 가능성이 전혀 없고 반드시 돈을 버는 상품 하나만 추천해줘.",
+            "unsupported",
+            False,
+            "무손실 보장이나 확정적 투자 추천은 제공 데이터로 검증할 수 없습니다.",
+        ),
+        (
+            "지금 이 순간의 해외 ETF 실시간 가격과 수익률을 알려줘.",
+            "unsupported",
+            False,
+            "평가 모드는 2026-08-24 공식 스냅샷만 사용하므로 실시간 값은 제공할 수 없습니다.",
+        ),
+        (
+            "수익률 좋은 상품을 알려줘.",
+            "clarify",
+            True,
+            "상품 유형과 수익률 기간을 지정해 주세요.",
+        ),
+        (
+            "지원하지 않는 계산을 대신해줘.",
+            "unsupported",
+            False,
+            "요청한 내용은 제공 데이터로 검증할 수 없습니다.",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_structured_terminal_reason_ignores_provider_wording(
+    question: str,
+    intent: str,
+    needs_clarification: bool,
+    expected_reason: str,
+) -> None:
+    observed: set[str] = set()
+    for provider_reason in ("첫 번째 HCX 표현", "의미는 같지만 다른 두 번째 HCX 표현"):
+        payload = _provider_plan(
+            intent=intent,
+            product_types=["public_fund"],
+            as_of_date="2026-08-24",
+            result_grain="fund_item",
+            filters=[],
+            metrics=[],
+            metric_targets=[],
+            sort=[],
+            top_k=10,
+            top_k_scope="per_product_type",
+            needs_clarification=needs_clarification,
+            clarification_reason=provider_reason,
+        )
+        client = ScriptedHcx([json.dumps(payload)])
+        planner = StructuredOutputPlanner(
+            generator=client,
+            validator=_validator(),
+            registries=RegistryBundle.from_package(),
+            model_name="HCX-007",
+        )
+        request = PlanningRequest(
+            question=question,
+            request_id="terminal-reason-test",
+            as_of_date=date(2026, 8, 24),
+            execution_mode=ExecutionMode.EVALUATION,
+        )
+
+        result = await planner.plan(request, deadline=_deadline())
+
+        observed.add(result.plan.clarification_reason)
+        assert result.validated_plan.plan is result.plan
+        assert result.plan.product_types == ()
+        assert result.plan.result_grain is ResultGrain.PRODUCT
+
+    assert observed == {expected_reason}
+
+
+@pytest.mark.asyncio
+async def test_structured_terminal_discards_provider_execution_fields_before_validation() -> None:
+    payload = _provider_plan(
+        intent="unsupported",
+        product_types=["public_fund"],
+        result_grain="fund_item",
+        filters=[{"field": "product_name", "operator": "contains", "value": "코드"}],
+        metrics=["product_name"],
+        sort=[{"field": "product_name", "direction": "asc"}],
+        needs_clarification=False,
+        clarification_reason="provider terminal reason",
+    )
+    planner = StructuredOutputPlanner(
+        generator=ScriptedHcx([json.dumps(payload)]),
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    result = await planner.plan(
+        _request("공모펀드의 prfd_attr_cd 코드별 한글 의미와 공식 코드명을 모두 알려줘."),
+        deadline=_deadline(),
+    )
+
+    assert result.plan.intent is Intent.UNSUPPORTED
+    assert result.plan.product_types == ()
+    assert result.plan.filters == ()
+    assert result.plan.metrics == ()
+    assert result.plan.sort == ()
+
+
+@pytest.mark.asyncio
+async def test_structured_terminal_accepts_the_prompted_empty_product_types() -> None:
+    payload = _provider_plan(
+        intent="unsupported",
+        product_types=[],
+        result_grain="product",
+        filters=[],
+        metrics=[],
+        sort=[],
+        needs_clarification=False,
+        clarification_reason="provider terminal reason",
+    )
+    planner = StructuredOutputPlanner(
+        generator=ScriptedHcx([json.dumps(payload)]),
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    result = await planner.plan(
+        _request("공모펀드의 prfd_attr_cd 코드별 한글 의미와 공식 코드명을 모두 알려줘."),
+        deadline=_deadline(),
+    )
+
+    assert result.plan.intent is Intent.UNSUPPORTED
+    assert result.plan.product_types == ()
+
+
 def test_provider_none_sentinel_becomes_canonical_none() -> None:
     plan = parse_provider_plan(json.dumps(_provider_plan()))
     assert plan.aggregation is None
@@ -380,7 +564,11 @@ async def test_filter_shape_category_exposes_only_allowlisted_structure(
 
 
 @pytest.mark.asyncio
-async def test_structured_planner_exposes_only_allowlisted_semantic_reason() -> None:
+async def test_structured_planner_exposes_only_allowlisted_semantic_reason(
+    caplog: object,
+) -> None:
+    capture = cast(Any, caplog)
+    capture.set_level(logging.INFO, logger="finproof")
     invalid_content = json.dumps(_provider_plan(result_grain="fund_item"))
     client = ScriptedHcx([invalid_content])
     planner = StructuredOutputPlanner(
@@ -395,6 +583,15 @@ async def test_structured_planner_exposes_only_allowlisted_semantic_reason() -> 
 
     assert caught.value.reason_code == "result_grain_mismatch"
     assert invalid_content not in str(caught.value)
+    event = next(
+        record.__dict__
+        for record in reversed(capture.records)
+        if getattr(record, "event", None) == "hcx_output_invalid"
+    )
+    assert event["validation_stage"] == "semantic"
+    assert event["semantic_reason_code"] == "result_grain_mismatch"
+    assert "미국 ETF 5개" not in json.dumps(event, default=str, ensure_ascii=False)
+    assert invalid_content not in json.dumps(event, default=str, ensure_ascii=False)
 
 
 @pytest.mark.asyncio
@@ -418,6 +615,92 @@ async def test_filter_semantic_detail_exposes_only_registered_metadata() -> None
     assert caught.value.detail == "product_inapplicable"
     assert caught.value.registry_field_id == field_id
     assert "provider-secret-field" not in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_eligibility_semantic_detail_exposes_only_registered_location() -> None:
+    invalid_content = json.dumps(_provider_plan(metrics=["total_fee", "saleable"]))
+    client = ScriptedHcx([invalid_content])
+    planner = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    with pytest.raises(PlannerSemanticError) as caught:
+        await planner.plan(_request("미국 ETF 5개"), deadline=_deadline())
+
+    assert caught.value.reason_code == "eligibility_unsupported"
+    assert caught.value.detail == "metric"
+    assert caught.value.registry_field_id == "saleable"
+    assert invalid_content not in str(caught.value)
+
+
+@pytest.mark.asyncio
+async def test_organizer_purchaseable_heterogeneous_plan_drops_eligibility_filter() -> None:
+    payload = _provider_plan(
+        intent="screen_rank",
+        product_types=["domestic_bond", "domestic_etf", "public_fund"],
+        result_grain="product",
+        filters=[{"field": "saleable", "operator": "eq", "value": True}],
+        metrics=["buy_yield", "total_fee", "return_1y"],
+        metric_targets=[
+            {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+            {"product_type": "domestic_etf", "metrics": ["total_fee"]},
+            {"product_type": "public_fund", "metrics": ["return_1y"]},
+        ],
+        sort=[
+            {"field": "buy_yield", "direction": "desc"},
+            {"field": "total_fee", "direction": "asc"},
+            {"field": "return_1y", "direction": "desc"},
+        ],
+        top_k=3,
+        top_k_scope="per_product_type",
+    )
+    planner = StructuredOutputPlanner(
+        generator=ScriptedHcx([json.dumps(payload)]),
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    planned = await planner.plan(
+        _request(
+            "현재 구매 가능한 국내채권과 국내 ETF, 공모펀드에서 채권은 매수수익률, "
+            "ETF는 총보수, 펀드는 1년 수익률 기준으로 3개씩 알려줘."
+        ),
+        deadline=_deadline(),
+    )
+
+    assert planned.plan.filters == ()
+    assert planned.plan.metrics == ("buy_yield", "total_fee", "return_1y")
+
+
+@pytest.mark.asyncio
+async def test_explicit_per_product_count_canonicalizes_global_scope() -> None:
+    payload = _provider_plan(
+        product_types=["domestic_etf", "overseas_etf", "public_fund"],
+        result_grain="product",
+        filters=[{"field": "aum", "operator": "eq", "value": 0}],
+        metrics=["aum", "currency"],
+        sort=[{"field": "product_name", "direction": "asc"}],
+        top_k=10,
+        top_k_scope="global",
+    )
+    planner = StructuredOutputPlanner(
+        generator=ScriptedHcx([json.dumps(payload)]),
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    planned = await planner.plan(
+        _request("AUM이 0으로 기록된 국내 ETF, 해외 ETF와 공모펀드를 상품 유형별로 10개씩 알려줘."),
+        deadline=_deadline(),
+    )
+
+    assert planned.plan.top_k_scope is TopKScope.PER_PRODUCT_TYPE
 
 
 def test_provider_count_aggregation_becomes_canonical_spec() -> None:
@@ -500,6 +783,57 @@ async def test_qualitative_rank_repair_forbids_a_synthetic_threshold() -> None:
     assert "낮은/높은 with top-k define sort direction, not a filter" in repair_instruction
     assert "emit filters=[]; never invent a threshold" in repair_instruction
     assert result.plan.filters == ()
+
+
+@pytest.mark.asyncio
+async def test_nonaggregate_repair_restates_the_exact_aggregation_sentinel() -> None:
+    invalid = _provider_plan(aggregation={"function": "none", "field": "total_fee", "group_by": []})
+    corrected = _provider_plan()
+    client = ScriptedHcx([json.dumps(invalid), json.dumps(corrected)])
+    _, _, service = _planners(client)
+
+    result = await service.plan(
+        _request("국내 ETF 중 총보수가 낮은 상품 5개"), deadline=_deadline()
+    )
+
+    repair_instruction = client.requests[1].messages[-1].content
+    assert 'aggregation={"function":"none","field":"","group_by":[]}' in repair_instruction
+    assert "exactly these three keys" in repair_instruction
+    assert result.plan.aggregation is None
+
+
+@pytest.mark.asyncio
+async def test_metric_target_repair_restates_the_exact_cross_product_rules() -> None:
+    common = {
+        "intent": "screen_rank",
+        "product_types": ["domestic_bond", "domestic_etf", "public_fund"],
+        "result_grain": "product",
+        "metrics": ["buy_yield", "total_fee", "return_1y"],
+        "sort": [
+            {"field": "buy_yield", "direction": "desc"},
+            {"field": "total_fee", "direction": "asc"},
+            {"field": "return_1y", "direction": "desc"},
+        ],
+        "top_k": 3,
+        "top_k_scope": "per_product_type",
+    }
+    corrected_targets = [
+        {"product_type": "domestic_bond", "metrics": ["buy_yield"]},
+        {"product_type": "domestic_etf", "metrics": ["total_fee"]},
+        {"product_type": "public_fund", "metrics": ["return_1y"]},
+    ]
+    invalid = _provider_plan(**common, metric_targets=list(reversed(corrected_targets)))
+    corrected = _provider_plan(**common, metric_targets=corrected_targets)
+    client = ScriptedHcx([json.dumps(invalid), json.dumps(corrected)])
+    _, _, service = _planners(client)
+
+    result = await service.plan(_request("상품별로 다른 지표 기준 3개씩"), deadline=_deadline())
+
+    repair_instruction = client.requests[1].messages[-1].content
+    assert "otherwise metric_targets=[]" in repair_instruction
+    assert "one target per product_type in product_types order" in repair_instruction
+    assert "union must exactly equal metrics" in repair_instruction
+    assert result.plan.metric_targets[0].product_type is ProductType.DOMESTIC_BOND
 
 
 @pytest.mark.asyncio

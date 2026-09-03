@@ -208,6 +208,38 @@ def test_product_type_and_native_grain_contract_is_exact() -> None:
             )
 
 
+@pytest.mark.parametrize(
+    ("intent", "needs_clarification"),
+    [(Intent.CLARIFY, True), (Intent.UNSUPPORTED, False)],
+)
+def test_non_executable_intents_bypass_execution_grain_validation(
+    intent: Intent, needs_clarification: bool
+) -> None:
+    plan = QueryPlan(
+        intent=intent,
+        product_types=(),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=10,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=needs_clarification,
+        clarification_reason="지원되지 않는 요청입니다.",
+    )
+
+    validated = _validator().validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    assert validated.plan is plan
+
+
 def test_overseas_and_public_fund_validated_eligibility_requests_fail_closed() -> None:
     eligibility = FilterClause(field="saleable", operator=FilterOperator.EQ, value=True)
     for product_type, grain in (

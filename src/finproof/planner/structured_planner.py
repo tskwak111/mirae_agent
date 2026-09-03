@@ -2,9 +2,10 @@
 
 from time import monotonic
 
-from finproof.domain.query_plan import QueryPlan
+from finproof.core.logging import log_hcx_output_invalid
+from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
 from finproof.planner.models import HcxMessage, HcxRequest
-from finproof.planner.prompts import build_system_prompt
+from finproof.planner.prompts import build_system_prompt, build_user_prompt
 from finproof.planner.provider_schema import (
     ProviderPlanError,
     build_hcx_query_plan_schema,
@@ -64,7 +65,7 @@ class StructuredOutputPlanner:
         prompt = build_system_prompt(self._registries, snapshot_date=request.as_of_date)
         messages = [
             HcxMessage(role="system", content=prompt.text),
-            HcxMessage(role="user", content=request.question),
+            HcxMessage(role="user", content=build_user_prompt(request.question)),
         ]
         if invalid_content is not None:
             messages.extend(
@@ -80,7 +81,13 @@ class StructuredOutputPlanner:
                             "only for heterogeneous native grains. 낮은/높은 with top-k "
                             "define sort direction, not a filter. Without an explicit literal "
                             "value, set, range, or missing-state condition, emit filters=[]; "
-                            "never invent a threshold. Return JSON only."
+                            "never invent a threshold. Unless intent=aggregate, emit exactly "
+                            'aggregation={"function":"none","field":"","group_by":[]} '
+                            "with exactly these three keys. For explicitly different metrics, "
+                            "use intent=screen_rank, top_k_scope=per_product_type, and one "
+                            "target per product_type in product_types order; the target metric "
+                            "union must exactly equal metrics and preserve metrics order; "
+                            "otherwise metric_targets=[]. Return JSON only."
                         ),
                     ),
                 )
@@ -93,18 +100,23 @@ class StructuredOutputPlanner:
             temperature=0.0,
             seed=17,
         )
+        provider_request_id = (
+            f"{request.request_id}-structured-repair"
+            if invalid_content is not None
+            else f"{request.request_id}-structured"
+        )
         response = await self._generator.generate(
             provider_request,
-            request_id=(
-                f"{request.request_id}-structured-repair"
-                if invalid_content is not None
-                else f"{request.request_id}-structured"
-            ),
+            request_id=provider_request_id,
             deadline=deadline,
         )
         try:
             plan = parse_provider_plan(response.message_content)
         except ProviderPlanError as error:
+            log_hcx_output_invalid(
+                provider_request_id=provider_request_id,
+                validation_stage=error.stage.value,
+            )
             raise PlannerOutputError(
                 response.message_content,
                 validation_stage=error.stage.value,
@@ -113,11 +125,41 @@ class StructuredOutputPlanner:
                 canonical_keyword=error.canonical_keyword,
                 filter_shape_category=error.filter_shape_category,
             ) from None
+        plan = _canonical_terminal_plan(plan, request)
+        normalized_question = " ".join(request.question.split())
+        if (
+            len(plan.product_types) > 1
+            and plan.top_k_scope is TopKScope.GLOBAL
+            and "개씩" in normalized_question
+            and any(term in normalized_question for term in ("유형별", "각각"))
+        ):
+            plan = plan.model_copy(update={"top_k_scope": TopKScope.PER_PRODUCT_TYPE})
+        if (
+            len(plan.product_types) > 1
+            and "현재 구매 가능한" in normalized_question
+            and any(clause.field in {"saleable", "mirae_saleable"} for clause in plan.filters)
+        ):
+            plan = plan.model_copy(
+                update={
+                    "filters": tuple(
+                        clause
+                        for clause in plan.filters
+                        if clause.field not in {"saleable", "mirae_saleable"}
+                    )
+                }
+            )
         try:
             validated = self._validator.validate(plan, request)
         except (TypeError, ValueError) as error:
             reason_code = semantic_reason_code(error)
             detail, registry_field_id = _semantic_detail(reason_code, plan, self._registries)
+            log_hcx_output_invalid(
+                provider_request_id=provider_request_id,
+                validation_stage="semantic",
+                semantic_reason_code=reason_code,
+                semantic_detail=detail,
+                registry_field_id=registry_field_id,
+            )
             raise PlannerSemanticError(
                 reason_code,
                 detail=detail,
@@ -141,11 +183,75 @@ class StructuredOutputPlanner:
         )
 
 
+def _canonical_terminal_plan(plan: QueryPlan, request: PlanningRequest) -> QueryPlan:
+    if plan.intent not in {Intent.CLARIFY, Intent.UNSUPPORTED}:
+        return plan
+    question = " ".join(request.question.split())
+    if plan.intent is Intent.CLARIFY:
+        reason = (
+            "상품 유형과 수익률 기간을 지정해 주세요."
+            if "수익률" in question
+            else "요청 조건을 더 구체적으로 지정해 주세요."
+        )
+    elif "코드" in question and any(
+        term in question for term in ("의미", "명칭", "코드명", "매핑", "테이블")
+    ):
+        reason = (
+            "공식 코드 값 테이블이 제공되지 않아 코드의 의미를 추정하거나 공식 명칭으로 "
+            "매핑할 수 없습니다."
+        )
+    elif "실시간" in question or "지금 이 순간" in question:
+        reason = (
+            f"평가 모드는 {request.as_of_date.isoformat()} 공식 스냅샷만 사용하므로 "
+            "실시간 값은 제공할 수 없습니다."
+        )
+    elif any(term in question for term in ("예측", "전망", "미래", "앞으로")):
+        reason = "제공 데이터는 미래 수익률 예측이나 확정적 전망을 뒷받침하지 않습니다."
+    elif any(term in question for term in ("추천", "무손실", "보장", "반드시")):
+        reason = "무손실 보장이나 확정적 투자 추천은 제공 데이터로 검증할 수 없습니다."
+    else:
+        reason = "요청한 내용은 제공 데이터로 검증할 수 없습니다."
+    return QueryPlan(
+        intent=plan.intent,
+        product_types=(),
+        entities=(),
+        as_of_date=plan.as_of_date,
+        result_grain=ResultGrain.PRODUCT,
+        filters=(),
+        metrics=(),
+        metric_targets=(),
+        sort=(),
+        aggregation=None,
+        top_k=plan.top_k,
+        top_k_scope=TopKScope.PER_PRODUCT_TYPE,
+        needs_clarification=plan.intent is Intent.CLARIFY,
+        clarification_reason=reason,
+    )
+
+
 def _semantic_detail(
     reason_code: str,
     plan: QueryPlan,
     registries: RegistryBundle,
 ) -> tuple[str | None, str | None]:
+    if reason_code == "eligibility_unsupported":
+        eligibility_fields = {"saleable", "mirae_saleable"}
+        for clause in plan.filters:
+            if clause.field in eligibility_fields:
+                return "filter", clause.field
+        for field in plan.metrics:
+            if field in eligibility_fields:
+                return "metric", field
+        for sort in plan.sort:
+            if sort.field in eligibility_fields:
+                return "sort", sort.field
+        if plan.aggregation is not None:
+            if plan.aggregation.field in eligibility_fields:
+                return "aggregation_field", plan.aggregation.field
+            for field in plan.aggregation.group_by:
+                if field in eligibility_fields:
+                    return "aggregation_group_by", field
+        return None, None
     if reason_code != "filter_field_unavailable":
         return None, None
     projections = FieldRegistry.from_bundle(registries).projections

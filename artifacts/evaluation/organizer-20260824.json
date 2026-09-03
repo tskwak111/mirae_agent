@@ -1,0 +1,3350 @@
+{
+  "replay": {
+    "artifact_version": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+    "config_versions": {
+      "dataset_version": "2026-08-24",
+      "dataset_registry_version": "1.0.0",
+      "field_registry_version": "1.3.0",
+      "metric_registry_version": "1.2.0",
+      "state_rule_version": "1.2.0",
+      "quality_rule_version": "1.1.0",
+      "rating_rule_version": "1.0.0",
+      "answer_policy_version": "1.0.0"
+    },
+    "prompt_version": "phase4-planner-v13",
+    "answer_prompt_version": null,
+    "answer_schema_sha256": null,
+    "wording_verification_mode": null,
+    "planner_version": "1.2.0",
+    "execution_mode": "extended_demo",
+    "planner_mode": "fallback-only",
+    "planner_provider": "local-rule-fallback",
+    "planner_model": null,
+    "hcx_enabled": false,
+    "fallback_enabled": true,
+    "structured_outputs_enabled": false,
+    "configuration_sha256": "b1061b94e5dd2a3dcafc7a5992a2b3ca517c8ef0ffac1d81da5032e441217e74",
+    "code_commit": "6da838d9a95976b6209fa34f7f84fc078f93a501",
+    "environment": {
+      "python": "3.12.13",
+      "implementation": "cpython",
+      "platform": "macOS-26.6.1-arm64-arm-64bit"
+    },
+    "started_at": "2026-08-30T03:30:22.763724Z",
+    "ended_at": "2026-08-30T03:31:29.586552Z",
+    "case_checksum": "867858b8357489eef4c22202282814e924a47f025a091b7d5a071c1f951465a6",
+    "mode": "deterministic-core"
+  },
+  "case_scores": [
+    {
+      "case_id": "ORG-20260824-E-001",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 709.0,
+        "mean_ms": 709.0,
+        "p95_ms": 709.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-002",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 8,
+        "denominator": 8,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 336.0,
+        "mean_ms": 336.0,
+        "p95_ms": 336.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-003",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 314.0,
+        "mean_ms": 314.0,
+        "p95_ms": 314.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-004",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 923.0,
+        "mean_ms": 923.0,
+        "p95_ms": 923.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-005",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 4,
+        "denominator": 4,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 293.0,
+        "mean_ms": 293.0,
+        "p95_ms": 293.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-006",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 240.0,
+        "mean_ms": 240.0,
+        "p95_ms": 240.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-007",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 8,
+        "denominator": 8,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1158.0,
+        "mean_ms": 1158.0,
+        "p95_ms": 1158.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-008",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 21,
+        "denominator": 21,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 609.0,
+        "mean_ms": 609.0,
+        "p95_ms": 609.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-009",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 153.0,
+        "mean_ms": 153.0,
+        "p95_ms": 153.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-E-010",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 511.0,
+        "mean_ms": 511.0,
+        "p95_ms": 511.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-001",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 204.0,
+        "mean_ms": 204.0,
+        "p95_ms": 204.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-002",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 203.0,
+        "mean_ms": 203.0,
+        "p95_ms": 203.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-003",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 40,
+        "denominator": 40,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 40,
+        "denominator": 40,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1157.0,
+        "mean_ms": 1157.0,
+        "p95_ms": 1157.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-004",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 177.0,
+        "mean_ms": 177.0,
+        "p95_ms": 177.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-005",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 18,
+        "denominator": 18,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 19,
+        "denominator": 19,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1548.0,
+        "mean_ms": 1548.0,
+        "p95_ms": 1548.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-006",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 121.0,
+        "mean_ms": 121.0,
+        "p95_ms": 121.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-007",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 30,
+        "denominator": 30,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 31,
+        "denominator": 31,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 6,
+        "denominator": 6,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1056.0,
+        "mean_ms": 1056.0,
+        "p95_ms": 1056.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-008",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 21,
+        "denominator": 21,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 426.0,
+        "mean_ms": 426.0,
+        "p95_ms": 426.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-009",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 18,
+        "denominator": 18,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 19,
+        "denominator": 19,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1168.0,
+        "mean_ms": 1168.0,
+        "p95_ms": 1168.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-H-010",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 4,
+        "denominator": 4,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 13,
+        "denominator": 13,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 17,
+        "denominator": 17,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 1341.0,
+        "mean_ms": 1341.0,
+        "p95_ms": 1341.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-001",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 21,
+        "denominator": 21,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 475.0,
+        "mean_ms": 475.0,
+        "p95_ms": 475.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-002",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 21,
+        "denominator": 21,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 8,
+        "denominator": 8,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 711.0,
+        "mean_ms": 711.0,
+        "p95_ms": 711.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-003",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 30,
+        "denominator": 30,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 702.0,
+        "mean_ms": 702.0,
+        "p95_ms": 702.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-004",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 630.0,
+        "mean_ms": 630.0,
+        "p95_ms": 630.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-005",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 11,
+        "denominator": 11,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 12,
+        "denominator": 12,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 24,
+        "denominator": 24,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 929.0,
+        "mean_ms": 929.0,
+        "p95_ms": 929.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-006",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 156.0,
+        "mean_ms": 156.0,
+        "p95_ms": 156.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-007",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 5,
+        "denominator": 5,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 76.0,
+        "mean_ms": 76.0,
+        "p95_ms": 76.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-008",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 7,
+        "denominator": 7,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 124.0,
+        "mean_ms": 124.0,
+        "p95_ms": 124.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-009",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 2,
+        "denominator": 2,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 31,
+        "denominator": 31,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 8,
+        "denominator": 8,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 561.0,
+        "mean_ms": 561.0,
+        "p95_ms": 561.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-M-010",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 20,
+        "denominator": 20,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 21,
+        "denominator": 21,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 9,
+        "denominator": 9,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 517.0,
+        "mean_ms": 517.0,
+        "p95_ms": 517.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-U-001",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 58.0,
+        "mean_ms": 58.0,
+        "p95_ms": 58.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-U-002",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 66.0,
+        "mean_ms": 66.0,
+        "p95_ms": 66.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-U-003",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 74.0,
+        "mean_ms": 74.0,
+        "p95_ms": 74.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-U-004",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 57.0,
+        "mean_ms": 57.0,
+        "p95_ms": 57.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    },
+    {
+      "case_id": "ORG-20260824-U-005",
+      "plan_fields": {
+        "value": 1.0,
+        "numerator": 10,
+        "denominator": 10,
+        "failures": []
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "segment_assignment": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "compatibility_partitions": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "assembled_envelope": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "product_set": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "product_order": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "numeric_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "aggregate_values": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "evidence_coverage": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "answer_semantics": {
+        "value": 1.0,
+        "numerator": 3,
+        "denominator": 3,
+        "failures": []
+      },
+      "repeat_stability": {
+        "value": 1.0,
+        "numerator": 0,
+        "denominator": 0,
+        "failures": []
+      },
+      "latency": {
+        "count": 1,
+        "success_count": 1,
+        "failure_count": 0,
+        "total_ms": 58.0,
+        "mean_ms": 58.0,
+        "p95_ms": 58.0,
+        "stage_mean_ms": {},
+        "stage_p95_ms": {}
+      },
+      "failures": []
+    }
+  ],
+  "aggregates": {
+    "plan_fields": {
+      "value": 1.0,
+      "numerator": 353,
+      "denominator": 353,
+      "failures": []
+    },
+    "filter_slots": {
+      "value": 1.0,
+      "numerator": 47,
+      "denominator": 47,
+      "failures": []
+    },
+    "top_k_scope": {
+      "value": 1.0,
+      "numerator": 35,
+      "denominator": 35,
+      "failures": []
+    },
+    "segment_assignment": {
+      "value": 1.0,
+      "numerator": 14,
+      "denominator": 14,
+      "failures": []
+    },
+    "compatibility_partitions": {
+      "value": 1.0,
+      "numerator": 30,
+      "denominator": 30,
+      "failures": []
+    },
+    "assembled_envelope": {
+      "value": 1.0,
+      "numerator": 30,
+      "denominator": 30,
+      "failures": []
+    },
+    "product_set": {
+      "value": 1.0,
+      "numerator": 352,
+      "denominator": 352,
+      "failures": []
+    },
+    "product_order": {
+      "value": 1.0,
+      "numerator": 158,
+      "denominator": 158,
+      "failures": []
+    },
+    "numeric_values": {
+      "value": 1.0,
+      "numerator": 208,
+      "denominator": 208,
+      "failures": []
+    },
+    "aggregate_values": {
+      "value": 1.0,
+      "numerator": 22,
+      "denominator": 22,
+      "failures": []
+    },
+    "evidence_coverage": {
+      "value": 1.0,
+      "numerator": 439,
+      "denominator": 439,
+      "failures": []
+    },
+    "answer_semantics": {
+      "value": 1.0,
+      "numerator": 280,
+      "denominator": 280,
+      "failures": []
+    },
+    "repeat_stability": {
+      "value": 1.0,
+      "numerator": 0,
+      "denominator": 0,
+      "failures": []
+    }
+  },
+  "latency": {
+    "count": 35,
+    "success_count": 35,
+    "failure_count": 0,
+    "total_ms": 17841.0,
+    "mean_ms": 509.74285714285713,
+    "p95_ms": 1341.0,
+    "stage_mean_ms": {},
+    "stage_p95_ms": {}
+  }
+}

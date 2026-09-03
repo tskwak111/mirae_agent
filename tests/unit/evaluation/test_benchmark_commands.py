@@ -9,12 +9,18 @@ def test_reviewed_benchmark_mix_covers_required_request_shapes() -> None:
     cases = reviewed_benchmark_mix(Path.cwd())
 
     assert tuple(case.question_type for case in cases) == (
-        "lookup",
-        "multi_filter_rank",
-        "cross_product_split",
-        "quality_explanation",
+        "simple_rank",
+        "heterogeneous_cross_product",
+        "zero_missing_policy",
+        "unsupported_code_table",
     )
-    assert len({case.case_id for case in cases}) == 4
+    assert tuple(case.case_id for case in cases) == (
+        "ORG-20260824-E-002",
+        "ORG-20260824-H-009",
+        "ORG-20260824-H-007",
+        "ORG-20260824-U-001",
+    )
+    assert all("2026-07-11" not in case.question for case in cases)
 
 
 def test_benchmark_shell_entrypoints_are_strict_valid_shell() -> None:

@@ -46,7 +46,11 @@ def _parser() -> argparse.ArgumentParser:
     build_data = subcommands.add_parser("build-data", help="Build verified data artifacts")
     build_data.add_argument("--clean", action="store_true")
     evaluate = subcommands.add_parser("evaluate", help="Run a reviewed evaluation suite")
-    evaluate.add_argument("--suite", choices=("canonical", "robustness"), required=True)
+    evaluate.add_argument(
+        "--suite",
+        choices=("canonical", "robustness", "organizer_20260824"),
+        required=True,
+    )
     evaluate.add_argument("--output", type=Path, required=True)
     evaluate.add_argument(
         "--mode",

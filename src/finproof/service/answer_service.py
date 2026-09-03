@@ -5,7 +5,7 @@ from decimal import Decimal
 from hashlib import sha256
 from threading import Lock
 from time import monotonic
-from typing import Any, Literal, cast
+from typing import Any, Literal, Protocol, cast
 
 from finproof.answer import AnswerRenderer
 from finproof.core.settings import ExecutionMode
@@ -50,6 +50,10 @@ from finproof.storage.repositories.evidence import EvidenceRepository
 from finproof.storage.repositories.products import RawExecutionResult, RawFieldValue
 
 
+class _InterruptibleConnection(Protocol):
+    def interrupt(self) -> None: ...
+
+
 class AnswerService:
     def __init__(self, session: RuntimeArtifactSession) -> None:
         if type(session) is not RuntimeArtifactSession:
@@ -69,6 +73,13 @@ class AnswerService:
         self._verifier = ClaimVerifier()
         # ponytail: one session lock; use owner-managed per-worker cursors if DB throughput matters.
         self._request_lock = Lock()
+
+    def interrupt(self) -> None:
+        self._session.assert_live()
+        connection = cast(_InterruptibleConnection | None, self._session._connection)
+        if connection is None:
+            raise RuntimeError("runtime artifact session is closed")
+        connection.interrupt()
 
     def answer_plan(self, request: AnswerRequest, plan: QueryPlan) -> AnswerResult:
         """Offline/demo deterministic compatibility boundary."""
@@ -116,21 +127,28 @@ class AnswerService:
                 latency_ms={"database": 0, "evidence": 0},
                 deadline=deadline,
             )
-        if self._resolver is None:
-            self._resolver = EntityResolver(EntityIndex.from_session(self._session))
+        resolver = self._resolver
+        if plan.entities and resolver is None:
+            resolver = EntityResolver(EntityIndex.from_session(self._session))
+            self._resolver = resolver
+        entity_results = (
+            tuple(
+                resolver.resolve(
+                    mention,
+                    product_types=plan.product_types,
+                )
+                for mention in plan.entities
+            )
+            if resolver is not None
+            else ()
+        )
         holding_filters = tuple(
             clause for clause in plan.filters if clause.field == "holding_constituent"
         )
         if holding_filters and self._holding_resolver is None:
             self._holding_resolver = HoldingResolver.from_session(self._session)
         resolutions = ResolutionBundle(
-            results=tuple(
-                self._resolver.resolve(
-                    mention,
-                    product_types=plan.product_types,
-                )
-                for mention in plan.entities
-            ),
+            results=entity_results,
             holding_constituent=(
                 self._holding_resolver.resolve(holding_filters[0].value)
                 if len(holding_filters) == 1

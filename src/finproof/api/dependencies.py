@@ -151,9 +151,5 @@ class _DeterministicDemoWording:
 
 
 def _wording(fact_pack: FactPack) -> ProviderWording:
-    return ProviderWording(
-        answer="".join(part.text for part in fact_pack.surface_parts),
-        surface_part_ids=tuple(part.part_id for part in fact_pack.surface_parts),
-        claim_ids=fact_pack.required_claim_ids,
-        limitation_codes=fact_pack.required_limitation_codes,
-    )
+    del fact_pack
+    return ProviderWording(presentation="조회 결과입니다.")

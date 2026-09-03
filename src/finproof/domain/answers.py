@@ -146,17 +146,7 @@ class FactPack(_FrozenModel):
 
 
 class ProviderWording(_FrozenModel):
-    answer: Annotated[str, Field(min_length=1, max_length=12_000)]
-    surface_part_ids: Annotated[tuple[str, ...], Field(min_length=1, max_length=1)]
-    claim_ids: Annotated[tuple[str, ...], Field(max_length=300)]
-    limitation_codes: Annotated[tuple[str, ...], Field(max_length=100)]
-
-    @model_validator(mode="after")
-    def _unique_references(self) -> Self:
-        for values in (self.surface_part_ids, self.claim_ids, self.limitation_codes):
-            if len(set(values)) != len(values):
-                raise ValueError("provider wording IDs must be unique")
-        return self
+    presentation: Literal["조회 결과입니다.", "확인 결과입니다."]
 
 
 class PreparedAnswer(_FrozenModel):

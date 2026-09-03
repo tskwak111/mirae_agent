@@ -597,18 +597,17 @@ def _matches(
 def _sort_rows(rows: tuple[PolicyRow, ...], sort: tuple[SortSpec, ...]) -> tuple[PolicyRow, ...]:
     ordered = sorted(rows, key=lambda row: row.raw.product_id)
     for item in reversed(sort):
-        valued = [
-            row
-            for row in ordered
-            if next(value.value for value in row.raw.values if value.field_id == item.field)
-            is not None
-        ]
+        valued: list[tuple[Any, PolicyRow]] = []
+        missing: list[PolicyRow] = []
+        for row in ordered:
+            value = next(value.value for value in row.raw.values if value.field_id == item.field)
+            if value is None:
+                missing.append(row)
+            else:
+                valued.append((value, row))
         valued.sort(
-            key=lambda row: cast(
-                Any,
-                next(value.value for value in row.raw.values if value.field_id == item.field),
-            ),
+            key=lambda item: item[0],
             reverse=item.direction is SortDirection.DESC,
         )
-        ordered = valued + [row for row in ordered if row not in valued]
+        ordered = [row for _, row in valued] + missing
     return tuple(ordered)

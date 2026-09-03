@@ -141,6 +141,22 @@ def parse_provider_plan(content: str) -> QueryPlan:
 def canonicalize_provider_plan(payload: dict[str, Any]) -> dict[str, Any]:
     """Convert the HCX-safe aggregation object into the canonical nullable shape."""
     canonical = deepcopy(payload)
+    intent = canonical.get("intent")
+    if intent in {"clarify", "unsupported"}:
+        canonical.update(
+            {
+                "product_types": [],
+                "entities": [],
+                "result_grain": "product",
+                "filters": [],
+                "metrics": [],
+                "metric_targets": [],
+                "sort": [],
+                "aggregation": {"function": "none", "field": "", "group_by": []},
+                "top_k_scope": "per_product_type",
+                "needs_clarification": intent == "clarify",
+            }
+        )
     aggregation = canonical.get("aggregation")
     if not isinstance(aggregation, dict) or set(aggregation) != {
         "function",

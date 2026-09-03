@@ -1,0 +1,8 @@
+{
+  "schema_version": "organizer_expected_reference_approval.v1",
+  "suite_id": "organizer_20260824",
+  "review_status": "human_approved_expected_results_and_answers",
+  "reviewer": "곽태성",
+  "reviewed_at": "2026-08-29",
+  "expected_reference_packet_sha256": "859602d78d005b66e4417a8093c4585a8198cde6890f6066c7216100a625f38c"
+}

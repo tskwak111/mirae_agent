@@ -151,15 +151,13 @@ class ClaimVerifier:
             raise TypeError("wording verification inputs differ")
         if deadline.remaining_work_seconds() <= 0:
             raise ClaimVerificationError("wording verification deadline exceeded")
+        if wording.presentation not in {"조회 결과입니다.", "확인 결과입니다."}:
+            raise ClaimVerificationError("provider presentation is not allowlisted")
         pack = prepared.fact_pack
-        if (
-            wording.answer != "".join(part.text for part in pack.surface_parts)
-            or wording.surface_part_ids != tuple(part.part_id for part in pack.surface_parts)
-            or wording.claim_ids != pack.required_claim_ids
-            or wording.limitation_codes != pack.required_limitation_codes
-        ):
-            raise ClaimVerificationError("provider wording differs from issued surface")
-        return VerifiedAnswer(text=wording.answer, claims=prepared.claims)
+        return VerifiedAnswer(
+            text=f"{wording.presentation}\n{pack.surface_parts[0].text}",
+            claims=prepared.claims,
+        )
 
 
 def _matches_value_claim(

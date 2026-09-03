@@ -32,7 +32,7 @@ class SoakConfig(_FrozenModel):
     duration_seconds: Annotated[float, Field(gt=0, le=172_800)]
     interval_seconds: Annotated[float, Field(ge=0, le=3_600)]
     report_path: Path
-    request_timeout_seconds: Annotated[float, Field(gt=0, le=15)] = 15
+    request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 300
     max_cycles: int | None = Field(default=None, ge=1, le=1_000_000)
 
     @model_validator(mode="after")
@@ -101,6 +101,7 @@ class SoakRunner:
         report = self._resume(config.report_path, identity)
         active_started = self._active_clock()
         initial_active_seconds = report.active_seconds
+        cycle_cases = tuple(case.model_copy(update={"weight": 1}) for case in config.cases)
 
         def active_seconds() -> float:
             return min(
@@ -115,7 +116,7 @@ class SoakRunner:
             load = await self._load_runner.run(
                 LoadConfig(
                     base_url=config.base_url,
-                    cases=config.cases,
+                    cases=cycle_cases,
                     concurrency=1,
                     rate_per_second=0,
                     duration_seconds=config.request_timeout_seconds * len(config.cases),
@@ -233,6 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--hours", type=float, default=24)
     parser.add_argument("--interval-seconds", type=float, default=60)
+    parser.add_argument("--max-cycles", type=int)
     parser.add_argument("--output", type=Path, default=Path("artifacts/evaluation/soak.json"))
     args = parser.parse_args(argv)
     report = asyncio.run(
@@ -243,6 +245,7 @@ def main(argv: list[str] | None = None) -> int:
                 duration_seconds=cast(float, args.hours) * 3_600,
                 interval_seconds=cast(float, args.interval_seconds),
                 report_path=cast(Path, args.output),
+                max_cycles=cast(int | None, args.max_cycles),
             )
         )
     )

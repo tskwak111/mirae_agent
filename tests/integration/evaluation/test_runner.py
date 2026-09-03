@@ -133,7 +133,7 @@ def test_replay_versions_label_fallback_only_and_hash_actual_configuration() -> 
         prompt_version="prompt-1.0.0",
         answer_prompt_version="answer-prompt-v1",
         answer_schema_sha256="a" * 64,
-        wording_verification_mode="exact-application-surface-v1",
+        wording_verification_mode="allowlisted-presentation-plus-exact-surface-v1",
         planner_version="planner-1.0.0",
         execution_mode=ExecutionMode.EVALUATION,
         hcx_enabled=True,
@@ -158,7 +158,7 @@ def test_evaluation_replay_requires_both_hcx_stages_without_fallback() -> None:
         prompt_version="planner-prompt-v1",
         answer_prompt_version="answer-prompt-v1",
         answer_schema_sha256="a" * 64,
-        wording_verification_mode="exact-application-surface-v1",
+        wording_verification_mode="allowlisted-presentation-plus-exact-surface-v1",
         planner_version="planner-1.0.0",
         execution_mode=ExecutionMode.EVALUATION,
         hcx_enabled=True,
@@ -178,7 +178,7 @@ def test_evaluation_replay_requires_both_hcx_stages_without_fallback() -> None:
             prompt_version="planner-prompt-v1",
             answer_prompt_version="answer-prompt-v1",
             answer_schema_sha256="a" * 64,
-            wording_verification_mode="exact-application-surface-v1",
+            wording_verification_mode="allowlisted-presentation-plus-exact-surface-v1",
             planner_version="planner-1.0.0",
             execution_mode=ExecutionMode.EVALUATION,
             hcx_enabled=False,
@@ -194,13 +194,29 @@ def test_evaluation_replay_requires_both_hcx_stages_without_fallback() -> None:
             prompt_version="planner-prompt-v1",
             answer_prompt_version="answer-prompt-v1",
             answer_schema_sha256="a" * 64,
-            wording_verification_mode="exact-application-surface-v1",
+            wording_verification_mode="allowlisted-presentation-plus-exact-surface-v1",
             planner_version="planner-1.0.0",
             execution_mode=ExecutionMode.EVALUATION,
             hcx_enabled=True,
             planner_model="HCX-007",
             fallback_enabled=False,
             structured_outputs_enabled=False,
+        )
+
+    with pytest.raises(ValueError, match="verified wording identities"):
+        ReplayVersions.from_configuration(
+            artifact_version="artifact-sha256",
+            config_versions={"metric": "1.0.0"},
+            prompt_version="planner-prompt-v1",
+            answer_prompt_version="answer-prompt-v1",
+            answer_schema_sha256="a" * 64,
+            wording_verification_mode="exact-application-surface-v1",
+            planner_version="planner-1.0.0",
+            execution_mode=ExecutionMode.EVALUATION,
+            hcx_enabled=True,
+            planner_model="HCX-007",
+            fallback_enabled=False,
+            structured_outputs_enabled=True,
         )
 
 

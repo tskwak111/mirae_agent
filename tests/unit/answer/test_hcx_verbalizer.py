@@ -53,45 +53,26 @@ def _fact_pack() -> FactPack:
     )
 
 
-def test_provider_wording_accepts_only_the_exact_issued_tuple() -> None:
-    pack = _fact_pack()
+def test_provider_wording_accepts_only_the_allowlisted_presentation() -> None:
     wording = parse_provider_wording(
-        json.dumps(
-            {
-                "answer": pack.surface_parts[0].text,
-                "surface_part_ids": ["surface:answer"],
-                "claim_ids": ["claim:return"],
-                "limitation_codes": ["snapshot_assumption"],
-            },
-            ensure_ascii=False,
-        )
+        json.dumps({"presentation": "조회 결과입니다."}, ensure_ascii=False)
     )
 
-    assert wording == ProviderWording(
-        answer=pack.surface_parts[0].text,
-        surface_part_ids=("surface:answer",),
-        claim_ids=("claim:return",),
-        limitation_codes=("snapshot_assumption",),
-    )
+    assert wording == ProviderWording(presentation="조회 결과입니다.")
 
 
 @pytest.mark.parametrize(
     "change",
     [
         {"extra": "no"},
-        {"surface_part_ids": []},
-        {"claim_ids": ["claim:return", "claim:return"]},
+        {"presentation": "임의 문구"},
+        {"presentation": ""},
     ],
 )
-def test_provider_wording_rejects_schema_extras_and_invalid_ids(
+def test_provider_wording_rejects_schema_extras_and_non_allowlisted_presentations(
     change: dict[str, object],
 ) -> None:
-    payload: dict[str, object] = {
-        "answer": _fact_pack().surface_parts[0].text,
-        "surface_part_ids": ["surface:answer"],
-        "claim_ids": ["claim:return"],
-        "limitation_codes": ["snapshot_assumption"],
-    }
+    payload: dict[str, object] = {"presentation": "조회 결과입니다."}
     payload.update(change)
 
     with pytest.raises(ProviderWordingError):
@@ -112,18 +93,11 @@ async def test_verbalizer_emits_the_exact_structured_answer_schema() -> None:
         ) -> HcxResponse:
             del request_id, deadline
             self.request = request
-            pack = _fact_pack()
             return HcxResponse(
                 status_code="20000",
                 status_message="OK",
                 message_content=json.dumps(
-                    {
-                        "answer": pack.surface_parts[0].text,
-                        "surface_part_ids": ["surface:answer"],
-                        "claim_ids": ["claim:return"],
-                        "limitation_codes": ["snapshot_assumption"],
-                    },
-                    ensure_ascii=False,
+                    {"presentation": "조회 결과입니다."}, ensure_ascii=False
                 ),
                 usage=HcxUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
                 rate_limits=HcxRateLimitSnapshot(),
@@ -143,3 +117,48 @@ async def test_verbalizer_emits_the_exact_structured_answer_schema() -> None:
         "schema": build_hcx_answer_schema(),
     }
     assert generator.request.to_payload()["thinking"] == {"effort": "none"}
+    assert generator.request.max_completion_tokens == 64
+    wording_input = json.loads(generator.request.messages[1].content)
+    assert wording_input == _fact_pack().model_dump(mode="json")
+    assert wording_input["claim_signatures"]
+    assert wording_input["evidence_context_sha256"] == "a" * 64
+
+
+@pytest.mark.asyncio
+async def test_wording_repair_discards_untrusted_output_and_restates_exact_copy() -> None:
+    class RecordingGenerator:
+        request: HcxRequest | None = None
+
+        async def generate(
+            self,
+            request: HcxRequest,
+            request_id: str,
+            *,
+            deadline: RequestDeadline,
+        ) -> HcxResponse:
+            del request_id, deadline
+            self.request = request
+            return HcxResponse(
+                status_code="20000",
+                status_message="OK",
+                message_content=json.dumps(
+                    {"presentation": "확인 결과입니다."}, ensure_ascii=False
+                ),
+                usage=HcxUsage(prompt_tokens=1, completion_tokens=1, total_tokens=2),
+                rate_limits=HcxRateLimitSnapshot(),
+            )
+
+    generator = RecordingGenerator()
+    await HcxVerbalizer(generator=generator, model_name="HCX-007").repair(
+        _fact_pack(),
+        invalid_content="untrusted-previous-output",
+        request_id="wording-repair-test",
+        deadline=RequestDeadline.start(),
+    )
+
+    assert generator.request is not None
+    assert [message.role for message in generator.request.messages] == ["system", "user", "user"]
+    assert all(
+        "untrusted-previous-output" not in message.content for message in generator.request.messages
+    )
+    assert "allowed presentation" in generator.request.messages[-1].content

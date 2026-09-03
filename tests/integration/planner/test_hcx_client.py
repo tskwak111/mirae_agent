@@ -1,7 +1,8 @@
 import json
+import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 import httpx
 import pytest
@@ -217,23 +218,49 @@ async def test_timeout_is_mapped_to_stable_transport_category(
     expected_kind: HcxTimeoutKind,
     hcx_client: HcxClient,
     respx_mock: respx.MockRouter,
+    caplog: object,
 ) -> None:
+    capture = cast(Any, caplog)
+    capture.set_level(logging.INFO, logger="finproof")
     respx_mock.post(_URL).mock(side_effect=timeout_type("provider timeout"))
 
     with pytest.raises(HcxTransportError) as caught:
         await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
 
     assert caught.value.timeout_kind is expected_kind
+    events = [
+        record.__dict__
+        for record in reversed(capture.records)
+        if getattr(record, "event", None) == "hcx_provider_failure"
+    ]
+    assert len(events) == 1
+    event = events[0]
+    assert event["provider_request_id"] == "req-1"
+    assert event["provider_error_kind"] == "transport"
+    assert event["provider_error_detail"] == expected_kind.value
 
 
 @pytest.mark.asyncio
 async def test_non_success_http_status_is_typed_error(
-    hcx_client: HcxClient, respx_mock: respx.MockRouter
+    hcx_client: HcxClient, respx_mock: respx.MockRouter, caplog: object
 ) -> None:
+    capture = cast(Any, caplog)
+    capture.set_level(logging.INFO, logger="finproof")
     respx_mock.post(_URL).respond(503, content=b"unavailable")
 
     with pytest.raises(HcxHttpError) as caught:
         await hcx_client.generate(_valid_request(), request_id="req-1", deadline=_deadline())
+
+    events = [
+        record.__dict__
+        for record in reversed(capture.records)
+        if getattr(record, "event", None) == "hcx_provider_failure"
+    ]
+    assert len(events) == 1
+    event = events[0]
+    assert event["provider_request_id"] == "req-1"
+    assert event["provider_error_kind"] == "http"
+    assert event["provider_error_detail"] == "5xx"
 
     assert caught.value.http_status == 503
 

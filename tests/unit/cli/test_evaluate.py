@@ -11,6 +11,7 @@ from pydantic import SecretStr
 from finproof.cli.main import _parser, _run_main
 from finproof.core.settings import ExecutionMode, Settings
 from finproof.evaluation.runner import EvaluationMode
+from finproof.runtime.session import RuntimeArtifactSession
 from finproof.service.orchestrator import EvaluationOrchestrator
 
 
@@ -47,6 +48,23 @@ def test_parser_accepts_robustness_evaluate_command() -> None:
     assert args.suite == "robustness"
 
 
+def test_parser_accepts_organizer_deterministic_core_command() -> None:
+    args = _parser().parse_args(
+        [
+            "evaluate",
+            "--suite",
+            "organizer_20260824",
+            "--output",
+            "artifacts/evaluation/organizer-20260824.json",
+            "--mode",
+            "deterministic-core",
+        ]
+    )
+
+    assert args.suite == "organizer_20260824"
+    assert args.mode is EvaluationMode.DETERMINISTIC_CORE
+
+
 def test_cli_evaluation_replay_rejects_non_hcx_007_model() -> None:
     from finproof.cli.evaluate import _LocalEvaluationService
 
@@ -60,7 +78,7 @@ def test_cli_evaluation_replay_rejects_non_hcx_007_model() -> None:
     loop = new_event_loop()
     try:
         service = _LocalEvaluationService(
-            session=cast(object, SimpleNamespace(versions=versions)),
+            session=cast(RuntimeArtifactSession, SimpleNamespace(versions=versions)),
             orchestrator=cast(EvaluationOrchestrator, object()),
             loop=loop,
             settings=Settings(

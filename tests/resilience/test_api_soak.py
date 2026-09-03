@@ -12,7 +12,7 @@ import httpx
 import pytest
 from jsonschema import Draft202012Validator
 
-from tests.e2e.test_evaluation_api import evaluation_app
+from tests.e2e.test_evaluation_api import _recorded_hcx, evaluation_app
 
 _SECONDS = os.getenv("FINPROOF_SOAK_SECONDS")
 _CASES = (
@@ -31,10 +31,11 @@ def _plan(case: str) -> dict[str, object]:
         "intent": "screen",
         "product_types": ["domestic_etf"],
         "entities": [],
-        "as_of_date": "2026-07-11",
+        "as_of_date": "2026-08-24",
         "result_grain": "listed_product",
         "filters": [],
         "metrics": [],
+        "metric_targets": [],
         "sort": [],
         "aggregation": {"function": "none", "field": "", "group_by": []},
         "top_k": 5,
@@ -67,6 +68,12 @@ async def _recorded_resilience_hcx(request: httpx.Request) -> httpx.Response:
     question = next(
         message["content"] for message in payload["messages"] if message["role"] == "user"
     )
+    try:
+        fact_pack = json.loads(question)
+    except json.JSONDecodeError:
+        fact_pack = None
+    if isinstance(fact_pack, dict) and fact_pack.get("format") == "finproof.fact-pack.v1":
+        return _recorded_hcx(request)
     case = next(name for name, marker in _CASES if marker == question)
     if case == "timeout":
         raise httpx.ReadTimeout("recorded timeout", request=request)

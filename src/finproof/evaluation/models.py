@@ -173,10 +173,10 @@ class ExpectedPlan(_FrozenModel):
                 raise ValueError("expected plan has the wrong result grain")
         if self.native_segments:
             segments = {segment.product_type: segment for segment in self.native_segments}
-            if len(segments) != len(self.native_segments) or set(segments) != set(
-                self.product_types
-            ):
-                raise ValueError("multi-product expectations require one native segment per type")
+            selected = set(self.product_types)
+            segment_products = set(segments)
+            if len(segments) != len(self.native_segments) or not segment_products <= selected:
+                raise ValueError("expected native segments must be selected product types")
             if any(
                 segment.native_result_grain is not native_by_product[product]
                 for product, segment in segments.items()
@@ -370,6 +370,12 @@ class GoldenCase(_FrozenModel):
 
     @model_validator(mode="after")
     def _validate_envelope_expectation(self) -> Self:
+        if (
+            self.expected_plan.native_segments
+            and len(self.expected_plan.native_segments) < len(self.expected_plan.product_types)
+            and self.expected_answer.expect_limitation is not True
+        ):
+            raise ValueError("pruned native segments require an explicit limitation")
         expected = self.expected_result.assembled_envelope
         if expected is None:
             return self

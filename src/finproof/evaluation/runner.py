@@ -79,7 +79,7 @@ class ReplayVersions(_FrozenModel):
             if (
                 not answer_prompt_version
                 or not answer_schema_sha256
-                or wording_verification_mode != "exact-application-surface-v1"
+                or wording_verification_mode != "allowlisted-presentation-plus-exact-surface-v1"
             ):
                 raise ValueError("HCX replay requires verified wording identities")
         else:

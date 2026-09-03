@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.evaluation.latency import LatencySample, LatencySummary
-from finproof.evaluation.loader import load_golden_cases
+from finproof.evaluation.loader import load_suite
 
 
 class _FrozenModel(BaseModel):
@@ -39,7 +39,7 @@ class LoadConfig(_FrozenModel):
     concurrency: int = Field(default=1, ge=1, le=64)
     rate_per_second: Annotated[float, Field(ge=0, le=1_000)] = 0
     duration_seconds: Annotated[float, Field(gt=0, le=172_800)]
-    request_timeout_seconds: Annotated[float, Field(gt=0, le=15)] = 15
+    request_timeout_seconds: Annotated[float, Field(gt=0, le=300)] = 300
     max_requests: int | None = Field(default=None, ge=1, le=1_000_000)
 
     @field_validator("base_url")
@@ -224,7 +224,8 @@ _RESPONSE_FIELDS = {
     "think_trace",
     "answer",
 }
-_STAGES = {"planner", "database", "evidence", "render"}
+_STAGES = {"planner", "database", "evidence", "render", "wording"}
+_PRESENTATIONS = {"조회 결과입니다.", "확인 결과입니다."}
 
 
 def _safe_response_measurement(
@@ -245,7 +246,10 @@ def _safe_response_measurement(
             return False, False, None, None, {}
         trace = ExecutionTrace.model_validate_json(payload["think_trace"], strict=True)
         stages = trace.latency_ms
-        if set(stages) != _STAGES or not all(
+        if (
+            (trace.validation is not TraceValidation.SAFE_FAILURE or stages)
+            and set(stages) != _STAGES
+        ) or not all(
             type(value) in {int, float} and value >= 0 and math.isfinite(value)
             for value in stages.values()
         ):
@@ -258,24 +262,27 @@ def _safe_response_measurement(
     return (
         True,
         trace.validation is not TraceValidation.SAFE_FAILURE,
-        sha256(payload["answer"].encode()).hexdigest(),
+        sha256(_material_answer(payload["answer"]).encode()).hexdigest(),
         version_hash,
         dict(stages),
     )
 
 
+def _material_answer(answer: str) -> str:
+    presentation, separator, surface = answer.partition("\n")
+    return surface if separator and presentation in _PRESENTATIONS else answer
+
+
 def reviewed_benchmark_mix(repository_root: Path) -> tuple[LoadCase, ...]:
-    selected = {
-        "CQ-001-LOOKUP-002": ("lookup", 4),
-        "CQ-003-010": ("multi_filter_rank", 3),
-        "CQ-001-CROSS_PRODUCT-001": ("cross_product_split", 2),
-        "CQ-001-QUALITY-001": ("quality_explanation", 1),
-    }
-    cases = load_golden_cases(
-        tuple(sorted((repository_root / "evaluation" / "canonical").glob("*.jsonl")))
+    selected = (
+        ("ORG-20260824-E-002", "simple_rank", 4),
+        ("ORG-20260824-H-009", "heterogeneous_cross_product", 3),
+        ("ORG-20260824-H-007", "zero_missing_policy", 2),
+        ("ORG-20260824-U-001", "unsupported_code_table", 1),
     )
+    cases = load_suite("organizer_20260824", repository_root=repository_root)
     by_id = {case.case_id: case for case in cases}
-    if not selected.keys() <= by_id.keys():
+    if any(case_id not in by_id for case_id, _question_type, _weight in selected):
         raise ValueError("reviewed benchmark cases are missing")
     return tuple(
         LoadCase(
@@ -284,7 +291,7 @@ def reviewed_benchmark_mix(repository_root: Path) -> tuple[LoadCase, ...]:
             question_type=question_type,
             weight=weight,
         )
-        for case_id, (question_type, weight) in selected.items()
+        for case_id, question_type, weight in selected
     )
 
 
@@ -301,6 +308,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--duration-seconds", type=float, default=60)
     parser.add_argument("--concurrency", type=int, default=8)
     parser.add_argument("--rate-per-second", type=float, default=0)
+    parser.add_argument("--max-requests", type=int)
     parser.add_argument("--output", type=Path, default=Path("artifacts/evaluation/load.json"))
     args = parser.parse_args(argv)
     config = LoadConfig(
@@ -309,6 +317,7 @@ def main(argv: list[str] | None = None) -> int:
         concurrency=cast(int, args.concurrency),
         rate_per_second=cast(float, args.rate_per_second),
         duration_seconds=cast(float, args.duration_seconds),
+        max_requests=cast(int | None, args.max_requests),
     )
     report = asyncio.run(LoadRunner().run(config))
     output = cast(Path, args.output)

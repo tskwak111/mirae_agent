@@ -6,7 +6,7 @@ from decimal import Decimal
 import pytest
 
 
-def test_valid_ids_cannot_cover_a_changed_answer_byte() -> None:
+def test_wording_verifier_joins_allowlisted_presentation_to_exact_fact_surface() -> None:
     from finproof.domain.answers import (
         ClaimKind,
         ClaimSignature,
@@ -69,15 +69,15 @@ def test_valid_ids_cannot_cover_a_changed_answer_byte() -> None:
         ),
         retrieved_context="{}",
     )
-    wording = ProviderWording(
-        answer=text.replace("3.10", "3.11"),
-        surface_part_ids=("surface:answer",),
-        claim_ids=("claim:return",),
-        limitation_codes=("snapshot_assumption",),
-    )
+    wording = ProviderWording(presentation="조회 결과입니다.")
 
+    verified = ClaimVerifier().verify_wording(wording, prepared, RequestDeadline.start())
+
+    assert verified.text == f"조회 결과입니다.\n{text}"
+    assert verified.claims == prepared.claims
+    invalid = wording.model_copy(update={"presentation": "임의 문구"})
     with pytest.raises(ClaimVerificationError):
-        ClaimVerifier().verify_wording(wording, prepared, RequestDeadline.start())
+        ClaimVerifier().verify_wording(invalid, prepared, RequestDeadline.start())
 
 
 def test_claim_verifier_rejects_numeric_claim_without_evidence() -> None:

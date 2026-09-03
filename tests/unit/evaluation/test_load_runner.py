@@ -5,6 +5,7 @@ import time
 import httpx
 import pytest
 
+from finproof.evaluation import load
 from finproof.evaluation.load import LoadCase, LoadConfig, LoadRunner
 
 
@@ -29,12 +30,28 @@ def _response(request: httpx.Request) -> httpx.Response:
                 "policy_ids": [],
                 "validation": "passed",
                 "versions": {"dataset_version": "2026-07-11"},
-                "latency_ms": {"planner": 1, "database": 2, "evidence": 1, "render": 1},
+                "latency_ms": {
+                    "planner": 1,
+                    "database": 2,
+                    "evidence": 1,
+                    "render": 1,
+                    "wording": 3,
+                },
             }
         ),
         "answer": "검증된 답변",
     }
     return httpx.Response(200, json=payload)
+
+
+def test_load_client_waits_through_the_official_physical_response_boundary() -> None:
+    config = LoadConfig(
+        base_url="http://test",
+        cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup"),),
+        duration_seconds=60,
+    )
+
+    assert config.request_timeout_seconds == 300
 
 
 @pytest.mark.asyncio
@@ -61,9 +78,54 @@ async def test_load_runner_records_safe_schema_latency_and_answer_hash() -> None
         "database": 2,
         "evidence": 1,
         "render": 1,
+        "wording": 3,
     }
     assert report.samples[0].answer_sha256 == hashlib.sha256("검증된 답변".encode()).hexdigest()
     assert "검증된 답변" not in report.model_dump_json()
+
+
+@pytest.mark.asyncio
+async def test_load_runner_hashes_both_allowed_presentations_as_one_material_answer() -> None:
+    answers = iter(("조회 결과입니다.\n동일 본문", "확인 결과입니다.\n동일 본문"))
+
+    def response(request: httpx.Request) -> httpx.Response:
+        payload = _response(request).json()
+        payload["answer"] = next(answers)
+        return httpx.Response(200, json=payload)
+
+    report = await LoadRunner(transport=httpx.MockTransport(response)).run(
+        LoadConfig(
+            base_url="http://test",
+            cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup", weight=2),),
+            duration_seconds=60,
+            max_requests=2,
+        )
+    )
+
+    assert {sample.answer_sha256 for sample in report.samples} == {
+        hashlib.sha256("동일 본문".encode()).hexdigest()
+    }
+
+
+@pytest.mark.asyncio
+async def test_load_runner_material_hash_still_changes_when_surface_changes() -> None:
+    answers = iter(("조회 결과입니다.\n본문 A", "확인 결과입니다.\n본문 B"))
+
+    def response(request: httpx.Request) -> httpx.Response:
+        payload = _response(request).json()
+        payload["answer"] = next(answers)
+        return httpx.Response(200, json=payload)
+
+    report = await LoadRunner(transport=httpx.MockTransport(response)).run(
+        LoadConfig(
+            base_url="http://test",
+            cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup", weight=2),),
+            duration_seconds=60,
+            max_requests=2,
+        )
+    )
+
+    assert len({sample.answer_sha256 for sample in report.samples}) == 2
 
 
 @pytest.mark.asyncio
@@ -135,3 +197,53 @@ async def test_load_runner_counts_schema_valid_safe_failure_as_failed_request() 
     assert report.samples[0].response_schema_valid
     assert not report.samples[0].request_succeeded
     assert report.samples[0].error_category == "safe_failure"
+
+
+@pytest.mark.asyncio
+async def test_load_runner_accepts_the_published_empty_latency_safe_failure() -> None:
+    def safe_failure(request: httpx.Request) -> httpx.Response:
+        response = _response(request)
+        payload = response.json()
+        trace = json.loads(payload["think_trace"])
+        trace["validation"] = "safe_failure"
+        trace["latency_ms"] = {}
+        payload["think_trace"] = json.dumps(trace)
+        return httpx.Response(200, json=payload)
+
+    config = LoadConfig(
+        base_url="http://test",
+        cases=(LoadCase(case_id="lookup", question="질문", question_type="lookup"),),
+        duration_seconds=60,
+        max_requests=1,
+    )
+
+    report = await LoadRunner(transport=httpx.MockTransport(safe_failure)).run(config)
+
+    assert report.samples[0].response_schema_valid
+    assert report.samples[0].stage_ms == {}
+    assert report.samples[0].error_category == "safe_failure"
+
+
+def test_load_cli_forwards_an_explicit_request_bound(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ExpectedStop(Exception):
+        pass
+
+    async def stop_after_config(_: LoadRunner, config: LoadConfig) -> None:
+        assert config.max_requests == 4
+        raise ExpectedStop
+
+    monkeypatch.setattr(LoadRunner, "run", stop_after_config)
+
+    with pytest.raises(ExpectedStop):
+        load.main(
+            [
+                "--base-url",
+                "http://test",
+                "--duration-seconds",
+                "60",
+                "--max-requests",
+                "4",
+            ]
+        )

@@ -304,6 +304,31 @@ def test_global_scope_requires_one_compatible_partition_for_rank_and_aggregate()
         ExecutionBundleBuilder(fields).build(invalid, context=_context())
 
 
+def test_global_scope_rejects_sorted_display_across_incompatible_partitions() -> None:
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.DOMESTIC_BOND, ProductType.PUBLIC_FUND),
+        result_grain=ResultGrain.PRODUCT,
+    ).model_copy(
+        update={
+            "intent": Intent.LOOKUP,
+            "metrics": ("buy_yield", "return_1m"),
+            "sort": (
+                SortSpec(field="buy_yield", direction=SortDirection.DESC),
+                SortSpec(field="return_1m", direction=SortDirection.DESC),
+            ),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan,
+        resolutions=ResolutionBundle(results=()),
+        context=_context(),
+    )
+
+    with pytest.raises(ValueError, match="global"):
+        ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+
 def test_global_targetless_count_has_one_native_grain_partition() -> None:
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     plan = _plan().model_copy(

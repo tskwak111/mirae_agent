@@ -1,6 +1,7 @@
 """Bounded evaluation composition over mandatory HCX planning and wording."""
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable
 from datetime import date
 from time import monotonic
@@ -10,7 +11,6 @@ from finproof.answer.hcx_verbalizer import ProviderWordingError
 from finproof.core.correlation import current_correlation_id
 from finproof.core.logging import log_request_complete
 from finproof.core.settings import OFFICIAL_DISTRIBUTION_DATE, ExecutionMode
-from finproof.data.artifacts.hashing import canonical_json_bytes
 from finproof.domain.answers import (
     AnswerRequest,
     AnswerResult,
@@ -21,6 +21,7 @@ from finproof.domain.answers import (
 )
 from finproof.domain.query_plan import QueryPlan
 from finproof.evidence import ClaimVerificationError, ClaimVerifier
+from finproof.planner.hcx_client import HcxHttpError, HcxRateLimitError, HcxTransportError
 from finproof.planner.service import (
     PlannedQuery,
     PlannerProtocol,
@@ -28,6 +29,8 @@ from finproof.planner.service import (
     PlanningRequest,
 )
 from finproof.service.limits import RequestContext, RequestDeadline, RequestLimiter
+
+_LOGGER = logging.getLogger("finproof")
 
 
 class AnswerPreparationService(Protocol):
@@ -231,6 +234,12 @@ class EvaluationOrchestrator:
                 stage_latency_ms=stage_latency_ms,
             )
         except (asyncio.CancelledError, _DeadlineExceeded):
+            interrupt = getattr(self._answer_service, "interrupt", None)
+            if not worker.done() and callable(interrupt):
+                try:
+                    interrupt()
+                except Exception:
+                    _LOGGER.exception("database interrupt failed")
             context.retain_permit_until_done(worker)
             raise
         except Exception:
@@ -259,23 +268,20 @@ class EvaluationOrchestrator:
             )
         except _DeadlineExceeded:
             raise
+        except (HcxTransportError, HcxRateLimitError, HcxHttpError) as error:
+            wording = await self._retry_wording(
+                prepared,
+                error=error,
+                context=context,
+                stage_latency_ms=stage_latency_ms,
+            )
         except Exception:
             raise _WordingFailure("wording_provider_failure") from None
 
         try:
             verified = self._verifier.verify_wording(wording, prepared, context.deadline)
         except ClaimVerificationError:
-            return (
-                planned,
-                await self._repair_wording(
-                    prepared,
-                    invalid_content=canonical_json_bytes(
-                        wording.model_dump(mode="json"), terminal_newline=False
-                    ).decode(),
-                    context=context,
-                    stage_latency_ms=stage_latency_ms,
-                ),
-            )
+            raise _WordingFailure("wording_verification_failure") from None
         except Exception:
             raise _WordingFailure("wording_verification_failure") from None
         return (
@@ -319,6 +325,42 @@ class EvaluationOrchestrator:
             correlation_id=context.correlation_id,
             stage_latency_ms=stage_latency_ms,
         )
+
+    async def _retry_wording(
+        self,
+        prepared: PreparedAnswer,
+        *,
+        error: HcxTransportError | HcxRateLimitError | HcxHttpError,
+        context: RequestContext,
+        stage_latency_ms: dict[str, int],
+    ) -> ProviderWording:
+        if isinstance(error, HcxHttpError) and error.http_status < 500:
+            raise _WordingFailure("wording_provider_failure")
+        if isinstance(error, HcxRateLimitError):
+            delay = error.rate_limits.reset_requests_seconds
+            if delay is None or delay >= context.remaining_work_seconds():
+                raise _WordingFailure("wording_provider_failure")
+            await _within_deadline(
+                lambda: asyncio.sleep(delay),
+                context,
+                stage="wording",
+                stage_latency_ms=stage_latency_ms,
+            )
+        try:
+            return await _within_deadline(
+                lambda: self._verbalizer.verbalize(
+                    prepared.fact_pack,
+                    request_id=context.correlation_id,
+                    deadline=context.deadline,
+                ),
+                context,
+                stage="wording",
+                stage_latency_ms=stage_latency_ms,
+            )
+        except _DeadlineExceeded:
+            raise
+        except Exception:
+            raise _WordingFailure("wording_retry_failure") from None
 
 
 async def _within_deadline[Result](

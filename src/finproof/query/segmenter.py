@@ -133,10 +133,10 @@ class ExecutionBundleBuilder:
         partitions = self._comparison_partitions(segments)
         if (
             original.top_k_scope is TopKScope.GLOBAL
-            and original.intent in {Intent.SCREEN_RANK, Intent.AGGREGATE}
+            and (original.sort or original.intent is Intent.AGGREGATE)
             and len(partitions) != 1
         ):
-            raise ValueError("global rank or aggregate requires one compatible partition")
+            raise ValueError("global sort or aggregate requires one compatible partition")
         return ExecutionBundle(
             validated_plan=plan,
             top_k_scope=original.top_k_scope,

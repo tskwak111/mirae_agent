@@ -263,6 +263,22 @@ def test_heterogeneous_plan_requires_product_envelope_and_native_segments() -> N
     assert len(case.expected_plan.native_segments) == 2
 
 
+def test_partial_native_segments_reject_non_overseas_one_year_pruning() -> None:
+    plan = {
+        "intent": "screen_rank",
+        "product_types": ["domestic_bond", "public_fund"],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "top_k_scope": "per_product_type",
+        "metrics": ["return_1y"],
+        "sort": [{"field": "return_1y", "direction": "desc"}],
+        "native_segments": [{"product_type": "domestic_bond", "native_result_grain": "instrument"}],
+    }
+
+    with pytest.raises(ValidationError, match="pruned native segments"):
+        GoldenCase.model_validate(_case(expected_plan=plan))
+
+
 def test_expected_plan_accepts_typed_filters_and_requires_aggregate_semantics() -> None:
     plan: dict[str, object] = {
         "intent": "aggregate",

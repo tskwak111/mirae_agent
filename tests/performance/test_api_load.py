@@ -63,9 +63,16 @@ async def test_eight_concurrent_requests_keep_verified_contract_and_stage_latenc
         trace = json.loads(payload["think_trace"])
         context = json.loads(payload["retrieved_context"])
         assert trace["validation"] == "passed"
-        assert set(trace["latency_ms"]) == {"planner", "database", "evidence", "render"}
+        assert set(trace["latency_ms"]) == {
+            "planner",
+            "database",
+            "evidence",
+            "render",
+            "wording",
+        }
         assert all(type(value) is int and value >= 0 for value in trace["latency_ms"].values())
-        assert context["direct"]
+        assert context["format"] == "finproof.fact-pack.v1"
+        assert context["claim_signatures"]
         correlation_ids.add(trace["correlation_id"])
     assert len(responses) == len(correlation_ids) == 8
     assert elapsed < 15

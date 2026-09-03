@@ -94,6 +94,8 @@ def _container(artifact_root: Path, port: int) -> Iterator[str]:
             "--mount",
             f"type=bind,src={artifact_root},dst=/app/artifacts,readonly",
             "--env",
+            "FINPROOF_EXECUTION_MODE=extended_demo",
+            "--env",
             "FINPROOF_HCX_ENABLED=false",
             _IMAGE,
         ],

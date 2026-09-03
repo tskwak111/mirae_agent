@@ -88,6 +88,8 @@ def test_rule_cannot_change_numeric_semantic_values() -> None:
 async def test_condition_order_variant_produces_same_validated_fallback_plan() -> None:
     from tests.unit.planner.test_rule_fallback import _planner, _request
 
+    from finproof.service.limits import RequestDeadline
+
     base = load_golden_cases((Path("evaluation/canonical/rank.jsonl"),))[0]
     case = base.model_copy(update={"question": "수익률이 좋고 AUM이 큰 국내 ETF 5개를 알려주세요"})
     variant = next(
@@ -100,7 +102,9 @@ async def test_condition_order_variant_produces_same_validated_fallback_plan() -
     )
     planner = _planner()
 
-    base_plan = (await planner.plan(_request(case.question))).plan
-    variant_plan = (await planner.plan(_request(variant.question))).plan
+    base_plan = (await planner.plan(_request(case.question), deadline=RequestDeadline.start())).plan
+    variant_plan = (
+        await planner.plan(_request(variant.question), deadline=RequestDeadline.start())
+    ).plan
 
     assert variant_plan == base_plan

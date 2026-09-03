@@ -14,15 +14,6 @@ from tests.security.test_runtime_provider_policy import (
 from tests.unit.api.test_response_model import (
     test_evaluation_response_has_exact_five_string_fields as test_critical_16_five_fields,
 )
-from tests.unit.data.normalization.test_bonds import (
-    rating_registry,
-)
-from tests.unit.data.normalization.test_bonds import (
-    test_agency_disagreement_uses_ordinals_and_preserves_primary as test_critical_12_agency_disagreement,
-)
-from tests.unit.data.normalization.test_bonds import (
-    test_missing_and_unregistered_primary_ratings_remain_unavailable as test_critical_11_missing_not_aaa,
-)
 from tests.unit.data.normalization.test_public_fund_collapse import (
     test_noncontiguous_rows_group_globally_to_one_complete_item_and_two_attributes as test_critical_03_fund_item_grain,
 )
@@ -45,16 +36,25 @@ from tests.unit.quality.test_comparability import (
     test_krw_and_usd_aum_form_separate_compatibility_partitions as test_critical_06_currency_partition,
 )
 from tests.unit.quality.test_metric_operation_policy import (
-    test_overseas_fee_zero_has_recorded_and_comparison_valid_views as test_critical_07_fee_zero_policy,
+    test_overseas_fee_zero_is_intentional_and_comparison_valid as test_critical_07_fee_zero_policy,
 )
 from tests.unit.quality.test_state_policy import (
     test_domestic_listed_zero_suspension_flag_is_not_suspended as test_critical_01_not_suspended,
 )
 from tests.unit.quality.test_state_policy import (
-    test_matured_positive_quantity_bond_is_source_buyable_not_validated_buyable as test_critical_10_expired_bond,
+    test_ended_bond_is_not_purchasable_even_with_irrelevant_positive_quantity as test_critical_10_expired_bond,
 )
 from tests.unit.quality.test_ties import (
     test_constant_tracking_error_preserves_joint_primary_rank as test_critical_08_tracking_tie,
+)
+from tests.unit.registry.test_rating_registry import (
+    registry,
+)
+from tests.unit.registry.test_rating_registry import (
+    test_agency_tokens_are_resolved_independently_in_source_order as test_critical_12_agency_disagreement,
+)
+from tests.unit.registry.test_rating_registry import (
+    test_unregistered_grades_stay_out_of_domain_and_noncomparable as test_critical_11_missing_not_aaa,
 )
 
 

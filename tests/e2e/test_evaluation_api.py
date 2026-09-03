@@ -35,17 +35,7 @@ def _recorded_hcx(request: httpx.Request) -> httpx.Response:
     except json.JSONDecodeError:
         fact_pack = None
     if isinstance(fact_pack, dict) and fact_pack.get("format") == "finproof.fact-pack.v1":
-        surface_parts = fact_pack["surface_parts"]
-        content = json.dumps(
-            {
-                "answer": "".join(part["text"] for part in surface_parts),
-                "surface_part_ids": [part["part_id"] for part in surface_parts],
-                "claim_ids": fact_pack["required_claim_ids"],
-                "limitation_codes": fact_pack["required_limitation_codes"],
-            },
-            ensure_ascii=False,
-        )
-        return _hcx_response(content)
+        return _hcx_response(json.dumps({"presentation": "조회 결과입니다."}, ensure_ascii=False))
     plan = {
         "intent": "screen_rank",
         "product_types": ["domestic_etf"],
@@ -54,6 +44,7 @@ def _recorded_hcx(request: httpx.Request) -> httpx.Response:
         "result_grain": "listed_product",
         "filters": [],
         "metrics": ["tracking_error"],
+        "metric_targets": [],
         "sort": [{"field": "tracking_error", "direction": "asc"}],
         "aggregation": {"function": "none", "field": "", "group_by": []},
         "top_k": 5,
@@ -172,6 +163,7 @@ async def test_full_question_path_returns_verified_contract(tmp_path: Path) -> N
     }
     assert all(type(value) is str for value in payload.values())
     assert response.content == canonical_json_bytes(payload, terminal_newline=False)
+    assert payload["answer"].startswith("조회 결과입니다.\n")
     assert "공동" in payload["answer"]
     fact_pack = json.loads(payload["retrieved_context"])
     assert fact_pack["format"] == "finproof.fact-pack.v1"

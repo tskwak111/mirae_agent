@@ -11,6 +11,7 @@ from typing import Any, cast
 import pytest
 from tests.integration.planner.test_planner_service import ScriptedHcx, _planners, _provider_plan
 
+from finproof.answer.hcx_verbalizer import ProviderWordingError
 from finproof.core.settings import ExecutionMode
 from finproof.domain.answers import (
     AnswerRequest,
@@ -24,7 +25,7 @@ from finproof.domain.answers import (
 from finproof.domain.execution import ExecutionTrace, TraceValidation, ValidatedQueryPlan
 from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
 from finproof.evidence import ClaimVerifier
-from finproof.planner.hcx_client import HcxRateLimitError, HcxTransportError
+from finproof.planner.hcx_client import HcxHttpError, HcxRateLimitError, HcxTransportError
 from finproof.planner.rate_limits import HcxRateLimitSnapshot
 from finproof.planner.service import PlannedQuery, PlannerAttemptSummary, PlannerService
 from finproof.service.limits import RequestDeadline, RequestLimiter
@@ -177,6 +178,16 @@ class BlockingAnswerService:
         return _prepared_answer()
 
 
+class InterruptibleBlockingAnswerService(BlockingAnswerService):
+    def __init__(self) -> None:
+        super().__init__()
+        self.interrupted = Event()
+
+    def interrupt(self) -> None:
+        self.interrupted.set()
+        self.release.set()
+
+
 def _deadline(seconds: float = 293.0) -> RequestDeadline:
     started = monotonic()
     return RequestDeadline(
@@ -237,6 +248,29 @@ async def test_database_work_over_deadline_returns_verified_safe_failure() -> No
 
     assert result.trace.validation is TraceValidation.SAFE_FAILURE
     assert "처리" in result.answer.text
+
+
+@pytest.mark.asyncio
+async def test_database_timeout_interrupts_sync_work() -> None:
+    answer_service = InterruptibleBlockingAnswerService()
+    orchestrator = EvaluationOrchestrator(
+        planner=ImmediatePlanner(),
+        answer_service=answer_service,
+        verbalizer=IdentityVerbalizer(),
+        limiter=RequestLimiter(max_in_flight=1),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    try:
+        result = await _answer(orchestrator, _deadline(0.05))
+
+        assert result.trace.validation is TraceValidation.SAFE_FAILURE
+        assert answer_service.interrupted.is_set()
+        assert await asyncio.to_thread(answer_service.finished.wait, 1.0)
+    finally:
+        answer_service.release.set()
+        await asyncio.to_thread(answer_service.finished.wait, 1.0)
+        await orchestrator.aclose()
 
 
 @pytest.mark.asyncio
@@ -571,7 +605,7 @@ class IdentityVerbalizer:
         self.deadlines.append(deadline)
         wording = _provider_wording(fact_pack)
         if self.invalid_first:
-            return wording.model_copy(update={"answer": f"{wording.answer}!"})
+            raise ProviderWordingError("{}")
         return wording
 
     async def repair(
@@ -588,13 +622,41 @@ class IdentityVerbalizer:
         return _provider_wording(fact_pack)
 
 
+class ScriptedVerbalizer(IdentityVerbalizer):
+    def __init__(self, responses: list[ProviderWording | Exception]) -> None:
+        super().__init__()
+        self.responses = responses
+        self.fact_packs: list[FactPack] = []
+        self.request_ids: list[str] = []
+
+    async def verbalize(
+        self, fact_pack: FactPack, *, request_id: str, deadline: RequestDeadline
+    ) -> ProviderWording:
+        self.calls.append("verbalize")
+        self.deadlines.append(deadline)
+        self.fact_packs.append(fact_pack)
+        self.request_ids.append(request_id)
+        response = self.responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    async def repair(
+        self,
+        fact_pack: FactPack,
+        *,
+        invalid_content: str,
+        request_id: str,
+        deadline: RequestDeadline,
+    ) -> ProviderWording:
+        del fact_pack, invalid_content, request_id, deadline
+        self.calls.append("repair")
+        raise AssertionError("transport retry must not open a repair call")
+
+
 def _provider_wording(fact_pack: FactPack) -> ProviderWording:
-    return ProviderWording(
-        answer="".join(part.text for part in fact_pack.surface_parts),
-        surface_part_ids=tuple(part.part_id for part in fact_pack.surface_parts),
-        claim_ids=fact_pack.required_claim_ids,
-        limitation_codes=fact_pack.required_limitation_codes,
-    )
+    del fact_pack
+    return ProviderWording(presentation="조회 결과입니다.")
 
 
 @pytest.mark.asyncio
@@ -613,7 +675,9 @@ async def test_one_deadline_identity_reaches_every_answer_stage() -> None:
 
     result = await orchestrator.answer(_request(), deadline=deadline, safe_result=_answer_result())
 
-    assert result.answer.text == _prepared_answer().fact_pack.surface_parts[0].text
+    assert result.answer.text == (
+        f"조회 결과입니다.\n{_prepared_answer().fact_pack.surface_parts[0].text}"
+    )
     assert planner.deadline is deadline
     assert answer_service.deadline is deadline
     assert verbalizer.deadlines == [deadline]
@@ -633,6 +697,113 @@ async def test_invalid_wording_gets_one_repair_with_the_same_deadline() -> None:
 
     result = await orchestrator.answer(_request(), deadline=deadline, safe_result=_answer_result())
 
-    assert result.answer.text == _prepared_answer().fact_pack.surface_parts[0].text
+    assert result.answer.text == (
+        f"조회 결과입니다.\n{_prepared_answer().fact_pack.surface_parts[0].text}"
+    )
     assert verbalizer.calls == ["verbalize", "repair"]
     assert verbalizer.deadlines == [deadline, deadline]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        HcxTransportError(),
+        HcxHttpError(503),
+        HcxRateLimitError("42900", HcxRateLimitSnapshot(reset_requests_seconds=0.0)),
+    ],
+)
+async def test_retryable_wording_provider_failure_gets_one_identical_retry(
+    error: Exception,
+) -> None:
+    deadline = _deadline(1.0)
+    verbalizer = ScriptedVerbalizer([error, _provider_wording(_prepared_answer().fact_pack)])
+    orchestrator = EvaluationOrchestrator(
+        planner=IdentityPlanner(),
+        answer_service=IdentityPreparationService(),
+        verbalizer=verbalizer,
+        verifier=ClaimVerifier(),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    result = await orchestrator.answer(_request(), deadline=deadline, safe_result=_SAFE_RESULT)
+
+    assert result.trace.validation is TraceValidation.CLARIFY
+    assert verbalizer.calls == ["verbalize", "verbalize"]
+    assert verbalizer.fact_packs[0] is verbalizer.fact_packs[1]
+    assert verbalizer.request_ids[0] == verbalizer.request_ids[1]
+    assert verbalizer.deadlines == [deadline, deadline]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        HcxHttpError(400),
+        HcxRateLimitError("42900", HcxRateLimitSnapshot()),
+        HcxRateLimitError("42900", HcxRateLimitSnapshot(reset_requests_seconds=60.0)),
+    ],
+)
+async def test_nonretryable_wording_provider_failure_fails_closed(error: Exception) -> None:
+    verbalizer = ScriptedVerbalizer([error])
+    orchestrator = EvaluationOrchestrator(
+        planner=IdentityPlanner(),
+        answer_service=IdentityPreparationService(),
+        verbalizer=verbalizer,
+        verifier=ClaimVerifier(),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    result = await _answer(orchestrator, _deadline(0.05))
+
+    assert result.trace.validation is TraceValidation.SAFE_FAILURE
+    assert verbalizer.calls == ["verbalize"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "second_response",
+    [
+        HcxTransportError(),
+        ProviderWordingError("{}"),
+        _provider_wording(_prepared_answer().fact_pack).model_copy(
+            update={"presentation": "임의 문구"}
+        ),
+    ],
+)
+async def test_retry_second_call_failure_or_invalid_wording_never_opens_repair(
+    second_response: ProviderWording | Exception,
+) -> None:
+    verbalizer = ScriptedVerbalizer([HcxTransportError(), second_response])
+    orchestrator = EvaluationOrchestrator(
+        planner=IdentityPlanner(),
+        answer_service=IdentityPreparationService(),
+        verbalizer=verbalizer,
+        verifier=ClaimVerifier(),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    result = await _answer(orchestrator)
+
+    assert result.trace.validation is TraceValidation.SAFE_FAILURE
+    assert verbalizer.calls == ["verbalize", "verbalize"]
+
+
+@pytest.mark.asyncio
+async def test_initial_local_wording_verification_failure_does_not_retry_or_repair() -> None:
+    invalid = _provider_wording(_prepared_answer().fact_pack).model_copy(
+        update={"presentation": "임의 문구"}
+    )
+    verbalizer = ScriptedVerbalizer([invalid])
+    orchestrator = EvaluationOrchestrator(
+        planner=IdentityPlanner(),
+        answer_service=IdentityPreparationService(),
+        verbalizer=verbalizer,
+        verifier=ClaimVerifier(),
+        execution_mode=ExecutionMode.EVALUATION,
+    )
+
+    result = await _answer(orchestrator)
+
+    assert result.trace.validation is TraceValidation.SAFE_FAILURE
+    assert verbalizer.calls == ["verbalize"]

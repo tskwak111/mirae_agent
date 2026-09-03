@@ -5,14 +5,23 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Mapping, Sequence
+from datetime import date
+from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from finproof.cli.evaluate import _observed_aggregates, _observed_products, _rows, _typed_value
+from finproof.cli.evaluate import (
+    _observed_aggregates,
+    _observed_claim_aggregates,
+    _observed_claim_products,
+    _observed_products,
+    _rows,
+    _typed_value,
+)
 from finproof.data.artifacts.safe_files import read_held_regular_file
-from finproof.domain.answers import ClaimKind, VerifiedAnswer
+from finproof.domain.answers import AnswerClaim, ClaimKind, FactPack, VerifiedAnswer
 from finproof.domain.evidence import EvidenceSummary
 from finproof.domain.execution import ExecutionTrace, TraceValidation
 from finproof.domain.query_plan import EntityMention, Intent, ProductType, QueryPlan, ResultGrain
@@ -226,20 +235,27 @@ def _build_case(
         json.dumps(raw["answer"], ensure_ascii=False), strict=True
     )
     context = _mapping(raw["retrieved_context"], "retrieved context")
-    if set(context) != _CONTEXT_KEYS or context["format"] != "evidence_context.v2":
+    fact_pack = (
+        FactPack.model_validate_json(json.dumps(context, ensure_ascii=False), strict=True)
+        if context.get("format") == "finproof.fact-pack.v1"
+        else None
+    )
+    if fact_pack is None and (
+        set(context) != _CONTEXT_KEYS or context["format"] != "evidence_context.v2"
+    ):
         raise ValueError("retrieved context has an invalid shape")
-    direct = _validated_rows(context, "direct")
-    derived = _validated_rows(context, "derived")
-    summaries = _validated_summaries(context, artifact["manifest_logical_hash"])
-    evidence = (*direct, *derived)
 
-    if set(raw_plan) != set(QueryPlan.model_fields):
+    historical_plan_fields = set(QueryPlan.model_fields) - {"metric_targets"}
+    if set(raw_plan) == historical_plan_fields:
+        raw_plan = {**raw_plan, "metric_targets": []}
+    elif set(raw_plan) != set(QueryPlan.model_fields):
         raise ValueError("reference plan has an invalid shape")
     expected_plan_data = {key: value for key, value in raw_plan.items() if key != "entities"}
     if len(trace.product_types) > 1:
         segment_grains = {
             segment.product_type: segment.native_result_grain for segment in trace.segments
         }
+        expected_products = tuple(segment_grains) if fact_pack is not None else trace.product_types
         expected_plan_data["native_segments"] = [
             {
                 "product_type": product_type,
@@ -247,7 +263,7 @@ def _build_case(
                     product_type, native_result_grain(product_type)
                 ),
             }
-            for product_type in trace.product_types
+            for product_type in expected_products
         ]
     expected_plan = ExpectedPlan.model_validate(expected_plan_data)
     entities = TypeAdapter(tuple[EntityMention, ...]).validate_json(
@@ -259,7 +275,26 @@ def _build_case(
             "entities": entities,
         }
     )
-    _validate_trace(plan, trace, artifact)
+    _validate_trace(plan, trace, artifact, allow_pruned_segments=fact_pack is not None)
+
+    if fact_pack is not None:
+        return _build_fact_pack_case(
+            raw,
+            answer=answer,
+            fact_pack=fact_pack,
+            plan=plan,
+            trace=trace,
+            expected_plan=expected_plan,
+            reviewer=reviewer,
+            reviewed_at=reviewed_at,
+            source=source,
+            fields=fields,
+        )
+
+    direct = _validated_rows(context, "direct")
+    derived = _validated_rows(context, "derived")
+    summaries = _validated_summaries(context, artifact["manifest_logical_hash"])
+    evidence = (*direct, *derived)
 
     products = _observed_products(plan, evidence, summaries)
     values = _expected_values(evidence, fields)
@@ -337,6 +372,105 @@ def _build_case(
             "review": {"reviewer": reviewer, "reviewed_at": reviewed_at, "source": source},
         }
     )
+
+
+def _build_fact_pack_case(
+    raw: Mapping[str, object],
+    *,
+    answer: VerifiedAnswer,
+    fact_pack: FactPack,
+    plan: QueryPlan,
+    trace: ExecutionTrace,
+    expected_plan: ExpectedPlan,
+    reviewer: str,
+    reviewed_at: str,
+    source: str,
+    fields: FieldRegistry,
+) -> GoldenCase:
+    claim_ids = tuple(claim.claim_id for claim in answer.claims)
+    if answer.text != fact_pack.surface_parts[0].text or claim_ids != fact_pack.required_claim_ids:
+        raise ValueError("answer and fact pack differ")
+    executable = plan.intent not in {Intent.CLARIFY, Intent.UNSUPPORTED}
+    required_concepts = tuple(
+        claim.text
+        for claim in answer.claims
+        if claim.kind is ClaimKind.LIMITATION
+        or (claim.product_type is None and claim.product_id is None)
+    )
+    if any(concept not in answer.text for concept in required_concepts):
+        raise ValueError("answer omits an approved material semantic")
+    aggregates = tuple(
+        ExpectedAggregate.model_validate(value.model_dump())
+        for value in _observed_claim_aggregates(plan, (), answer.claims)
+    )
+    evidence_ids = tuple(
+        dict.fromkeys(evidence_id for claim in answer.claims for evidence_id in claim.evidence_ids)
+    )
+    category = raw["category"]
+    if type(category) is not str:
+        raise ValueError("reference case category differs")
+    return GoldenCase.model_validate(
+        {
+            "case_id": raw["case_id"],
+            "category": EvaluationCategory(category),
+            "question": raw["question"],
+            "expected_plan": expected_plan,
+            "expected_result": {
+                "products": _observed_claim_products(plan, answer.claims),
+                "order_matters": any(item.rank is not None for item in fact_pack.claim_signatures),
+                "values": _expected_claim_values(answer.claims, fields),
+                "aggregates": aggregates,
+                "required_evidence_ids": evidence_ids,
+                "required_compatibility_partitions": tuple(
+                    dict.fromkeys(segment.partition_key for segment in trace.segments)
+                ),
+                "assembled_envelope": None
+                if not executable
+                else (
+                    trace.result_grain is ResultGrain.PRODUCT
+                    and len({segment.native_result_grain for segment in trace.segments}) > 1
+                ),
+            },
+            "expected_answer": {
+                "required_concepts": required_concepts,
+                "forbidden_concepts": ("실시간",) if executable else (),
+                "expect_limitation": bool(fact_pack.required_limitation_codes),
+                "expect_clarification": trace.validation is TraceValidation.CLARIFY,
+            },
+            "review": {"reviewer": reviewer, "reviewed_at": reviewed_at, "source": source},
+        }
+    )
+
+
+def _expected_claim_values(
+    claims: Sequence[AnswerClaim], fields: FieldRegistry
+) -> tuple[ExpectedValue, ...]:
+    values: list[ExpectedValue] = []
+    value_types = {
+        Decimal: ValueType.DECIMAL,
+        int: ValueType.INTEGER,
+        date: ValueType.DATE,
+        str: ValueType.TEXT,
+        bool: ValueType.BOOLEAN,
+    }
+    for claim in claims:
+        if (
+            claim.product_type is None
+            or claim.product_id is None
+            or claim.field_id is None
+            or claim.value is None
+        ):
+            continue
+        fields.projection(claim.field_id, claim.product_type)
+        values.append(
+            ExpectedValue(
+                product_id=claim.product_id,
+                field_id=claim.field_id,
+                value_type=value_types[type(claim.value)],
+                value=claim.value,
+            )
+        )
+    return tuple(values)
 
 
 def _dual_count_claim_texts(
@@ -421,7 +555,13 @@ def _comparison_difference_value_type(
     raise ValueError("comparison difference value type differs")
 
 
-def _validate_trace(plan: QueryPlan, trace: ExecutionTrace, artifact: Mapping[str, str]) -> None:
+def _validate_trace(
+    plan: QueryPlan,
+    trace: ExecutionTrace,
+    artifact: Mapping[str, str],
+    *,
+    allow_pruned_segments: bool = False,
+) -> None:
     plan_facts = (
         plan.intent,
         plan.product_types,
@@ -444,8 +584,14 @@ def _validate_trace(plan: QueryPlan, trace: ExecutionTrace, artifact: Mapping[st
     ):
         raise ValueError("trace artifact identity differs")
     segment_products = tuple(dict.fromkeys(segment.product_type for segment in trace.segments))
-    if trace.validation is TraceValidation.PASSED and segment_products != plan.product_types:
-        raise ValueError("trace segment assignment differs")
+    if trace.validation is TraceValidation.PASSED:
+        expected_products = (
+            tuple(product for product in plan.product_types if product in segment_products)
+            if allow_pruned_segments
+            else plan.product_types
+        )
+        if not segment_products or segment_products != expected_products:
+            raise ValueError("trace segment assignment differs")
     if any(
         segment.native_result_grain is not native_result_grain(segment.product_type)
         for segment in trace.segments

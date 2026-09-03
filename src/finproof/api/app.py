@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse, Response
 
 from finproof.api.dependencies import ApiDependencies
 from finproof.api.routes.answer import router as answer_router
+from finproof.core.logging import configure_runtime_logging
 from finproof.core.settings import Settings
 from finproof.service.limits import RequestDeadline
 
@@ -21,6 +22,7 @@ def create_app(
     settings: Settings | None = None, *, dependencies: ApiDependencies | None = None
 ) -> FastAPI:
     """Create the exact, route-minimal organizer application."""
+    configure_runtime_logging()
     runtime_settings = settings or Settings()
     runtime_dependencies = dependencies or ApiDependencies()
 

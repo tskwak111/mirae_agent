@@ -13,6 +13,7 @@ import httpx
 from pydantic import SecretStr
 
 from finproof.core.errors import FinProofError
+from finproof.core.logging import log_hcx_provider_failure
 from finproof.planner.models import HcxRequest, HcxResponse, HcxUsage
 from finproof.planner.rate_limits import HcxRateLimitSnapshot
 from finproof.service.limits import RequestDeadline
@@ -91,6 +92,31 @@ class HcxResponseTooLargeError(HcxClientError):
         super().__init__(f"HCX response exceeds {maximum_bytes} bytes")
 
 
+def _log_hcx_client_error(error: HcxClientError, request_id: str) -> None:
+    if isinstance(error, HcxTransportError):
+        kind = "transport"
+        detail = error.timeout_kind.value if error.timeout_kind is not None else "network"
+    elif isinstance(error, HcxRateLimitError):
+        kind, detail = "rate_limit", "429"
+    elif isinstance(error, HcxHttpError):
+        kind, detail = "http", f"{error.http_status // 100}xx"
+    elif isinstance(error, HcxNoContentError):
+        kind, detail = "no_content", "204"
+    elif isinstance(error, HcxApiStatusError):
+        kind, detail = "api_status", "non_success"
+    elif isinstance(error, HcxMalformedResponseError):
+        kind, detail = "malformed_response", error.category
+    elif isinstance(error, HcxResponseTooLargeError):
+        kind, detail = "response_too_large", "bounded"
+    else:
+        kind, detail = "client", "unknown"
+    log_hcx_provider_failure(
+        provider_request_id=request_id,
+        provider_error_kind=kind,
+        provider_error_detail=detail,
+    )
+
+
 class HcxClient:
     """Low-level, non-retrying HCX client over an owner-managed HTTP client."""
 
@@ -138,16 +164,29 @@ class HcxClient:
             ) as response:
                 body = await self._read_bounded(response)
                 return self._parse_response(response, body)
+        except HcxClientError as error:
+            _log_hcx_client_error(error, request_id)
+            raise
         except httpx.ConnectTimeout as error:
-            raise HcxTransportError(HcxTimeoutKind.CONNECT) from error
+            mapped = HcxTransportError(HcxTimeoutKind.CONNECT)
+            _log_hcx_client_error(mapped, request_id)
+            raise mapped from error
         except httpx.ReadTimeout as error:
-            raise HcxTransportError(HcxTimeoutKind.READ) from error
+            mapped = HcxTransportError(HcxTimeoutKind.READ)
+            _log_hcx_client_error(mapped, request_id)
+            raise mapped from error
         except httpx.WriteTimeout as error:
-            raise HcxTransportError(HcxTimeoutKind.WRITE) from error
+            mapped = HcxTransportError(HcxTimeoutKind.WRITE)
+            _log_hcx_client_error(mapped, request_id)
+            raise mapped from error
         except httpx.PoolTimeout as error:
-            raise HcxTransportError(HcxTimeoutKind.POOL) from error
+            mapped = HcxTransportError(HcxTimeoutKind.POOL)
+            _log_hcx_client_error(mapped, request_id)
+            raise mapped from error
         except httpx.RequestError as error:
-            raise HcxTransportError() from error
+            mapped = HcxTransportError()
+            _log_hcx_client_error(mapped, request_id)
+            raise mapped from error
 
     async def _read_bounded(self, response: httpx.Response) -> bytes:
         content_length = response.headers.get("content-length")

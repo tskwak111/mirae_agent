@@ -3,8 +3,54 @@
 from datetime import date
 from decimal import Decimal
 
+import pytest
+
 from finproof.domain.query_plan import ProductType
 from finproof.storage import RawProductRow
+
+
+def test_sort_rows_partitions_missing_values_without_comparing_whole_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.domain.query_plan import ResultGrain, SortDirection, SortSpec
+    from finproof.quality.pipeline import PolicyRow, _sort_rows
+    from finproof.quality.state import StateEvaluation
+    from finproof.storage import RawFieldValue
+
+    def row(product_id: str, value: Decimal | None) -> PolicyRow:
+        return PolicyRow(
+            raw=RawProductRow(
+                product_type=ProductType.PUBLIC_FUND,
+                native_result_grain=ResultGrain.FUND_ITEM,
+                product_id=product_id,
+                values=(
+                    RawFieldValue(
+                        field_id="return_1y",
+                        value=value,
+                        quality_status="valid" if value is not None else "missing_blank",
+                    ),
+                ),
+            ),
+            state=StateEvaluation(
+                product_id=product_id,
+                eligible=True,
+                state_ids=(),
+                warnings=(),
+            ),
+        )
+
+    def reject_equality(_left: PolicyRow, _right: object) -> bool:
+        raise AssertionError("sorting must not compare complete policy rows")
+
+    rows = (row("missing", None), row("valued", Decimal("1")))
+    monkeypatch.setattr(PolicyRow, "__eq__", reject_equality)
+
+    ordered = _sort_rows(
+        rows,
+        (SortSpec(field="return_1y", direction=SortDirection.DESC),),
+    )
+
+    assert tuple(item.raw.product_id for item in ordered) == ("valued", "missing")
 
 
 def test_bond_prepolicy_projection_includes_maturity_for_validated_state() -> None:

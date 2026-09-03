@@ -21,7 +21,14 @@ from finproof.answer.hcx_verbalizer import (
 from finproof.api.dependencies import ApiDependencies
 from finproof.core.errors import FinProofError
 from finproof.core.settings import ExecutionMode, Settings
-from finproof.domain.answers import AnswerClaim, AnswerRequest, AnswerResult, ClaimKind, FactPack
+from finproof.domain.answers import (
+    AnswerClaim,
+    AnswerRequest,
+    AnswerResult,
+    ClaimKind,
+    FactPack,
+    VerifiedAnswer,
+)
 from finproof.domain.execution import TraceValidation
 from finproof.domain.query_plan import (
     AggregationFunction,
@@ -38,7 +45,7 @@ from finproof.evaluation.adversarial import (
     RobustnessReport,
     load_adversarial_cases,
 )
-from finproof.evaluation.loader import load_golden_cases
+from finproof.evaluation.loader import load_golden_cases, load_suite
 from finproof.evaluation.metamorphic import MetamorphicKind
 from finproof.evaluation.models import (
     ExpectedAggregate,
@@ -64,6 +71,7 @@ from finproof.planner.prompts import PROMPT_VERSION
 from finproof.planner.service import PlanningRequest
 from finproof.runtime import open_runtime_artifact_session
 from finproof.runtime.session import RuntimeArtifactSession
+from finproof.service.answer_service import AnswerService
 from finproof.service.limits import RequestDeadline
 from finproof.service.orchestrator import EvaluationOrchestrator
 from finproof.service.publication import build_safe_publication
@@ -79,12 +87,14 @@ def run_evaluation(
 ) -> None:
     root = repository_root or Path(__file__).resolve().parents[3]
     try:
-        if suite not in {"canonical", "robustness"}:
+        if suite not in {"canonical", "robustness", "organizer_20260824"}:
             raise ValueError("unknown evaluation suite")
         if suite == "canonical":
             cases = load_golden_cases(
                 tuple(sorted((root / "evaluation" / "canonical").glob("*.jsonl")))
             )
+        elif suite == "organizer_20260824":
+            cases = load_suite(suite, repository_root=root)
         else:
             quality, paraphrases = _robustness_cases(root)
             cases = (*quality, *paraphrases)
@@ -93,7 +103,19 @@ def run_evaluation(
                 raise ValueError("evaluation service graph cannot be overridden")
             report = _run_suite(suite, root, mode, cases, service)
         else:
-            with _open_local_service(Settings(repository_root=root)) as local_service:
+            settings = Settings(repository_root=root)
+            if suite == "organizer_20260824" and mode is EvaluationMode.DETERMINISTIC_CORE:
+                settings = settings.model_copy(
+                    update={
+                        "execution_mode": ExecutionMode.EXTENDED_DEMO,
+                        "hcx_enabled": False,
+                        "hcx_api_key": None,
+                    }
+                )
+                service_context = _open_reviewed_plan_service(settings)
+            else:
+                service_context = _open_local_service(settings)
+            with service_context as local_service:
                 report = _run_suite(suite, root, mode, cases, local_service)
         output.parent.mkdir(parents=True, exist_ok=True)
         temporary = output.with_name(f".{output.name}.tmp")
@@ -115,7 +137,7 @@ def _run_suite(
     service: RobustnessService,
 ) -> EvaluationReport | RobustnessReport:
     evaluation = EvaluationRunner(mode=mode).run(cases, service)
-    if suite == "canonical":
+    if suite != "robustness":
         return evaluation
     quality_count = sum(case.category.value == "quality" for case in cases)
     return RobustnessReport(
@@ -144,12 +166,30 @@ def _robustness_cases(root: Path) -> tuple[tuple[GoldenCase, ...], tuple[GoldenC
     return quality, tuple(by_rule[rule.rule_id] for rule in rules.rules)
 
 
+def _reviewed_plan(case: GoldenCase) -> QueryPlan:
+    payload = case.expected_plan.model_dump(exclude={"native_segments"})
+    payload["filters"] = tuple(
+        clause.model_dump(
+            exclude={"value"}
+            if clause.operator.value in {"is_missing", "is_not_missing"}
+            else set()
+        )
+        for clause in case.expected_plan.filters or ()
+    )
+    return QueryPlan.model_validate(
+        {
+            **payload,
+            "entities": (),
+        }
+    )
+
+
 class _LocalEvaluationService:
     def __init__(
         self,
         *,
         session: RuntimeArtifactSession,
-        orchestrator: EvaluationOrchestrator,
+        orchestrator: EvaluationOrchestrator | None,
         loop: asyncio.AbstractEventLoop,
         settings: Settings,
     ) -> None:
@@ -160,6 +200,7 @@ class _LocalEvaluationService:
 
     def replay_versions(self) -> ReplayVersions:
         facts = self._session.versions.runtime_facts()
+        hcx_enabled = self._settings.hcx_enabled
         return ReplayVersions.from_configuration(
             artifact_version=facts["artifact_manifest_hash"],
             config_versions={
@@ -168,15 +209,17 @@ class _LocalEvaluationService:
                 if key.endswith("_version") and key not in {"planner_version"}
             },
             prompt_version=PROMPT_VERSION,
-            answer_prompt_version=ANSWER_PROMPT_VERSION,
-            answer_schema_sha256=answer_schema_sha256(),
-            wording_verification_mode="exact-application-surface-v1",
+            answer_prompt_version=ANSWER_PROMPT_VERSION if hcx_enabled else None,
+            answer_schema_sha256=answer_schema_sha256() if hcx_enabled else None,
+            wording_verification_mode=(
+                "allowlisted-presentation-plus-exact-surface-v1" if hcx_enabled else None
+            ),
             planner_version=facts["planner_version"],
-            execution_mode=ExecutionMode.EVALUATION,
-            hcx_enabled=True,
-            planner_model=self._settings.hcx_model_name,
-            fallback_enabled=False,
-            structured_outputs_enabled=True,
+            execution_mode=self._settings.execution_mode,
+            hcx_enabled=hcx_enabled,
+            planner_model=self._settings.hcx_model_name if hcx_enabled else None,
+            fallback_enabled=not hcx_enabled,
+            structured_outputs_enabled=hcx_enabled,
         )
 
     def observe(self, case: GoldenCase, mode: EvaluationMode) -> ObservedCase:
@@ -188,6 +231,8 @@ class _LocalEvaluationService:
             execution_mode=self._session.versions.execution_mode,
         )
         if mode is EvaluationMode.PLAN_ONLY:
+            if self._orchestrator is None:
+                raise ValueError("reviewed-plan service only supports deterministic core")
             plan_only_result = self._loop.run_until_complete(
                 self._orchestrator.plan(planning_request, deadline=deadline)
             )
@@ -196,7 +241,23 @@ class _LocalEvaluationService:
                 latency_ms=(plan_only_result.latency_ms,),
             )
         if mode is EvaluationMode.DETERMINISTIC_CORE:
-            raise ValueError("deterministic-core CLI replay requires executable reviewed plans")
+            plan = _reviewed_plan(case)
+            prepared = AnswerService(self._session).prepare_plan(
+                AnswerRequest(question_id=case.case_id, question=case.question),
+                plan,
+                deadline,
+            )
+            result = AnswerResult(
+                answer=VerifiedAnswer(
+                    text=prepared.fact_pack.surface_parts[0].text,
+                    claims=prepared.claims,
+                ),
+                retrieved_context=prepared.retrieved_context,
+                trace=prepared.trace,
+            )
+            return _observed(case, plan, result, 0)
+        if self._orchestrator is None:
+            raise ValueError("reviewed-plan service only supports deterministic core")
         request = AnswerRequest(question_id=case.case_id, question=case.question)
         safe = build_safe_publication(
             request,
@@ -212,6 +273,8 @@ class _LocalEvaluationService:
         return _observed(case, planned.plan, result, planned.latency_ms)
 
     def observe_adversarial(self, case: AdversarialCase) -> AdversarialObservation:
+        if self._orchestrator is None:
+            raise ValueError("reviewed-plan service does not support adversarial replay")
         try:
             request = AnswerRequest(question_id=case.case_id, question=case.question)
             deadline = RequestDeadline.start()
@@ -264,6 +327,21 @@ def _open_local_service(settings: Settings) -> Iterator[_LocalEvaluationService]
     finally:
         if orchestrator_context is not None and orchestrator_open:
             loop.run_until_complete(orchestrator_context.__aexit__(None, None, None))
+        loop.close()
+
+
+@contextmanager
+def _open_reviewed_plan_service(settings: Settings) -> Iterator[_LocalEvaluationService]:
+    loop = asyncio.new_event_loop()
+    try:
+        with open_runtime_artifact_session(settings) as session:
+            yield _LocalEvaluationService(
+                session=session,
+                orchestrator=None,
+                loop=loop,
+                settings=settings,
+            )
+    finally:
         loop.close()
 
 

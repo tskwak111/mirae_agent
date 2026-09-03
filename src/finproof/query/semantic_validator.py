@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 
 from finproof.core.settings import ExecutionMode
 from finproof.domain.execution import ValidatedQueryPlan
-from finproof.domain.query_plan import ProductType, QueryPlan, ResultGrain
+from finproof.domain.query_plan import Intent, ProductType, QueryPlan, ResultGrain
 from finproof.entity.models import HoldingResolutionResult, ResolutionResult
 from finproof.query.fields import FieldProjection, FieldRegistry
 
@@ -47,6 +47,12 @@ class SemanticValidator:
             raise TypeError("semantic validation inputs differ")
         if plan.as_of_date != context.as_of_date:
             raise ValueError("validation as-of date differs")
+        if plan.intent in {Intent.CLARIFY, Intent.UNSUPPORTED}:
+            return ValidatedQueryPlan._issue(
+                plan=plan,
+                resolutions=resolutions,
+                context=context,
+            )
         expected_grain = (
             ResultGrain.PRODUCT
             if len(plan.product_types) > 1

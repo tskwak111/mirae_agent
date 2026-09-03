@@ -1,4 +1,4 @@
-"""Strict HCX answer wording over one application-issued fact surface."""
+"""Bounded HCX presentation over one application-issued fact surface."""
 
 import json
 from hashlib import sha256
@@ -15,11 +15,12 @@ from finproof.planner.models import HcxMessage, HcxRequest
 from finproof.planner.service import HcxGenerator
 from finproof.service.limits import RequestDeadline
 
-ANSWER_PROMPT_VERSION = "phase4-answer-v1"
+ANSWER_PROMPT_VERSION = "phase4-answer-v5"
 _SCHEMA_PATH = Path(__file__).parents[3] / "schemas/hcx_answer.schema.json"
 _RULES = (
-    "Return JSON only. Copy the application-issued answer and every ordered ID tuple "
-    "exactly. Do not add, remove, reorder, translate, summarize, or change any byte."
+    "Return JSON only. Read the application-issued FactPack and choose exactly one "
+    "allowed presentation value from the response schema. Do not repeat, summarize, "
+    "rewrite, or add any factual content."
 )
 ANSWER_PROMPT_SHA256 = sha256(_RULES.encode()).hexdigest()
 
@@ -113,12 +114,12 @@ class HcxVerbalizer:
             )
         )
         if invalid_content is not None:
-            messages.extend(
-                (
-                    HcxMessage(role="assistant", content=invalid_content),
-                    HcxMessage(
-                        role="user",
-                        content="Correct only the JSON or exact-tuple error. Return JSON only.",
+            messages.append(
+                HcxMessage(
+                    role="user",
+                    content=(
+                        "The previous output failed schema validation. Return JSON only and "
+                        "choose exactly one allowed presentation value from the response schema."
                     ),
                 )
             )
@@ -126,7 +127,7 @@ class HcxVerbalizer:
             model_name=self._model_name,
             messages=tuple(messages),
             schema=build_hcx_answer_schema(),
-            max_completion_tokens=4_096,
+            max_completion_tokens=64,
             temperature=0.0,
             seed=17,
         )
