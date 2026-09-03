@@ -495,7 +495,7 @@ _BLIND_DEVELOPMENT_METADATA = {
     "013": (161, "canonical-question-candidates-v22"),
     "014": (173, "canonical-question-candidates-v23"),
     "015": (185, "canonical-question-candidates-v24"),
-    "016": (197, "canonical-question-candidates-v25"),
+    "016": (197, "canonical-question-candidates-v28"),
     "017": (209, "canonical-question-candidates-v26"),
 }
 
@@ -628,7 +628,7 @@ _BLIND_DEVELOPMENT_SLOTS = {
         "clarification: KODEX200 수익률을 알려줘",
         "quality: 국내 ETF KODEX200과 KODEX 200이 같은 상품인지 알려줘",
         "quality: 코덱스200과 KODEX200이 같은 상품인지 알려줘",
-        "quality: 해외 ETF QQQ와 QQQ.O가 같은 상품인지 알려줘",
+        "quality: 해외 ETF VOO의 원천 상품명이 Vanguard 500 Index Fund ETF인지 조회해줘",
     ),
     "017": (
         "lookup: 국내 ETF KR7305080004와 공모펀드 KR5114420158의 1년 수익률을 유형별로 조회해줘",

@@ -41,7 +41,7 @@ _CATEGORIES = (
         ("013", 161, "canonical-question-candidates-v22"),
         ("014", 173, "canonical-question-candidates-v23"),
         ("015", 185, "canonical-question-candidates-v24"),
-        ("016", 197, "canonical-question-candidates-v25"),
+        ("016", 197, "canonical-question-candidates-v28"),
         ("017", 209, "canonical-question-candidates-v26"),
     ],
 )
@@ -67,6 +67,23 @@ def test_batch_012_slots_add_semantics_that_break_frozen_plan_collisions() -> No
         slot = slots[position - 1]
         assert all(phrase in slot for phrase in required_phrases)
         assert slot in prompt
+
+
+def test_batch_016_slot_24_is_distinct_ticker_name_quality_request() -> None:
+    _, version, prompt, _ = generator._batch_contract("016")
+    slots = generator._BLIND_DEVELOPMENT_SLOTS["016"]
+    families = generator._BLIND_DEVELOPMENT_FAMILIES["016"]
+    slot = slots[23]
+
+    assert version == "canonical-question-candidates-v28"
+    assert slot.startswith("quality: ")
+    assert families[23] == "entity_variant"
+    assert "QQQ" not in slot
+    assert "VOO" in slot
+    assert "Vanguard 500 Index Fund ETF" in slot
+    assert "원천 상품명" in slot
+    assert slot != slots[14]
+    assert slot in prompt
 
 
 def test_blind_development_slots_have_approved_family_distribution() -> None:
