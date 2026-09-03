@@ -490,6 +490,221 @@ _NEW_BATCH_METADATA = {
     "011": (137, "canonical-question-candidates-v14"),
 }
 
+_BLIND_DEVELOPMENT_METADATA = {
+    "012": (149, "canonical-question-candidates-v15"),
+    "013": (161, "canonical-question-candidates-v16"),
+    "014": (173, "canonical-question-candidates-v17"),
+    "015": (185, "canonical-question-candidates-v18"),
+    "016": (197, "canonical-question-candidates-v19"),
+    "017": (209, "canonical-question-candidates-v20"),
+}
+
+_BLIND_DEVELOPMENT_SLOTS = {
+    "012": (
+        "lookup: 국내채권의 만기일과 매수수익률을 같은 기준일로 조회",
+        "lookup: 국내 ETF의 총보수와 1년 수익률을 함께 조회하고 ETN 제외",
+        "lookup: 해외 ETF의 AUM과 총보수를 함께 조회하고 ETN 제외",
+        "lookup: 공모펀드의 3개월 수익률과 1년 수익률을 함께 조회",
+        "screen: 국내채권을 만기일과 신용등급 조건으로 함께 필터하고 매수가능수량 양수만 포함",
+        "screen: 국내 ETF를 3개월 수익률과 총보수 조건으로 함께 필터하고 ETN 제외",
+        "screen: 해외 ETF를 AUM과 거래통화 조건으로 함께 필터하고 ETN 제외",
+        "screen: 공모펀드를 6개월 수익률과 위험등급 조건으로 함께 필터",
+        "screen: 국내 ETN을 연초이후 수익률과 추적오차 조건으로 함께 필터하고 ETN 명시",
+        "rank: 매수가능수량 양수 국내채권을 매수수익률 기준 상위 5개로 정렬",
+        "rank: 국내 ETF를 1년 수익률 기준 하위 5개로 정렬하고 ETN 제외",
+        "rank: 해외 ETF를 총보수 기준 상위 5개로 정렬하고 ETN 제외",
+        "rank: 공모펀드를 2년 수익률 기준 상위 5개로 정렬",
+        "compare: 두 국내채권의 만기일과 신용등급을 함께 비교",
+        "compare: 두 국내 ETF의 AUM과 총보수를 함께 비교하고 ETN 제외",
+        "compare: 두 공모펀드의 1년 수익률과 위험등급을 함께 비교",
+        "aggregate: 국내 ETF의 총보수 평균과 AUM 평균을 ETN 제외로 각각 집계",
+        "aggregate: 공모펀드의 3개월 수익률 평균과 1년 수익률 평균을 각각 집계",
+        "cross_product: 국내 ETF와 공모펀드의 6개월 수익률 상위 4개를 유형별로 분리",
+        "cross_product: 국내채권은 매수수익률, 국내 ETF는 1년 수익률로 각각 상위 4개를 유형별로 분리",
+        "clarification: 기록된 0% 수익률과 누락 수익률을 같은 값으로 취급하지 않는 기준을 질문에 반영",
+        "quality: AUM 순위에서 기록된 0과 누락값을 제외하고 제외 수를 표시",
+        "quality: 해외 ETF의 보유종목 전체를 요구하는 요청은 봉인된 보유종목 범위 제한을 명시",
+        "quality: 고정 환율 없이 서로 다른 통화 AUM을 하나의 순위로 합치는 요청은 지원하지 않음을 명시",
+    ),
+    "013": (
+        "lookup: 국내 ETF와 공모펀드의 3개월 수익률을 유형별로 조회",
+        "lookup: 해외 ETF의 AUM과 거래통화를 함께 조회하고 ETN 제외",
+        "lookup: 국내채권의 매수수익률과 잔존일수를 함께 조회",
+        "lookup: 공모펀드의 AUM과 거래통화를 함께 조회",
+        "screen: 특정 국내 ETF가 보유한 종목을 확인하려는 요청은 봉인된 보유종목 범위를 먼저 확인",
+        "screen: 특정 해외 ETF가 특정 섹터에 투자하는지 확인하려는 요청은 보유종목 범위 제한을 명시",
+        "screen: 국내 ETF의 보유종목 중 특정 기업을 찾는 요청은 정확한 종목 연결만 허용",
+        "screen: 해외 ETF의 구성종목 산업 섹터를 요구하는 요청은 사용할 수 있는 봉인 데이터만 근거로 함",
+        "screen: 공모펀드의 편입종목을 요구하는 요청은 보유종목 미제공을 부재 사실로 단정하지 않음",
+        "rank: 국내 ETF를 보유종목 수로 순위화하려는 요청은 보유종목 범위 제한을 명시",
+        "rank: 해외 ETF를 특정 섹터 비중으로 순위화하려는 요청은 봉인된 데이터 범위만 사용",
+        "rank: 특정 기업을 보유한 ETF의 AUM 순위를 요구할 때 정확한 식별자 연결만 사용",
+        "rank: 특정 섹터 노출 ETF의 수익률 순위를 요구할 때 보유종목 미제공 상품을 제외로 단정하지 않음",
+        "compare: 두 ETF의 공통 보유종목을 비교하는 요청은 봉인된 보유종목 범위를 명시",
+        "compare: 두 ETF의 섹터 구성을 비교하는 요청은 검증된 구성종목 근거가 있을 때만 수행",
+        "compare: ETF와 공모펀드의 특정 기업 보유 여부 비교는 상품 유형별 보유종목 범위 제한을 명시",
+        "aggregate: 특정 섹터 ETF의 수를 집계할 때 근거가 없는 보유종목을 추정하지 않음",
+        "aggregate: 특정 기업을 편입한 상품의 AUM 평균은 정확한 식별자 연결된 경우만 사용",
+        "cross_product: 국내 ETF와 해외 ETF의 반도체 보유 여부를 유형별로 분리하고 봉인된 범위만 사용",
+        "cross_product: ETF와 공모펀드의 특정 섹터 노출을 합산하지 않고 보유종목 범위 제한을 표시",
+        "clarification: 보유종목이 많은 ETF를 찾는 요청에서 보유종목 기준과 국내외 범위를 확인",
+        "quality: 보유종목 데이터가 없는 상품을 해당 기업을 보유하지 않는다고 단정하지 않음",
+        "quality: 공개되지 않은 ETF 실시간 구성종목이나 외부 섹터 정보를 요구하는 요청은 지원하지 않음을 명시",
+        "quality: 임의의 종목명 유사성으로 ETF 보유종목 연결을 만드는 요청은 지원하지 않음을 명시",
+    ),
+    "014": (
+        "lookup: 국내 ETF와 공모펀드의 6개월 수익률을 유형별로 조회",
+        "lookup: 국내채권의 매수수익률과 만기일을 같은 기준일로 조회",
+        "lookup: 해외 ETF의 AUM과 1일 수익률을 함께 조회하고 ETN 제외",
+        "lookup: 공모펀드의 1년 수익률과 위험등급을 함께 조회",
+        "screen: 특정 기업을 보유한 국내 ETF를 찾는 요청은 정확한 식별자 연결과 봉인된 보유종목 범위만 사용",
+        "screen: 해외 ETF의 특정 섹터 노출을 찾는 요청은 보유종목 범위 제한을 표시",
+        "screen: 총보수가 누락된 국내 ETF를 수수료 조건 필터에서 제외하고 제외 수를 표시",
+        "screen: 기록된 0% 추적오차와 누락 추적오차를 구분하여 국내 ETF를 필터",
+        "screen: 해외 ETF의 기록된 0 AUM과 누락 AUM을 구분하여 AUM 조건을 적용",
+        "rank: 매수가능수량이 0 또는 누락인 국내채권을 매수 가능 순위에서 제외",
+        "rank: 국내 ETF의 총보수 누락값을 수수료 순위에서 제외하고 정책을 표시",
+        "rank: 해외 ETF의 AUM 0과 누락 AUM을 분리하여 순위를 표시",
+        "rank: 공모펀드의 1년 수익률 누락값을 수익률 순위에서 제외",
+        "compare: 한 상품의 0% 수익률과 다른 상품의 누락 수익률을 같은 값으로 비교하지 않음",
+        "compare: 두 국내채권의 BUYABLE_QUANTITY가 유효하지 않으면 매수가능수량 비교에서 제외",
+        "compare: 두 ETF의 AUM이 서로 다른 통화이거나 누락이면 통합 비교하지 않음",
+        "aggregate: 국내 ETF 총보수 평균에서 누락값을 제외하고 제외 수를 표시",
+        "aggregate: 공모펀드 3개월 수익률 평균에서 기록된 0과 누락값 처리 정책을 표시",
+        "cross_product: 국내 ETF와 공모펀드의 1년 수익률을 유형별로 분리하고 누락값을 제외",
+        "cross_product: 국내 ETF와 해외 ETF의 AUM을 통화별로 분리하고 0과 누락을 구분",
+        "clarification: 수익률이 좋은 ETF 요청에서 기간이 없으면 기간을 확인",
+        "quality: 알 수 없는 내부 코드의 의미를 추정하지 않고 이용 불가 상태로 표시",
+        "quality: 외부 시장가격이나 실시간 수익률을 요구하는 요청은 공식 배포본 범위를 벗어남을 명시",
+        "quality: 해외 ETF/ETN의 1년 수익률을 요구하는 요청은 해당 기간을 만들지 않음을 명시",
+    ),
+    "015": (
+        "lookup: 국내 ETF와 해외 ETF의 AUM을 통화별·유형별로 조회하고 ETN 제외",
+        "lookup: 국내채권의 매수수익률과 공모펀드의 1년 수익률을 한 순위로 합치지 않고 유형별로 조회",
+        "lookup: 기록된 0% 수익률과 누락 수익률을 구분해 공모펀드 상품을 조회",
+        "lookup: BUYABLE_QUANTITY가 유효하지 않은 국내채권은 매수가능수량을 해석하지 않고 조회",
+        "screen: 미래 한 달 수익률이 높은 국내 ETF를 요구하는 요청은 예측을 지원하지 않음을 명시",
+        "screen: 해외 ETF의 1년 수익률 조건을 요구하는 요청은 해당 기간 데이터가 없음을 명시",
+        "screen: 임의 환율로 국내외 ETF AUM을 한 기준으로 필터하는 요청은 지원하지 않음을 명시",
+        "screen: 실시간 거래정지 여부를 요구하는 요청은 공식 배포본 기준만 가능함을 명시",
+        "screen: 비공개 편입종목을 기준으로 ETF를 필터하는 요청은 보유종목 범위 제한을 명시",
+        "rank: 모든 상품 유형의 수익률을 같은 기간·단위 확인 없이 하나로 순위화하는 요청은 지원하지 않음을 명시",
+        "rank: 해외 ETF의 1년 수익률 순위를 요구하는 요청은 값을 만들지 않음을 명시",
+        "rank: 미래에 가장 오를 ETF를 순위화하는 요청은 투자 예측을 지원하지 않음을 명시",
+        "rank: 외부 신용평가가 없는 채권의 신용등급을 추정하는 요청은 지원하지 않음을 명시",
+        "compare: 유사한 이름만으로 두 ETF를 같은 상품으로 간주하는 요청은 지원하지 않음을 명시",
+        "compare: 실시간 환율로 서로 다른 통화 AUM을 비교하는 요청은 공식 고정 환율 부재를 명시",
+        "compare: 외부 뉴스로 공모펀드 성과 원인을 비교하는 요청은 지원하지 않음을 명시",
+        "aggregate: 해외 ETF와 공모펀드 AUM을 환산 없이 합계하는 요청은 지원하지 않음을 명시",
+        "aggregate: 누락된 수익률을 0으로 바꿔 평균내는 요청은 지원하지 않음을 명시",
+        "cross_product: 국내 ETF와 해외 ETF의 보유종목을 외부 데이터로 합쳐 비교하는 요청은 지원하지 않음을 명시",
+        "cross_product: 채권 매수수익률과 ETF 수익률을 하나의 성과 순위로 합치는 요청은 지원하지 않음을 명시",
+        "clarification: 가장 안전한 투자상품을 추천해 달라는 요청은 추천 대신 기준 확인이 필요함을 명시",
+        "quality: 원천 판매상태가 없는 해외 상품을 검증된 매수 가능으로 바꾸는 요청은 지원하지 않음을 명시",
+        "quality: KODEX 200의 별칭·띄어쓰기·티커 후보는 정확한 식별자 확인 전 자동 병합하지 않음",
+        "quality: 공모펀드 상품명 변형은 itm_no가 정확히 일치할 때만 같은 상품으로 연결",
+    ),
+    "016": (
+        "lookup: 국내 ETF와 공모펀드의 1개월 수익률을 유형별로 조회",
+        "lookup: 국내채권의 매수수익률과 해외 ETF의 1일 수익률을 같은 성과 순위로 합치지 않음",
+        "lookup: 국내 ETF와 해외 ETF의 AUM을 통화별로 분리해 조회",
+        "lookup: 공모펀드의 3개월과 1년 수익률을 같은 상품 기준으로 조회",
+        "screen: 특정 기업을 보유한 국내 ETF 요청은 정확한 식별자 연결과 봉인된 보유종목 범위만 사용",
+        "screen: 해외 ETF의 특정 산업군 노출 요청은 보유종목 범위 제한을 표시",
+        "screen: 총보수 0%와 총보수 누락인 국내 ETF를 구분해 필터",
+        "screen: BUYABLE_QUANTITY가 유효하지 않은 국내채권을 매수 가능 조건에서 제외",
+        "screen: KODEX 200 이름 변형을 정확한 상품 식별자 확인 전 자동으로 연결하지 않음",
+        "rank: 국내 ETF 티커 별칭은 정확한 식별자가 확인된 경우만 같은 상품으로 순위화",
+        "rank: 해외 ETF의 점 포함 티커와 이름 변형은 정확한 등록 식별자로만 연결",
+        "rank: 공모펀드 상품명 변형은 itm_no가 일치한 경우만 동일 상품으로 처리",
+        "rank: 채권 종목코드 오탈자 후보는 유사도만으로 자동 보정하지 않음",
+        "compare: 두 ETF의 유사한 상품명은 정확한 식별자 확인 전 동일 상품 비교로 처리하지 않음",
+        "compare: ETF 티커와 ISIN은 정확한 등록 연결이 있을 때만 같은 상품으로 비교",
+        "compare: 공모펀드의 클래스명 유사성은 명시적 클래스 통합 요청 없이는 가족으로 추론하지 않음",
+        "aggregate: 중복 표기된 ETF 이름은 정확한 상품 식별자 기준으로만 집계",
+        "aggregate: 공모펀드의 같은 이름 항목은 itm_no 기준으로만 중복 여부를 판단",
+        "cross_product: 국내 ETF와 해외 ETF의 동명 상품은 정확한 식별자 연결 전 같은 상품으로 합치지 않음",
+        "cross_product: 채권과 ETF의 유사 발행사명은 교차상품 링크를 만들지 않음",
+        "clarification: KODEX 200을 요청할 때 정확한 티커 또는 상품 식별자를 확인",
+        "quality: 상품명 띄어쓰기 차이는 후보 제안만 하고 자동 병합하지 않음",
+        "quality: 한글·영문 브랜드명 변형은 정확한 식별자 연결 전 동일 상품으로 단정하지 않음",
+        "quality: 해외 티커 접미사 차이는 정확한 등록 식별자 확인 후에만 연결",
+    ),
+    "017": (
+        "lookup: 국내 ETF와 공모펀드의 1년 수익률을 유형별로 조회",
+        "lookup: 국내 ETF와 해외 ETF의 총보수와 AUM을 통화별로 분리해 조회",
+        "lookup: 국내채권의 만기일과 매수수익률 및 매수가능수량을 같은 기준일로 조회",
+        "lookup: 공모펀드의 1년 수익률과 AUM을 함께 조회",
+        "screen: 국내 ETF의 수익률과 총보수 조건을 함께 필터하고 ETN 제외",
+        "screen: 해외 ETF의 AUM과 거래통화 조건을 함께 필터하고 ETN 제외",
+        "screen: 공모펀드의 3개월 수익률과 위험등급 조건을 함께 필터",
+        "screen: 매수가능수량 양수 국내채권을 만기일과 신용등급 조건으로 함께 필터",
+        "screen: 특정 기업을 보유한 국내 ETF를 찾을 때 정확한 식별자 연결과 봉인된 보유종목 범위만 사용",
+        "rank: 특정 섹터 노출 해외 ETF의 AUM 순위는 봉인된 보유종목 범위만 사용",
+        "rank: 국내 ETF의 특정 기업 보유 여부로 순위를 요구할 때 보유종목 미제공을 부재로 단정하지 않음",
+        "rank: 공모펀드의 편입종목 수 순위는 보유종목 범위 제한을 표시",
+        "rank: 특정 산업 ETF의 수익률 순위는 검증된 구성종목 근거가 있을 때만 수행",
+        "rank: 해외 ETF의 섹터 비중 순위는 외부 보유종목 정보를 추가하지 않음",
+        "rank: 특정 종목 보유 ETF의 총보수 순위는 정확한 종목 식별자 연결만 사용",
+        "rank: ETF 보유종목 전체 수 순위는 봉인된 데이터에 없는 범위를 만들지 않음",
+        "compare: 두 국내 ETF의 공통 보유종목 비교는 봉인된 보유종목 범위를 명시",
+        "compare: 해외 ETF와 국내 ETF의 섹터 구성 비교는 유형별 보유종목 범위 제한을 표시",
+        "compare: ETF와 공모펀드의 특정 기업 보유 여부 비교는 외부 사실을 추가하지 않음",
+        "aggregate: 특정 섹터 ETF 수를 집계할 때 근거 없는 구성종목을 추정하지 않음",
+        "aggregate: 특정 기업 편입 상품의 AUM 평균은 정확한 식별자 연결과 봉인된 범위만 사용",
+        "cross_product: 국내 ETF와 해외 ETF의 특정 기업 보유 여부는 유형별로 분리하고 범위 제한을 표시",
+        "clarification: 기록된 0% 수익률과 누락 수익률 중 어떤 처리를 원하는지 확인",
+        "quality: AUM 0과 누락 AUM을 같은 값으로 순위나 평균에 포함하지 않음",
+    ),
+}
+
+_BLIND_DEVELOPMENT_FAMILIES = {
+    "012": (
+        *("cross_metric",) * 20,
+        "missing_zero",
+        "missing_zero",
+        "unsupported",
+        "unsupported",
+    ),
+    "013": (
+        *("cross_metric",) * 4,
+        *("holding_sector",) * 18,
+        "unsupported",
+        "unsupported",
+    ),
+    "014": (
+        *("cross_metric",) * 4,
+        "holding_sector",
+        "holding_sector",
+        *("missing_zero",) * 16,
+        "unsupported",
+        "unsupported",
+    ),
+    "015": (
+        "cross_metric",
+        "cross_metric",
+        "missing_zero",
+        "missing_zero",
+        *("unsupported",) * 18,
+        "entity_variant",
+        "entity_variant",
+    ),
+    "016": (
+        *("cross_metric",) * 4,
+        "holding_sector",
+        "holding_sector",
+        "missing_zero",
+        "missing_zero",
+        *("entity_variant",) * 16,
+    ),
+    "017": (
+        *("cross_metric",) * 8,
+        *("holding_sector",) * 14,
+        "missing_zero",
+        "missing_zero",
+    ),
+}
+
 
 def _new_batch_prompt(slots: Sequence[str]) -> str:
     numbered_slots = "\n".join(f"{index} {slot}" for index, slot in enumerate(slots, start=1))
@@ -520,6 +735,38 @@ def _new_batch_prompt(slots: Sequence[str]) -> str:
 {numbered_slots}
 슬롯에 명시된 식별자와 질문 조건 수치 외에는 expected plan, expected answer/result,
 상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
+응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
+루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
+정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
+lookup 4, screen 5, rank 4, compare 3, aggregate 2, cross_product 2,
+clarification 1, quality 3.
+배열 슬롯은 1~4 lookup, 5~9 screen, 10~13 rank, 14~16 compare,
+17~18 aggregate, 19~20 cross_product, 21 clarification, 22~24 quality 순서로 고정하십시오.
+출력 전 candidates 배열 길이가 24이고 각 슬롯의 category가 위 구간과 일치하는지 확인하십시오.
+"""
+
+
+def _blind_development_prompt(slots: Sequence[str]) -> str:
+    numbered_slots = "\n".join(f"{index} {slot}" for index, slot in enumerate(slots, start=1))
+    return f"""당신은 FinProof 평가 질문 후보 작성자입니다.
+생성물은 사람 검토 전의 질문 후보이며 정답 데이터가 아니다. ground truth로 취급하지 마십시오.
+공식 2026-08-24 배포본만 사용하십시오. 국내채권·국내 ETF/ETN·공모펀드는 2026-08-22까지,
+해외 ETF/ETN은 한국 시간 2026-08-23까지의 적용 범위를 가진다. 실시간 값이나 이후 값을 요구하지 마십시오.
+자연스러운 한국어 질문을 작성하되 공식 데이터와 FinProof 계약으로 지원 가능한 필드, 상태, 지표,
+기간, 통화, 집계만 질문하십시오. 일반적인 ETF 질문은 ETN을 제외합니다. ETN을 명시한 질문만 ETN을 포함합니다.
+미래 수익률 예측, 단정적인 투자 추천, 외부 시장 사실, 가족형 펀드 추론을 요구하지 마십시오.
+BUYABLE_QUANTITY가 유효하지 않으면 매수가능수량·매수 가능 여부로 해석하지 말고 관련 필터·순위·집계에서 제외하십시오.
+알 수 없거나 등록되지 않은 내부 코드의 의미를 추정하지 마십시오. 원천 판매상태를 검증된 매수 가능 상태로 바꾸지 마십시오.
+누락값과 기록된 0은 같은 값이 아니며, 순위·필터·집계에서 제외·분리·경고 정책을 질문 조건에 맞게 명시하십시오.
+해외 ETF/ETN의 1년 수익률을 만들지 마십시오. 통화가 다른 AUM은 고정 환율 없이 하나의 순위나 합계로 만들지 마십시오.
+교차상품 질문은 각 상품 유형의 native 실행 세그먼트로 분리하고, 서로 다른 지표·기간·통화를 하나의 비교 순위로 합치지 마십시오.
+상품명·티커·별칭이 비슷해도 정확히 일치하는 식별자가 확인된 경우만 연결하십시오.
+보유종목 범위가 봉인된 데이터에 없으면 보유하지 않음을 단정하지 말고 보유종목 범위 제한을 명시하십시오.
+공모펀드 검색·비교·순위·집계는 itm_no의 fund_item grain을 사용하고 속성 행을 상품으로 세지 마십시오.
+아래 24개 슬롯을 각각 자연스러운 한국어 질문 하나로만 표현하십시오.
+슬롯별 행동 지시, 상품 유형, 지표, 기간, 순서와 category를 바꾸지 마십시오:
+{numbered_slots}
+슬롯에 명시된 조건 외에는 expected plan, expected answer/result, 상품 ID, 값, 결과 개수 또는 정답을 사실로 출력하지 마십시오.
 응답은 JSON 객체 하나만 반환하고 다른 텍스트나 마크다운을 포함하지 마십시오.
 루트 키는 candidates 하나뿐이며 각 항목의 키는 category와 question 두 개뿐입니다.
 정확히 24개를 만들고 범주별 개수는 다음과 같습니다:
@@ -570,7 +817,15 @@ def _batch_contract(batch_id: str) -> tuple[int, str, str, str]:
             _new_batch_prompt(_NEW_BATCH_SLOTS[batch_id]),
             f"finproof-canonical-question-candidates-{batch_id}",
         )
-    raise ValueError("batch_id must be one of: 001, 002, 003, 004, 005, 006-011")
+    if batch_id in _BLIND_DEVELOPMENT_METADATA:
+        seed, prompt_version = _BLIND_DEVELOPMENT_METADATA[batch_id]
+        return (
+            seed,
+            prompt_version,
+            _blind_development_prompt(_BLIND_DEVELOPMENT_SLOTS[batch_id]),
+            f"finproof-canonical-question-candidates-{batch_id}",
+        )
+    raise ValueError("batch_id must be one of: 001, 002, 003, 004, 005, 006-017")
 
 
 class _Response(Protocol):
@@ -668,7 +923,10 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         question = raw["question"]
         if type(category) is not str or category not in TARGET_DISTRIBUTION:
             raise ValueError("HCX candidate has an invalid category")
-        if batch_id in {"005", *_NEW_BATCH_METADATA} and category != ordered_categories[index]:
+        if (
+            batch_id in {"005", *_NEW_BATCH_METADATA, *_BLIND_DEVELOPMENT_METADATA}
+            and category != ordered_categories[index]
+        ):
             raise ValueError(f"batch {batch_id} candidate order does not match the target")
         if (
             type(question) is not str
@@ -730,7 +988,7 @@ def _validate_candidates(content: str, *, batch_id: str = BATCH_ID) -> list[dict
         for category, category_questions in grouped.items()
         for index, question in enumerate(category_questions, 1)
     ]
-    if batch_id in {"003", "004", "005", *_NEW_BATCH_METADATA}:
+    if batch_id in {"003", "004", "005", *_NEW_BATCH_METADATA, *_BLIND_DEVELOPMENT_METADATA}:
         for index, candidate in enumerate(candidates, 1):
             candidate["candidate_id"] = f"CQ-{batch_id}-{index:03d}"
     return candidates
@@ -843,7 +1101,15 @@ def main(
     parser.add_argument(
         "--batch-id",
         default=BATCH_ID,
-        choices=("001", "002", "003", "004", "005", *_NEW_BATCH_METADATA),
+        choices=(
+            "001",
+            "002",
+            "003",
+            "004",
+            "005",
+            *_NEW_BATCH_METADATA,
+            *_BLIND_DEVELOPMENT_METADATA,
+        ),
     )
     args = parser.parse_args(argv)
 

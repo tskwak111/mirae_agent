@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from collections import Counter
 from copy import deepcopy
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -30,6 +31,81 @@ _CATEGORIES = (
     "clarification",
     *("quality" for _ in range(3)),
 )
+
+
+@pytest.mark.parametrize(
+    ("batch_id", "seed", "version"),
+    [
+        ("012", 149, "canonical-question-candidates-v15"),
+        ("013", 161, "canonical-question-candidates-v16"),
+        ("014", 173, "canonical-question-candidates-v17"),
+        ("015", 185, "canonical-question-candidates-v18"),
+        ("016", 197, "canonical-question-candidates-v19"),
+        ("017", 209, "canonical-question-candidates-v20"),
+    ],
+)
+def test_blind_development_batch_identity(batch_id: str, seed: int, version: str) -> None:
+    actual_seed, actual_version, prompt, request_id = generator._batch_contract(batch_id)
+
+    assert (actual_seed, actual_version) == (seed, version)
+    assert request_id == f"finproof-canonical-question-candidates-{batch_id}"
+    assert "공식 2026-08-24 배포본" in prompt
+
+
+def test_blind_development_slots_have_approved_family_distribution() -> None:
+    totals = Counter(
+        family
+        for batch_id in ("012", "013", "014", "015", "016", "017")
+        for family in generator._BLIND_DEVELOPMENT_FAMILIES[batch_id]
+    )
+    assert totals == {
+        "cross_metric": 42,
+        "holding_sector": 36,
+        "missing_zero": 24,
+        "unsupported": 24,
+        "entity_variant": 18,
+    }
+    assert all(
+        len(generator._BLIND_DEVELOPMENT_SLOTS[batch_id]) == 24
+        for batch_id in generator._BLIND_DEVELOPMENT_SLOTS
+    )
+    assert all(
+        len(generator._BLIND_DEVELOPMENT_SLOTS[batch_id])
+        == len(generator._BLIND_DEVELOPMENT_FAMILIES[batch_id])
+        for batch_id in generator._BLIND_DEVELOPMENT_SLOTS
+    )
+
+
+def test_blind_development_slots_are_safe_registered_instructions() -> None:
+    slots = tuple(slot for batch in generator._BLIND_DEVELOPMENT_SLOTS.values() for slot in batch)
+    instructions = tuple(slot.partition(": ")[2] for slot in slots)
+
+    assert all(slot.partition(": ")[0] in _CATEGORIES for slot in slots)
+    assert len({" ".join(instruction.split()) for instruction in instructions}) == len(instructions)
+    assert not any("BUYABLE_QUANTITY=" in instruction for instruction in instructions)
+    assert not any("외부 사실로 단정" in instruction for instruction in instructions)
+
+
+def test_blind_development_prompt_preserves_august_safety_boundaries() -> None:
+    prompt = generator._blind_development_prompt(("lookup: 등록된 상품의 상품명 조회",))
+
+    assert all(
+        phrase in prompt
+        for phrase in (
+            "공식 2026-08-24 배포본",
+            "국내채권·국내 ETF/ETN·공모펀드는 2026-08-22",
+            "해외 ETF/ETN은 한국 시간 2026-08-23",
+            "BUYABLE_QUANTITY",
+            "내부 코드의 의미를 추정하지 마십시오",
+            "누락값과 기록된 0은",
+            "해외 ETF/ETN의 1년 수익률을 만들지 마십시오",
+            "각 상품 유형의 native 실행 세그먼트",
+            "일반적인 ETF 질문은 ETN을 제외",
+            "정확히 일치하는 식별자",
+            "보유종목 범위가 봉인된 데이터에 없으면",
+        )
+    )
+
 
 _NEW_BATCH_CASES = (
     (
