@@ -3,7 +3,7 @@
 from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
 
-def test_official_resolution_and_exact_link_profile_is_47(
+def test_official_resolution_and_exact_link_profile_is_217(
     official_artifact_session: OfficialArtifactSession,
 ) -> None:
     from finproof.entity import ExactCrossSourceLinkRepository
@@ -37,8 +37,8 @@ def test_official_resolution_and_exact_link_profile_is_47(
     try:
         resolver = EntityResolver(EntityIndex.from_session(session))
         links = ExactCrossSourceLinkRepository(session).all_links()
-        assert len(links) == 47
-        assert len({(link.left_product_id, link.right_product_id) for link in links}) == 47
+        assert len(links) == 217
+        assert len({(link.left_product_id, link.right_product_id) for link in links}) == 217
 
         first = links[0]
         left = resolver.resolve(

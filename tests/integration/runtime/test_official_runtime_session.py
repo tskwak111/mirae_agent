@@ -1,7 +1,5 @@
 """Official read-only deterministic runtime query."""
 
-from decimal import Decimal
-
 from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
 
@@ -14,7 +12,6 @@ def test_official_runtime_session_executes_one_read_only_supported_query(
     from finproof.core.settings import ExecutionMode
     from finproof.core.versions import VersionBundle
     from finproof.data.artifacts.database import open_read_only_database
-    from finproof.domain.query_plan import FilterClause, FilterOperator
     from finproof.query import (
         ExecutionBundleBuilder,
         FieldRegistry,
@@ -40,15 +37,7 @@ def test_official_runtime_session_executes_one_read_only_supported_query(
     )
     try:
         fields = FieldRegistry.from_bundle(registries)
-        plan = _plan(
-            filters=(
-                FilterClause(
-                    field="buyable_quantity",
-                    operator=FilterOperator.GT,
-                    value=Decimal("0"),
-                ),
-            )
-        )
+        plan = _plan()
         validated = SemanticValidator(fields).validate(
             plan,
             resolutions=ResolutionBundle(results=()),
@@ -58,8 +47,8 @@ def test_official_runtime_session_executes_one_read_only_supported_query(
 
         raw = QueryExecutor(session).execute(bundle)
 
-        assert raw.candidate_count == 325
-        assert raw.segments[0].candidate_count == 325
+        assert raw.candidate_count == 20_497
+        assert raw.segments[0].candidate_count == 20_497
         assert all(row.product_type is plan.product_types[0] for row in raw.segments[0].rows)
     finally:
         session._close()

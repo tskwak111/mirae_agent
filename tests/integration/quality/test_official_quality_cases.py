@@ -7,7 +7,7 @@ from decimal import Decimal
 from tests.helpers.official_artifact_subprocess import OfficialArtifactSession
 
 
-def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
+def test_official_quality_profiles_match_refresh_state_zero_tie_and_currency_facts(
     official_artifact_session: OfficialArtifactSession,
 ) -> None:
     from tests.helpers.query_runtime import verified_artifacts
@@ -18,8 +18,6 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
     from finproof.domain.query_plan import (
         AggregationFunction,
         AggregationSpec,
-        FilterClause,
-        FilterOperator,
         Intent,
         ProductType,
         QueryPlan,
@@ -54,7 +52,7 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
         ),
     )
     context = ValidationContext(
-        as_of_date=date(2026, 7, 11),
+        as_of_date=date(2026, 8, 24),
         execution_mode=ExecutionMode.EVALUATION,
     )
     fields = FieldRegistry.from_bundle(registries)
@@ -77,13 +75,7 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
                 entities=(),
                 as_of_date=context.as_of_date,
                 result_grain=ResultGrain.INSTRUMENT,
-                filters=(
-                    FilterClause(
-                        field="buyable_quantity",
-                        operator=FilterOperator.GT,
-                        value=Decimal("0"),
-                    ),
-                ),
+                filters=(),
                 metrics=(),
                 sort=(),
                 aggregation=AggregationSpec(
@@ -97,12 +89,12 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
                 clarification_reason="",
             )
         )
-        assert bond_raw.candidate_count == 325
+        assert bond_raw.candidate_count == 20_497
         assert (len(bond_policy.included_rows), bond_policy.excluded_state_count) == (
-            254,
-            71,
+            20_407,
+            90,
         )
-        assert bond_policy.aggregates[0].value == 254
+        assert bond_policy.aggregates[0].value == 20_407
 
         tracking_raw, tracking_policy = execute(
             QueryPlan(
@@ -128,12 +120,13 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
             for item in row.values
             if item.field_id == "tracking_error" and item.value is not None
         )
-        assert len(recorded_tracking) == 1551
-        assert set(recorded_tracking) == {Decimal("0")}
-        assert len(tracking_policy.ranks) == 1516
+        assert len(recorded_tracking) == 1_598
+        assert Decimal("0") in set(recorded_tracking)
+        assert len(set(recorded_tracking)) > 1
+        assert len(tracking_policy.ranks) == 374
         assert {
             (rank.rank, rank.tie_count, rank.value.value) for rank in tracking_policy.ranks
-        } == {(1, 1516, Decimal("0"))}
+        } == {(1, 374, Decimal("0"))}
 
         currency_raw, currency_policy = execute(
             QueryPlan(
@@ -158,9 +151,9 @@ def test_official_quality_profiles_match_325_254_zero_tie_and_currency_facts(
             for item in row.values
             if item.field_id == "currency"
         )
-        assert currencies == {"KRW": 11067, "USD": 71}
+        assert currencies == {"KRW": 23_147, "USD": 453, None: 76}
         assert {
             partition.currency: len(partition.values) for partition in currency_policy.partitions
-        } == {"KRW": 9222, "USD": 68}
+        } == {"KRW": 9_337, "USD": 76}
     finally:
         session._close()
