@@ -237,7 +237,7 @@ class EvaluationOrchestrator:
             interrupt = getattr(self._answer_service, "interrupt", None)
             if not worker.done() and callable(interrupt):
                 try:
-                    interrupt()
+                    interrupt(context.deadline)
                 except Exception:
                     _LOGGER.exception("database interrupt failed")
             context.retain_permit_until_done(worker)

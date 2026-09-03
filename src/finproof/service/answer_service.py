@@ -73,13 +73,19 @@ class AnswerService:
         self._verifier = ClaimVerifier()
         # ponytail: one session lock; use owner-managed per-worker cursors if DB throughput matters.
         self._request_lock = Lock()
+        self._active_deadline_lock = Lock()
+        self._active_deadline: RequestDeadline | None = None
 
-    def interrupt(self) -> None:
-        self._session.assert_live()
-        connection = cast(_InterruptibleConnection | None, self._session._connection)
-        if connection is None:
-            raise RuntimeError("runtime artifact session is closed")
-        connection.interrupt()
+    def interrupt(self, deadline: RequestDeadline) -> bool:
+        with self._active_deadline_lock:
+            if self._active_deadline is not deadline:
+                return False
+            self._session.assert_live()
+            connection = cast(_InterruptibleConnection | None, self._session._connection)
+            if connection is None:
+                raise RuntimeError("runtime artifact session is closed")
+            connection.interrupt()
+            return True
 
     def answer_plan(self, request: AnswerRequest, plan: QueryPlan) -> AnswerResult:
         """Offline/demo deterministic compatibility boundary."""
@@ -107,8 +113,15 @@ class AnswerService:
         if type(deadline) is not RequestDeadline:
             raise TypeError("answer deadline differs")
         with self._request_lock:
-            _require_work(deadline)
-            return self._answer_plan(request, plan, deadline)
+            with self._active_deadline_lock:
+                self._active_deadline = deadline
+            try:
+                _require_work(deadline)
+                return self._answer_plan(request, plan, deadline)
+            finally:
+                with self._active_deadline_lock:
+                    if self._active_deadline is deadline:
+                        self._active_deadline = None
 
     def _answer_plan(
         self, request: AnswerRequest, plan: QueryPlan, deadline: RequestDeadline

@@ -182,10 +182,13 @@ class InterruptibleBlockingAnswerService(BlockingAnswerService):
     def __init__(self) -> None:
         super().__init__()
         self.interrupted = Event()
+        self.interrupt_deadline: RequestDeadline | None = None
 
-    def interrupt(self) -> None:
+    def interrupt(self, deadline: RequestDeadline) -> bool:
+        self.interrupt_deadline = deadline
         self.interrupted.set()
         self.release.set()
+        return True
 
 
 def _deadline(seconds: float = 293.0) -> RequestDeadline:
@@ -260,12 +263,14 @@ async def test_database_timeout_interrupts_sync_work() -> None:
         limiter=RequestLimiter(max_in_flight=1),
         execution_mode=ExecutionMode.EVALUATION,
     )
+    deadline = _deadline(0.05)
 
     try:
-        result = await _answer(orchestrator, _deadline(0.05))
+        result = await _answer(orchestrator, deadline)
 
         assert result.trace.validation is TraceValidation.SAFE_FAILURE
         assert answer_service.interrupted.is_set()
+        assert answer_service.interrupt_deadline is deadline
         assert await asyncio.to_thread(answer_service.finished.wait, 1.0)
     finally:
         answer_service.release.set()

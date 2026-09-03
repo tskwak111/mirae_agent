@@ -1821,7 +1821,7 @@ uv run python tools/check_competition_compliance.py --check
 uv run python tools/check_claim_evidence_report.py artifacts/evaluation/organizer-20260824.json
 ```
 
-Run the configured 24-hour soak once against the final submitted endpoint candidate; retain its immutable report. The 300-second boundary is a no-response limit, while latency remains score-differentiated.
+The approved v22 final acceptance is the 35-request load plus 20-cycle soak recorded in the immutable report: 20 cycles, `517.0632837210433` active seconds, failure `0`, and drift `0`. This is not a 24-hour soak; preserve prior OOM, network, and drift diagnostics separately, and retain residual long-duration risk for the risk register and submission closure. The 300-second boundary is a no-response limit, while latency remains score-differentiated.
 
 - [ ] **Step 6: Write the release-manifest RED and implement the A-005 resolution**
 

@@ -1,16 +1,24 @@
 """Focused deterministic answer-service composition contracts."""
 
 from datetime import date
+from threading import Event, Thread
+from typing import cast
 
 import pytest
 from tests.integration.query.test_executor import _session
 
 
-def test_interrupt_stops_the_runtime_connection() -> None:
+def test_interrupt_only_stops_the_active_prepare_plan_owner(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from finproof.domain.answers import AnswerRequest, PreparedAnswer
+    from finproof.domain.query_plan import Intent, QueryPlan, ResultGrain, TopKScope
     from finproof.service import AnswerService
+    from finproof.service.limits import RequestDeadline
 
     class Connection:
-        interrupt_calls = 0
+        def __init__(self) -> None:
+            self.interrupt_calls = 0
 
         def interrupt(self) -> None:
             self.interrupt_calls += 1
@@ -19,11 +27,63 @@ def test_interrupt_stops_the_runtime_connection() -> None:
 
     connection = Connection()
     session = _session(connection)  # type: ignore[arg-type]
+    service = AnswerService(session)
+    entered = Event()
+    release = Event()
+    plan = QueryPlan(
+        intent=Intent.CLARIFY,
+        product_types=(),
+        entities=(),
+        as_of_date=date(2026, 7, 11),
+        result_grain=ResultGrain.INSTRUMENT,
+        filters=(),
+        metrics=(),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=True,
+        clarification_reason="조건을 확인해 주세요.",
+    )
+    active = RequestDeadline.start()
+    queued = RequestDeadline.start()
+    original = service._answer_plan
 
-    AnswerService(session).interrupt()
+    def blocking_answer_plan(
+        request: AnswerRequest, plan: QueryPlan, deadline: RequestDeadline
+    ) -> PreparedAnswer:
+        if deadline is active:
+            entered.set()
+            assert release.wait(1.0)
+        return cast(PreparedAnswer, original(request, plan, deadline))
 
-    assert connection.interrupt_calls == 1
-    session._close()
+    monkeypatch.setattr(service, "_answer_plan", blocking_answer_plan)
+    first = Thread(
+        target=service.prepare_plan,
+        args=(AnswerRequest(question_id="active", question="질문"), plan, active),
+    )
+    second = Thread(
+        target=service.prepare_plan,
+        args=(AnswerRequest(question_id="queued", question="질문"), plan, queued),
+    )
+    try:
+        first.start()
+        assert entered.wait(1.0)
+        second.start()
+        assert second.is_alive()
+
+        assert service.interrupt(queued) is False
+        assert connection.interrupt_calls == 0
+        assert service.interrupt(active) is True
+        assert connection.interrupt_calls == 1
+    finally:
+        release.set()
+        first.join(1.0)
+        second.join(1.0)
+        session._close()
+
+    assert not first.is_alive()
+    assert not second.is_alive()
 
 
 @pytest.mark.parametrize(
