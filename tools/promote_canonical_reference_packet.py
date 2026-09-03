@@ -110,16 +110,26 @@ def promote_reference_packet(
     """Validate and atomically replace each affected category file."""
     review_dir = (repository_root / "evaluation/review_batches").resolve()
     destinations = {
-        (repository_root / "evaluation/canonical").resolve(): "canonical",
-        (repository_root / "evaluation/blind_development").resolve(): "blind_development",
-        (repository_root / "evaluation/blind_holdout").resolve(): "blind_holdout",
+        "canonical": repository_root / "evaluation/canonical",
+        "blind_development": repository_root / "evaluation/blind_development",
+        "blind_holdout": repository_root / "evaluation/blind_holdout",
     }
     if (
         reference_path.resolve().parent != review_dir
         or approval_path.resolve().parent != review_dir
     ):
         raise ValueError("reference and approval must be under evaluation/review_batches")
-    destination = destinations.get(canonical_dir.resolve())
+    resolved_destinations = {path.resolve() for path in destinations.values()}
+    if len(resolved_destinations) != len(destinations):
+        raise ValueError("evaluation destination aliases")
+    destination = next(
+        (
+            name
+            for name, path in destinations.items()
+            if canonical_dir.absolute() == path.absolute()
+        ),
+        None,
+    )
     if review_authority not in {"human", "independent_blind_curator"}:
         raise ValueError("review authority differs")
     if review_authority == "independent_blind_curator" and destination not in {

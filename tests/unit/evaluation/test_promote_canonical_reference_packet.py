@@ -597,6 +597,22 @@ def test_independent_curator_cannot_promote_into_canonical(tmp_path: Path) -> No
         )
 
 
+def test_rejects_blind_destination_aliasing_canonical(tmp_path: Path) -> None:
+    repository, reference, approval, canonical = _workspace(tmp_path)
+    blind = repository / "evaluation/blind_development"
+    blind.symlink_to(canonical, target_is_directory=True)
+    module = _promotion()
+
+    with pytest.raises(ValueError, match="destination aliases"):
+        module.promote_reference_packet(  # type: ignore[attr-defined]
+            reference,
+            approval,
+            canonical,
+            repository_root=repository,
+            review_authority="independent_blind_curator",
+        )
+
+
 def test_cli_defaults_to_human_review_authority_and_allows_the_blind_curator(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
