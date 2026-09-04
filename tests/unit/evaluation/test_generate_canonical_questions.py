@@ -39,9 +39,9 @@ _CATEGORIES = (
     [
         ("012", 149, "canonical-question-candidates-v29"),
         ("013", 161, "canonical-question-candidates-v30"),
-        ("014", 173, "canonical-question-candidates-v31"),
+        ("014", 173, "canonical-question-candidates-v34"),
         ("015", 185, "canonical-question-candidates-v32"),
-        ("016", 197, "canonical-question-candidates-v33"),
+        ("016", 197, "canonical-question-candidates-v35"),
         ("017", 209, "canonical-question-candidates-v26"),
     ],
 )
@@ -75,7 +75,7 @@ def test_batch_016_slot_24_is_distinct_ticker_name_quality_request() -> None:
     families = generator._BLIND_DEVELOPMENT_FAMILIES["016"]
     slot = slots[23]
 
-    assert version == "canonical-question-candidates-v33"
+    assert version == "canonical-question-candidates-v35"
     assert slot.startswith("quality: ")
     assert families[23] == "entity_variant"
     assert "QQQ" not in slot
@@ -103,7 +103,8 @@ def test_blind_development_slots_use_current_bond_and_bound_wide_screen() -> Non
         "016": (2,),
     }.items():
         assert all("KR350103G9B0" in slots[batch_id][position - 1] for position in positions)
-    assert all("최대 30개" in slot for slot in slots["014"][6:9])
+    assert all("최대 10개" in slot for slot in slots["014"][6:9])
+    assert "최대 10개" in slots["016"][6]
 
 
 def test_blind_development_slots_have_approved_family_distribution() -> None:

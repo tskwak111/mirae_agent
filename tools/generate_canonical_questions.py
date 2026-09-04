@@ -493,9 +493,9 @@ _NEW_BATCH_METADATA = {
 _BLIND_DEVELOPMENT_METADATA = {
     "012": (149, "canonical-question-candidates-v29"),
     "013": (161, "canonical-question-candidates-v30"),
-    "014": (173, "canonical-question-candidates-v31"),
+    "014": (173, "canonical-question-candidates-v34"),
     "015": (185, "canonical-question-candidates-v32"),
-    "016": (197, "canonical-question-candidates-v33"),
+    "016": (197, "canonical-question-candidates-v35"),
     "017": (209, "canonical-question-candidates-v26"),
 }
 
@@ -559,9 +559,9 @@ _BLIND_DEVELOPMENT_SLOTS = {
         "lookup: 공모펀드 KR5138490078의 1년 수익률과 위험등급을 조회해줘",
         "screen: 삼성전자를 보유한 국내 ETF를 찾아줘",
         "screen: 반도체 섹터에 노출된 해외 ETF를 찾아줘",
-        "screen: 총보수가 있는 국내 ETF를 최대 30개 보여주고 누락돼 제외된 상품 수도 알려줘",
-        "screen: 추적오차가 0으로 기록된 국내 ETF를 최대 30개 보여주고 추적오차 누락 상품을 따로 알려줘",
-        "screen: AUM이 0보다 큰 해외 ETF를 최대 30개 보여주고 0·누락으로 제외된 상품 수도 알려줘",
+        "screen: 총보수가 있는 국내 ETF를 최대 10개 보여주고 누락돼 제외된 상품 수도 알려줘",
+        "screen: 추적오차가 0으로 기록된 국내 ETF를 최대 10개 보여주고 추적오차 누락 상품을 따로 알려줘",
+        "screen: AUM이 0보다 큰 해외 ETF를 최대 10개 보여주고 0·누락으로 제외된 상품 수도 알려줘",
         "rank: 국내채권을 매수수익률 높은 순으로 5개 보여주고 매수수익률 누락 상품 수를 알려줘",
         "rank: 국내 ETF를 총보수 낮은 순으로 5개 보여주고 총보수 누락 상품 수를 알려줘",
         "rank: 해외 ETF를 AUM 낮은 순으로 5개 보여주고 기록된 0과 누락 상품 수를 따로 알려줘",
@@ -611,7 +611,7 @@ _BLIND_DEVELOPMENT_SLOTS = {
         "lookup: 공모펀드 KR5138490078의 3개월 수익률과 1년 수익률을 조회해줘",
         "screen: 국내 ETF KR7305080004의 보유종목에서 삼성전자를 찾아줘",
         "screen: 반도체 산업군에 노출된 해외 ETF를 찾아줘",
-        "screen: 총보수가 0%로 기록된 국내 ETF와 총보수 누락 상품을 따로 찾아줘",
+        "screen: 총보수가 0%로 기록된 국내 ETF를 최대 10개 보여주고 총보수 누락 상품을 따로 알려줘",
         "screen: BUYABLE_QUANTITY가 0보다 큰 국내채권을 찾아줘",
         "screen: KODEX200의 1년 수익률이 0% 이상인지 조회해줘",
         "rank: 코덱스200으로 검색되는 국내 ETF 후보를 AUM 높은 순으로 5개 보여줘",
