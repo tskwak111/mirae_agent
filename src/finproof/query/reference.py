@@ -2,6 +2,8 @@
 
 from finproof.domain.execution import ExecutionBundle
 from finproof.domain.query_plan import FilterClause, FilterOperator
+from finproof.query.fields import FieldRegistry
+from finproof.registry.loader import RegistryBundle
 from finproof.storage.repositories.products import (
     RawExecutionResult,
     RawProductRow,
@@ -21,6 +23,7 @@ class ReferenceExecutor:
     ) -> RawExecutionResult:
         if type(rows) is not tuple or type(bundle) is not ExecutionBundle:
             raise TypeError("reference executor inputs differ")
+        fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
         segments: list[RawSegmentResult] = []
         for segment in bundle.segments:
             selected = tuple(
@@ -28,7 +31,11 @@ class ReferenceExecutor:
                 for row in rows
                 if type(row) is FixtureRow
                 and row.product_type is segment.product_type
-                and all(_matches(row, clause) for clause in segment.filters)
+                and all(
+                    fields.projection(clause.field, row.product_type).metric_id is not None
+                    or _matches(row, clause)
+                    for clause in segment.filters
+                )
             )
             segments.append(
                 RawSegmentResult(
