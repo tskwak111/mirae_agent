@@ -300,6 +300,162 @@ def test_pipeline_uses_the_frozen_rating_scale_for_aa_minus_or_higher() -> None:
     assert result.excluded_filter_count == 1
 
 
+def test_metric_filter_preserves_the_eligible_prefilter_population() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        ResultGrain,
+    )
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.OVERSEAS_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(FilterClause(field="aum", operator=FilterOperator.GT, value=0),),
+    ).model_copy(update={"intent": Intent.SCREEN, "metrics": ("aum",)})
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    def row(product_id: str, value: Decimal | None, quality_status: str) -> RawProductRow:
+        return RawProductRow(
+            product_type=ProductType.OVERSEAS_ETF,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            product_id=product_id,
+            values=(
+                RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                RawFieldValue(field_id="aum", value=value, quality_status=quality_status),
+                RawFieldValue(field_id="currency", value="USD", quality_status="valid"),
+            ),
+        )
+
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.OVERSEAS_ETF,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                rows=(
+                    row("positive", Decimal("1"), "valid"),
+                    row("zero", Decimal("0"), "recorded_zero"),
+                    row("missing", None, "missing_blank"),
+                ),
+                candidate_count=3,
+                max_batch_rows=3,
+            ),
+        ),
+        candidate_count=3,
+    )
+
+    result = PolicyEngine().apply(raw, bundle=bundle)
+
+    assert tuple(item.raw.product_id for item in result.included_rows) == ("positive",)
+    assert tuple(value.product_id for value in result.metric_values) == ("positive",)
+    assert tuple(
+        (value.product_id, value.value) for value in result.population_metric_values or ()
+    ) == (
+        ("positive", Decimal("1")),
+        ("zero", Decimal("0")),
+        ("missing", None),
+    )
+
+
+def test_metric_filter_exclusions_do_not_expand_the_aggregate_population() -> None:
+    from tests.unit.query.test_semantic_validator import _context, _plan
+
+    from finproof.domain.query_plan import (
+        AggregationFunction,
+        AggregationSpec,
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        ResultGrain,
+    )
+    from finproof.quality import PolicyEngine
+    from finproof.query import (
+        ExecutionBundleBuilder,
+        FieldRegistry,
+        ResolutionBundle,
+        SemanticValidator,
+    )
+    from finproof.registry.loader import RegistryBundle
+    from finproof.storage import RawExecutionResult, RawFieldValue, RawSegmentResult
+
+    fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
+    plan = _plan(
+        product_types=(ProductType.OVERSEAS_ETF,),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(FilterClause(field="aum", operator=FilterOperator.GT, value=0),),
+    ).model_copy(
+        update={
+            "intent": Intent.AGGREGATE,
+            "metrics": (),
+            "aggregation": AggregationSpec(
+                function=AggregationFunction.AVG,
+                field="total_fee",
+                group_by=(),
+            ),
+        }
+    )
+    validated = SemanticValidator(fields).validate(
+        plan, resolutions=ResolutionBundle(results=()), context=_context()
+    )
+    bundle = ExecutionBundleBuilder(fields).build(validated, context=_context())
+
+    def row(product_id: str, *, aum: Decimal, fee: Decimal | None) -> RawProductRow:
+        return RawProductRow(
+            product_type=ProductType.OVERSEAS_ETF,
+            native_result_grain=ResultGrain.LISTED_PRODUCT,
+            product_id=product_id,
+            values=(
+                RawFieldValue(field_id="product_id", value=product_id, quality_status="valid"),
+                RawFieldValue(field_id="aum", value=aum, quality_status="valid"),
+                RawFieldValue(
+                    field_id="total_fee",
+                    value=fee,
+                    quality_status="valid" if fee is not None else "missing_blank",
+                ),
+                RawFieldValue(field_id="currency", value="USD", quality_status="valid"),
+            ),
+        )
+
+    raw = RawExecutionResult(
+        segments=(
+            RawSegmentResult(
+                product_type=ProductType.OVERSEAS_ETF,
+                native_result_grain=ResultGrain.LISTED_PRODUCT,
+                rows=(
+                    row("included", aum=Decimal("1"), fee=Decimal("2")),
+                    row("missing", aum=Decimal("1"), fee=None),
+                    row("filtered", aum=Decimal("0"), fee=Decimal("3")),
+                ),
+                candidate_count=3,
+                max_batch_rows=3,
+            ),
+        ),
+        candidate_count=3,
+    )
+
+    aggregate = PolicyEngine().apply(raw, bundle=bundle).aggregates[0]
+
+    assert aggregate.value == Decimal("2")
+    assert (aggregate.included_count, aggregate.excluded_count) == (1, 1)
+
+
 def test_pipeline_ranks_credit_ratings_by_registry_order_and_preserves_labels() -> None:
     from tests.unit.query.test_semantic_validator import _context, _plan
 

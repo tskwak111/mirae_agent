@@ -35,7 +35,9 @@ from finproof.domain.query_plan import (
 from finproof.domain.values import DerivedValue
 from finproof.quality import (
     CompatibilityPartition,
+    MetricPolicy,
     MetricValue,
+    Operation,
     PolicyExecutionResult,
     PolicyRow,
     RankPolicyResult,
@@ -1048,17 +1050,26 @@ def _metric_population_summaries(
     version_hash: str,
     artifact_hash: str,
 ) -> tuple[EvidenceSummary, ...]:
-    explicit_fields = {
-        clause.field
-        for clause in plan.filters
-        if clause.operator in {FilterOperator.IS_MISSING, FilterOperator.IS_NOT_MISSING}
-    }
+    filtered_fields = {clause.field for clause in plan.filters}
+    population_values = (
+        policy_result.population_metric_values
+        if policy_result.population_metric_values is not None
+        else policy_result.metric_values
+    )
+    operation = (
+        Operation.RANK
+        if plan.intent is Intent.SCREEN_RANK
+        else Operation.AGGREGATE
+        if plan.intent is Intent.AGGREGATE
+        else Operation.DISPLAY
+    )
+    population_policy = MetricPolicy().apply(operation, population_values)
     valid_identities = {
         (value.product_type, value.product_id, value.metric_id)
-        for value in policy_result.metric_policy.comparison_valid_values
+        for value in population_policy.comparison_valid_values
     }
     grouped: dict[tuple[ProductType, str, str], list[MetricValue]] = {}
-    for value in policy_result.metric_values:
+    for value in population_values:
         field_id = next(
             (
                 field
@@ -1079,7 +1090,7 @@ def _metric_population_summaries(
         )
         if field_id is not None:
             grouped.setdefault((value.product_type, field_id, value.metric_id), []).append(value)
-    for field_id in explicit_fields:
+    for field_id in filtered_fields:
         for product_type in plan.product_types:
             if (field_id, product_type) not in repository._fields.projections:
                 continue
@@ -1091,12 +1102,16 @@ def _metric_population_summaries(
         missing = sum(value.value is None for value in values)
         zero = sum(value.value == 0 for value in values)
         if not (
-            field_id in explicit_fields
-            or (plan.intent in {Intent.SCREEN_RANK, Intent.AGGREGATE} and (missing or zero))
+            field_id in filtered_fields
+            or (
+                plan.intent in {Intent.SCREEN, Intent.SCREEN_RANK, Intent.AGGREGATE}
+                and (missing or zero)
+            )
         ):
             continue
         included = sum(
-            (value.product_type, value.product_id, value.metric_id) in valid_identities
+            value.value != 0
+            and (value.product_type, value.product_id, value.metric_id) in valid_identities
             for value in values
         )
         grain = next(

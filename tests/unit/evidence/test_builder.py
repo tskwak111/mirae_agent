@@ -2003,6 +2003,93 @@ def test_explicit_state_lens_and_zero_missing_population_remain_visible() -> Non
     session._close()
 
 
+def test_metric_population_summaries_use_the_eligible_prefilter_population() -> None:
+    from finproof.domain.execution import ValidatedQueryPlan
+    from finproof.domain.query_plan import (
+        FilterClause,
+        FilterOperator,
+        Intent,
+        ProductType,
+        QueryPlan,
+        ResultGrain,
+        TopKScope,
+    )
+    from finproof.evidence import EvidenceBuilder
+    from finproof.quality import MetricPolicyResult, MetricValue, PolicyExecutionResult
+    from finproof.storage.repositories.evidence import EvidenceRepository
+
+    plan = QueryPlan(
+        intent=Intent.SCREEN,
+        product_types=(ProductType.OVERSEAS_ETF,),
+        entities=(),
+        as_of_date=date(2026, 8, 24),
+        result_grain=ResultGrain.LISTED_PRODUCT,
+        filters=(FilterClause(field="aum", operator=FilterOperator.GT, value=0),),
+        metrics=("aum",),
+        sort=(),
+        aggregation=None,
+        top_k=5,
+        top_k_scope=TopKScope.GLOBAL,
+        needs_clarification=False,
+        clarification_reason="",
+    )
+    positive = MetricValue(
+        metric_id="overseas_etf.aum",
+        product_type=ProductType.OVERSEAS_ETF,
+        product_id="positive",
+        value=Decimal("1"),
+        quality_status="valid",
+        currency="USD",
+    )
+    population = (
+        positive,
+        positive.model_copy(
+            update={"product_id": "zero", "value": Decimal("0"), "quality_status": "recorded_zero"}
+        ),
+        positive.model_copy(
+            update={"product_id": "missing", "value": None, "quality_status": "missing_blank"}
+        ),
+    )
+    policy = PolicyExecutionResult(
+        included_rows=(),
+        excluded_filter_count=0,
+        excluded_state_count=0,
+        excluded_metric_count=0,
+        metric_policy=MetricPolicyResult(
+            recorded_values=(positive,),
+            comparison_valid_values=(positive,),
+            excluded_count=0,
+            warnings=(),
+        ),
+        dual_lens_labels=(),
+        selected_rows=(),
+        partitions=(),
+        aggregates=(),
+        ranks=(),
+        warnings=(),
+        metric_values=(positive,),
+        population_metric_values=population,
+    )
+    session, _ = _bond_evidence_session()
+
+    evidence = EvidenceBuilder().build(
+        plan=ValidatedQueryPlan._issue(plan=plan, resolutions=(), context=()),
+        policy_result=policy,
+        repository=EvidenceRepository(session),
+    )
+
+    assert {
+        summary.partition_key: summary.value
+        for summary in evidence.summaries
+        if (summary.partition_key or "").startswith("policy:overseas_etf.aum:")
+    } == {
+        "policy:overseas_etf.aum:included": 1,
+        "policy:overseas_etf.aum:missing": 1,
+        "policy:overseas_etf.aum:zero": 1,
+    }
+    session._close()
+
+
 def test_direct_unverified_zero_warning_is_emitted_without_comparison_warning_duplication() -> None:
     from finproof.domain.quality import QualityStatus
     from finproof.domain.query_plan import ProductType

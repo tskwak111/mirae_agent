@@ -79,7 +79,7 @@ def test_shared_listed_compiler_uses_frozen_physical_product_discriminator(
     assert '"product_type" = ?' in compiled.sql
 
 
-def test_sql_compiler_parameterizes_every_value_and_uses_closed_identifiers() -> None:
+def test_sql_compiler_defers_metric_filters_and_parameterizes_pushed_values() -> None:
     fields = FieldRegistry.from_bundle(RegistryBundle.from_package())
     segment = ExecutionSegment(
         product_type=ProductType.DOMESTIC_BOND,
@@ -105,9 +105,9 @@ def test_sql_compiler_parameterizes_every_value_and_uses_closed_identifiers() ->
     compiled = SqlCompiler().compile(QueryAst.from_segment(segment, fields=fields))
 
     assert compiled.product_type is ProductType.DOMESTIC_BOND
-    assert compiled.parameters == (Decimal("1.5"), "Bond One")
+    assert compiled.parameters == ("Bond One",)
     assert 'FROM "silver_bond_instrument"' in compiled.sql
-    assert '"buy_yield" > ?' in compiled.sql
+    assert '"buy_yield" > ?' not in compiled.sql
     assert '"name" = ?' in compiled.sql
     assert "1.5" not in compiled.sql
     assert "Bond One" not in compiled.sql

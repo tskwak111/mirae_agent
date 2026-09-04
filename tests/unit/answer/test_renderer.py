@@ -304,6 +304,19 @@ def test_rank_answer_does_not_repeat_duplicate_metric_or_internal_partition_coun
     assert "0값 개수" not in draft.text
     assert "분할 domestic_bond" not in draft.text
     assert ClaimVerifier().verify(draft, evidence).claims == draft.claims
+
+    requested_counts = AnswerRenderer().render(
+        request=AnswerRequest(
+            question_id="q-rank-counts",
+            question="매수수익률 상위 1개와 결측 상품 수, 기록된 0을 따로 알려줘",
+        ),
+        plan=plan,
+        evidence=evidence,
+    )
+    assert "매수수익률 포함 개수" not in requested_counts.text
+    assert "매수수익률 결측 개수: 2" in requested_counts.text
+    assert "매수수익률 0값 개수: 0" in requested_counts.text
+    assert ClaimVerifier().verify(requested_counts, evidence).claims == requested_counts.claims
     session._close()
 
 

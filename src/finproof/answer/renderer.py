@@ -73,6 +73,7 @@ class AnswerRenderer:
             )
         ]
         recommendation_request = "추천" in request.question
+        requested_metric_populations = _requested_metric_populations(request.question)
         if recommendation_request:
             lines.append(wording_text(self._wording, "matched_candidates"))
         count_summary = next(
@@ -183,7 +184,7 @@ class AnswerRenderer:
                 and summary.partition_key is not None
                 and summary.value is not None
                 and summary.partition_key.startswith("policy:")
-                and plan.intent is not Intent.SCREEN_RANK
+                and summary.partition_key.rsplit(":", 1)[-1] in requested_metric_populations
             ):
                 population = summary.partition_key.rsplit(":", 1)[-1]
                 label = {"included": "포함", "missing": "결측", "zero": "0값"}[population]
@@ -529,6 +530,24 @@ class AnswerRenderer:
             text="\n".join(lines),
             claims=tuple(claims),
         )
+
+
+def _requested_metric_populations(question: str) -> frozenset[str]:
+    if not any(
+        token in question for token in ("개수", " 수를", " 수도", " 수와", " 수,", "몇 개", "따로")
+    ):
+        return frozenset()
+    populations: set[str] = set()
+    if "누락" in question or "결측" in question:
+        populations.add("missing")
+    if any(
+        token in question
+        for token in ("기록된 0", "0으로 기록", "0값", "0%", "0·", "0과", "0 공동")
+    ):
+        populations.add("zero")
+    if "포함 개수" in question or "포함 수" in question:
+        populations.add("included")
+    return frozenset(populations)
 
 
 def _append_comparison_conclusions(

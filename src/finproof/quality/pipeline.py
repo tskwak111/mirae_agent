@@ -86,6 +86,7 @@ class PolicyExecutionResult(BaseModel):
     warnings: tuple[str, ...]
     source_rows: tuple[PolicyRow, ...] = ()
     metric_values: tuple[MetricValue, ...] = ()
+    population_metric_values: tuple[MetricValue, ...] | None = None
     limitations: tuple[ExecutionLimitationCode, ...] = ()
 
 
@@ -112,15 +113,36 @@ class PolicyEngine:
         segment_exclusions: dict[ProductType, tuple[int, int]] = {}
         warnings: list[str] = []
         metric_values: list[MetricValue] = []
+        population_metric_values: list[MetricValue] = []
         for segment, raw_segment in zip(bundle.segments, raw.segments, strict=True):
             if segment.product_type is not raw_segment.product_type:
                 raise ValueError("policy segment identity differs")
             segment_excluded_filter = 0
             segment_excluded_state = 0
+            population_fields = tuple(
+                dict.fromkeys(
+                    (
+                        *segment.metrics,
+                        *(clause.field for clause in segment.filters),
+                        *(
+                            (segment.aggregation.field,)
+                            if segment.aggregation is not None
+                            and segment.aggregation.field is not None
+                            else ()
+                        ),
+                    )
+                )
+            )
             for row in raw_segment.rows:
-                if not all(
+                matched = all(
                     _matches(row, clause, ratings=self._ratings) for clause in segment.filters
-                ):
+                )
+                population_matched = all(
+                    _matches(row, clause, ratings=self._ratings)
+                    for clause in segment.filters
+                    if self._fields.projection(clause.field, row.product_type).metric_id is None
+                )
+                if not matched and not population_matched:
                     excluded_filter += 1
                     segment_excluded_filter += 1
                     continue
@@ -145,6 +167,18 @@ class PolicyEngine:
                         product,
                         as_of=bundle.validated_plan.plan.as_of_date,
                     )
+                if population_matched and state.eligible:
+                    population_metric_values.extend(
+                        self._metric_values(
+                            row,
+                            population_fields,
+                            intent=bundle.validated_plan.plan.intent,
+                        )
+                    )
+                if not matched:
+                    excluded_filter += 1
+                    segment_excluded_filter += 1
+                    continue
                 warnings.extend(state.warnings)
                 policy_row = PolicyRow(raw=row, state=state)
                 source_rows.append(policy_row)
@@ -153,8 +187,6 @@ class PolicyEngine:
                     segment_excluded_state += 1
                     continue
                 included.append(policy_row)
-                by_field = {item.field_id: item for item in row.values}
-                currency = by_field.get("currency")
                 metric_field_ids = dict.fromkeys(
                     (
                         *segment.metrics,
@@ -172,49 +204,13 @@ class PolicyEngine:
                         ),
                     )
                 )
-                for field_id in metric_field_ids:
-                    projection = self._fields.projection(field_id, row.product_type)
-                    item = by_field.get(field_id)
-                    if item is None:
-                        raise ValueError("policy metric projection differs")
-                    if projection.metric_id is None:
-                        continue
-                    metric_value: Decimal | str | None
-                    sort_value: Decimal | int | str | None = None
-                    if (
-                        projection.value_type == "ordinal_rating"
-                        and bundle.validated_plan.plan.intent is Intent.SCREEN_RANK
-                    ):
-                        rating = (
-                            self._ratings.resolve(item.value) if type(item.value) is str else None
-                        )
-                        metric_value = rating.normalized_value if rating is not None else None
-                        sort_value = (
-                            -rating.ordinal
-                            if rating is not None and rating.ordinal is not None
-                            else None
-                        )
-                    else:
-                        metric_value = (
-                            item.value
-                            if type(item.value) is Decimal
-                            else Decimal(item.value)
-                            if type(item.value) is int
-                            else None
-                        )
-                    metric_values.append(
-                        MetricValue(
-                            metric_id=projection.metric_id,
-                            product_type=row.product_type,
-                            product_id=row.product_id,
-                            value=metric_value,
-                            quality_status=item.quality_status,
-                            currency=currency.value
-                            if currency is not None and type(currency.value) is str
-                            else None,
-                            sort_value=sort_value,
-                        )
+                metric_values.extend(
+                    self._metric_values(
+                        row,
+                        tuple(metric_field_ids),
+                        intent=bundle.validated_plan.plan.intent,
                     )
+                )
             segment_exclusions[segment.product_type] = (
                 segment_excluded_filter,
                 segment_excluded_state,
@@ -469,7 +465,7 @@ class PolicyEngine:
                             excluded_count=(
                                 metric_excluded
                                 + (
-                                    sum(segment_exclusions[segment.product_type])
+                                    segment_exclusions[segment.product_type][1]
                                     if not aggregation.group_by
                                     else 0
                                 )
@@ -503,8 +499,60 @@ class PolicyEngine:
             warnings=tuple(dict.fromkeys((*warnings, *metric_policy.warnings))),
             source_rows=tuple(source_rows),
             metric_values=tuple(metric_values),
+            population_metric_values=tuple(population_metric_values),
             limitations=bundle.limitations,
         )
+
+    def _metric_values(
+        self,
+        row: RawProductRow,
+        field_ids: tuple[str, ...],
+        *,
+        intent: Intent,
+    ) -> tuple[MetricValue, ...]:
+        by_field = {item.field_id: item for item in row.values}
+        currency = by_field.get("currency")
+        values: list[MetricValue] = []
+        for field_id in field_ids:
+            projection = self._fields.projection(field_id, row.product_type)
+            item = by_field.get(field_id)
+            if item is None:
+                raise ValueError("policy metric projection differs")
+            if projection.metric_id is None:
+                continue
+            sort_value: Decimal | int | str | None = None
+            if projection.value_type == "ordinal_rating" and intent is Intent.SCREEN_RANK:
+                rating = self._ratings.resolve(item.value) if type(item.value) is str else None
+                metric_value: Decimal | str | None = (
+                    rating.normalized_value if rating is not None else None
+                )
+                sort_value = (
+                    -rating.ordinal if rating is not None and rating.ordinal is not None else None
+                )
+            else:
+                metric_value = (
+                    item.value
+                    if type(item.value) is Decimal
+                    else Decimal(item.value)
+                    if type(item.value) is int
+                    else None
+                )
+            values.append(
+                MetricValue(
+                    metric_id=projection.metric_id,
+                    product_type=row.product_type,
+                    product_id=row.product_id,
+                    value=metric_value,
+                    quality_status=item.quality_status,
+                    currency=(
+                        currency.value
+                        if currency is not None and type(currency.value) is str
+                        else None
+                    ),
+                    sort_value=sort_value,
+                )
+            )
+        return tuple(values)
 
 
 def _aggregate(function: AggregationFunction, values: tuple[Decimal, ...]) -> Decimal | int | None:
