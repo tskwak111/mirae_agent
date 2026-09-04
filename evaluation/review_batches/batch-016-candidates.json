@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 197,
-  "prompt_version": "canonical-question-candidates-v33",
-  "prompt_sha256": "c8ed7b7aa9a73740cca57bb6298253f057c0769ac743dc323ea9e57acad47ffe",
-  "generated_at": "2026-09-04T00:03:13Z",
+  "prompt_version": "canonical-question-candidates-v35",
+  "prompt_sha256": "bcb579d333cd4c8556ee537b4a367391fe8af8818c6b759c38e8f7592f9a74fe",
+  "generated_at": "2026-09-04T03:23:32Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -52,7 +52,7 @@
     {
       "candidate_id": "CQ-016-007",
       "category": "screen",
-      "question": "총보수가 0%로 기록된 국내 ETF와 총보수 누락 상품을 따로 찾아줘"
+      "question": "총보수가 0%로 기록된 국내 ETF를 최대 10개 보여주고 총보수 누락 상품을 따로 알려줘"
     },
     {
       "candidate_id": "CQ-016-008",

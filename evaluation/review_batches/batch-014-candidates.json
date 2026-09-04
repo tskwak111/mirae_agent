@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 173,
-  "prompt_version": "canonical-question-candidates-v31",
-  "prompt_sha256": "e2ff3f9b538401523a1db5d94faba99f6afff8dd647b91ec73e4953e5acc4e5b",
-  "generated_at": "2026-09-03T16:59:08Z",
+  "prompt_version": "canonical-question-candidates-v34",
+  "prompt_sha256": "e8b25bda5f695d3ef60828b6c15da1465687ae71aaa10cb56921655be6619957",
+  "generated_at": "2026-09-04T03:22:59Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -52,17 +52,17 @@
     {
       "candidate_id": "CQ-014-007",
       "category": "screen",
-      "question": "총보수가 있는 국내 ETF를 최대 30개 보여주고 누락돼 제외된 상품 수도 알려줘"
+      "question": "총보수가 있는 국내 ETF를 최대 10개 보여주고 누락돼 제외된 상품 수도 알려줘"
     },
     {
       "candidate_id": "CQ-014-008",
       "category": "screen",
-      "question": "추적오차가 0으로 기록된 국내 ETF를 최대 30개 보여주고 추적오차 누락 상품을 따로 알려줘"
+      "question": "추적오차가 0으로 기록된 국내 ETF를 최대 10개 보여주고 추적오차 누락 상품을 따로 알려줘"
     },
     {
       "candidate_id": "CQ-014-009",
       "category": "screen",
-      "question": "AUM이 0보다 큰 해외 ETF를 최대 30개 보여주고 0·누락으로 제외된 상품 수도 알려줘"
+      "question": "AUM이 0보다 큰 해외 ETF를 최대 10개 보여주고 0·누락으로 제외된 상품 수도 알려줘"
     },
     {
       "candidate_id": "CQ-014-010",

@@ -1,0 +1,802 @@
+{
+  "batch_id": "012",
+  "review_status": "human_approved_questions",
+  "reviewer": "곽태성",
+  "reviewed_at": "2026-09-04",
+  "source_question_packet_sha256": "5be3cf342e21a038058b8d697bfda9574605a1af27bea46355b863a074f7cc8c",
+  "cases": [
+    {
+      "case_id": "CQ-012-001",
+      "category": "lookup",
+      "question": "2026-08-24 기준 국내채권 KR350103G9B0의 만기일·잔존일수·매수수익률을 조회해줘",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [
+          {
+            "text": "KR350103G9B0",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "instrument",
+        "filters": [],
+        "metrics": [
+          "maturity_date",
+          "remaining_days_at_as_of",
+          "buy_yield"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-002",
+      "category": "lookup",
+      "question": "국내 ETF KR7305080004의 총보수와 1년 수익률을 조회해줘",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [
+          {
+            "text": "KR7305080004",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "total_fee",
+          "return_1y"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-003",
+      "category": "lookup",
+      "question": "해외 ETF VOO의 AUM과 총보수를 조회해줘",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [
+          {
+            "text": "VOO",
+            "identifier_type": "ticker"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "aum",
+          "total_fee"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-004",
+      "category": "lookup",
+      "question": "공모펀드 KR5114420158의 3개월·1년 수익률과 위험등급을 조회해줘",
+      "plan": {
+        "intent": "lookup",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [
+          {
+            "text": "KR5114420158",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_3m",
+          "return_1y",
+          "risk_grade"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 1,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-005",
+      "category": "screen",
+      "question": "만기일이 2026-08-24 이후 2027-08-24 이하이고 신용등급이 AA- 이상인 국내채권을 찾아줘",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "instrument",
+        "filters": [
+          {
+            "field": "maturity_date",
+            "operator": "between",
+            "value": [
+              "2026-08-24",
+              "2027-08-24"
+            ]
+          },
+          {
+            "field": "credit_rating",
+            "operator": "gte",
+            "value": "AA-"
+          }
+        ],
+        "metrics": [
+          "maturity_date",
+          "credit_rating"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-006",
+      "category": "screen",
+      "question": "3개월 수익률이 5% 이상이고 총보수가 0.5% 이하인 국내 ETF를 찾아줘, ETN 제외",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "return_3m",
+            "operator": "gte",
+            "value": 5
+          },
+          {
+            "field": "total_fee",
+            "operator": "lte",
+            "value": 0.5
+          }
+        ],
+        "metrics": [
+          "return_3m",
+          "total_fee"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-007",
+      "category": "screen",
+      "question": "AUM이 1억 USD 이상이고 거래통화가 USD인 해외 ETF를 찾아줘, ETN 제외",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "aum",
+            "operator": "gte",
+            "value": 100000000
+          },
+          {
+            "field": "currency",
+            "operator": "eq",
+            "value": "USD"
+          }
+        ],
+        "metrics": [
+          "aum",
+          "currency"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-008",
+      "category": "screen",
+      "question": "6개월 수익률이 5% 이상이고 위험등급이 있는 공모펀드를 찾아줘",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "fund_item",
+        "filters": [
+          {
+            "field": "return_6m",
+            "operator": "gte",
+            "value": 5
+          },
+          {
+            "field": "risk_grade",
+            "operator": "is_not_missing"
+          }
+        ],
+        "metrics": [
+          "return_6m",
+          "risk_grade"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-009",
+      "category": "screen",
+      "question": "연초이후 수익률이 10% 이상이고 추적오차가 1% 이하인 국내 ETN을 찾아줘",
+      "plan": {
+        "intent": "screen",
+        "product_types": [
+          "domestic_etn"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "return_ytd",
+            "operator": "gte",
+            "value": 10
+          },
+          {
+            "field": "tracking_error",
+            "operator": "lte",
+            "value": 1
+          }
+        ],
+        "metrics": [
+          "return_ytd",
+          "tracking_error"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-010",
+      "category": "rank",
+      "question": "신용등급이 AA- 이상인 국내채권을 매수수익률 높은 순으로 5개 보여줘",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "instrument",
+        "filters": [
+          {
+            "field": "credit_rating",
+            "operator": "gte",
+            "value": "AA-"
+          }
+        ],
+        "metrics": [
+          "buy_yield"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "buy_yield",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-011",
+      "category": "rank",
+      "question": "국내 ETF를 1년 수익률 낮은 순으로 5개 보여줘, ETN 제외",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "return_1y"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "return_1y",
+            "direction": "asc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-012",
+      "category": "rank",
+      "question": "해외 ETF를 총보수 높은 순으로 5개 보여줘, ETN 제외",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "total_fee"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "total_fee",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-013",
+      "category": "rank",
+      "question": "공모펀드를 2년 수익률 높은 순으로 5개 보여줘",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_2y"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "return_2y",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-014",
+      "category": "compare",
+      "question": "국내채권 KR350103G9B0과 KR350105G9C6의 만기일과 신용등급을 비교해줘",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "domestic_bond"
+        ],
+        "entities": [
+          {
+            "text": "KR350103G9B0",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "KR350105G9C6",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "instrument",
+        "filters": [],
+        "metrics": [
+          "maturity_date",
+          "credit_rating"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-015",
+      "category": "compare",
+      "question": "국내 ETF KR7305080004와 KR7371160003의 AUM과 총보수를 비교해줘",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [
+          {
+            "text": "KR7305080004",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "KR7371160003",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [],
+        "metrics": [
+          "aum",
+          "total_fee"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-016",
+      "category": "compare",
+      "question": "공모펀드 KR5114420158과 KR5138490078의 1년 수익률과 위험등급을 비교해줘",
+      "plan": {
+        "intent": "compare",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [
+          {
+            "text": "KR5114420158",
+            "identifier_type": "product_id"
+          },
+          {
+            "text": "KR5138490078",
+            "identifier_type": "product_id"
+          }
+        ],
+        "as_of_date": "2026-08-24",
+        "result_grain": "fund_item",
+        "filters": [],
+        "metrics": [
+          "return_1y",
+          "risk_grade"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 2,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-017",
+      "category": "aggregate",
+      "question": "AUM이 1천억원 이상인 국내 ETF의 총보수 평균을 집계해줘, ETN 제외",
+      "plan": {
+        "intent": "aggregate",
+        "product_types": [
+          "domestic_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "aum",
+            "operator": "gte",
+            "value": 100000000000
+          }
+        ],
+        "metrics": [
+          "total_fee"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": {
+          "function": "avg",
+          "field": "total_fee",
+          "group_by": []
+        },
+        "top_k": 50,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-018",
+      "category": "aggregate",
+      "question": "1년 수익률이 0% 이상인 공모펀드의 3개월 수익률 평균을 집계해줘",
+      "plan": {
+        "intent": "aggregate",
+        "product_types": [
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "fund_item",
+        "filters": [
+          {
+            "field": "return_1y",
+            "operator": "gte",
+            "value": 0
+          }
+        ],
+        "metrics": [
+          "return_3m"
+        ],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": {
+          "function": "avg",
+          "field": "return_3m",
+          "group_by": []
+        },
+        "top_k": 50,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-019",
+      "category": "cross_product",
+      "question": "국내 ETF와 공모펀드의 6개월 수익률 상위 4개를 유형별로 나눠줘",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_etf",
+          "public_fund"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [
+          "return_6m"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "return_6m",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 4,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-020",
+      "category": "cross_product",
+      "question": "국내채권은 매수수익률, 국내 ETF는 1년 수익률 상위 4개를 유형별로 나눠줘",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "domestic_bond",
+          "domestic_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [
+          "buy_yield",
+          "return_1y"
+        ],
+        "metric_targets": [
+          {
+            "product_type": "domestic_bond",
+            "metrics": [
+              "buy_yield"
+            ]
+          },
+          {
+            "product_type": "domestic_etf",
+            "metrics": [
+              "return_1y"
+            ]
+          }
+        ],
+        "sort": [
+          {
+            "field": "buy_yield",
+            "direction": "desc"
+          },
+          {
+            "field": "return_1y",
+            "direction": "desc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 4,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-021",
+      "category": "clarification",
+      "question": "수익률이 0이거나 누락된 금융상품을 찾아줘",
+      "plan": {
+        "intent": "clarify",
+        "product_types": [],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": true,
+        "clarification_reason": "금융상품의 유형과 수익률 기간을 지정해야 기록된 0과 누락을 구분해 조회할 수 있습니다."
+      }
+    },
+    {
+      "case_id": "CQ-012-022",
+      "category": "quality",
+      "question": "해외 ETF AUM 하위 5개와 기록된 0·누락으로 제외된 수를 따로 보여줘",
+      "plan": {
+        "intent": "screen_rank",
+        "product_types": [
+          "overseas_etf"
+        ],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "listed_product",
+        "filters": [
+          {
+            "field": "aum",
+            "operator": "gt",
+            "value": 0
+          }
+        ],
+        "metrics": [
+          "aum"
+        ],
+        "metric_targets": [],
+        "sort": [
+          {
+            "field": "aum",
+            "direction": "asc"
+          }
+        ],
+        "aggregation": null,
+        "top_k": 5,
+        "top_k_scope": "global",
+        "needs_clarification": false,
+        "clarification_reason": ""
+      }
+    },
+    {
+      "case_id": "CQ-012-023",
+      "category": "quality",
+      "question": "해외 ETF VOO의 보유종목 전체와 종목별 비중을 알려줘",
+      "plan": {
+        "intent": "unsupported",
+        "product_types": [],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": "현재 빌드에는 VOO의 구성종목과 종목별 비중을 검증할 승인된 보유종목 원천이 없습니다."
+      }
+    },
+    {
+      "case_id": "CQ-012-024",
+      "category": "quality",
+      "question": "실시간 환율로 국내 ETF와 해외 ETF의 AUM을 원화로 환산해 상위 5개를 통합해줘",
+      "plan": {
+        "intent": "unsupported",
+        "product_types": [],
+        "entities": [],
+        "as_of_date": "2026-08-24",
+        "result_grain": "product",
+        "filters": [],
+        "metrics": [],
+        "metric_targets": [],
+        "sort": [],
+        "aggregation": null,
+        "top_k": 10,
+        "top_k_scope": "per_product_type",
+        "needs_clarification": false,
+        "clarification_reason": "승인된 실시간 환율이나 고정 환율 스냅샷이 없어 국내외 ETF AUM을 원화 통합 순위로 만들 수 없습니다."
+      }
+    }
+  ]
+}

@@ -1,0 +1,3673 @@
+{
+  "artifact_identity": {
+    "artifact_contract_version": "1.0.0",
+    "artifact_set_id": "finproof-data-artifacts/v1",
+    "dataset_version": "2026-08-24",
+    "manifest_logical_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8"
+  },
+  "batch_id": "013",
+  "cases": [
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "historical_total_return:None:3m:same_period_and_compatible_source_semantics",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7305080004:return_3m",
+            "evidence_ids": [
+              "domestic_etf:KR7305080004:return_3m"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7305080004",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 3개월 수익률 -7.94%",
+            "value": "-7.94"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:return_3m",
+            "evidence_ids": [
+              "public_fund:KR5114420158:return_3m"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 3개월 수익률 -7.94%\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+      },
+      "case_id": "CQ-013-001",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR7305080004"
+          },
+          {
+            "identifier_type": "product_id",
+            "text": "KR5114420158"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "return_3m"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_etf",
+          "public_fund"
+        ],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 2,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7305080004와 공모펀드 KR5114420158의 3개월 수익률을 유형별로 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "historical_total_return:None:3m:same_period_and_compatible_source_semantics",
+            "rank": null,
+            "surface_text": "국내 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7305080004:return_3m",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형)",
+                "product_id": "KR7305080004",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7305080004:return_3m"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 3개월 수익률 -7.94%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"-7.94\"",
+                "display_text": "-7.94",
+                "field_id": "return_3m",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:return_3m",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성1.5년매칭형증권투자신탁제1호[채권]_C-P",
+                "product_id": "KR5114420158",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5114420158:return_3m"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "4a59bdadbcb599b3aad00da46dc33199877ae2044cb2d142f65719b10d276e0f",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:limitation:1",
+          "claim:limitation:2",
+          "claim:value:domestic_etf:KR7305080004:return_3m",
+          "claim:value:public_fund:KR5114420158:return_3m"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+          "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:limitation:1",
+              "claim:limitation:2",
+              "claim:value:domestic_etf:KR7305080004:return_3m",
+              "claim:value:public_fund:KR5114420158:return_3m"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 3개월 수익률 -7.94%\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 2,
+          "raw": 2,
+          "returned": 2
+        },
+        "correlation_id": "trace-15f732110a1e6d25",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_etf",
+          "public_fund"
+        ],
+        "result_grain": "product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "historical_total_return:None:3m:same_period_and_compatible_source_semantics",
+            "product_type": "domestic_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etf"
+            ],
+            "sign": "positive",
+            "text": "해외 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:aum",
+            "evidence_ids": [
+              "overseas_etf:VOO:aum"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000",
+            "value": "997351790000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:currency",
+            "evidence_ids": [
+              "overseas_etf:VOO:currency"
+            ],
+            "field_id": "currency",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD",
+            "value": "USD"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n해외 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD"
+      },
+      "case_id": "CQ-013-002",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "ticker",
+            "text": "VOO"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "aum",
+          "currency"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "overseas_etf"
+        ],
+        "result_grain": "listed_product",
+        "sort": [],
+        "top_k": 1,
+        "top_k_scope": "global"
+      },
+      "question": "해외 ETF VOO의 AUM과 거래통화를 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "rank": null,
+            "surface_text": "해외 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:aum",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:aum"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"997351790000\"",
+                "display_text": "997351790000",
+                "field_id": "aum",
+                "unit": "currency"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:currency",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:currency"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"USD\"",
+                "display_text": "USD",
+                "field_id": "currency",
+                "unit": null
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "9f805c472ee119a695cd4dbead3133669e72d435f87901430b663ee073d5bd6e",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:limitation:1",
+          "claim:value:overseas_etf:VOO:aum",
+          "claim:value:overseas_etf:VOO:currency"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:limitation:1",
+              "claim:value:overseas_etf:VOO:aum",
+              "claim:value:overseas_etf:VOO:currency"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n해외 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 1,
+          "raw": 1,
+          "returned": 1
+        },
+        "correlation_id": "trace-2107f28ee20ab127",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "overseas_etf"
+        ],
+        "result_grain": "listed_product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "product_type": "overseas_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "국내채권 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "remaining_days:None:None:same_metric_only",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "국내채권 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.",
+            "value": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:buy_yield"
+            ],
+            "field_id": "buy_yield",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103G9B0",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%",
+            "value": "3.099"
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:remaining_days_at_as_of",
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:remaining_days_at_as_of"
+            ],
+            "field_id": "remaining_days_at_as_of",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103G9B0",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 기준일 잔존일수 82일",
+            "value": 82
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내채권 비교 가능 결과: 1건\n국내채권 비교 가능 결과: 1건\nKR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 기준일 잔존일수 82일"
+      },
+      "case_id": "CQ-013-003",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR350103G9B0"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "buy_yield",
+          "remaining_days_at_as_of"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_bond"
+        ],
+        "result_grain": "instrument",
+        "sort": [],
+        "top_k": 1,
+        "top_k_scope": "global"
+      },
+      "question": "국내채권 KR350103G9B0의 매수수익률과 잔존일수를 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "rank": null,
+            "surface_text": "국내채권 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "remaining_days:None:None:same_metric_only",
+            "rank": null,
+            "surface_text": "국내채권 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "한국전력공사채권1004",
+                "product_id": "KR350103G9B0",
+                "product_type": "domestic_bond"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:buy_yield"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"3.099\"",
+                "display_text": "3.099",
+                "field_id": "buy_yield",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:remaining_days_at_as_of",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "한국전력공사채권1004",
+                "product_id": "KR350103G9B0",
+                "product_type": "domestic_bond"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:remaining_days_at_as_of"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 기준일 잔존일수 82일",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "82",
+                "display_text": "82",
+                "field_id": "remaining_days_at_as_of",
+                "unit": "day"
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "4354550876007e24f432872a316cece26e42741fe4d38694d143aa770e881914",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:summary:summary:partition:1",
+          "claim:limitation:1",
+          "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+          "claim:value:domestic_bond:KR350103G9B0:remaining_days_at_as_of"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:summary:summary:partition:1",
+              "claim:limitation:1",
+              "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+              "claim:value:domestic_bond:KR350103G9B0:remaining_days_at_as_of"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내채권 비교 가능 결과: 1건\n국내채권 비교 가능 결과: 1건\nKR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 기준일 잔존일수 82일"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 1,
+          "raw": 1,
+          "returned": 1
+        },
+        "correlation_id": "trace-e444de48c24a4186",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_bond"
+        ],
+        "result_grain": "instrument",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "instrument",
+            "partition_key": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "product_type": "domestic_bond",
+            "returned": 1
+          },
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "instrument",
+            "partition_key": "remaining_days:None:None:same_metric_only",
+            "product_type": "domestic_bond",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "fund_item"
+            ],
+            "partition_key": "aum:KRW:source_snapshot:same_currency_or_fixed_fx",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "public_fund"
+            ],
+            "sign": "positive",
+            "text": "공모펀드 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:aum",
+            "evidence_ids": [
+              "public_fund:KR5114420158:aum"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 순자산 3,142,656,264",
+            "value": "3142656264"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:currency",
+            "evidence_ids": [
+              "public_fund:KR5114420158:currency"
+            ],
+            "field_id": "currency",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 통화 KRW",
+            "value": "KRW"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n공모펀드 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 순자산 3,142,656,264\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 통화 KRW"
+      },
+      "case_id": "CQ-013-004",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR5114420158"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "aum",
+          "currency"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "public_fund"
+        ],
+        "result_grain": "fund_item",
+        "sort": [],
+        "top_k": 1,
+        "top_k_scope": "global"
+      },
+      "question": "공모펀드 KR5114420158의 AUM과 거래통화를 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "aum:KRW:source_snapshot:same_currency_or_fixed_fx",
+            "rank": null,
+            "surface_text": "공모펀드 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:aum",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성1.5년매칭형증권투자신탁제1호[채권]_C-P",
+                "product_id": "KR5114420158",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5114420158:aum"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 순자산 3,142,656,264",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"3142656264\"",
+                "display_text": "3142656264",
+                "field_id": "aum",
+                "unit": "currency"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:currency",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성1.5년매칭형증권투자신탁제1호[채권]_C-P",
+                "product_id": "KR5114420158",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5114420158:currency"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 통화 KRW",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"KRW\"",
+                "display_text": "KRW",
+                "field_id": "currency",
+                "unit": null
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "47f9718ef24f8cd1627ce4e924a483534e5e3c22caedc0eea09d17b6c82b6ed7",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:limitation:1",
+          "claim:value:public_fund:KR5114420158:aum",
+          "claim:value:public_fund:KR5114420158:currency"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:limitation:1",
+              "claim:value:public_fund:KR5114420158:aum",
+              "claim:value:public_fund:KR5114420158:currency"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n공모펀드 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 순자산 3,142,656,264\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 통화 KRW"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 1,
+          "raw": 1,
+          "returned": 1
+        },
+        "correlation_id": "trace-7184dd4cbf333214",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "public_fund"
+        ],
+        "result_grain": "fund_item",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "fund_item",
+            "partition_key": "aum:KRW:source_snapshot:same_currency_or_fixed_fx",
+            "product_type": "public_fund",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다."
+      },
+      "case_id": "CQ-013-005",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7069500007이 보유한 종목을 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF KR7069500007의 구성종목을 검증할 승인된 보유종목 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-f0d00dbb206caf68",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다."
+      },
+      "case_id": "CQ-013-006",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "반도체 섹터 비중이 20% 이상인 해외 ETF를 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 섹터 비중을 검증할 승인된 보유종목·섹터 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-b916c23d6ad60f87",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다."
+      },
+      "case_id": "CQ-013-007",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7069500007의 보유종목에서 삼성전자를 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007의 삼성전자 보유 여부를 검증할 승인된 구성종목 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-84fbd50faec158c4",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다."
+      },
+      "case_id": "CQ-013-008",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "기술 섹터 종목을 보유한 해외 ETF를 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF가 보유한 기술 섹터 종목을 검증할 승인된 구성종목 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-0cee65118c700630",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다."
+      },
+      "case_id": "CQ-013-009",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "공모펀드 KR5114420158의 편입종목을 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 공모펀드 KR5114420158의 편입종목을 검증할 승인된 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-bc8b58aba13de7b7",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-010",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF를 보유종목 수가 많은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 국내 ETF별 보유종목 수를 계산해 순위화할 완전한 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-f95d2d0a3c98d086",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-011",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "해외 ETF를 반도체 섹터 비중이 높은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF별 반도체 섹터 비중을 계산해 순위화할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-47f27234f024de98",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-012",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "삼성전자를 보유한 국내 ETF를 AUM 높은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 순위화할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-5630187092a072d8",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-013",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "반도체 섹터에 노출된 국내 ETF를 1년 수익률 높은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 1년 수익률 순위화할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-c1cfbb9289e01bba",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-014",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7069500007과 KR7102110004의 공통 보유종목을 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR7102110004의 공통 보유종목을 비교할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-65303d811f8a74c4",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다."
+      },
+      "case_id": "CQ-013-015",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "해외 ETF VOO와 QQQ.O의 섹터 구성을 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 VOO와 QQQ.O의 섹터 구성을 비교할 승인된 구성종목·섹터 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-cb3ad4df967292c8",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-016",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7069500007과 공모펀드 KR5114601001의 삼성전자 보유 여부를 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7069500007과 KR5114601001의 삼성전자 보유 여부를 비교할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-023b8f17be416260",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-017",
+      "category": "aggregate",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "반도체 섹터에 노출된 국내 ETF 수를 집계해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 노출 국내 ETF 모집단을 검증해 상품 수를 집계할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-1748b7848e54f35f",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-018",
+      "category": "aggregate",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "삼성전자를 보유한 국내 ETF의 AUM 평균을 집계해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 국내 ETF 모집단을 검증해 AUM 평균을 집계할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-2e200e5c530a2831",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-019",
+      "category": "cross_product",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "삼성전자를 보유한 국내 ETF와 해외 ETF를 유형별로 나눠줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 삼성전자 보유 여부를 국내·해외 ETF 유형별로 검증할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-ade26ee542368d08",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다."
+      },
+      "case_id": "CQ-013-020",
+      "category": "cross_product",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "반도체 섹터에 노출된 국내 ETF와 공모펀드를 유형별로 나눠줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 반도체 섹터 노출을 국내 ETF와 공모펀드 유형별로 검증할 승인 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-3e0370e8d612eafe",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다."
+      },
+      "case_id": "CQ-013-021",
+      "category": "clarification",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "보유종목이 많은 ETF 5개를 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 국내외 범위를 더 지정해도 현재 빌드에 승인된 보유종목 수 원천이 없어 순위를 만들 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-925369b591676365",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다."
+      },
+      "case_id": "CQ-013-022",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "보유종목 정보가 비어 있는 ETF를 삼성전자 미보유 상품으로 분류해도 되는지 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 국내·해외 범위가 지정되지 않은 ETF 보유종목 정보의 공백은 삼성전자 미보유 증거로 분류할 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-2596e32944eb21c8",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다."
+      },
+      "case_id": "CQ-013-023",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "해외 ETF VOO의 2026-09-03 실시간 구성종목과 섹터 비중을 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 2026-09-03 실시간 VOO 구성종목·섹터 비중은 2026-08-24 배포본 범위 밖이며 승인된 외부 원천도 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-4576e3c032f98cd3",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다."
+      },
+      "case_id": "CQ-013-024",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "상품명이 비슷한 ETF와 보유종목을 같은 상품 관계로 묶어줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 상품명 유사성만으로 ETF와 보유종목 사이에 정확한 식별자 연결을 만들 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-aa31503d931d93da",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    }
+  ],
+  "question_and_draft_plan_packet_sha256": "b57ebd4e71dda0abf85299149b9f8dc1d1ceccc698e1e8c92f323ff59a86e6c7",
+  "question_review": {
+    "reviewed_at": "2026-09-04",
+    "reviewer": "곽태성"
+  },
+  "review_status": "pending_human_plan_and_expectation_review",
+  "source_question_packet_sha256": "a998edc39bf1a7dce0114c351596fb379b8c13cbfee45867ac8058be2d2e96d3"
+}

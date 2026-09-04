@@ -1,0 +1,4620 @@
+{
+  "artifact_identity": {
+    "artifact_contract_version": "1.0.0",
+    "artifact_set_id": "finproof-data-artifacts/v1",
+    "dataset_version": "2026-08-24",
+    "manifest_logical_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8"
+  },
+  "batch_id": "016",
+  "cases": [
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "historical_total_return:None:1m:same_period_and_compatible_source_semantics",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7305080004:return_1m",
+            "evidence_ids": [
+              "domestic_etf:KR7305080004:return_1m"
+            ],
+            "field_id": "return_1m",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7305080004",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "negative",
+            "text": "- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 1개월 수익률 -6.26%",
+            "value": "-6.26"
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:return_1m",
+            "evidence_ids": [
+              "public_fund:KR5114420158:return_1m"
+            ],
+            "field_id": "return_1m",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5114420158",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 1개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 1개월 수익률 -6.26%\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 1개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+      },
+      "case_id": "CQ-016-001",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR7305080004"
+          },
+          {
+            "identifier_type": "product_id",
+            "text": "KR5114420158"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "return_1m"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_etf",
+          "public_fund"
+        ],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 2,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7305080004와 공모펀드 KR5114420158의 1개월 수익률을 유형별로 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "historical_total_return:None:1m:same_period_and_compatible_source_semantics",
+            "rank": null,
+            "surface_text": "국내 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7305080004:return_1m",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형)",
+                "product_id": "KR7305080004",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7305080004:return_1m"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 1개월 수익률 -6.26%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"-6.26\"",
+                "display_text": "-6.26",
+                "field_id": "return_1m",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5114420158:return_1m",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성1.5년매칭형증권투자신탁제1호[채권]_C-P",
+                "product_id": "KR5114420158",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5114420158:return_1m"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 1개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "f06edb60d38e954e621f88e7e1dc178f76d2c007f1469c2ad045f90c39ddf513",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:limitation:1",
+          "claim:limitation:2",
+          "claim:value:domestic_etf:KR7305080004:return_1m",
+          "claim:value:public_fund:KR5114420158:return_1m"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+          "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:limitation:1",
+              "claim:limitation:2",
+              "claim:value:domestic_etf:KR7305080004:return_1m",
+              "claim:value:public_fund:KR5114420158:return_1m"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 국내 ETF 미래에셋 TIGER 미국채10년선물증권상장지수투자신탁(채권-파생형) (KR7305080004) — 1개월 수익률 -6.26%\n- 공모펀드 삼성1.5년매칭형증권투자신탁제1호[채권]_C-P (KR5114420158) — 1개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 2,
+          "raw": 2,
+          "returned": 2
+        },
+        "correlation_id": "trace-555ba13864436628",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_etf",
+          "public_fund"
+        ],
+        "result_grain": "product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "historical_total_return:None:1m:same_period_and_compatible_source_semantics",
+            "product_type": "domestic_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "instrument"
+            ],
+            "partition_key": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_bond"
+            ],
+            "sign": "positive",
+            "text": "국내채권 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "historical_total_return:None:1d:same_period_and_compatible_source_semantics",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etf"
+            ],
+            "sign": "positive",
+            "text": "해외 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.",
+            "value": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:buy_yield"
+            ],
+            "field_id": "buy_yield",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR350103G9B0",
+            "product_type": "domestic_bond",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%",
+            "value": "3.099"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:return_1d",
+            "evidence_ids": [
+              "overseas_etf:VOO:return_1d"
+            ],
+            "field_id": "return_1d",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 1일 수익률 0.39%",
+            "value": "0.39"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내채권 비교 가능 결과: 1건\n해외 ETF 비교 가능 결과: 1건\nKR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 1일 수익률 0.39%"
+      },
+      "case_id": "CQ-016-002",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR350103G9B0"
+          },
+          {
+            "identifier_type": "ticker",
+            "text": "VOO"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "buy_yield",
+          "return_1d"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_bond",
+          "overseas_etf"
+        ],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 2,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내채권 KR350103G9B0의 매수수익률과 해외 ETF VOO의 1일 수익률을 유형별로 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "rank": null,
+            "surface_text": "국내채권 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "historical_total_return:None:1d:same_period_and_compatible_source_semantics",
+            "rank": null,
+            "surface_text": "해외 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "한국전력공사채권1004",
+                "product_id": "KR350103G9B0",
+                "product_type": "domestic_bond"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_bond:KR350103G9B0:buy_yield"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"3.099\"",
+                "display_text": "3.099",
+                "field_id": "buy_yield",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:return_1d",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:return_1d"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 1일 수익률 0.39%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0.39\"",
+                "display_text": "0.39",
+                "field_id": "return_1d",
+                "unit": "percent"
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "423b7a76e558d878c55835296b7e0586d5bb9f0fc96c0a0f12f6ab1006157703",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:summary:summary:partition:1",
+          "claim:limitation:1",
+          "claim:limitation:2",
+          "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+          "claim:value:overseas_etf:VOO:return_1d"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:summary:summary:partition:1",
+              "claim:limitation:1",
+              "claim:limitation:2",
+              "claim:value:domestic_bond:KR350103G9B0:buy_yield",
+              "claim:value:overseas_etf:VOO:return_1d"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:beadf0c357eefec3be12ae7e7b30568cd75aa3bccccec1a01d7c5032e8622bc4",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내채권 비교 가능 결과: 1건\n해외 ETF 비교 가능 결과: 1건\nKR350103G9B0의 매수수익률은 유효 로트 중 최댓값을 선택했으며, 관측 범위는 2.94~3.099입니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 국내채권 한국전력공사채권1004 (KR350103G9B0) — 매수수익률 3.099%\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 1일 수익률 0.39%"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 2,
+          "raw": 2,
+          "returned": 2
+        },
+        "correlation_id": "trace-1886affa72832115",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_bond",
+          "overseas_etf"
+        ],
+        "result_grain": "product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "instrument",
+            "partition_key": "bond_buy_yield:None:yield_to_maturity_like_source_field:not_equal_to_historical_period_return",
+            "product_type": "domestic_bond",
+            "returned": 1
+          },
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "historical_total_return:None:1d:same_period_and_compatible_source_semantics",
+            "product_type": "overseas_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "aum:KRW:snapshot:same_currency_or_fixed_fx",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "overseas_etf"
+            ],
+            "sign": "positive",
+            "text": "해외 ETF 비교 가능 결과: 1건",
+            "value": 1
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다.",
+            "value": "통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:aum",
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:aum"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7069500007",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 순자산총액 25,474,813,891,225",
+            "value": "25474813891225"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:currency",
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:currency"
+            ],
+            "field_id": "currency",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7069500007",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 통화 KRW",
+            "value": "KRW"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:aum",
+            "evidence_ids": [
+              "overseas_etf:VOO:aum"
+            ],
+            "field_id": "aum",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": "positive",
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000",
+            "value": "997351790000"
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:currency",
+            "evidence_ids": [
+              "overseas_etf:VOO:currency"
+            ],
+            "field_id": "currency",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD",
+            "value": "USD"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n해외 ETF 비교 가능 결과: 1건\n통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 순자산총액 25,474,813,891,225\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 통화 KRW\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD"
+      },
+      "case_id": "CQ-016-003",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR7069500007"
+          },
+          {
+            "identifier_type": "ticker",
+            "text": "VOO"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "aum",
+          "currency"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_etf",
+          "overseas_etf"
+        ],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 2,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7069500007과 해외 ETF VOO의 AUM·거래통화를 유형별로 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "aum:KRW:snapshot:same_currency_or_fixed_fx",
+            "rank": null,
+            "surface_text": "국내 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:1"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "rank": null,
+            "surface_text": "해외 ETF 비교 가능 결과: 1건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "1",
+                "display_text": "1",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:7d3221134fbba745c47ee9521088ec89dd9a82df6fd88ae0842e107ca1714c90"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:aum",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX200 증권상장지수투자신탁[주식]",
+                "product_id": "KR7069500007",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:aum"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 순자산총액 25,474,813,891,225",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"25474813891225\"",
+                "display_text": "25474813891225",
+                "field_id": "aum",
+                "unit": "currency"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:currency",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX200 증권상장지수투자신탁[주식]",
+                "product_id": "KR7069500007",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:currency"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 통화 KRW",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"KRW\"",
+                "display_text": "KRW",
+                "field_id": "currency",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:aum",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:aum"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"997351790000\"",
+                "display_text": "997351790000",
+                "field_id": "aum",
+                "unit": "currency"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:currency",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:currency"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"USD\"",
+                "display_text": "USD",
+                "field_id": "currency",
+                "unit": null
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "f8a93e8cca8c166fc91848a7da31f11292d6794fcf430bf9f73af9f5526eebc2",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:partition:0",
+          "claim:summary:summary:partition:1",
+          "claim:limitation:1",
+          "claim:limitation:2",
+          "claim:value:domestic_etf:KR7069500007:aum",
+          "claim:value:domestic_etf:KR7069500007:currency",
+          "claim:value:overseas_etf:VOO:aum",
+          "claim:value:overseas_etf:VOO:currency"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:7d3221134fbba745c47ee9521088ec89dd9a82df6fd88ae0842e107ca1714c90",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:partition:0",
+              "claim:summary:summary:partition:1",
+              "claim:limitation:1",
+              "claim:limitation:2",
+              "claim:value:domestic_etf:KR7069500007:aum",
+              "claim:value:domestic_etf:KR7069500007:currency",
+              "claim:value:overseas_etf:VOO:aum",
+              "claim:value:overseas_etf:VOO:currency"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:7d3221134fbba745c47ee9521088ec89dd9a82df6fd88ae0842e107ca1714c90",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 비교 가능 결과: 1건\n해외 ETF 비교 가능 결과: 1건\n통화별로 결과를 분리했습니다. 고정 환율 기준이 없어 통합 순위는 제공하지 않습니다.\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 순자산총액 25,474,813,891,225\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 통화 KRW\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 운용규모(AUM) 997,351,790,000\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 통화 USD"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 2,
+          "raw": 2,
+          "returned": 2
+        },
+        "correlation_id": "trace-24be149c7dc7564c",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_etf",
+          "overseas_etf"
+        ],
+        "result_grain": "product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "aum:KRW:snapshot:same_currency_or_fixed_fx",
+            "product_type": "domestic_etf",
+            "returned": 1
+          },
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "aum:USD:source_as_of:same_currency_or_fixed_fx",
+            "product_type": "overseas_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "value": "일부 지표값은 비교 가능 기준에서 제외했습니다."
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:return_3m",
+            "evidence_ids": [
+              "public_fund:KR5138490078:return_3m"
+            ],
+            "field_id": "return_3m",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5138490078",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:return_1y",
+            "evidence_ids": [
+              "public_fund:KR5138490078:return_1y"
+            ],
+            "field_id": "return_1y",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR5138490078",
+            "product_type": "public_fund",
+            "product_types": [],
+            "sign": null,
+            "text": "- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 1년 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "value": null
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.\n- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 1년 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+      },
+      "case_id": "CQ-016-004",
+      "category": "lookup",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "product_id",
+            "text": "KR5138490078"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "return_3m",
+          "return_1y"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "public_fund"
+        ],
+        "result_grain": "fund_item",
+        "sort": [],
+        "top_k": 1,
+        "top_k_scope": "global"
+      },
+      "question": "공모펀드 KR5138490078의 3개월 수익률과 1년 수익률을 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:2",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "일부 지표값은 비교 가능 기준에서 제외했습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:return_3m",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F)",
+                "product_id": "KR5138490078",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5138490078:return_3m"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:public_fund:KR5138490078:return_1y",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F)",
+                "product_id": "KR5138490078",
+                "product_type": "public_fund"
+              }
+            ],
+            "evidence_ids": [
+              "public_fund:KR5138490078:return_1y"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 1년 수익률: 제공 데이터에서 값을 확인할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "320664014fe53bbf2e9c8b983259e46af494e1e5caa70bc09bcbad2b63eabe96",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:limitation:1",
+          "claim:limitation:2",
+          "claim:value:public_fund:KR5138490078:return_3m",
+          "claim:value:public_fund:KR5138490078:return_1y"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+          "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:limitation:1",
+              "claim:limitation:2",
+              "claim:value:public_fund:KR5138490078:return_3m",
+              "claim:value:public_fund:KR5138490078:return_1y"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0",
+              "policy:57defb9d1bfb0d3c5eea1076652d8217e99db46a7b06f22a0b366477722e71de"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n검증된 매수 가능 여부는 지원하지 않습니다.\n일부 지표값은 비교 가능 기준에서 제외했습니다.\n- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 3개월 수익률: 제공 데이터에서 값을 확인할 수 없습니다.\n- 공모펀드 알리안츠다이나믹멀티에셋증권투자신탁[주식혼합_파생재간접형] Class C(F) (KR5138490078) — 1년 수익률: 제공 데이터에서 값을 확인할 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 1,
+          "raw": 1,
+          "returned": 1
+        },
+        "correlation_id": "trace-ad2eb351017831fe",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "public_fund"
+        ],
+        "result_grain": "fund_item",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "fund_item",
+            "partition_key": "public_fund",
+            "product_type": "public_fund",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다."
+      },
+      "case_id": "CQ-016-005",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KR7305080004의 보유종목에서 삼성전자를 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 KR7305080004의 보유종목에서 삼성전자를 검증할 승인된 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-bdd2c26acd71861f",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다."
+      },
+      "case_id": "CQ-016-006",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "반도체 산업군에 노출된 해외 ETF를 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 현재 빌드에는 해외 ETF의 반도체 산업군 노출을 검증할 승인된 보유종목·산업 원천이 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-22771283f8076a62",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:missing",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:missing"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:missing",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 총보수 결측 개수: 945",
+            "value": 945
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:zero",
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:zero"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "policy:domestic_etf.total_fee:zero",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 총보수 0값 개수: 148",
+            "value": 148
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "field_id": null,
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [
+              "listed_product"
+            ],
+            "partition_key": "annual_fee:None:annual_source_convention:same_definition_with_source_caveat",
+            "product_id": null,
+            "product_type": null,
+            "product_types": [
+              "domestic_etf"
+            ],
+            "sign": "positive",
+            "text": "국내 ETF 비교 가능 결과: 10건",
+            "value": 10
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7069500007",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069660009:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7069660009:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7069660009",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 키움 KIWOOM 200 상장지수증권투자신탁[주식] (KR7069660009) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7091170001:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7091170001:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7091170001",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 삼성 KODEX 은행 증권상장지수투자신탁[주식] (KR7091170001) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7091180000:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7091180000:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7091180000",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 삼성 KODEX 자동차 증권상장지수투자신탁[주식] (KR7091180000) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7099140006:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7099140006:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7099140006",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 삼성 KODEX 차이나H증권상장지수투자신탁[주식] (KR7099140006) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7100910009:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7100910009:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7100910009",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 키움 KIWOOM KRX100 상장지수증권투자신탁[주식] (KR7100910009) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7101280006:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7101280006:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7101280006",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 삼성 KODEX Japan 증권상장지수투자신탁[주식] (KR7101280006) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7102110004:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7102110004:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7102110004",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 미래에셋 TIGER 200 증권상장지수투자신탁(주식) (KR7102110004) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7104520002:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7104520002:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7104520002",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 키움 KIWOOM 블루칩 상장지수증권투자신탁[주식] (KR7104520002) — 총보수 0%",
+            "value": "0"
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7104530001:total_fee",
+            "evidence_ids": [
+              "domestic_etf:KR7104530001:total_fee"
+            ],
+            "field_id": "total_fee",
+            "group_values": [],
+            "kind": "numeric",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "KR7104530001",
+            "product_type": "domestic_etf",
+            "product_types": [],
+            "sign": "zero",
+            "text": "- 국내 ETF 키움 KIWOOM 코리아고배당증권상장지수투자신탁[주식] (KR7104530001) — 총보수 0%",
+            "value": "0"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 총보수 결측 개수: 945\n국내 ETF 총보수 0값 개수: 148\n국내 ETF 비교 가능 결과: 10건\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 200 상장지수증권투자신탁[주식] (KR7069660009) — 총보수 0%\n- 국내 ETF 삼성 KODEX 은행 증권상장지수투자신탁[주식] (KR7091170001) — 총보수 0%\n- 국내 ETF 삼성 KODEX 자동차 증권상장지수투자신탁[주식] (KR7091180000) — 총보수 0%\n- 국내 ETF 삼성 KODEX 차이나H증권상장지수투자신탁[주식] (KR7099140006) — 총보수 0%\n- 국내 ETF 키움 KIWOOM KRX100 상장지수증권투자신탁[주식] (KR7100910009) — 총보수 0%\n- 국내 ETF 삼성 KODEX Japan 증권상장지수투자신탁[주식] (KR7101280006) — 총보수 0%\n- 국내 ETF 미래에셋 TIGER 200 증권상장지수투자신탁(주식) (KR7102110004) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 블루칩 상장지수증권투자신탁[주식] (KR7104520002) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 코리아고배당증권상장지수투자신탁[주식] (KR7104530001) — 총보수 0%"
+      },
+      "case_id": "CQ-016-007",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [],
+        "filters": [
+          {
+            "field": "total_fee",
+            "operator": "eq",
+            "value": 0
+          }
+        ],
+        "intent": "screen",
+        "metric_targets": [],
+        "metrics": [
+          "total_fee"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "domestic_etf"
+        ],
+        "result_grain": "listed_product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "global"
+      },
+      "question": "총보수가 0%로 기록된 국내 ETF를 최대 10개 보여주고 총보수 누락 상품을 따로 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:missing",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:missing"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "policy:domestic_etf.total_fee:missing",
+            "rank": null,
+            "surface_text": "국내 ETF 총보수 결측 개수: 945",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "945",
+                "display_text": "945",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:summary:summary:policy:domestic_etf:total_fee:zero",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:policy:domestic_etf:total_fee:zero"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "policy:domestic_etf.total_fee:zero",
+            "rank": null,
+            "surface_text": "국내 ETF 총보수 0값 개수: 148",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "148",
+                "display_text": "148",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:summary:summary:partition:0",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [
+              "summary:partition:0"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": "annual_fee:None:annual_source_convention:same_definition_with_source_caveat",
+            "rank": null,
+            "surface_text": "국내 ETF 비교 가능 결과: 10건",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "10",
+                "display_text": "10",
+                "field_id": "value",
+                "unit": null
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069500007:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX200 증권상장지수투자신탁[주식]",
+                "product_id": "KR7069500007",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7069500007:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7069660009:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "키움 KIWOOM 200 상장지수증권투자신탁[주식]",
+                "product_id": "KR7069660009",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7069660009:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 키움 KIWOOM 200 상장지수증권투자신탁[주식] (KR7069660009) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7091170001:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX 은행 증권상장지수투자신탁[주식]",
+                "product_id": "KR7091170001",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7091170001:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX 은행 증권상장지수투자신탁[주식] (KR7091170001) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7091180000:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX 자동차 증권상장지수투자신탁[주식]",
+                "product_id": "KR7091180000",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7091180000:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX 자동차 증권상장지수투자신탁[주식] (KR7091180000) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7099140006:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX 차이나H증권상장지수투자신탁[주식]",
+                "product_id": "KR7099140006",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7099140006:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX 차이나H증권상장지수투자신탁[주식] (KR7099140006) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7100910009:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "키움 KIWOOM KRX100 상장지수증권투자신탁[주식]",
+                "product_id": "KR7100910009",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7100910009:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 키움 KIWOOM KRX100 상장지수증권투자신탁[주식] (KR7100910009) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7101280006:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "삼성 KODEX Japan 증권상장지수투자신탁[주식]",
+                "product_id": "KR7101280006",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7101280006:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 삼성 KODEX Japan 증권상장지수투자신탁[주식] (KR7101280006) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7102110004:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "미래에셋 TIGER 200 증권상장지수투자신탁(주식)",
+                "product_id": "KR7102110004",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7102110004:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 미래에셋 TIGER 200 증권상장지수투자신탁(주식) (KR7102110004) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7104520002:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "키움 KIWOOM 블루칩 상장지수증권투자신탁[주식]",
+                "product_id": "KR7104520002",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7104520002:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 키움 KIWOOM 블루칩 상장지수증권투자신탁[주식] (KR7104520002) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          },
+          {
+            "claim_id": "claim:value:domestic_etf:KR7104530001:total_fee",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "키움 KIWOOM 코리아고배당증권상장지수투자신탁[주식]",
+                "product_id": "KR7104530001",
+                "product_type": "domestic_etf"
+              }
+            ],
+            "evidence_ids": [
+              "domestic_etf:KR7104530001:total_fee"
+            ],
+            "kind": "numeric",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 국내 ETF 키움 KIWOOM 코리아고배당증권상장지수투자신탁[주식] (KR7104530001) — 총보수 0%",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"0\"",
+                "display_text": "0",
+                "field_id": "total_fee",
+                "unit": "percent"
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "6aeffb6b0a775be6f58e28204175bd41137f8702161252edbeec7c2e50534f1a",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:summary:summary:policy:domestic_etf:total_fee:missing",
+          "claim:summary:summary:policy:domestic_etf:total_fee:zero",
+          "claim:summary:summary:partition:0",
+          "claim:value:domestic_etf:KR7069500007:total_fee",
+          "claim:value:domestic_etf:KR7069660009:total_fee",
+          "claim:value:domestic_etf:KR7091170001:total_fee",
+          "claim:value:domestic_etf:KR7091180000:total_fee",
+          "claim:value:domestic_etf:KR7099140006:total_fee",
+          "claim:value:domestic_etf:KR7100910009:total_fee",
+          "claim:value:domestic_etf:KR7101280006:total_fee",
+          "claim:value:domestic_etf:KR7102110004:total_fee",
+          "claim:value:domestic_etf:KR7104520002:total_fee",
+          "claim:value:domestic_etf:KR7104530001:total_fee"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:summary:summary:policy:domestic_etf:total_fee:missing",
+              "claim:summary:summary:policy:domestic_etf:total_fee:zero",
+              "claim:summary:summary:partition:0",
+              "claim:value:domestic_etf:KR7069500007:total_fee",
+              "claim:value:domestic_etf:KR7069660009:total_fee",
+              "claim:value:domestic_etf:KR7091170001:total_fee",
+              "claim:value:domestic_etf:KR7091180000:total_fee",
+              "claim:value:domestic_etf:KR7099140006:total_fee",
+              "claim:value:domestic_etf:KR7100910009:total_fee",
+              "claim:value:domestic_etf:KR7101280006:total_fee",
+              "claim:value:domestic_etf:KR7102110004:total_fee",
+              "claim:value:domestic_etf:KR7104520002:total_fee",
+              "claim:value:domestic_etf:KR7104530001:total_fee"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n국내 ETF 총보수 결측 개수: 945\n국내 ETF 총보수 0값 개수: 148\n국내 ETF 비교 가능 결과: 10건\n- 국내 ETF 삼성 KODEX200 증권상장지수투자신탁[주식] (KR7069500007) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 200 상장지수증권투자신탁[주식] (KR7069660009) — 총보수 0%\n- 국내 ETF 삼성 KODEX 은행 증권상장지수투자신탁[주식] (KR7091170001) — 총보수 0%\n- 국내 ETF 삼성 KODEX 자동차 증권상장지수투자신탁[주식] (KR7091180000) — 총보수 0%\n- 국내 ETF 삼성 KODEX 차이나H증권상장지수투자신탁[주식] (KR7099140006) — 총보수 0%\n- 국내 ETF 키움 KIWOOM KRX100 상장지수증권투자신탁[주식] (KR7100910009) — 총보수 0%\n- 국내 ETF 삼성 KODEX Japan 증권상장지수투자신탁[주식] (KR7101280006) — 총보수 0%\n- 국내 ETF 미래에셋 TIGER 200 증권상장지수투자신탁(주식) (KR7102110004) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 블루칩 상장지수증권투자신탁[주식] (KR7104520002) — 총보수 0%\n- 국내 ETF 키움 KIWOOM 코리아고배당증권상장지수투자신탁[주식] (KR7104530001) — 총보수 0%"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 148,
+          "raw": 1234,
+          "returned": 10
+        },
+        "correlation_id": "trace-99b36ec46dad6421",
+        "intent": "screen",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "domestic_etf"
+        ],
+        "result_grain": "listed_product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 148,
+              "raw": 1234
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "annual_fee:None:annual_source_convention:same_definition_with_source_caveat",
+            "product_type": "domestic_etf",
+            "returned": 10
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다."
+      },
+      "case_id": "CQ-016-008",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "BUYABLE_QUANTITY가 0보다 큰 국내채권을 찾아줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. BUYABLE_QUANTITY는 유효하지 않아 0보다 큰 국내채권 매수 가능 조건으로 사용할 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-e188e8531214e5ba",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+            "value": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+          }
+        ],
+        "text": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+      },
+      "case_id": "CQ-016-009",
+      "category": "screen",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "KODEX200의 1년 수익률이 0% 이상인지 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200 이름 후보를 1년 수익률 조건에 적용하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-499fb83597a80260",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+            "value": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+          }
+        ],
+        "text": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+      },
+      "case_id": "CQ-016-010",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "코덱스200으로 검색되는 국내 ETF 후보를 AUM 높은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "코덱스200 이름 후보를 AUM 순위화하려면 정확한 국내 ETF 상품 식별자가 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-3039f63f27095743",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다.",
+            "value": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다."
+          }
+        ],
+        "text": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다."
+      },
+      "case_id": "CQ-016-011",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "QQQ 표기로 검색되는 해외 ETF 후보를 총보수 낮은 순으로 5개 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "QQQ 표기 후보를 총보수 순위화하려면 정확한 등록 해외 ETF 티커가 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-38525f33698fe1b8",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다.",
+            "value": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다."
+          }
+        ],
+        "text": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다."
+      },
+      "case_id": "CQ-016-012",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "공모펀드 삼성 KODEX 200 증권상장지수투자신탁[주식]을 1년 수익률 순위에서 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "공모펀드 이름 변형을 1년 수익률 순위화하려면 정확한 itm_no가 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-ce152652a8cd636e",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다.",
+            "value": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다."
+          }
+        ],
+        "text": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다."
+      },
+      "case_id": "CQ-016-013",
+      "category": "rank",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "채권코드 KR350103G9BO 후보를 매수수익률 높은 순으로 보여줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KR350103G9BO은 오탈자 후보이므로 매수수익률 순위 전에 정확한 채권코드를 확인해야 합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-6fa9984f3f8cf351",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다.",
+            "value": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다."
+          }
+        ],
+        "text": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다."
+      },
+      "case_id": "CQ-016-014",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KODEX200과 KODEX 200의 AUM을 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200과 KODEX 200의 AUM을 비교하려면 각 표현의 정확한 상품 식별자를 확인해야 합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-12ac7d71b48ffd98",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다.",
+            "value": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다."
+          }
+        ],
+        "text": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다."
+      },
+      "case_id": "CQ-016-015",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "해외 ETF QQQ와 QQQ.O가 같은 상품인지 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "QQQ와 QQQ.O가 같은 해외 ETF인지 비교하려면 정확한 등록 식별자 연결을 확인해야 합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-6e9714dbdff38a7c",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다.",
+            "value": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다."
+          }
+        ],
+        "text": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다."
+      },
+      "case_id": "CQ-016-016",
+      "category": "compare",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "공모펀드 삼성KODEX200증권상장지수투자신탁[주식]과 삼성 KODEX 200 증권상장지수투자신탁[주식]을 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "두 공모펀드 클래스명 변형을 비교하려면 정확한 itm_no나 명시적 클래스 통합 조건이 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-c414757ae7fa0932",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다.",
+            "value": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다."
+          }
+        ],
+        "text": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다."
+      },
+      "case_id": "CQ-016-017",
+      "category": "aggregate",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "KODEX200으로 검색되는 국내 ETF 수를 집계해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200 후보를 정확히 해소한 뒤에만 국내 ETF 수를 집계할 수 있습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-0191ff60ff5debf4",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다.",
+            "value": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다."
+          }
+        ],
+        "text": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다."
+      },
+      "case_id": "CQ-016-018",
+      "category": "aggregate",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "공모펀드 삼성 KODEX 200 증권상장지수투자신탁[주식]으로 검색되는 itm_no 수를 집계해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "공모펀드 이름 변형을 정확한 itm_no로 해소한 뒤에만 상품 수를 집계할 수 있습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-9d8d17cb05e3effe",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다.",
+            "value": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다."
+          }
+        ],
+        "text": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다."
+      },
+      "case_id": "CQ-016-019",
+      "category": "cross_product",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "KODEX200 이름 후보를 국내 ETF와 공모펀드 유형별로 찾아 상품 수를 각각 집계해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200 후보를 상품 유형별 정확한 식별자로 해소한 뒤에만 유형별 수를 집계할 수 있습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-183f4bfe650332a4",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:unsupported",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "제공 데이터로 확인할 수 없습니다. 동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다.",
+            "value": "제공 데이터로 확인할 수 없습니다. 동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다."
+          }
+        ],
+        "text": "제공 데이터로 확인할 수 없습니다. 동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다."
+      },
+      "case_id": "CQ-016-020",
+      "category": "cross_product",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "unsupported",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": false,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KODEX200과 해외 ETF Vanguard 500 Index Fund ETF를 같은 지수 상품으로 연결해 성과를 비교해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:unsupported",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "제공 데이터로 확인할 수 없습니다. 동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:unsupported"
+        ],
+        "required_limitation_codes": [
+          "unsupported_request"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:unsupported"
+            ],
+            "limitation_codes": [
+              "unsupported_request"
+            ],
+            "part_id": "surface:answer",
+            "text": "제공 데이터로 확인할 수 없습니다. 동일 지수라는 유사성만으로 KODEX200과 Vanguard 500 Index Fund ETF 사이에 자동 교차원천 연결을 만들 수 없습니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-ecf3ada5cdbd07bc",
+        "intent": "unsupported",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "unsupported",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다.",
+            "value": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다."
+          }
+        ],
+        "text": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다."
+      },
+      "case_id": "CQ-016-021",
+      "category": "clarification",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "KODEX200 수익률을 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200 수익률 요청에는 상품 유형, 정확한 상품 식별자, 수익률 기간이 필요합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-ceb1e30b1000fc48",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다.",
+            "value": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다."
+          }
+        ],
+        "text": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다."
+      },
+      "case_id": "CQ-016-022",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "국내 ETF KODEX200과 KODEX 200이 같은 상품인지 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "KODEX200과 KODEX 200의 띄어쓰기 차이는 후보일 뿐이며 정확한 국내 ETF 식별자를 확인해야 합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-faca322ba283cc2d",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:clarify",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다.",
+            "value": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다."
+          }
+        ],
+        "text": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다."
+      },
+      "case_id": "CQ-016-023",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다.",
+        "entities": [],
+        "filters": [],
+        "intent": "clarify",
+        "metric_targets": [],
+        "metrics": [],
+        "needs_clarification": true,
+        "product_types": [],
+        "result_grain": "product",
+        "sort": [],
+        "top_k": 10,
+        "top_k_scope": "per_product_type"
+      },
+      "question": "코덱스200과 KODEX200이 같은 상품인지 알려줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:clarify",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다.",
+            "tie_count": null,
+            "values": []
+          }
+        ],
+        "evidence_context_sha256": "395ee782cf0200ce3c1aeb473fce931013b84f82f1f76eaff754f73f0939d887",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:clarify"
+        ],
+        "required_limitation_codes": [
+          "clarification_required"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:clarify"
+            ],
+            "limitation_codes": [
+              "clarification_required"
+            ],
+            "part_id": "surface:answer",
+            "text": "코덱스200과 KODEX200의 한글·영문 변형은 후보일 뿐이며 정확한 식별자를 확인해야 합니다."
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 0,
+          "raw": 0,
+          "returned": 0
+        },
+        "correlation_id": "trace-c830936af46916fb",
+        "intent": "clarify",
+        "latency_ms": {},
+        "policy_ids": [
+          "answer:1.0.0"
+        ],
+        "product_types": [],
+        "result_grain": "product",
+        "segments": [],
+        "tools": [
+          "claim_verifier"
+        ],
+        "top_k_scope": "per_product_type",
+        "validation": "clarify",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    },
+    {
+      "answer": {
+        "claims": [
+          {
+            "claim_id": "claim:snapshot",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "value": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)"
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "evidence_ids": [],
+            "field_id": null,
+            "group_values": [],
+            "kind": "limitation",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": null,
+            "product_type": null,
+            "product_types": [],
+            "sign": null,
+            "text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "value": "검증된 매수 가능 여부는 지원하지 않습니다."
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:product_name",
+            "evidence_ids": [
+              "overseas_etf:VOO:product_name"
+            ],
+            "field_id": "product_name",
+            "group_values": [],
+            "kind": "text",
+            "native_result_grains": [],
+            "partition_key": null,
+            "product_id": "VOO",
+            "product_type": "overseas_etf",
+            "product_types": [],
+            "sign": null,
+            "text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 상품명 Vanguard 500 Index Fund;ETF",
+            "value": "Vanguard 500 Index Fund;ETF"
+          }
+        ],
+        "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 상품명 Vanguard 500 Index Fund;ETF"
+      },
+      "case_id": "CQ-016-024",
+      "category": "quality",
+      "plan": {
+        "aggregation": null,
+        "as_of_date": "2026-08-24",
+        "clarification_reason": "",
+        "entities": [
+          {
+            "identifier_type": "ticker",
+            "text": "VOO"
+          }
+        ],
+        "filters": [],
+        "intent": "lookup",
+        "metric_targets": [],
+        "metrics": [
+          "product_name"
+        ],
+        "needs_clarification": false,
+        "product_types": [
+          "overseas_etf"
+        ],
+        "result_grain": "listed_product",
+        "sort": [],
+        "top_k": 1,
+        "top_k_scope": "global"
+      },
+      "question": "해외 ETF VOO의 원천 상품명이 Vanguard 500 Index Fund ETF인지 조회해줘",
+      "retrieved_context": {
+        "claim_signatures": [
+          {
+            "claim_id": "claim:snapshot",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "snapshot_assumption"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:limitation:1",
+            "comparison": null,
+            "entities": [],
+            "evidence_ids": [],
+            "kind": "limitation",
+            "limitation_codes": [
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "partition": null,
+            "rank": null,
+            "surface_text": "검증된 매수 가능 여부는 지원하지 않습니다.",
+            "tie_count": null,
+            "values": []
+          },
+          {
+            "claim_id": "claim:value:overseas_etf:VOO:product_name",
+            "comparison": null,
+            "entities": [
+              {
+                "display_name": "Vanguard 500 Index Fund;ETF",
+                "product_id": "VOO",
+                "product_type": "overseas_etf"
+              }
+            ],
+            "evidence_ids": [
+              "overseas_etf:VOO:product_name"
+            ],
+            "kind": "text",
+            "limitation_codes": [],
+            "partition": null,
+            "rank": null,
+            "surface_text": "- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 상품명 Vanguard 500 Index Fund;ETF",
+            "tie_count": null,
+            "values": [
+              {
+                "canonical_normalized_json": "\"Vanguard 500 Index Fund;ETF\"",
+                "display_text": "Vanguard 500 Index Fund;ETF",
+                "field_id": "product_name",
+                "unit": null
+              }
+            ]
+          }
+        ],
+        "evidence_context_sha256": "df93d0f23327500794bfcf095933157528e665804b94354a6e8876dc5a6d5c1a",
+        "format": "finproof.fact-pack.v1",
+        "required_claim_ids": [
+          "claim:snapshot",
+          "claim:limitation:1",
+          "claim:value:overseas_etf:VOO:product_name"
+        ],
+        "required_limitation_codes": [
+          "snapshot_assumption",
+          "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+        ],
+        "surface_parts": [
+          {
+            "claim_ids": [
+              "claim:snapshot",
+              "claim:limitation:1",
+              "claim:value:overseas_etf:VOO:product_name"
+            ],
+            "limitation_codes": [
+              "snapshot_assumption",
+              "policy:30ed09163350031daf75c816487884a733974f5d0acda8500173fcd4bb2a03c0"
+            ],
+            "part_id": "surface:answer",
+            "text": "2026-08-24 배포본 기준(국내·공모 2026-08-22, 해외 2026-08-23 커버리지)\n검증된 매수 가능 여부는 지원하지 않습니다.\n- 해외 ETF Vanguard 500 Index Fund;ETF (VOO) — 상품명 Vanguard 500 Index Fund;ETF"
+          }
+        ]
+      },
+      "trace": {
+        "as_of_date": "2026-08-24",
+        "candidate_counts": {
+          "eligible": 1,
+          "raw": 1,
+          "returned": 1
+        },
+        "correlation_id": "trace-91de6734b567d348",
+        "intent": "lookup",
+        "latency_ms": {},
+        "policy_ids": [
+          "state:1.2.0",
+          "metric:1.2.0"
+        ],
+        "product_types": [
+          "overseas_etf"
+        ],
+        "result_grain": "listed_product",
+        "segments": [
+          {
+            "candidate_counts": {
+              "eligible": 1,
+              "raw": 1
+            },
+            "native_result_grain": "listed_product",
+            "partition_key": "overseas_etf",
+            "product_type": "overseas_etf",
+            "returned": 1
+          }
+        ],
+        "tools": [
+          "entity_resolver",
+          "semantic_validator",
+          "query_executor",
+          "policy_engine",
+          "evidence_builder",
+          "claim_verifier"
+        ],
+        "top_k_scope": "global",
+        "validation": "passed",
+        "versions": {
+          "answer_policy_version": "1.0.0",
+          "artifact_manifest_hash": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+          "dataset_registry_version": "1.0.0",
+          "dataset_version": "2026-08-24",
+          "execution_mode": "extended_demo",
+          "field_registry_version": "1.3.0",
+          "metric_registry_version": "1.2.0",
+          "planner_version": "1.2.0",
+          "quality_rule_version": "1.1.0",
+          "rating_rule_version": "1.0.0",
+          "state_rule_version": "1.2.0"
+        }
+      }
+    }
+  ],
+  "question_and_draft_plan_packet_sha256": "e5ca15fda2f71d19401d153e37a1b4ff07521b33660ff4cd867bf7bc24604f40",
+  "question_review": {
+    "reviewed_at": "2026-09-04",
+    "reviewer": "곽태성"
+  },
+  "review_status": "pending_human_plan_and_expectation_review",
+  "source_question_packet_sha256": "0271b648743ce6994cde9a37b0548939fe8098d033708226ae23f7494a6e6048"
+}
