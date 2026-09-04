@@ -475,6 +475,7 @@ def _expected_claim_values(
     claims: Sequence[AnswerClaim], fields: FieldRegistry
 ) -> tuple[ExpectedValue, ...]:
     values: list[ExpectedValue] = []
+    values_by_key: dict[tuple[str, str], ExpectedValue] = {}
     value_types = {
         Decimal: ValueType.DECIMAL,
         int: ValueType.INTEGER,
@@ -490,15 +491,28 @@ def _expected_claim_values(
             or claim.value is None
         ):
             continue
-        fields.projection(claim.field_id, claim.product_type)
-        values.append(
-            ExpectedValue(
-                product_id=claim.product_id,
-                field_id=claim.field_id,
-                value_type=value_types[type(claim.value)],
-                value=claim.value,
-            )
+        if claim.field_id.endswith("_difference"):
+            base_field_id = claim.field_id.removesuffix("_difference")
+            if (base_field_id, claim.product_type) not in fields.projections:
+                raise ValueError(
+                    "comparison difference base field is not registered for product type"
+                )
+        else:
+            fields.projection(claim.field_id, claim.product_type)
+        expected = ExpectedValue(
+            product_id=claim.product_id,
+            field_id=claim.field_id,
+            value_type=value_types[type(claim.value)],
+            value=claim.value,
         )
+        key = (claim.product_id, claim.field_id)
+        previous = values_by_key.get(key)
+        if previous is not None:
+            if previous != expected:
+                raise ValueError("conflicting answer claim values")
+            continue
+        values_by_key[key] = expected
+        values.append(expected)
     return tuple(values)
 
 

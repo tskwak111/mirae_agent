@@ -326,6 +326,140 @@ def test_types_generic_comparison_difference_evidence_without_registry_fields() 
     )
 
 
+def test_fact_pack_claim_values_collapse_equivalent_recorded_and_direct_claims() -> None:
+    from decimal import Decimal
+
+    from finproof.domain.answers import AnswerClaim, ClaimKind
+    from finproof.domain.query_plan import ProductType
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    values = module._expected_claim_values(  # type: ignore[attr-defined]
+        (
+            AnswerClaim(
+                claim_id="claim:recorded",
+                kind=ClaimKind.NUMERIC,
+                text="기록된 값은 0입니다.",
+                product_type=ProductType.OVERSEAS_ETF,
+                product_id="BBLS.K",
+                field_id="aum",
+                value=Decimal("0E-18"),
+            ),
+            AnswerClaim(
+                claim_id="claim:value",
+                kind=ClaimKind.NUMERIC,
+                text="AUM은 0입니다.",
+                product_type=ProductType.OVERSEAS_ETF,
+                product_id="BBLS.K",
+                field_id="aum",
+                value=Decimal("0"),
+            ),
+        ),
+        FieldRegistry.from_bundle(RegistryBundle.from_package()),
+    )
+
+    assert len(values) == 1
+    assert values[0].value == Decimal("0")
+
+
+def test_fact_pack_claim_values_type_registered_comparison_differences() -> None:
+    from decimal import Decimal
+
+    from finproof.domain.answers import AnswerClaim, ClaimKind
+    from finproof.domain.query_plan import ProductType
+    from finproof.evaluation.models import ValueType
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    values = module._expected_claim_values(  # type: ignore[attr-defined]
+        (
+            AnswerClaim(
+                claim_id="claim:return-difference",
+                kind=ClaimKind.NUMERIC,
+                text="3개월 수익률 차이는 1.2%포인트입니다.",
+                product_type=ProductType.DOMESTIC_ETF,
+                product_id="KR7305080004",
+                field_id="return_3m_difference",
+                value=Decimal("1.2"),
+            ),
+            AnswerClaim(
+                claim_id="claim:maturity-difference",
+                kind=ClaimKind.NUMERIC,
+                text="만기일 차이는 90일입니다.",
+                product_type=ProductType.DOMESTIC_BOND,
+                product_id="KR350103G9B0",
+                field_id="maturity_date_difference",
+                value=90,
+            ),
+        ),
+        FieldRegistry.from_bundle(RegistryBundle.from_package()),
+    )
+
+    assert tuple(value.value_type for value in values) == (
+        ValueType.DECIMAL,
+        ValueType.INTEGER,
+    )
+    assert values[0].value == Decimal("1.2")
+    assert values[1].value == 90
+
+
+def test_fact_pack_claim_values_reject_conflicting_duplicates() -> None:
+    from decimal import Decimal
+
+    from finproof.domain.answers import AnswerClaim, ClaimKind
+    from finproof.domain.query_plan import ProductType
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    claims = tuple(
+        AnswerClaim(
+            claim_id=f"claim:{value}",
+            kind=ClaimKind.NUMERIC,
+            text=f"AUM은 {value}입니다.",
+            product_type=ProductType.OVERSEAS_ETF,
+            product_id="BBLS.K",
+            field_id="aum",
+            value=Decimal(value),
+        )
+        for value in ("0", "1")
+    )
+
+    with pytest.raises(ValueError, match="conflicting answer claim values"):
+        module._expected_claim_values(  # type: ignore[attr-defined]
+            claims,
+            FieldRegistry.from_bundle(RegistryBundle.from_package()),
+        )
+
+
+def test_fact_pack_claim_values_reject_difference_with_unregistered_base() -> None:
+    from decimal import Decimal
+
+    from finproof.domain.answers import AnswerClaim, ClaimKind
+    from finproof.domain.query_plan import ProductType
+    from finproof.query import FieldRegistry
+    from finproof.registry.loader import RegistryBundle
+
+    module = _promotion()
+    claim = AnswerClaim(
+        claim_id="claim:unregistered-difference",
+        kind=ClaimKind.NUMERIC,
+        text="미등록 지표 차이는 1입니다.",
+        product_type=ProductType.DOMESTIC_ETF,
+        product_id="KR7305080004",
+        field_id="unregistered_metric_difference",
+        value=Decimal("1"),
+    )
+
+    with pytest.raises(ValueError, match="comparison difference base field"):
+        module._expected_claim_values(  # type: ignore[attr-defined]
+            (claim,),
+            FieldRegistry.from_bundle(RegistryBundle.from_package()),
+        )
+
+
 def test_rejects_comparison_difference_for_unregistered_base_field() -> None:
     from finproof.query import FieldRegistry
     from finproof.registry.loader import RegistryBundle
