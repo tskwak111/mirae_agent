@@ -1,4 +1,4 @@
-"""Validate the immutable organizer claim/evidence score report."""
+"""Validate an immutable reviewed-suite claim/evidence score report."""
 
 from __future__ import annotations
 
@@ -23,6 +23,9 @@ _AXES = {
     "segment_assignment",
     "top_k_scope",
 }
+_BLIND_DEVELOPMENT_IDS = frozenset(
+    f"CQ-{batch:03d}-{index:03d}" for batch in range(12, 18) for index in range(1, 25)
+)
 
 
 def _complete(score: Any) -> bool:
@@ -51,15 +54,26 @@ def validate_report(path: Path) -> list[str]:
             errors.append(f"aggregate {axis} is incomplete")
 
     cases = report.get("case_scores")
-    if not isinstance(cases, list) or len(cases) != 35:
-        errors.append("organizer report must contain exactly 35 case scores")
+    ids = (
+        [case.get("case_id") for case in cases if isinstance(case, dict)]
+        if isinstance(cases, list)
+        else []
+    )
+    blind_development = (
+        len(ids) == len(_BLIND_DEVELOPMENT_IDS)
+        and all(type(case_id) is str for case_id in ids)
+        and frozenset(ids) == _BLIND_DEVELOPMENT_IDS
+    )
+    suite_name = "blind development" if blind_development else "organizer"
+    expected_count = len(_BLIND_DEVELOPMENT_IDS) if blind_development else 35
+    if not isinstance(cases, list) or len(cases) != expected_count:
+        errors.append(f"{suite_name} report must contain exactly {expected_count} case scores")
     else:
-        ids = [case.get("case_id") for case in cases if isinstance(case, dict)]
-        if len(ids) != 35 or len(set(ids)) != 35:
-            errors.append("organizer case IDs must be 35 unique strings")
+        if len(ids) != expected_count or len(set(ids)) != expected_count:
+            errors.append(f"{suite_name} case IDs must be {expected_count} unique strings")
         for case in cases:
             if not isinstance(case, dict) or case.get("failures") != []:
-                errors.append("organizer case contains failures")
+                errors.append(f"{suite_name} case contains failures")
                 break
             for axis in _AXES:
                 if not _complete(case.get(axis)):
@@ -71,8 +85,8 @@ def validate_report(path: Path) -> list[str]:
         latency.get("count"),
         latency.get("success_count"),
         latency.get("failure_count"),
-    ) != (35, 35, 0):
-        errors.append("organizer report must record 35 successful executions")
+    ) != (expected_count, expected_count, 0):
+        errors.append(f"{suite_name} report must record {expected_count} successful executions")
     replay = report.get("replay")
     if not isinstance(replay, dict) or (
         replay.get("mode") != "deterministic-core"
@@ -80,7 +94,7 @@ def validate_report(path: Path) -> list[str]:
         or not isinstance(replay.get("artifact_version"), str)
         or len(replay["artifact_version"]) != 64
     ):
-        errors.append("organizer replay identity differs")
+        errors.append(f"{suite_name} replay identity differs")
     return errors
 
 

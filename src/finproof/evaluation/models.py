@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, field_validator,
 from finproof.domain.query_plan import (
     AggregationFunction,
     AggregationSpec,
+    EntityMention,
     FilterClause,
     Intent,
     MetricTarget,
@@ -357,9 +358,17 @@ class GoldenCase(_FrozenModel):
     category: EvaluationCategory
     question: Annotated[str, Field(min_length=1, max_length=4_000)]
     expected_plan: ExpectedPlan
+    reviewed_entities: Annotated[tuple[EntityMention, ...], Field(max_length=20)] = ()
     expected_result: ExpectedResult
     expected_answer: ExpectedAnswerSemantics
     review: ReviewMetadata
+
+    @field_validator("reviewed_entities", mode="before")
+    @classmethod
+    def _parse_reviewed_entities(cls, value: object) -> object:
+        if isinstance(value, (list, tuple)) and all(type(item) is EntityMention for item in value):
+            return tuple(value)
+        return TypeAdapter(tuple[EntityMention, ...]).validate_json(json.dumps(value), strict=True)
 
     @field_validator("case_id", "question")
     @classmethod

@@ -69,6 +69,8 @@ from finproof.evaluation.runner import (
 )
 from finproof.planner.prompts import PROMPT_VERSION
 from finproof.planner.service import PlanningRequest
+from finproof.query import FieldRegistry
+from finproof.registry.loader import RegistryBundle
 from finproof.runtime import open_runtime_artifact_session
 from finproof.runtime.session import RuntimeArtifactSession
 from finproof.service.answer_service import AnswerService
@@ -112,7 +114,15 @@ def run_evaluation(
             report = _run_suite(suite, root, mode, cases, service)
         else:
             settings = Settings(repository_root=root)
-            if suite == "organizer_20260824" and mode is EvaluationMode.DETERMINISTIC_CORE:
+            if (
+                suite
+                in {
+                    "organizer_20260824",
+                    "blind_development",
+                    "blind_holdout",
+                }
+                and mode is EvaluationMode.DETERMINISTIC_CORE
+            ):
                 settings = settings.model_copy(
                     update={
                         "execution_mode": ExecutionMode.EXTENDED_DEMO,
@@ -174,20 +184,37 @@ def _robustness_cases(root: Path) -> tuple[tuple[GoldenCase, ...], tuple[GoldenC
     return quality, tuple(by_rule[rule.rule_id] for rule in rules.rules)
 
 
-def _reviewed_plan(case: GoldenCase) -> QueryPlan:
+def _reviewed_plan(case: GoldenCase, *, fields: FieldRegistry | None = None) -> QueryPlan:
+    field_registry = fields or FieldRegistry.from_bundle(RegistryBundle.from_package())
     payload = case.expected_plan.model_dump(exclude={"native_segments"})
-    payload["filters"] = tuple(
-        clause.model_dump(
+    filters: list[dict[str, object]] = []
+    for clause in case.expected_plan.filters or ():
+        clause_payload = clause.model_dump(
             exclude={"value"}
             if clause.operator.value in {"is_missing", "is_not_missing"}
             else set()
         )
-        for clause in case.expected_plan.filters or ()
-    )
+        projections = tuple(
+            field_registry.projections.get((clause.field, product_type))
+            for product_type in case.expected_plan.product_types
+        )
+        if projections and all(
+            projection is not None and projection.value_type == "decimal"
+            for projection in projections
+        ):
+            value = clause_payload.get("value")
+            if type(value) is str:
+                clause_payload["value"] = Decimal(value)
+            elif isinstance(value, tuple):
+                clause_payload["value"] = tuple(
+                    Decimal(item) if type(item) is str else item for item in value
+                )
+        filters.append(clause_payload)
+    payload["filters"] = tuple(filters)
     return QueryPlan.model_validate(
         {
             **payload,
-            "entities": (),
+            "entities": case.reviewed_entities,
         }
     )
 

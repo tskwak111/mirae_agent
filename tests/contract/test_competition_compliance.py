@@ -45,3 +45,23 @@ def test_claim_evidence_check_rejects_lost_coverage(tmp_path: Path) -> None:
     broken.write_text(json.dumps(payload), encoding="utf-8")
 
     assert "aggregate evidence_coverage is incomplete" in validate_report(broken)
+
+
+def test_claim_evidence_check_accepts_complete_blind_development_inventory(
+    tmp_path: Path,
+) -> None:
+    payload = json.loads(REPORT.read_bytes())
+    template = payload["case_scores"][0]
+    payload["case_scores"] = [
+        {
+            **json.loads(json.dumps(template)),
+            "case_id": f"CQ-{batch:03d}-{index:03d}",
+        }
+        for batch in range(12, 18)
+        for index in range(1, 25)
+    ]
+    payload["latency"].update(count=144, success_count=144, failure_count=0)
+    report = tmp_path / "blind-development.json"
+    report.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert validate_report(report) == []

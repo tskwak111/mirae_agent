@@ -3,6 +3,7 @@
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -11,7 +12,7 @@ from finproof.cli import evaluate as cli_evaluate
 from finproof.cli.evaluate import _reviewed_plan, run_evaluation
 from finproof.core.settings import ExecutionMode, Settings
 from finproof.evaluation.adversarial import AdversarialCase, AdversarialObservation
-from finproof.evaluation.loader import load_suite
+from finproof.evaluation.loader import load_blind_suite, load_suite
 from finproof.evaluation.models import GoldenCase, ObservedCase
 from finproof.evaluation.runner import EvaluationMode, ReplayVersions
 
@@ -75,6 +76,30 @@ def test_reconstructs_every_reviewed_plan_as_an_executable_query_plan() -> None:
     )
 
 
+def test_reconstructs_serialized_decimal_filter_as_decimal() -> None:
+    case = next(
+        case for case in load_blind_suite("blind_development") if case.case_id == "CQ-012-006"
+    )
+
+    plan = _reviewed_plan(case)
+
+    total_fee = next(clause for clause in plan.filters if clause.field == "total_fee")
+    assert total_fee.value == Decimal("0.5")
+    assert type(total_fee.value) is Decimal
+
+
+def test_reconstructs_only_the_reviewed_entity_mentions() -> None:
+    case = next(
+        case for case in load_blind_suite("blind_development") if case.case_id == "CQ-012-001"
+    )
+
+    plan = _reviewed_plan(case)
+
+    assert tuple((entity.text, entity.identifier_type.value) for entity in plan.entities) == (
+        ("KR350103G9B0", "product_id"),
+    )
+
+
 def test_deterministic_organizer_uses_the_reviewed_plan_service_without_hcx(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -94,5 +119,32 @@ def test_deterministic_organizer_uses_the_reviewed_plan_service_without_hcx(
     run_evaluation(
         "organizer_20260824",
         tmp_path / "organizer.json",
+        EvaluationMode.DETERMINISTIC_CORE,
+    )
+
+
+@pytest.mark.parametrize("suite", ["blind_development", "blind_holdout"])
+def test_deterministic_blind_suite_uses_the_reviewed_plan_service_without_hcx(
+    suite: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    case = load_suite("organizer_20260824")[0]
+
+    @contextmanager
+    def reviewed(settings: Settings) -> Iterator[_ReviewedPlanService]:
+        assert settings.execution_mode is ExecutionMode.EXTENDED_DEMO
+        assert settings.hcx_enabled is False
+        yield _ReviewedPlanService()
+
+    monkeypatch.setattr(cli_evaluate, "load_blind_suite", lambda *_args, **_kwargs: (case,))
+    monkeypatch.setattr(cli_evaluate, "_open_reviewed_plan_service", reviewed)
+    monkeypatch.setattr(
+        cli_evaluate,
+        "_open_local_service",
+        lambda _settings: (_ for _ in ()).throw(AssertionError("HCX graph opened")),
+    )
+
+    run_evaluation(
+        suite,
+        tmp_path / f"{suite}.json",
         EvaluationMode.DETERMINISTIC_CORE,
     )

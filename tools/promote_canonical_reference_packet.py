@@ -312,6 +312,7 @@ def _build_case(
             answer=answer,
             fact_pack=fact_pack,
             plan=plan,
+            reviewed_entities=entities,
             trace=trace,
             expected_plan=expected_plan,
             reviewer=reviewer,
@@ -375,6 +376,7 @@ def _build_case(
             "category": EvaluationCategory(category),
             "question": raw["question"],
             "expected_plan": expected_plan,
+            "reviewed_entities": entities,
             "expected_result": {
                 "products": products,
                 "order_matters": any(summary.get("kind") == "rank" for summary in summaries),
@@ -409,6 +411,7 @@ def _build_fact_pack_case(
     answer: VerifiedAnswer,
     fact_pack: FactPack,
     plan: QueryPlan,
+    reviewed_entities: tuple[EntityMention, ...],
     trace: ExecutionTrace,
     expected_plan: ExpectedPlan,
     reviewer: str,
@@ -444,6 +447,7 @@ def _build_fact_pack_case(
             "category": EvaluationCategory(category),
             "question": raw["question"],
             "expected_plan": expected_plan,
+            "reviewed_entities": reviewed_entities,
             "expected_result": {
                 "products": _observed_claim_products(plan, answer.claims),
                 "order_matters": any(item.rank is not None for item in fact_pack.claim_signatures),
