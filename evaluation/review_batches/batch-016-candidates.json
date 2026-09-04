@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 197,
-  "prompt_version": "canonical-question-candidates-v28",
-  "prompt_sha256": "55a238b724c3553c86452dad55266119c06591b5cc02a95ae6a718307d2d7973",
-  "generated_at": "2026-09-03T14:19:09Z",
+  "prompt_version": "canonical-question-candidates-v33",
+  "prompt_sha256": "c8ed7b7aa9a73740cca57bb6298253f057c0769ac743dc323ea9e57acad47ffe",
+  "generated_at": "2026-09-04T00:03:13Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -27,7 +27,7 @@
     {
       "candidate_id": "CQ-016-002",
       "category": "lookup",
-      "question": "국내채권 KR101501DA16의 매수수익률과 해외 ETF VOO의 1일 수익률을 유형별로 조회해줘"
+      "question": "국내채권 KR350103G9B0의 매수수익률과 해외 ETF VOO의 1일 수익률을 유형별로 조회해줘"
     },
     {
       "candidate_id": "CQ-016-003",
@@ -82,7 +82,7 @@
     {
       "candidate_id": "CQ-016-013",
       "category": "rank",
-      "question": "채권코드 KR101501DAI6 후보를 매수수익률 높은 순으로 보여줘"
+      "question": "채권코드 KR350103G9BO 후보를 매수수익률 높은 순으로 보여줘"
     },
     {
       "candidate_id": "CQ-016-014",

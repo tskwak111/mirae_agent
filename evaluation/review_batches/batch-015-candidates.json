@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 185,
-  "prompt_version": "canonical-question-candidates-v24",
-  "prompt_sha256": "bdf514a8551b2bb6388fb6147d70031c82e1255b53e0bac497b9a85f09cb39a4",
-  "generated_at": "2026-09-03T12:45:59Z",
+  "prompt_version": "canonical-question-candidates-v32",
+  "prompt_sha256": "ef003a8d93508950f94836bd3fd5825bcef422ad9b97f8594bb89eb45370f37d",
+  "generated_at": "2026-09-03T16:59:23Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -27,7 +27,7 @@
     {
       "candidate_id": "CQ-015-002",
       "category": "lookup",
-      "question": "국내채권 KR101501DA16의 매수수익률과 공모펀드 KR5114420158의 1년 수익률을 유형별로 조회해줘"
+      "question": "국내채권 KR350103G9B0의 매수수익률과 공모펀드 KR5114420158의 1년 수익률을 유형별로 조회해줘"
     },
     {
       "candidate_id": "CQ-015-003",
@@ -37,7 +37,7 @@
     {
       "candidate_id": "CQ-015-004",
       "category": "lookup",
-      "question": "국내채권 KR101501DA16의 BUYABLE_QUANTITY와 매수 가능 여부를 조회해줘"
+      "question": "국내채권 KR350103G9B0의 BUYABLE_QUANTITY와 매수 가능 여부를 조회해줘"
     },
     {
       "candidate_id": "CQ-015-005",

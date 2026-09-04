@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 149,
-  "prompt_version": "canonical-question-candidates-v27",
-  "prompt_sha256": "6001f4fee1f8da794baebbcdfae7b6ceea37012ce9c3b92ba41809e04907b11e",
-  "generated_at": "2026-09-03T13:23:45Z",
+  "prompt_version": "canonical-question-candidates-v29",
+  "prompt_sha256": "00212b5cbc96d6a8fc670996fbef7ce1fcb19966e46fe8e9c6285f3d02dc6c5a",
+  "generated_at": "2026-09-03T16:58:40Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -22,7 +22,7 @@
     {
       "candidate_id": "CQ-012-001",
       "category": "lookup",
-      "question": "2026-08-24 기준 국내채권 KR101501DA16의 만기일·잔존일수·매수수익률을 조회해줘"
+      "question": "2026-08-24 기준 국내채권 KR350103G9B0의 만기일·잔존일수·매수수익률을 조회해줘"
     },
     {
       "candidate_id": "CQ-012-002",
@@ -87,7 +87,7 @@
     {
       "candidate_id": "CQ-012-014",
       "category": "compare",
-      "question": "국내채권 KR101501DA16과 KR350105G9C6의 만기일과 신용등급을 비교해줘"
+      "question": "국내채권 KR350103G9B0과 KR350105G9C6의 만기일과 신용등급을 비교해줘"
     },
     {
       "candidate_id": "CQ-012-015",

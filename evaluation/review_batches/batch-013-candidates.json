@@ -3,9 +3,9 @@
   "provider": "naver-hyperclova-x",
   "model": "HCX-007",
   "seed": 161,
-  "prompt_version": "canonical-question-candidates-v22",
-  "prompt_sha256": "73be620387450e070f50cdd28c64e42f181ae019002df0405713668183e96338",
-  "generated_at": "2026-09-03T12:44:47Z",
+  "prompt_version": "canonical-question-candidates-v30",
+  "prompt_sha256": "350281a724e3ce2508ecd374ef1a708888766fef046854e1b9495f41fd51bea2",
+  "generated_at": "2026-09-03T16:58:53Z",
   "review_status": "pending_human_review",
   "reviewer": "곽태성",
   "target_distribution": {
@@ -32,7 +32,7 @@
     {
       "candidate_id": "CQ-013-003",
       "category": "lookup",
-      "question": "국내채권 KR101501DA16의 매수수익률과 잔존일수를 조회해줘"
+      "question": "국내채권 KR350103G9B0의 매수수익률과 잔존일수를 조회해줘"
     },
     {
       "candidate_id": "CQ-013-004",
