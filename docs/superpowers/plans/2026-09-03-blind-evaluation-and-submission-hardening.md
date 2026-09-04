@@ -395,7 +395,7 @@ git commit -m "test: seal aggregate-only holdout evidence"
 - Produces: reviewed 144-case development suite and a checksum-only 48-case holdout manifest.
 - Depends on: Tasks 1-4 and the exact approved HCX external-transfer ceiling.
 
-- [ ] **Step 1: Calculate and approve external transfer bounds before calling HCX**
+- [x] **Step 1: Calculate and approve external transfer bounds before calling HCX**
 
 Record separately:
 
@@ -406,7 +406,7 @@ Record separately:
 
 Do not infer approval from earlier Task 10 or ablation authorizations. Stop until the user approves the stated combined ceiling.
 
-- [ ] **Step 2: Generate development question packets one 24-case batch at a time**
+- [x] **Step 2: Generate development question packets one 24-case batch at a time**
 
 Run for each ID `012` through `017`:
 
@@ -416,11 +416,11 @@ uv run python tools/generate_canonical_questions.py --batch-id 012 --output eval
 
 Use the matching ID in each subsequent command. Validate all six packet hashes and exact 24-case counts before review.
 
-- [ ] **Step 3: Build and independently review development plans**
+- [x] **Step 3: Build and independently review development plans**
 
 Construct each QueryPlan from the approved slot contract, not from expected result values. Run the existing local semantic validator. An independent reviewer checks question/plan fidelity, latest-data policy, registered fields, exact identifiers, top-k scope, and answerability. After 0 Critical / 0 Important, request one consolidated human approval over the six packet hashes rather than 144 individual confirmations.
 
-- [ ] **Step 4: Build deterministic references and review evidence**
+- [x] **Step 4: Build deterministic references and review evidence**
 
 For each approved batch:
 
@@ -430,7 +430,7 @@ uv run python tools/build_canonical_reference_packet.py --input evaluation/revie
 
 The independent reviewer verifies source locators, product identity/grain, rank/ties, numeric values, exclusions, evidence IDs, limitation language, and exact August artifact identity. Record one approval JSON per batch, then promote into `evaluation/blind_development` with the existing exact-checksum promotion command.
 
-- [ ] **Step 5: Have the separate curator create and seal holdout batches 018-019**
+- [x] **Step 5: Have the separate curator create and seal holdout batches 018-019**
 
 The curator uses a separate NCP worktree and a private prompt/slot patch that is never merged. Its exact family counts are:
 
@@ -441,7 +441,7 @@ batch 019: cross_metric 6, holding_sector 4, missing_zero 5, unsupported 5, enti
 
 The curator runs the same schema, semantic, deterministic-reference, source-evidence, and independent-review checks, then places plaintext under a mode-`0700` NCP directory and writes only `artifacts/evaluation/blind-holdout-manifest.json` to the root worktree. The manifest must contain the suite checksum and metadata but no case IDs or text.
 
-- [ ] **Step 6: Run corpus aggregate checks**
+- [x] **Step 6: Run corpus aggregate checks**
 
 ```bash
 uv run pytest tests/unit/evaluation/test_generate_canonical_questions.py tests/unit/evaluation/test_build_canonical_reference_packet.py tests/unit/evaluation/test_promote_canonical_reference_packet.py tests/unit/evaluation/test_blind_case_suite.py -q
@@ -451,7 +451,7 @@ uv run python tools/check_claim_evidence_report.py artifacts/evaluation/blind-de
 
 Expected: 144 cases load, no duplicate text/semantic identity, all deterministic supported claims and evidence satisfy the reviewed references. This is not a live-HCX score.
 
-- [ ] **Step 7: Commit only development references and the non-secret holdout manifest**
+- [x] **Step 7: Commit only development references and the non-secret holdout manifest**
 
 Stage only batches `012`-`017`, `evaluation/blind_development`, the deterministic report, and the manifest. Do not stage private holdout plaintext or unrelated older review drafts.
 

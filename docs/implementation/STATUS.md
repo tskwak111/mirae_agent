@@ -1,8 +1,9 @@
 # Implementation Status
 
-**Last updated:** 2026-09-03 — Official-data refresh Task 10 is closed. The 35-case
-organizer corpus, final HCX load/soak evidence, independent 0C/0I review, clean-room
-image, and covered release manifest are sealed against commit `b0cf204`.
+**Last updated:** 2026-09-04 — Blind-evaluation hardening Task 5 is closed. The
+144-case development corpus and aggregate-only 48-case holdout manifest are sealed;
+the next task is one pre-correction live development evaluation on an exact NCP
+candidate.
 
 ## Frozen baseline
 
@@ -62,9 +63,47 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Phase 4 Task 3: reconcile and close the existing ablation outputs and proposal
-measurements without changing the sealed runtime candidate.** If that work requires a
-behavior/data/prompt/policy/image change, create and verify a new covered candidate.
+**Blind-evaluation hardening Task 6: deploy or select the exact pre-correction NCP
+candidate, obtain its bounded live-HCX call approval, and run the 144-case development
+correctness and one-request-per-case latency measurements.**
+
+## Blind-evaluation hardening Task 5 closure
+
+- External question-authoring use closed at the approved hard ceiling of 29 HCX-007
+  calls: 25 development calls and 4 separately custodied holdout calls. No planner or
+  diagnostic HCX calls were added.
+- Development batches `012`-`017` contain 144 approved cases. Their deterministic
+  replay on artifact
+  `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`
+  completed 144/144 with zero failures and all 13 aggregate scoring axes at `1.0`.
+  The report is bound to code commit `72228c97ab112f3cd2ca136035f9ced5ef5dab6a`,
+  case checksum
+  `be0e6d6dd1a9b924a84b9a34e6b9990556b52c59a18b12dcb3df2f76aa8ee466`,
+  mean 179.382 ms, p95 625 ms, and report SHA-256
+  `5ca224da0bc44ac01e1ddb1255ee665f8002937fad10dc322639cd210c61647f`.
+- The separate NCP curator sealed 48 holdout cases under a mode-`0700` directory with
+  a mode-`0600` environment file. Only the aggregate manifest entered this worktree:
+  family counts `14/12/8/8/6`, suite checksum
+  `900571a8ffc6079a815f7625b3a39f4f6bb387ff116a43564c36a1c930d302ec`,
+  and manifest SHA-256
+  `df517ab3c97e86dab89727971041bda755a87b6b3d43d9d42488d827aa51061c`.
+  Local validation confirmed no holdout question, answer, plan, case ID, evidence, or
+  per-case failure material exists in the repository.
+- Focused/related development checks passed 163 tests. The final independent code and
+  corpus review reran 45 focused tests plus scoped Ruff, mypy, source/report checks,
+  and returned Critical 0 / Important 0. The curator's final schema, semantic,
+  deterministic-reference, Source Fidelity, exact-loader, cross-suite-dedup, and
+  non-leak checks passed; its focused holdout-summary suite passed 18 tests and its
+  independent verdict was also Critical 0 / Important 0.
+- Checkpoint commits: `72228c9` (`fix: replay reviewed blind plans deterministically`)
+  and `5547908` (`test: add latest-data blind development corpus`). The dirty
+  production worktree and running NCP endpoint container were not changed.
+
+Exact next development task:
+
+**Blind-evaluation hardening Task 6 Step 1: attest one exact pre-correction NCP
+candidate, then request the exact Task 6 live-evaluation HCX call ceiling before any
+question is transmitted.**
 
 ## Official-data refresh Task 10 closure
 
