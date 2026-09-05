@@ -32,6 +32,10 @@ _REQUIRED = {
     "uv.lock",
 }
 _REPORTS = (
+    "artifacts/evaluation/ablation-organizer-20260824.json",
+    "artifacts/evaluation/blind-development-live.json",
+    "artifacts/evaluation/blind-holdout-candidate.json",
+    "artifacts/evaluation/blind-holdout-summary.json",
     "artifacts/evaluation/final-load.json",
     "artifacts/evaluation/final-soak.json",
     "artifacts/evaluation/organizer-20260824.json",

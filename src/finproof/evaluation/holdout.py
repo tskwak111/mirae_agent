@@ -1,6 +1,7 @@
 """Aggregate-only contracts for the separately custodied blind holdout."""
 
 from datetime import datetime, timedelta
+from hashlib import sha256
 from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -41,6 +42,7 @@ _AGGREGATE_KEYS = frozenset(
     }
 )
 _LATENCY_STAGES = frozenset({"planner", "database", "evidence", "render", "wording"})
+_SAFE_FAILURE_VERSION_SHA256 = sha256(b"{}").hexdigest()
 
 
 def _is_utc(value: datetime) -> bool:
@@ -172,11 +174,16 @@ def summarize_holdout(
         or {sample.request_index for sample in load.samples} != set(range(manifest.case_count))
     ):
         raise ValueError("holdout identity differs")
-    response_versions = {sample.version_sha256 for sample in load.samples}
-    if None in response_versions or len(response_versions) != 1:
-        raise ValueError("holdout response version differs")
-    (response_version,) = response_versions
-    if response_version != candidate.response_version_sha256:
+    if any(
+        sample.version_sha256 != candidate.response_version_sha256
+        if sample.request_succeeded
+        else not (
+            sample.status_code == 200
+            and sample.error_category == "safe_failure"
+            and sample.version_sha256 == _SAFE_FAILURE_VERSION_SHA256
+        )
+        for sample in load.samples
+    ):
         raise ValueError("holdout response version differs")
     if any(not set(sample.stage_ms) <= _LATENCY_STAGES for sample in load.samples):
         raise ValueError("holdout latency differs")
@@ -205,7 +212,7 @@ def summarize_holdout(
         image_digest=candidate.image_digest,
         artifact_version=candidate.artifact_version,
         configuration_sha256=candidate.configuration_sha256,
-        response_version_sha256=response_version,
+        response_version_sha256=candidate.response_version_sha256,
         case_count=manifest.case_count,
         family_counts=dict(manifest.family_counts),
         aggregates=aggregates,

@@ -315,6 +315,41 @@ def test_holdout_summary_requires_one_non_null_candidate_response_version(
         _summarize(load=load.model_copy(update={"samples": tuple(samples)}))
 
 
+def test_holdout_summary_accepts_safe_failure_empty_version_surface() -> None:
+    load = _load()
+    samples = list(load.samples)
+    samples[0] = samples[0].model_copy(
+        update={
+            "request_succeeded": False,
+            "version_sha256": hashlib.sha256(b"{}").hexdigest(),
+            "error_category": "safe_failure",
+        }
+    )
+    latency = LatencySummary.from_samples(
+        tuple(
+            LatencySample(
+                total_ms=sample.total_ms,
+                stage_ms=sample.stage_ms,
+                succeeded=sample.request_succeeded,
+            )
+            for sample in samples
+        )
+    )
+    load = load.model_copy(
+        update={
+            "success_count": 47,
+            "failure_count": 1,
+            "latency": latency,
+            "samples": tuple(samples),
+        }
+    )
+
+    summary = _summarize(load=load)
+
+    assert summary.response_version_sha256 == RESPONSE_VERSION_SHA256
+    assert summary.request_failure_count == 1
+
+
 def test_holdout_contracts_reject_wrong_counts_unknown_fields_and_non_utc_times() -> None:
     with pytest.raises(ValidationError):
         HoldoutManifest.model_validate({**_manifest().model_dump(), "case_count": 47})

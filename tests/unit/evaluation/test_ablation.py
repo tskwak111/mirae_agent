@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -39,6 +40,7 @@ from finproof.planner.service import (
     HcxGenerator,
     LocalPlanValidator,
     PlannedQuery,
+    PlannerProtocol,
     PlanningRequest,
 )
 from finproof.planner.structured_planner import StructuredOutputPlanner
@@ -599,6 +601,90 @@ async def test_ablation_keeps_tokens_when_structured_plan_validation_fails(
 
     assert all(run.prompt_tokens == 13 for run in tuple(runs.values())[1:])
     assert all(run.completion_tokens == 8 for run in tuple(runs.values())[1:])
+
+
+@pytest.mark.asyncio
+async def test_ablation_verified_layer_prepares_without_evaluation_publication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = load_golden_cases((Path("evaluation/canonical/clarification.jsonl"),))[0]
+    plan = _approved_plans(Path.cwd(), (case,))[case.case_id]
+    planned = SimpleNamespace(
+        plan=plan,
+        validated_plan=object(),
+        attempts=SimpleNamespace(
+            fallback_used=False,
+            parse_failures=0,
+            semantic_failures=0,
+            transport_failures=0,
+        ),
+    )
+
+    async def run(operation: object) -> object:
+        return await cast(AsyncMock, operation)()
+
+    def observed(
+        _case: object, _plan: object, result: object, _planner_latency_ms: int
+    ) -> ObservedCase:
+        answer = cast(SimpleNamespace, result).answer
+        return ObservedCase(answer_text=answer.text)
+
+    monkeypatch.setattr(
+        _Experiment,
+        "_direct",
+        AsyncMock(
+            return_value=_CaseRun(
+                observation=ObservedCase(latency_ms=(1,)),
+                latency_ms=1,
+                prompt_tokens=0,
+                completion_tokens=0,
+            )
+        ),
+    )
+    monkeypatch.setattr("finproof.evaluation.ablation_experiment._observed", observed)
+    monkeypatch.setattr(
+        "finproof.evaluation.ablation_experiment.AnswerResult",
+        lambda **kwargs: SimpleNamespace(**kwargs),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "finproof.evaluation.ablation_experiment.VerifiedAnswer",
+        lambda **kwargs: SimpleNamespace(**kwargs),
+        raising=False,
+    )
+    answer = Mock()
+    answer.answer_plan.side_effect = AssertionError(
+        "evaluation publication boundary must not be used"
+    )
+    answer.prepare_plan.return_value = SimpleNamespace(
+        fact_pack=SimpleNamespace(surface_parts=(SimpleNamespace(text="검증된 답변"),)),
+        claims=(),
+        retrieved_context="{}",
+        trace=object(),
+    )
+    segmenter = Mock()
+    segmenter.build.side_effect = RuntimeError("skip earlier deterministic layers")
+    experiment = object.__new__(_Experiment)
+    experiment.session = cast(
+        RuntimeArtifactSession,
+        SimpleNamespace(versions=SimpleNamespace(execution_mode=ExecutionMode.EVALUATION)),
+    )
+    experiment.planner = cast(
+        PlannerProtocol, SimpleNamespace(plan=AsyncMock(return_value=planned))
+    )
+    experiment.generator = cast(
+        _RecordingGenerator,
+        SimpleNamespace(responses=[], run=run, usage_since=lambda _index: (0, 0)),
+    )
+    experiment.__dict__["_segmenter"] = segmenter
+    experiment.__dict__["_answer"] = answer
+
+    runs = await experiment.run_case(case, plan, 1)
+
+    verified = runs[AblationVariant.E_VERIFIED_ANSWER]
+    assert answer.prepare_plan.call_count == 1
+    assert not verified.error
+    assert verified.observation.answer_text == "검증된 답변"
 
 
 def test_domain_policy_observation_does_not_require_the_evidence_stage() -> None:

@@ -65,6 +65,10 @@ def _repository(tmp_path: Path) -> tuple[Path, Path, str]:
         "artifacts/evaluation/organizer-20260824.json": "{}\n",
         "artifacts/evaluation/final-load.json": "{}\n",
         "artifacts/evaluation/final-soak.json": "{}\n",
+        "artifacts/evaluation/blind-development-live.json": "{}\n",
+        "artifacts/evaluation/blind-holdout-candidate.json": "{}\n",
+        "artifacts/evaluation/blind-holdout-summary.json": "{}\n",
+        "artifacts/evaluation/ablation-organizer-20260824.json": "{}\n",
     }
     for relative, content in files.items():
         path = root / relative
@@ -113,6 +117,24 @@ def _write_manifest(root: Path, artifact: Path, covered: str) -> Path:
     output.parent.mkdir()
     output.write_text(json.dumps(manifest), encoding="utf-8")
     return output
+
+
+def test_release_manifest_binds_blind_and_ablation_reports(tmp_path: Path) -> None:
+    root, artifact, covered = _repository(tmp_path)
+
+    manifest = create_manifest(
+        root=root,
+        covered_commit=covered,
+        image_digest=_IMAGE,
+        artifact_manifest_path=artifact,
+    )
+
+    assert set(manifest["evaluation_reports"]) >= {
+        "artifacts/evaluation/blind-development-live.json",
+        "artifacts/evaluation/blind-holdout-candidate.json",
+        "artifacts/evaluation/blind-holdout-summary.json",
+        "artifacts/evaluation/ablation-organizer-20260824.json",
+    }
 
 
 def test_child_worktree_verifies_parent_object_and_ignores_worktree_substitution(

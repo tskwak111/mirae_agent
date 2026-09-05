@@ -22,7 +22,7 @@ from finproof.cli.evaluate import (
     _typed_value,
 )
 from finproof.core.settings import Settings
-from finproof.domain.answers import AnswerRequest
+from finproof.domain.answers import AnswerRequest, AnswerResult, VerifiedAnswer
 from finproof.domain.execution import ExecutionSegment
 from finproof.domain.query_plan import AggregationFunction, Intent, ProductType, QueryPlan
 from finproof.entity import EntityIndex, EntityResolver, HoldingResolver
@@ -275,9 +275,19 @@ class _Experiment:
 
         end_started = monotonic()
         try:
-            result = self._answer.answer_plan(
-                AnswerRequest(question_id=case.case_id, question=case.question),
+            request = AnswerRequest(question_id=case.case_id, question=case.question)
+            prepared = self._answer.prepare_plan(
+                request,
                 planned.plan,
+                RequestDeadline.start(),
+            )
+            result = AnswerResult(
+                answer=VerifiedAnswer(
+                    text=prepared.fact_pack.surface_parts[0].text,
+                    claims=prepared.claims,
+                ),
+                retrieved_context=prepared.retrieved_context,
+                trace=prepared.trace,
             )
             end_latency = planner_latency + _elapsed_ms(end_started)
             runs[AblationVariant.E_VERIFIED_ANSWER] = _CaseRun(
