@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 9 produced and verified
-the editable 15-slide technical proposal and its 15-page submission PDF. The next task
-is Task 10's final-candidate applicability decision and final release gate.
+**Last updated:** 2026-09-06 — Blind-evaluation hardening Task 10 final verification
+and release packaging are closed. Publish the metadata child and annotated tag as one
+submission transaction, then retain the exact HTTPS service through 2026-09-20.
 
 ## Frozen baseline
 
@@ -55,15 +55,67 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
   canonical cases committed (24 cases in each of batches 001–011 plus 1 official
   clarification case)
 - [x] Task 2: paraphrase, metamorphic, differential, quality, and adversarial suites
-- [ ] Task 3: ablation and latency/load/resilience/soak measurement
+- [x] Task 3: ablation and latency/load/resilience/soak measurement
 - [x] Task 4: competition compliance and independent review closure
 - [x] Task 5: clean-room reproduction, immutable release manifest, and submission freeze
-- [ ] Phase 4 gate passed
+- [x] Phase 4 gate passed
 
 ## Current next task
 
-**Blind-evaluation hardening Task 10 Step 1: decide whether the existing sealed runtime
-candidate and Task 10 performance evidence remain applicable.**
+**After publication, monitor the frozen NCP HTTPS endpoint through 2026-09-20 KST.
+No development checkpoint remains. No code, data, prompt, policy, image, or result
+change is permitted without organizer authorization.**
+
+## Blind-evaluation hardening Task 10 closure
+
+- Covered package: `5edea2d3fcf39f590013c32a7b0c611ffed177a8`; its direct metadata child
+  is tagged `finproof-submission`. Organizer repository is private with WRITE access:
+  `https://github.com/miraeasset-aifestival-2026-product/fin-211`. Its initial history
+  was preserved by tree-identical merge `258dcee`; personal `origin` remains separate.
+- Independent review found one unsupported ontology StateRule claim. The focused RED
+  failed before `ba530fc` removed those declarations; the ontology aggregate passed
+  10 tests. One bounded re-review closed at 0 Critical / 0 Important / READY.
+- Final gate on `ba530fc`: `uv run ruff format --check .` (340 files formatted),
+  `uv run ruff check .` (pass), `uv run mypy src tests tools` (340 files clean),
+  `uv run pytest -q` (3,068 passed, 9 opted-out skips, 5 warnings, 2,933.74 seconds),
+  source audit (53,375 rows, 2026-08-24), handoff (61 files, 9 inputs, 19,074,953 bytes),
+  competition compliance and diff check all passed. No runtime code changed afterward.
+- Final live load: 35/35, failure 0, mean 7,268.868 ms, p95 11,007.570 ms. This is the
+  reviewed four-case weighted mix. Final soak: 20 cycles / 80 observations, failure 0,
+  drift 0, 1,123.638 seconds. Both runners exited 0; endpoint had no OOM/restart or
+  request errors in the 115-request run, within the approved maximum 460 HCX calls.
+- Task 7 v5 ablation completed and was strictly validated. A/B/C/D/E error counts
+  25/11/15/17/16 remain a measured limitation. Prior v4 ablation, prior v22 acceptance,
+  and earlier OOM/network/drift diagnostics are preserved separately. Holdout questions
+  were not opened and its 25/48 successes / 23 safe failures were not tuned away.
+- Updated proposal metrics on slides 12, 13, 15; unchanged slides matched the originals
+  at equal scale. Fifteen-slide/three-chart package checks and fresh metric checks passed.
+  All 15 PDF pages rendered, and embedded images exactly matched verified slide renders.
+  PDF raster fallback remains disclosed. Hashes are in `docs/submission/RELEASE_RECORD.md`.
+- `DOCKER_DEFAULT_PLATFORM=linux/amd64 bash scripts/clean_room_reproduce.sh .
+  5edea2d3fcf39f590013c32a7b0c611ffed177a8` passed: frozen dependencies, source/handoff/
+  compliance, 14 release/compliance tests, Docker build. The rebuild's different digest
+  was traced to 61 generated cache files: all normalized compiled code, 167 other copied
+  files, and 42 package versions matched. Existing live-accepted image `sha256:cf7f56…a1252`
+  was retained. Recursive cache exclusion is a post-competition packaging backlog item.
+- `tools/create_release_manifest.py` and `tools/verify_release_manifest.py` passed using
+  the actual deployed image and mounted artifact manifest. Runtime inputs from `ba530fc`
+  through the covered package are byte-identical. The full suite was not repeated for
+  documentation, report or binary-asset changes.
+- HTTPS `https://101-79-30-91.sslip.io/answer` verified: valid TLS, missing-parameter 422,
+  disallowed-route/method 404, HTTP redirect 308. Artifact mount is read-only, secrets are
+  mode 600, endpoint/proxy restart policies are `unless-stopped`, Docker is boot-enabled.
+  Approved ACG/SSH transition moved key-only SSH to restricted 2222 and freed public 443.
+- Mechanical-only authoring corrections: supplied the bundled runtime module path,
+  matched the QA renderer scale, recognized the actual OOXML chart path, and marked
+  PDF/PPTX as binary Git assets. No production tests or validation contracts were weakened.
+- Remaining risks: nonzero live language errors, unavailable holdings, short soak,
+  provider/network/DNS/TLS availability, NCP credit, and hidden organizer scoring. No
+  target-level accuracy or competition placement is claimed.
+
+Exact next operating task: verify published remote refs, then monitor the frozen
+endpoint without extra HCX questions. Permit only identical-image restart unless the
+organizer explicitly approves a change. User-owned root-worktree edits remain untouched.
 
 ## Blind-evaluation hardening Task 9 closure
 

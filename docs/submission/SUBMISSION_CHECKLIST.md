@@ -1,63 +1,48 @@
 # Submission Checklist
 
-## Sealed candidate
+## Frozen package
 
-- [x] Covered commit is `b0cf204f27d41811df69c52d02c8791afb69cfa0`.
-- [x] Official distribution is 2026-08-24 with 53,375 audited source rows.
-- [x] Artifact logical hash is
-  `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`.
-- [x] Clean-room image digest is
-  `sha256:5ef62fa1e665ec2626b84d5878eb2c084b5ac74c100da162efa80797a7f8a7be`.
-- [x] `release/manifest.json` verifies against the covered Git object, image, artifact,
-  and evaluation reports.
-- [x] Independent review closed at Critical 0 / Important 0.
+- [x] Covered package: `5edea2d3fcf39f590013c32a7b0c611ffed177a8`.
+- [x] Runtime inputs identical to full-gate / live-image source `ba530fc`.
+- [x] Official 2026-08-24 data: 53,375 audited rows.
+- [x] Manifest verified against covered Git object, actual deployed image and artifact.
+- [x] Exact hashes are recorded in `RELEASE_RECORD.md`.
+- [x] Organizer repository is PRIVATE with WRITE permission; initial history preserved.
+- [x] Source, Dockerfile, pyproject/lock, README, five Turtle ontologies, PDF/PPTX, API specification, and release metadata included.
+- [x] Publication unit is the metadata child plus annotated `finproof-submission` tag. Push that exact child/tag to organizer main and personal origin/main, then verify remote refs before declaring submission complete.
 
-## Evaluation contract
+## Verification
 
-- [x] Sole public route is `GET /answer`.
-- [x] Success and safe publication use exactly five string fields.
-- [x] Evaluation mode requires NCP HyperCLOVA X `HCX-007` Structured Outputs for intent
-  planning and answer wording.
-- [x] Retrieval, filtering, ranking, aggregation, calculations, evidence, and claim
-  verification are deterministic.
-- [x] Secrets are environment-only and absent from the image and release manifest.
-- [x] No external data overwrites official values; unavailable holdings remain explicit.
+- [x] Independent review closed at 0 Critical / 0 Important after one correction.
+- [x] Focused ontology RED rejected unsupported StateRules; GREEN aggregate: 10 passed.
+- [x] Ruff format/check clean; mypy 340 files clean.
+- [x] Final pytest: 3,068 passed, 9 opted-out skips, 5 warnings.
+- [x] Source/handoff/compliance passed; exact covered clean-room contracts: 14 passed.
+- [x] Reproduction build passed; generated-cache digest difference documented and live-accepted image retained.
+- [x] Load: 35/35, failure 0, p95 11,007.570 ms.
+- [x] Soak: 20 cycles / 80 observations, failure 0, drift 0, 1,123.638 seconds.
+- [x] Historical reports retained separately; no 24-hour claim.
 
-## Verification evidence
+## API and operation
 
-- [x] Ruff format/check passed for all 335 files.
-- [x] mypy passed for all 335 source files.
-- [x] pytest passed: 2,963 passed, 9 explicitly opted-out skips, 5 warnings.
-- [x] Source audit passed: 53,375 rows, distribution 2026-08-24.
-- [x] Handoff passed: 61 required files, 9 official inputs, 19,074,953 bytes.
-- [x] Clean-room compliance and release-contract suite passed: 12 tests.
-- [x] Final live load passed: 35/35, failure 0, p95 11,351.361 ms.
-- [x] Final soak passed: 20 cycles, 80 observations, failure 0, drift 0.
+- [x] Endpoint: `https://101-79-30-91.sslip.io/answer`.
+- [x] Only GET /answer reaches the app; five-string response contract preserved.
+- [x] Valid TLS, missing-parameter 422, disallowed-route/method 404, HTTP redirect 308.
+- [x] HCX-007 performs intent planning and wording in evaluation mode.
+- [x] Retrieval, calculations, evidence and verification remain deterministic.
+- [x] Artifact mount read-only; secret file mode 600; no secret committed.
+- [x] Key-only SSH 2222 with approved-IP restriction; 80/443 explicitly approved public.
+- [x] Endpoint/proxy restart unless stopped; Docker boot-enabled.
 
-## Proposal deliverables
+## Proposal
 
-- [x] Editable 15-slide `FinProof_Technical_Proposal.pptx` created and structurally
-  validated: 15 slides, 3 native charts, 0 package findings.
-- [x] Submission `FinProof_Technical_Proposal.pdf` created with 15 pages.
-- [x] Every PPTX slide and every PDF page was rendered and visually checked for Korean
-  font rendering, clipping, overlap, diagrams, charts, page numbers, and critical values.
-- [x] All proposal claims are bounded by `PROPOSAL_EVIDENCE_INDEX.md`; the deck states
-  the 517.063-second soak, holdout safe failures, nonzero A–E errors, and unavailable
-  holdings coverage without inflating them.
-- [x] The PDF uses a rendered-slide fallback because LibreOffice's vector export dropped
-  Korean glyphs in this environment; the editable PPTX remains the searchable source.
-- [x] Read-only claim/design review returned READY. Its four metric observations are
-  already explicit limitations, and the slide-8 connector warning was disproved by
-  rendered PPTX/PDF inspection; root classification is 0 Critical / 0 Important blockers.
+- [x] Editable 15-slide PPTX and three native charts, no package/layout findings.
+- [x] Updated slides 12, 13, 15 only; other slides identical at matched render scale.
+- [x] All 15 PDF pages rendered; embedded images exactly match verified slides.
+- [x] Korean text, numbers, charts, diagrams and page layout checked.
+- [x] PDF raster fallback disclosed; editable PPTX retained.
+- [x] Holdout failures, nonzero A-E errors, unavailable holdings, distinct workloads and bounded soak duration remain explicit.
 
-## Operator actions before organizer submission
+## After publication
 
-- [ ] Push the metadata child commit and create the final release tag.
-- [ ] Deploy the exact image digest; do not rebuild from a moving branch.
-- [ ] Mount the verified artifact directory read-only at `/app/artifacts`.
-- [ ] Set `FINPROOF_HCX_ENABLED=true`, `FINPROOF_HCX_MODEL_NAME=HCX-007`, and inject
-  `FINPROOF_HCX_API_KEY` through the server secret environment.
-- [ ] Expose only the required HTTPS `/answer` endpoint and run one non-destructive
-  schema smoke request.
-- [ ] Submit the final endpoint and freeze code, data, prompts, policies, image, and
-  deployment configuration.
+Keep the exact service active 2026-09-07 through 2026-09-20 KST. Monitor without extra HCX questions. Do not rebuild or change code, data, prompts, policies, images or results without organizer authorization. Check provider/server availability and NCP credit; only identical-image restart is permitted under the frozen operations scope.

@@ -820,18 +820,18 @@ git commit -m "docs: add verified FinProof technical proposal"
 **Interfaces:**
 - Produces: one covered commit, metadata child, exact image digest, verified artifact/report hashes, NCP HTTPS endpoint, organizer-private-repository push, annotated tag, and freeze record.
 
-- [ ] **Step 1: Decide whether Task 10 v22 performance evidence remains applicable**
+- [x] **Step 1: Decide whether Task 10 v22 performance evidence remains applicable**
 
 If Tasks 1-9 changed only evaluation tools, tests, docs, ontology, or proposal assets, keep the sealed runtime candidate and its Task 10 reports. If any runtime/data/prompt/policy/image input changed, create a new covered candidate and obtain approval for one organizer-shaped 35-request load plus bounded 20-cycle soak; replace final reports only after zero failure/drift.
 
-- [ ] **Step 2: Conduct the final independent review before the final gate**
+- [x] **Step 2: Conduct the final independent review before the final gate**
 
 Review only the approved spec, Tasks 1-10 diffs, final reports, ontology/proposal
 deliverables, deployment plan, and submission checklist. Critical/Important findings
 alone block. Apply at most one bounded correction, run its focused RED/GREEN checks,
 and re-review once. Stop immediately at 0 Critical / 0 Important.
 
-- [ ] **Step 3: Run the single mandatory full gate on the final candidate**
+- [x] **Step 3: Run the single mandatory full gate on the final candidate**
 
 ```bash
 uv run ruff format --check .
@@ -846,7 +846,7 @@ git diff --check
 
 Record exact observed results. If code changes after this gate, run focused tests first and repeat this full gate exactly once on the new final candidate.
 
-- [ ] **Step 4: Reproduce and verify the exact package**
+- [x] **Step 4: Reproduce and verify the exact package**
 
 ```bash
 : "${FINPROOF_COVERED_COMMIT:?FINPROOF_COVERED_COMMIT is required}"
@@ -857,11 +857,11 @@ uv run python tools/verify_release_manifest.py release/manifest.json
 
 Verify the covered commit, image digest, artifact logical hash, blind/ablation report hashes, API schema hash, and clean-room result.
 
-- [ ] **Step 5: Deploy the exact image to NCP and smoke-test HTTPS**
+- [x] **Step 5: Deploy the exact image to NCP and smoke-test HTTPS**
 
 Use the existing encrypted SSH access and server secret file. Mount `/opt/finproof/artifacts` read-only, expose only HTTPS `GET /answer`, and verify health internally plus one non-destructive public schema request. Do not rebuild on the server or copy `.env.local` into the image.
 
-- [ ] **Step 6: Obtain and verify the organizer private repository**
+- [x] **Step 6: Obtain and verify the organizer private repository**
 
 The user supplies or grants access to the organizer-provided repository once. Add it as a separate `organizer` remote; do not replace the personal `origin` mirror.
 
@@ -877,7 +877,7 @@ until the metadata child and tag exist.
 
 Confirm the private repository contains source, `pyproject.toml`/`uv.lock`, README, five ontology files, proposal PDF, API specification, and release metadata.
 
-- [ ] **Step 7: Freeze, close documentation once, and record continuous operation**
+- [x] **Step 7: Freeze, close documentation once, and record continuous operation**
 
 Before `2026-09-06 23:59 KST`, record endpoint, tag, covered commit,
 image/artifact/manifest hashes, submission time, operator checks, full-gate results, and
