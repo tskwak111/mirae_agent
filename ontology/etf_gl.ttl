@@ -34,7 +34,3 @@ fp:overseas_etf_return_1d a fp:Metric ;
     fp:sourceColumn "du_er_1d" ;
     fp:unit "percent" ;
     fp:period "1d" .
-
-fp:overseas_listed_active_at_as_of a fp:StateRule ;
-    rdfs:label "기준일 상장 상태"@ko ;
-    fp:registryId "overseas_listed.active_at_as_of" .

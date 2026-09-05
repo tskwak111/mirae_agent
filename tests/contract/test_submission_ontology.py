@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import yaml
 from rdflib import Graph, Literal, Namespace
 from rdflib.namespace import OWL, RDF, RDFS
 
@@ -89,3 +90,15 @@ def test_ontologies_have_korean_labels_and_preserve_frozen_boundaries() -> None:
     text = "\n".join((ONTOLOGY / name).read_text(encoding="utf-8") for name in NAMES).lower()
     assert "api." not in text
     assert "실시간" not in text
+
+
+def test_state_rules_match_the_implemented_registry() -> None:
+    graph = _all_graphs()
+    registered = yaml.safe_load((ROOT / "config/state_rules.yaml").read_text(encoding="utf-8"))[
+        "rules"
+    ]
+    assert {
+        str(registry_id)
+        for state_rule in graph.subjects(RDF.type, FP.StateRule)
+        for registry_id in graph.objects(state_rule, FP.registryId)
+    } == set(registered)

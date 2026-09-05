@@ -57,7 +57,3 @@ fp:public_fund_return_3y a fp:Metric ; rdfs:label "3년 수익률"@ko ;
 fp:public_fund_return_5y a fp:Metric ; rdfs:label "5년 수익률"@ko ;
     fp:registryId "public_fund.return_5y" ; fp:sourceTable "PRFD01N001" ;
     fp:sourceColumn "fd_yr5_ern_r" ; fp:unit "percent" ; fp:period "5y" .
-
-fp:public_fund_saleable_at_as_of a fp:StateRule ;
-    rdfs:label "기준일 판매 가능"@ko ;
-    fp:registryId "public_fund.saleable_at_as_of" .
