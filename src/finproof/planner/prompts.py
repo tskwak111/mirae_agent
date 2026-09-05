@@ -10,7 +10,7 @@ from finproof.domain.query_plan import ProductType
 from finproof.planner.provider_schema import build_hcx_query_plan_schema
 from finproof.registry.loader import RegistryBundle
 
-PROMPT_VERSION = "phase4-planner-v19"
+PROMPT_VERSION = "phase4-planner-v20"
 
 _FINAL_CONSTRAINTS = (
     "final_constraints=If metric_targets is nonempty, intent must be screen_rank "
@@ -31,7 +31,9 @@ _FINAL_CONSTRAINTS = (
     "For intent=unsupported, emit product_types=[], "
     "entities=[], result_grain=product, filters=[], metrics=[], metric_targets=[], sort=[], "
     'aggregation={"function":"none","field":"","group_by":[]}, needs_clarification=false, '
-    "and a nonempty clarification_reason. For exactly one product_type, use its native "
+    "and a nonempty clarification_reason. If product_types=[], intent must be clarify or "
+    "unsupported; never pair an executable intent with product_types=[]. For exactly one "
+    "product_type, use its native "
     "result_grain: domestic_bond=instrument; "
     "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product; "
     "public_fund=fund_item. Use result_grain=product only for heterogeneous native grains."
@@ -57,6 +59,11 @@ Map 구성종목, 보유종목, 편입종목 at most once to one holding_constit
 Permit holding_constituent only for domestic_etf, domestic_etn, overseas_etf,
 overseas_etn, and public_fund; never emit it as an entity, tuple, fuzzy match, sort,
 or aggregation, and never combine it with domestic_bond.
+The current evaluation artifact has no admitted holdings or sector-composition relationship rows.
+Any request whose answer requires holdings, constituents, sector exposure, or composition
+relationships must use intent=unsupported and the complete terminal shape.
+If a product-name spelling or alias does not uniquely identify one registered candidate,
+it must use intent=clarify and the complete terminal shape; never aggregate unresolved text.
 All field-bearing plan members use IDs from the fields catalog;
 never emit namespaced metric registry IDs in filters, metrics, sort, or aggregation.
 BUYABLE_QUANTITY is invalid and raw-lineage-only; never emit buyable_quantity.

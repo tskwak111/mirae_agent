@@ -367,6 +367,121 @@ async def test_structured_terminal_discards_provider_execution_fields_before_val
     assert result.plan.sort == ()
 
 
+@pytest.mark.parametrize(
+    ("question", "expected_intent", "needs_clarification"),
+    [
+        ("반도체 섹터에 노출된 국내 ETF 수를 집계해줘", Intent.UNSUPPORTED, False),
+        ("KODEX200으로 검색되는 국내 ETF 수를 집계해줘", Intent.CLARIFY, True),
+    ],
+)
+@pytest.mark.asyncio
+async def test_empty_product_types_fail_closed_under_registered_policy(
+    question: str,
+    expected_intent: Intent,
+    needs_clarification: bool,
+) -> None:
+    payload = _provider_plan(
+        intent="aggregate",
+        product_types=[],
+        result_grain="product",
+        aggregation={"function": "none", "field": "", "group_by": []},
+    )
+    client = ScriptedHcx([json.dumps(payload)])
+    planner = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    result = await planner.plan(_request(question), deadline=_deadline())
+
+    assert result.plan.intent is expected_intent
+    assert result.plan.product_types == ()
+    assert result.plan.needs_clarification is needs_clarification
+    assert result.plan.clarification_reason
+    assert len(client.requests) == 1
+
+
+@pytest.mark.parametrize(
+    ("question", "filters", "result_grain"),
+    [
+        (
+            "삼성전자가 들어 있는 국내 ETF를 찾아줘",
+            [
+                {
+                    "field": "holding_constituent",
+                    "operator": "eq",
+                    "value": "삼성전자",
+                }
+            ],
+            "listed_product",
+        ),
+        ("삼성전자를 보유한 국내 ETF를 찾아줘", [], "listed_product"),
+        ("반도체 섹터에 노출된 국내 ETF를 찾아줘", [], "product"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_nonempty_relationship_plan_fails_closed_when_relation_is_unavailable(
+    question: str,
+    filters: list[dict[str, str]],
+    result_grain: str,
+) -> None:
+    payload = _provider_plan(
+        product_types=["domestic_etf"],
+        result_grain=result_grain,
+        filters=filters,
+        metrics=[],
+    )
+    client = ScriptedHcx([json.dumps(payload)])
+    planner = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    result = await planner.plan(_request(question), deadline=_deadline())
+
+    assert result.plan.intent is Intent.UNSUPPORTED
+    assert result.plan.product_types == ()
+    assert result.plan.filters == ()
+    assert result.plan.clarification_reason
+    assert len(client.requests) == 1
+
+
+@pytest.mark.asyncio
+async def test_unresolved_entity_becomes_clarification_without_provider_repair() -> None:
+    payload = _provider_plan(
+        intent="aggregate",
+        product_types=["domestic_etf"],
+        entities=[{"text": "KODEX200", "identifier_type": "name"}],
+        result_grain="listed_product",
+        filters=[],
+        metrics=[],
+        aggregation={"function": "count", "field": "", "group_by": []},
+    )
+    client = ScriptedHcx([json.dumps(payload)])
+    planner = StructuredOutputPlanner(
+        generator=client,
+        validator=_validator(),
+        registries=RegistryBundle.from_package(),
+        model_name="HCX-007",
+    )
+
+    result = await planner.plan(
+        _request("KODEX200으로 검색되는 국내 ETF 수를 집계해줘"), deadline=_deadline()
+    )
+
+    assert result.plan.intent is Intent.CLARIFY
+    assert result.plan.product_types == ()
+    assert result.plan.entities == ()
+    assert result.plan.aggregation is None
+    assert result.plan.needs_clarification is True
+    assert result.plan.clarification_reason
+    assert len(client.requests) == 1
+
+
 @pytest.mark.asyncio
 async def test_structured_terminal_accepts_the_prompted_empty_product_types() -> None:
     payload = _provider_plan(
@@ -510,7 +625,11 @@ def test_canonical_failure_exposes_only_substage_and_json_path(
 
 
 @pytest.mark.asyncio
-async def test_structured_planner_propagates_sanitized_validation_stage() -> None:
+async def test_structured_planner_propagates_sanitized_validation_stage(
+    caplog: object,
+) -> None:
+    capture = cast(Any, caplog)
+    capture.set_level(logging.INFO, logger="finproof")
     invalid_content = json.dumps(_provider_plan(result_grain="product"))
     client = ScriptedHcx([invalid_content])
     planner = StructuredOutputPlanner(
@@ -528,6 +647,15 @@ async def test_structured_planner_propagates_sanitized_validation_stage() -> Non
     assert caught.value.canonical_path == "/product_types"
     assert caught.value.canonical_keyword == "minItems"
     assert invalid_content not in str(caught.value)
+    event = next(
+        record.__dict__
+        for record in reversed(capture.records)
+        if getattr(record, "event", None) == "hcx_output_invalid"
+    )
+    assert event["canonical_substage"] == "schema"
+    assert event["canonical_path"] == "/product_types"
+    assert event["canonical_keyword"] == "minItems"
+    assert invalid_content not in json.dumps(event, default=str)
 
 
 @pytest.mark.parametrize(
@@ -760,6 +888,9 @@ async def test_native_grain_failure_repair_restates_the_exact_mapping() -> None:
     result = await service.plan(_request("미국 ETF 중 총보수 0.2% 이하 5개"), deadline=_deadline())
 
     repair_instruction = client.requests[1].messages[-1].content
+    assert "validation_stage=canonical_schema" in repair_instruction
+    assert "canonical_path=/product_types" in repair_instruction
+    assert "canonical_keyword=minItems" in repair_instruction
     assert "One product_type must use its native result_grain" in repair_instruction
     assert "result_grain=product only for heterogeneous native grains" in repair_instruction
     assert result.fallback_path == ("structured", "repair")

@@ -1,0 +1,72 @@
+{
+  "case_ids": [
+    "CQ-013-017",
+    "CQ-016-017"
+  ],
+  "results": [
+    {
+      "case_id": "CQ-013-017",
+      "status": "observed",
+      "intent": "unsupported",
+      "product_types": [],
+      "needs_clarification": false,
+      "clarification_reason": "요청한 내용은 제공 데이터로 검증할 수 없습니다.",
+      "plan_fields": {
+        "value": 0.8,
+        "numerator": 8,
+        "denominator": 10,
+        "failures": [
+          "top_k differs",
+          "clarification_reason differs"
+        ]
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "latency_ms": [
+        3475
+      ]
+    },
+    {
+      "case_id": "CQ-016-017",
+      "status": "observed",
+      "intent": "clarify",
+      "product_types": [],
+      "needs_clarification": true,
+      "clarification_reason": "요청 조건을 더 구체적으로 지정해 주세요.",
+      "plan_fields": {
+        "value": 0.8,
+        "numerator": 8,
+        "denominator": 10,
+        "failures": [
+          "top_k differs",
+          "clarification_reason differs"
+        ]
+      },
+      "filter_slots": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "top_k_scope": {
+        "value": 1.0,
+        "numerator": 1,
+        "denominator": 1,
+        "failures": []
+      },
+      "latency_ms": [
+        6519
+      ]
+    }
+  ]
+}

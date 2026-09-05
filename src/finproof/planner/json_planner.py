@@ -43,15 +43,24 @@ class StrictJsonPlanner:
         request: PlanningRequest,
         invalid_content: str,
         *,
+        validation_stage: str | None = None,
+        canonical_path: str | None = None,
+        canonical_keyword: str | None = None,
         deadline: RequestDeadline,
     ) -> PlannedQuery:
-        return await self._attempt(request, invalid_content=invalid_content, deadline=deadline)
+        return await self._attempt(
+            request,
+            invalid_content=invalid_content,
+            repair_metadata=(validation_stage, canonical_path, canonical_keyword),
+            deadline=deadline,
+        )
 
     async def _attempt(
         self,
         request: PlanningRequest,
         *,
         invalid_content: str | None,
+        repair_metadata: tuple[str | None, str | None, str | None] = (None, None, None),
         deadline: RequestDeadline,
     ) -> PlannedQuery:
         started = monotonic()
@@ -64,7 +73,13 @@ class StrictJsonPlanner:
                     HcxMessage(role="assistant", content=invalid_content),
                     HcxMessage(
                         role="user",
-                        content="Correct only the JSON/schema error. Return JSON only.",
+                        content=(
+                            "Correct only the JSON/schema error. Local validation metadata: "
+                            f"validation_stage={repair_metadata[0] or 'unknown'}; "
+                            f"canonical_path={repair_metadata[1] or 'unknown'}; "
+                            f"canonical_keyword={repair_metadata[2] or 'unknown'}. "
+                            "Return JSON only."
+                        ),
                     ),
                 )
             )

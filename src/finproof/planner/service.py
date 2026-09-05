@@ -152,6 +152,9 @@ class _RepairablePlanner(PlannerProtocol, Protocol):
         request: PlanningRequest,
         invalid_content: str,
         *,
+        validation_stage: str | None = None,
+        canonical_path: str | None = None,
+        canonical_keyword: str | None = None,
         deadline: RequestDeadline,
     ) -> PlannedQuery: ...
 
@@ -248,7 +251,15 @@ class PlannerService:
                 hcx_calls = 2
                 try:
                     result = await self._within_deadline(
-                        self._strict.repair(request, error.content, deadline=deadline), deadline
+                        self._strict.repair(
+                            request,
+                            error.content,
+                            validation_stage=error.validation_stage,
+                            canonical_path=error.canonical_path,
+                            canonical_keyword=error.canonical_keyword,
+                            deadline=deadline,
+                        ),
+                        deadline,
                     )
                     return self._finalize(
                         result,

@@ -11,7 +11,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError as JsonSchemaValidationError
 from pydantic import ValidationError as PydanticValidationError
 
-from finproof.domain.query_plan import QueryPlan
+from finproof.domain.query_plan import Intent, QueryPlan
 
 _SCHEMA_PATH = Path(__file__).parents[3] / "schemas/hcx_query_plan.schema.json"
 _CANONICAL_SCHEMA_PATH = Path(__file__).parents[3] / "schemas/query_plan.schema.json"
@@ -78,7 +78,11 @@ def unsupported_schema_keywords(schema: dict[str, Any], allowed: set[str]) -> se
     return unsupported
 
 
-def parse_provider_plan(content: str) -> QueryPlan:
+def parse_provider_plan(
+    content: str,
+    *,
+    local_terminal_intent: Intent | None = None,
+) -> QueryPlan:
     """Validate provider JSON and adapt its non-null aggregation sentinel."""
     try:
         payload = json.loads(content, parse_constant=_reject_json_constant)
@@ -103,7 +107,10 @@ def parse_provider_plan(content: str) -> QueryPlan:
             "provider plan schema validation failed",
         ) from None
 
-    canonical = canonicalize_provider_plan(cast(dict[str, Any], payload))
+    canonical = canonicalize_provider_plan(
+        cast(dict[str, Any], payload),
+        local_terminal_intent=local_terminal_intent,
+    )
     try:
         canonical_schema = json.loads(_CANONICAL_SCHEMA_PATH.read_text(encoding="utf-8"))
         Draft202012Validator(canonical_schema, format_checker=FormatChecker()).validate(canonical)
@@ -138,10 +145,25 @@ def parse_provider_plan(content: str) -> QueryPlan:
         ) from None
 
 
-def canonicalize_provider_plan(payload: dict[str, Any]) -> dict[str, Any]:
+def canonicalize_provider_plan(
+    payload: dict[str, Any],
+    *,
+    local_terminal_intent: Intent | None = None,
+) -> dict[str, Any]:
     """Convert the HCX-safe aggregation object into the canonical nullable shape."""
     canonical = deepcopy(payload)
     intent = canonical.get("intent")
+    if local_terminal_intent is not None:
+        intent = local_terminal_intent.value
+        canonical["intent"] = intent
+        canonical["clarification_reason"] = "pending local terminal reason"
+    elif (
+        intent not in {Intent.CLARIFY.value, Intent.UNSUPPORTED.value}
+        and canonical.get("product_types") == []
+    ):
+        intent = Intent.CLARIFY.value
+        canonical["intent"] = intent
+        canonical["clarification_reason"] = "pending local terminal reason"
     if intent in {"clarify", "unsupported"}:
         canonical.update(
             {

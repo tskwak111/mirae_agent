@@ -50,15 +50,28 @@ class StructuredOutputPlanner:
         request: PlanningRequest,
         invalid_content: str,
         *,
+        validation_stage: str | None = None,
+        canonical_path: str | None = None,
+        canonical_keyword: str | None = None,
         deadline: RequestDeadline,
     ) -> PlannedQuery:
-        return await self._attempt(request, invalid_content=invalid_content, deadline=deadline)
+        return await self._attempt(
+            request,
+            invalid_content=invalid_content,
+            validation_stage=validation_stage,
+            canonical_path=canonical_path,
+            canonical_keyword=canonical_keyword,
+            deadline=deadline,
+        )
 
     async def _attempt(
         self,
         request: PlanningRequest,
         *,
         invalid_content: str | None,
+        validation_stage: str | None = None,
+        canonical_path: str | None = None,
+        canonical_keyword: str | None = None,
         deadline: RequestDeadline,
     ) -> PlannedQuery:
         started = monotonic()
@@ -74,7 +87,11 @@ class StructuredOutputPlanner:
                     HcxMessage(
                         role="user",
                         content=(
-                            "Correct only the JSON/schema error. One product_type must use "
+                            "Correct only the JSON/schema error. Local validation metadata: "
+                            f"validation_stage={validation_stage or 'unknown'}; "
+                            f"canonical_path={canonical_path or 'unknown'}; "
+                            f"canonical_keyword={canonical_keyword or 'unknown'}. "
+                            "One product_type must use "
                             "its native result_grain: domestic_bond=instrument; "
                             "domestic_etf|domestic_etn|overseas_etf|overseas_etn="
                             "listed_product; public_fund=fund_item. Use result_grain=product "
@@ -111,11 +128,21 @@ class StructuredOutputPlanner:
             deadline=deadline,
         )
         try:
-            plan = parse_provider_plan(response.message_content)
+            plan = parse_provider_plan(
+                response.message_content,
+                local_terminal_intent=(
+                    Intent.UNSUPPORTED
+                    if _requires_unavailable_relationship(" ".join(request.question.split()))
+                    else None
+                ),
+            )
         except ProviderPlanError as error:
             log_hcx_output_invalid(
                 provider_request_id=provider_request_id,
                 validation_stage=error.stage.value,
+                canonical_substage=error.canonical_substage,
+                canonical_path=error.canonical_path,
+                canonical_keyword=error.canonical_keyword,
             )
             raise PlannerOutputError(
                 response.message_content,
@@ -160,11 +187,17 @@ class StructuredOutputPlanner:
                 semantic_detail=detail,
                 registry_field_id=registry_field_id,
             )
-            raise PlannerSemanticError(
-                reason_code,
-                detail=detail,
-                registry_field_id=registry_field_id,
-            ) from None
+            if reason_code == "entity_resolution_not_unique":
+                plan = _canonical_terminal_plan(
+                    plan.model_copy(update={"intent": Intent.CLARIFY}), request
+                )
+                validated = self._validator.validate(plan, request)
+            else:
+                raise PlannerSemanticError(
+                    reason_code,
+                    detail=detail,
+                    registry_field_id=registry_field_id,
+                ) from None
         return PlannedQuery(
             plan=plan,
             validated_plan=validated,
@@ -184,9 +217,14 @@ class StructuredOutputPlanner:
 
 
 def _canonical_terminal_plan(plan: QueryPlan, request: PlanningRequest) -> QueryPlan:
+    question = " ".join(request.question.split())
+    if plan.intent not in {Intent.CLARIFY, Intent.UNSUPPORTED} and (
+        _requires_unavailable_relationship(question)
+        or any(clause.field == "holding_constituent" for clause in plan.filters)
+    ):
+        plan = plan.model_copy(update={"intent": Intent.UNSUPPORTED})
     if plan.intent not in {Intent.CLARIFY, Intent.UNSUPPORTED}:
         return plan
-    question = " ".join(request.question.split())
     if plan.intent is Intent.CLARIFY:
         reason = (
             "상품 유형과 수익률 기간을 지정해 주세요."
@@ -226,6 +264,13 @@ def _canonical_terminal_plan(plan: QueryPlan, request: PlanningRequest) -> Query
         top_k_scope=TopKScope.PER_PRODUCT_TYPE,
         needs_clarification=plan.intent is Intent.CLARIFY,
         clarification_reason=reason,
+    )
+
+
+def _requires_unavailable_relationship(question: str) -> bool:
+    return any(
+        term in question
+        for term in ("구성종목", "보유종목", "보유한", "편입종목", "섹터", "산업군", "노출")
     )
 
 

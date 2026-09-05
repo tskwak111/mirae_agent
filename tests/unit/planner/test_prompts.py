@@ -11,7 +11,7 @@ from finproof.registry.loader import RegistryBundle
 def test_system_prompt_is_versioned_and_self_checksummed() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == PROMPT_VERSION == "phase4-planner-v19"
+    assert prompt.version == PROMPT_VERSION == "phase4-planner-v20"
     assert prompt.checksum == sha256(prompt.text.encode("utf-8")).hexdigest()
     assert len(prompt.checksum) == 64
 
@@ -57,7 +57,7 @@ def test_system_prompt_contains_the_closed_planning_contract_and_compact_catalog
 def test_system_prompt_maps_native_grains_and_quality_screens() -> None:
     prompt = build_system_prompt(RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11))
 
-    assert prompt.version == "phase4-planner-v19"
+    assert prompt.version == "phase4-planner-v20"
     assert "domestic_bond=instrument" in prompt.text
     assert "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product" in prompt.text
     assert "public_fund=fund_item" in prompt.text
@@ -91,6 +91,19 @@ def test_system_prompt_separates_qualitative_rank_from_explicit_filters() -> Non
     assert "emit filters=[]; never invent a threshold" in prompt
 
 
+def test_system_prompt_fails_closed_for_unavailable_relationships_and_empty_types() -> None:
+    prompt = build_system_prompt(
+        RegistryBundle.from_package(), snapshot_date=date(2026, 8, 24)
+    ).text
+
+    assert "no admitted holdings or sector-composition relationship rows" in prompt
+    assert "must use intent=unsupported" in prompt
+    assert "does not uniquely identify one registered candidate" in prompt
+    assert "must use intent=clarify" in prompt
+    assert "If product_types=[], intent must be clarify or unsupported" in prompt
+    assert "never pair an executable intent with product_types=[]" in prompt
+
+
 def test_system_prompt_ends_with_the_metric_target_intent_invariant() -> None:
     prompt = build_system_prompt(
         RegistryBundle.from_package(), snapshot_date=date(2026, 7, 11)
@@ -115,7 +128,9 @@ def test_system_prompt_ends_with_the_metric_target_intent_invariant() -> None:
         "For intent=unsupported, emit product_types=[], "
         "entities=[], result_grain=product, filters=[], metrics=[], metric_targets=[], sort=[], "
         'aggregation={"function":"none","field":"","group_by":[]}, needs_clarification=false, '
-        "and a nonempty clarification_reason. For exactly one product_type, use its native "
+        "and a nonempty clarification_reason. If product_types=[], intent must be clarify or "
+        "unsupported; never pair an executable intent with product_types=[]. For exactly one "
+        "product_type, use its native "
         "result_grain: domestic_bond=instrument; "
         "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product; "
         "public_fund=fund_item. Use result_grain=product only for heterogeneous native grains."
@@ -148,7 +163,9 @@ def test_planning_user_prompt_preserves_question_then_repeats_final_constraints(
         "For intent=unsupported, emit product_types=[], "
         "entities=[], result_grain=product, filters=[], metrics=[], metric_targets=[], sort=[], "
         'aggregation={"function":"none","field":"","group_by":[]}, needs_clarification=false, '
-        "and a nonempty clarification_reason. For exactly one product_type, use its native "
+        "and a nonempty clarification_reason. If product_types=[], intent must be clarify or "
+        "unsupported; never pair an executable intent with product_types=[]. For exactly one "
+        "product_type, use its native "
         "result_grain: domestic_bond=instrument; "
         "domestic_etf|domestic_etn|overseas_etf|overseas_etn=listed_product; "
         "public_fund=fund_item. Use result_grain=product only for heterogeneous native grains."
