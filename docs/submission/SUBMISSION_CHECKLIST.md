@@ -34,6 +34,22 @@
 - [x] Final live load passed: 35/35, failure 0, p95 11,351.361 ms.
 - [x] Final soak passed: 20 cycles, 80 observations, failure 0, drift 0.
 
+## Proposal deliverables
+
+- [x] Editable 15-slide `FinProof_Technical_Proposal.pptx` created and structurally
+  validated: 15 slides, 3 native charts, 0 package findings.
+- [x] Submission `FinProof_Technical_Proposal.pdf` created with 15 pages.
+- [x] Every PPTX slide and every PDF page was rendered and visually checked for Korean
+  font rendering, clipping, overlap, diagrams, charts, page numbers, and critical values.
+- [x] All proposal claims are bounded by `PROPOSAL_EVIDENCE_INDEX.md`; the deck states
+  the 517.063-second soak, holdout safe failures, nonzero A–E errors, and unavailable
+  holdings coverage without inflating them.
+- [x] The PDF uses a rendered-slide fallback because LibreOffice's vector export dropped
+  Korean glyphs in this environment; the editable PPTX remains the searchable source.
+- [x] Read-only claim/design review returned READY. Its four metric observations are
+  already explicit limitations, and the slide-8 connector warning was disproved by
+  rendered PPTX/PDF inspection; root classification is 0 Critical / 0 Important blockers.
+
 ## Operator actions before organizer submission
 
 - [ ] Push the metadata child commit and create the final release tag.

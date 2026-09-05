@@ -5,6 +5,9 @@ Only the claims below are release-supported. Hashes are bound in
 
 | Claim | Evidence | Observed result |
 |---|---|---|
+| Official evaluation weights | `source_material/competition_task_financial_product_agent.pdf` | source code 20, technical proposal 40, evaluation API 40; total 100 |
+| Official submission and operation dates | same official task PDF | submit by 2026-09-06 23:59 KST; keep the evaluation service available 2026-09-07 through 2026-09-20 |
+| Official API latency guidance | official task PDF; `source_material/official_notices/2026-08-24-data-refresh-and-runtime-rules.md` | response within 60 seconds recommended; 300 seconds is the physical no-response cutoff stated in the later official notice |
 | Official data identity | official artifact manifest | 2026-08-24; 53,375 source rows; 13 tables; logical hash `977b3409…a9a8` |
 | Exact cross-source identity | artifact tables | 217 exact links and 434 link-evidence rows |
 | Holding coverage honesty | artifact tables | 0 fabricated holdings; 31,492 explicit `unavailable` coverage rows |
