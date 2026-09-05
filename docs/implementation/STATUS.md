@@ -1,9 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-09-04 — Blind-evaluation hardening Task 5 is closed. The
-144-case development corpus and aggregate-only 48-case holdout manifest are sealed;
-the next task is one pre-correction live development evaluation on an exact NCP
-candidate.
+**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 6's single correction
+gate is closed at commit `b10d2e6`. The next task is to freeze and attest that exact
+candidate before the private 48-case holdout is revealed or transmitted.
 
 ## Frozen baseline
 
@@ -63,9 +62,46 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Blind-evaluation hardening Task 6: deploy or select the exact pre-correction NCP
-candidate, obtain its bounded live-HCX call approval, and run the 144-case development
-correctness and one-request-per-case latency measurements.**
+**Blind-evaluation hardening Task 7 Step 1: freeze and attest commit `b10d2e6`, its
+image, artifact, configuration, prompt, HCX model, smoke response, and sealed holdout
+suite checksum before any private holdout execution.**
+
+## Blind-evaluation hardening Task 6 closure
+
+- The exact pre-correction candidate was commit
+  `1970402734654380fc1fa2dcb47d13eebbb606ad`, artifact logical hash
+  `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`,
+  and HCX-007 planner `phase4-planner-v19`. Its one 144-case correctness run produced
+  111 terminal planner failures and 33 executable observations; report SHA-256 is
+  `1ce83f3e1a18044ae3b659dccbdedc7997051ebe26e6751418b9e8e15a8b3c1b`.
+  The HTTP load was stopped before transmission instead of spending calls against that
+  failed candidate.
+- The bounded correction advanced the planner to `phase4-planner-v20`, added only
+  allowlisted repair metadata, and fail-closed unavailable holdings/sector relationships,
+  executable empty-product plans, and non-unique entity resolution at their shared
+  planner boundary. It does not widen the schema, weaken evidence, or add a generative
+  fallback.
+- Corrected affected-case live acceptance consumed 3 of 4 approved HCX calls.
+  `CQ-013-017` returned terminal `unsupported` in 3,475 ms and `CQ-016-017` returned
+  terminal `clarify` in 6,519 ms. Local and remote report SHA-256 matched at
+  `c2608c83025d7b619b797e9240d272c5201869f4230618c3f962ebd54ba97335`;
+  the candidate exited `0` without OOM and the existing production container remained
+  running and unchanged.
+- The first independent review and permitted re-review each returned Critical 0 /
+  Important 1. Focused corrections closed both direct contract violations; bounded root
+  adjudication closed the two subsequently observed direct paths without opening a third
+  review loop. Zero unresolved Critical/Important findings remain. Exact terminal
+  `top_k` defaults and reference prose remain documented as Minor/non-blocking.
+- Fresh post-format verification: 70 focused/related planner tests passed in 2.72 s;
+  scoped Ruff format/check passed; scoped mypy found no issues in 8 changed source/test
+  files; and the implementation/evidence commit is `b10d2e6` (`fix: correct observed
+  blind evaluation failures`). The failed 144-case report is retained as a baseline,
+  not presented as broad correctness acceptance.
+
+Exact next development task:
+
+**Blind-evaluation hardening Task 7 Step 1: generate the exact candidate attestation for
+`b10d2e6` before requesting or spending any private holdout HCX calls.**
 
 ## Blind-evaluation hardening Task 5 closure
 

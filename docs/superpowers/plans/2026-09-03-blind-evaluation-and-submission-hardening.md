@@ -504,7 +504,7 @@ single owner file and focused test file before either is edited.
 - Produces: exact-candidate live correctness and HTTP latency reports for 144 cases.
 - Decision: zero Critical/Important failures means no behavior change; accepted failures permit one bounded correction checkpoint.
 
-- [ ] **Step 1: Deploy or select one exact pre-correction candidate on NCP**
+- [x] **Step 1: Deploy or select one exact pre-correction candidate on NCP**
 
 Require the existing task-specific local variable without committing host information:
 
@@ -514,11 +514,11 @@ Require the existing task-specific local variable without committing host inform
 
 Verify the remote commit, image digest, artifact hash, HCX-007 configuration, container health, and read-only artifact mount before sending cases. The variable is supplied by the existing approved local operator configuration and is never written to the repository.
 
-- [ ] **Step 2: Obtain the exact live-evaluation HCX call-cap approval**
+- [x] **Step 2: Obtain the exact live-evaluation HCX call-cap approval**
 
 The ceiling accounts for 144 requests and the already frozen maximum of two planner plus two wording calls per request. State normal expected calls separately from the hard ceiling. Do not start on a broader or inherited approval.
 
-- [ ] **Step 3: Run live correctness once on NCP**
+- [x] **Step 3: Run live correctness once on NCP**
 
 ```bash
 uv run finproof evaluate --suite blind_development --mode end-to-end --output artifacts/evaluation/blind-development-live.json
@@ -526,7 +526,7 @@ uv run finproof evaluate --suite blind_development --mode end-to-end --output ar
 
 Copy the immutable report back by encrypted SSH and verify its SHA-256 before inspection.
 
-- [ ] **Step 4: Run every development question once through HTTP for latency**
+- [x] **Step 4: Run every development question once through HTTP for latency — stopped before transmission after Step 3 found 111 terminal planner failures**
 
 Require the configured endpoint without writing it to the repository:
 
@@ -540,11 +540,11 @@ bash scripts/run_load.sh --base-url "$FINPROOF_EVALUATION_BASE_URL" --suite blin
 
 Expected: 144 schema-valid HTTP 200 responses, failure count `0`, and each selected case sent once. Record mean, p95, maximum, and stage latency.
 
-- [ ] **Step 5: Classify observed failures without speculative fixes**
+- [x] **Step 5: Classify observed failures without speculative fixes**
 
 Write `BLIND_DEVELOPMENT_FAILURES.md` with the exact report hashes, metric failures, public error categories, owner module, severity, and disposition. Ignore Minor findings for the correction. If there are zero Critical/Important findings, record that fact and skip Steps 6-8.
 
-- [ ] **Step 6: For each accepted failure, write one focused RED in the owning existing suite**
+- [x] **Step 6: For each accepted failure, write one focused RED in the owning existing suite**
 
 Use the recorded provider output or smallest synthetic equivalent and assert the reviewed contract. Select the exact test file by owner:
 
@@ -565,15 +565,15 @@ API/publication           -> tests/integration/api/test_answer_endpoint.py
 
 Run the single node ID and observe the expected contract failure before editing production code.
 
-- [ ] **Step 7: Implement the smallest owner-level correction and run focused GREEN**
+- [x] **Step 7: Implement the smallest owner-level correction and run focused GREEN**
 
 Patch the shared owner reached by every affected caller. Do not add a new fallback, widen an allowlist, alter official data, weaken evidence, or change a frozen contract. Run the exact RED node IDs, then the nearest aggregate suite once.
 
-- [ ] **Step 8: Re-run only affected live cases and conduct one independent review**
+- [x] **Step 8: Re-run only affected live cases and conduct one independent review**
 
 Use an explicit case subset; never repeat all 144 solely after correction. The independent reviewer examines the approved failure contract and correction diff. Fix only actual Critical/Important direct violations inside the same bounded correction checkpoint, then re-review once. A frozen-contract change stops for a plan amendment.
 
-- [ ] **Step 9: Commit the live reports, failure ledger, tests, and correction together**
+- [x] **Step 9: Commit the live reports, failure ledger, tests, and correction together**
 
 Use exact `git add` paths after inspecting the diff. Commit message:
 
