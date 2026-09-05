@@ -1,0 +1,15 @@
+{
+  "protocol_version": "blind-holdout-candidate.v1",
+  "suite_checksum": "900571a8ffc6079a815f7625b3a39f4f6bb387ff116a43564c36a1c930d302ec",
+  "code_commit": "b10d2e60884e31bfc8a419ac541585f3ef6efcdf",
+  "image_digest": "sha256:c37aa7027201e135a0035795f37d4c2ba4175b831426b9e05e56c829b51ba768",
+  "artifact_version": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+  "configuration_sha256": "63c9f59036f3713a2829bd792df4f79dc66c7540b093d61cbe9847ebaa92150c",
+  "prompt_version": "phase4-planner-v20",
+  "answer_prompt_version": "phase4-answer-v5",
+  "answer_schema_sha256": "d5a78c77b132dcf9dde50874c114bdcbffc31debf916bb5c2476d7564c8d40bf",
+  "planner_version": "1.2.0",
+  "planner_model": "HCX-007",
+  "response_version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
+  "frozen_at": "2026-09-05T03:15:30.637444Z"
+}

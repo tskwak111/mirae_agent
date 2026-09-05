@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 6's single correction
-gate is closed at commit `b10d2e6`. The next task is to freeze and attest that exact
-candidate before the private 48-case holdout is revealed or transmitted.
+**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 7 captured the frozen
+48-case holdout and the current 35-case A–E ablation without changing the candidate
+after reveal. The next task is Task 8's five mandatory submission ontologies.
 
 ## Frozen baseline
 
@@ -62,9 +62,38 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Blind-evaluation hardening Task 7 Step 1: freeze and attest commit `b10d2e6`, its
-image, artifact, configuration, prompt, HCX model, smoke response, and sealed holdout
-suite checksum before any private holdout execution.**
+**Blind-evaluation hardening Task 8 Step 1: add and validate the five mandatory
+submission ontologies without changing frozen runtime behavior.**
+
+## Blind-evaluation hardening Task 7 closure
+
+- The sealed candidate was frozen before reveal at commit
+  `b10d2e60884e31bfc8a419ac541585f3ef6efcdf`, image
+  `sha256:c37aa7027201e135a0035795f37d4c2ba4175b831426b9e05e56c829b51ba768`,
+  artifact `977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8`,
+  planner `phase4-planner-v20`, answer prompt `phase4-answer-v5`, and sealed-suite
+  checksum `900571a8ffc6079a815f7625b3a39f4f6bb387ff116a43564c36a1c930d302ec`.
+- The one permitted private holdout run returned only its aggregate summary: 48 cases,
+  25 successful requests, 23 safe failures, plan-fields 0.4896, filter-slots 0.8704,
+  product-set 0.5904, numeric-values 0.5217, evidence 0.4298, answer-semantics 0.5878,
+  and p95 31,610.704 ms. No holdout question, answer, plan, row, or case-level failure
+  entered the repository, and runtime behavior was not changed after reveal.
+- The current organizer A–E run completed all 35 cases twice on evaluation commit
+  `3427c6b8c970b5d65a9121b3e1df384b5eae5de8` with shared artifact/configuration/case
+  identity. Its A/B/C/D/E error counts were 25/10/14/16/15 and p95 values were
+  75,371/55,660/55,810/55,849/56,048 ms. The non-monotonic result is retained as a
+  measured limitation, not presented as a zero-error acceptance.
+- The earlier E-mode harness failure is preserved separately as diagnostic evidence.
+  Focused RED→GREEN corrected only the evaluation harness to use deterministic
+  `prepare_plan`; the frozen runtime candidate remained unchanged. Report schemas and
+  candidate identity validated, 47 focused report/release-contract tests passed, and
+  the supported 144-case deterministic claim report passed its checker. The live
+  development baseline correctly remains unsupported by that all-axes-1.0 checker.
+
+Exact next development task:
+
+**Blind-evaluation hardening Task 8 Step 1: create and validate the five mandatory
+submission ontology files.**
 
 ## Blind-evaluation hardening Task 6 closure
 

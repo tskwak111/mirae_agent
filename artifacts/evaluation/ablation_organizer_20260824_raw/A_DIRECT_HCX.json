@@ -1,0 +1,34 @@
+{
+  "variant": "A_direct_hcx_over_retrieved_rows",
+  "case_checksum": "f9930a35534ae650081d1bc97a7665d1178e6e2866a9aa29f1d75ef71f598223",
+  "code_commit": "3427c6b8c970b5d65a9121b3e1df384b5eae5de8",
+  "artifact_version": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+  "configuration_sha256": "effb35cd45a6b8c03e96338aa6743daeec8779a04345ebbac7b9843bf264e91e",
+  "prompt_version": "phase4-planner-v20+ablation-direct-answer.v1",
+  "planner_model": "HCX-007",
+  "environment": {
+    "python": "3.12.13",
+    "implementation": "cpython",
+    "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.36"
+  },
+  "case_count": 35,
+  "product_set_f1": 0.07246376811594203,
+  "order_accuracy": 0.0,
+  "numeric_exact_match": 0.0,
+  "evidence_coverage": 0.0,
+  "limitation_accuracy": 0.08571428571428572,
+  "repeat_stability": 1.0,
+  "latency": {
+    "count": 70,
+    "success_count": 20,
+    "failure_count": 50,
+    "total_ms": 1732805.0,
+    "mean_ms": 24754.35714285714,
+    "p95_ms": 75371.0,
+    "stage_mean_ms": {},
+    "stage_p95_ms": {}
+  },
+  "prompt_tokens": 971244,
+  "completion_tokens": 16890,
+  "error_count": 25
+}

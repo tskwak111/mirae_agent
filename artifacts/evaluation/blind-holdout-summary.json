@@ -1,0 +1,122 @@
+{
+  "protocol_version": "blind-holdout-summary.v1",
+  "suite_checksum": "900571a8ffc6079a815f7625b3a39f4f6bb387ff116a43564c36a1c930d302ec",
+  "evaluation_report_sha256": "6f121b1e1bc3f6b75d7a598f0f9cf781d93d1b6af8e5cd5e7f85082b244aa11e",
+  "load_report_sha256": "ecacb6f86e9edcb20215b64073fb4f09bc30aae4a8b8e6b61d5c74ca8babd8ac",
+  "code_commit": "b10d2e60884e31bfc8a419ac541585f3ef6efcdf",
+  "image_digest": "sha256:c37aa7027201e135a0035795f37d4c2ba4175b831426b9e05e56c829b51ba768",
+  "artifact_version": "977b34099c246ca0156824a661718d027fba2eb5adee3f1cbbb8945fbd90a9a8",
+  "configuration_sha256": "63c9f59036f3713a2829bd792df4f79dc66c7540b093d61cbe9847ebaa92150c",
+  "response_version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
+  "case_count": 48,
+  "family_counts": {
+    "entity_variant": 6,
+    "holding_sector": 12,
+    "missing_zero": 8,
+    "cross_metric": 14,
+    "unsupported": 8
+  },
+  "aggregates": {
+    "plan_fields": {
+      "value": 0.4896265560165975,
+      "numerator": 236,
+      "denominator": 482,
+      "failures": []
+    },
+    "filter_slots": {
+      "value": 0.8703703703703703,
+      "numerator": 47,
+      "denominator": 54,
+      "failures": []
+    },
+    "top_k_scope": {
+      "value": 0.5416666666666666,
+      "numerator": 26,
+      "denominator": 48,
+      "failures": []
+    },
+    "segment_assignment": {
+      "value": 0.6428571428571429,
+      "numerator": 9,
+      "denominator": 14,
+      "failures": []
+    },
+    "compatibility_partitions": {
+      "value": 0.4642857142857143,
+      "numerator": 13,
+      "denominator": 28,
+      "failures": []
+    },
+    "assembled_envelope": {
+      "value": 0.8928571428571429,
+      "numerator": 25,
+      "denominator": 28,
+      "failures": []
+    },
+    "product_set": {
+      "value": 0.5904255319148937,
+      "numerator": 111,
+      "denominator": 188,
+      "failures": []
+    },
+    "product_order": {
+      "value": 0.6949152542372882,
+      "numerator": 41,
+      "denominator": 59,
+      "failures": []
+    },
+    "numeric_values": {
+      "value": 0.5217391304347826,
+      "numerator": 60,
+      "denominator": 115,
+      "failures": []
+    },
+    "aggregate_values": {
+      "value": 0.3333333333333333,
+      "numerator": 1,
+      "denominator": 3,
+      "failures": []
+    },
+    "evidence_coverage": {
+      "value": 0.4298245614035088,
+      "numerator": 98,
+      "denominator": 228,
+      "failures": []
+    },
+    "answer_semantics": {
+      "value": 0.5877862595419847,
+      "numerator": 154,
+      "denominator": 262,
+      "failures": []
+    },
+    "repeat_stability": {
+      "value": 1.0,
+      "numerator": 0,
+      "denominator": 0,
+      "failures": []
+    }
+  },
+  "request_failure_count": 23,
+  "latency": {
+    "count": 48,
+    "success_count": 25,
+    "failure_count": 23,
+    "total_ms": 425796.88833409455,
+    "mean_ms": 8870.768506960303,
+    "p95_ms": 31610.70414003916,
+    "stage_mean_ms": {
+      "database": 799.04,
+      "evidence": 0.0,
+      "planner": 5004.68,
+      "render": 0.0,
+      "wording": 719.88
+    },
+    "stage_p95_ms": {
+      "database": 2384.0,
+      "evidence": 0.0,
+      "planner": 8201.0,
+      "render": 0.0,
+      "wording": 1046.0
+    }
+  }
+}

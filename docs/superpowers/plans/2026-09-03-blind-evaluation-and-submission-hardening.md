@@ -605,18 +605,18 @@ git commit -m "test: record blind development acceptance"
 - Produces: one no-peek 48-case holdout score and one current 35-case A-E ablation.
 - Preserves: old interrupted `artifacts/evaluation/ablation*.json` files as diagnostics/user-owned changes.
 
-- [ ] **Step 1: Freeze and attest the candidate before revealing holdout**
+- [x] **Step 1: Freeze and attest the candidate before revealing holdout**
 
 Record commit, image digest, artifact logical hash, configuration hash, prompt versions,
 HCX model, one smoke-response version hash, and holdout suite checksum in
 `artifacts/evaluation/blind-holdout-candidate.json`. The curator receives this file
 before execution and rejects any mismatch.
 
-- [ ] **Step 2: Obtain the holdout live-call approval and run exactly once**
+- [x] **Step 2: Obtain the holdout live-call approval and run exactly once**
 
 The hard ceiling is 48 requests times the frozen two-planner/two-wording-call maximum. The curator runs correctness and one-request-per-case HTTP load in its private NCP workspace. The root receives no live commentary containing questions or failures.
 
-- [ ] **Step 3: Produce and verify the aggregate-only summary**
+- [x] **Step 3: Produce and verify the aggregate-only summary**
 
 ```bash
 uv run python tools/summarize_blind_holdout.py --manifest artifacts/evaluation/blind-holdout-manifest.json --candidate artifacts/evaluation/blind-holdout-candidate.json --evaluation-report "$FINPROOF_PRIVATE_HOLDOUT_EVALUATION_REPORT" --load-report "$FINPROOF_PRIVATE_HOLDOUT_LOAD_REPORT" --output artifacts/evaluation/blind-holdout-summary.json
@@ -624,7 +624,7 @@ uv run python tools/summarize_blind_holdout.py --manifest artifacts/evaluation/b
 
 The curator executes this command and transfers only the summary. Verify its hashes, zero-leak schema, failure count, aggregate metrics, and p95. Do not change runtime behavior after reading it.
 
-- [ ] **Step 4: Obtain the exact ablation approval and run the current organizer suite**
+- [x] **Step 4: Obtain the exact ablation approval and run the current organizer suite**
 
 For 35 cases, two repeats, one direct call plus one structured-planner call per case/repeat, the normal count is 140 HCX calls and the rate-limit-retry ceiling is 280.
 
@@ -634,7 +634,12 @@ bash scripts/run_ablation.sh --produce --suite organizer_20260824 --artifact-dir
 
 Expected: 35 cases, five variants, shared checksum/environment/configuration, current commit/artifact/prompt identity, and error count `0`. Stop on provider interruption rather than promoting partial output.
 
-- [ ] **Step 5: Validate reports and update proposal evidence once**
+Observed 2026-09-05: the fresh run produced all five 35-case/two-repeat measurements
+with shared identity but returned nonzero A/B/C/D/E error counts `25/10/14/16/15`.
+The complete report is retained as diagnostic evidence and is not described as a
+zero-error acceptance; no additional live rerun or runtime correction followed.
+
+- [x] **Step 5: Validate reports and update proposal evidence once**
 
 Run focused report-contract tests and `tools/check_claim_evidence_report.py` for supported report types. Add actual holdout and ablation metrics with their limitations to `PROPOSAL_EVIDENCE_INDEX.md`; never claim monotonic improvement that the measurements do not show.
 
@@ -643,7 +648,7 @@ holdout summary, and current ablation report to the release-manifest required pa
 Do not add private holdout plaintext or case-level reports. Prove the manifest rejects
 a missing or changed required file.
 
-- [ ] **Step 6: Commit Task 7**
+- [x] **Step 6: Commit Task 7**
 
 ```bash
 git add artifacts/evaluation/blind-holdout-candidate.json artifacts/evaluation/blind-holdout-summary.json artifacts/evaluation/ablation_organizer_20260824_raw artifacts/evaluation/ablation-organizer-20260824.json docs/submission/PROPOSAL_EVIDENCE_INDEX.md tools/create_release_manifest.py tests/contract/test_release_manifest.py
