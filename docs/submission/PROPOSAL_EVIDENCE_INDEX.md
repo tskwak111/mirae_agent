@@ -18,16 +18,18 @@ Only the claims below are release-supported. Hashes are bound in
 | Blind-development deterministic replay | `artifacts/evaluation/blind-development-deterministic.json` | 144/144; all 13 aggregate axes 1.0; mean 179.382 ms; p95 625 ms; reviewed-plan deterministic core only |
 | Frozen blind-holdout identity | `artifacts/evaluation/blind-holdout-candidate.json` | commit `b10d2e6…efcdf`; image `sha256:c37aa7…a768`; artifact `977b3409…a9a8`; 48-case sealed suite `900571a8…02ec` |
 | Private blind-holdout aggregate | `artifacts/evaluation/blind-holdout-summary.json` | 48 cases; 25 successful and 23 safe failures; plan fields 0.4896, filter slots 0.8704, product set 0.5904, numeric values 0.5217, evidence 0.4298, answer semantics 0.5878; p95 31,610.704 ms |
-| Current organizer A–E ablation | `artifacts/evaluation/ablation-organizer-20260824.json` | complete 35-case/two-repeat measurement; A/B/C/D/E error counts 25/10/14/16/15 and p95 75,371/55,660/55,810/55,849/56,048 ms; final E product F1 0.5331, order 0.3228, numeric 0.4348, evidence 0.2187, limitation 0.5714 |
-| Final HCX endpoint load | `artifacts/evaluation/final-load.json` | 35/35; failure 0; mean 7,347.939 ms; p95 11,351.361 ms |
-| Final HCX endpoint stability | `artifacts/evaluation/final-soak.json` | 20 cycles; 80 observations; 517.063 active seconds; failure 0; drift 0 |
-| Repository verification | final clean-clone gate | 2,963 passed, 9 opted-out skips; Ruff and mypy clean; source/handoff PASS |
-| Reproducible packaging | clean-room reproduction | compliance/release 12 passed; image `sha256:5ef62f…a7be` |
+| Current organizer A–E ablation | `artifacts/evaluation/ablation-organizer-20260824.json` | v5 complete 35-case/two-repeat measurement; A/B/C/D/E error counts 25/11/15/17/16 and p95 76,356/55,590/55,754/55,794/55,997 ms; final E product F1 0.4737, order 0.2595, numeric 0.3913, evidence 0.1708, limitation 0.5429 |
+| Final HCX endpoint load | `artifacts/evaluation/final-load.json` | 35/35; failure 0; mean 7,268.868 ms; p95 11,007.570 ms; reviewed four-case weighted mix, not 35 unique questions |
+| Final HCX endpoint stability | `artifacts/evaluation/final-soak.json` | 20 cycles; 80 observations; 1,123.638 active seconds; failure 0; drift 0 |
+| Repository verification | final gate on `ba530fc` | 3,068 passed, 9 opted-out skips, 5 warnings; Ruff clean, mypy 340 files clean; source/handoff/compliance PASS |
+| Reproducible packaging | clean-room reproduction | compliance/release 14 passed; linux/amd64 image `sha256:cf7f56…a1252` |
 | Independent review | `docs/review/INDEPENDENT_REVIEW.md` | Critical 0 / Important 0 / READY |
 
 ## Claim limits
 
-- Do not describe the 517.063-second run as a 24-hour soak.
+- Do not describe the 1,123.638-second run as a 24-hour soak. Earlier acceptance and
+  diagnostic reports remain separate history, including `final-*-prior-v22.json` and
+  `ablation-organizer-20260824-prior-v4.json`.
 - Do not cite organizer `repeat_stability`; that report contains a 0/0 denominator.
 - Do not compare deterministic-core latency with the HCX endpoint as an equivalent
   workload.

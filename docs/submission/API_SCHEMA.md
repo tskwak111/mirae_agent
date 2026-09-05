@@ -1,5 +1,20 @@
 # Organizer API Schema
 
+## Submitted endpoint
+
+- HTTPS endpoint: `https://101-79-30-91.sslip.io/answer`
+- Method: `GET`; no API key or login is required by the evaluator.
+- Evaluation service window: 2026-09-07 through 2026-09-20 (KST).
+- Submission repository: `https://github.com/miraeasset-aifestival-2026-product/fin-211`.
+- Frozen runtime/image identities and verification evidence: `RELEASE_RECORD.md` and
+  `../../release/manifest.json`.
+
+```bash
+curl --get 'https://101-79-30-91.sslip.io/answer' \
+  --data-urlencode 'question_id=Q-001' \
+  --data-urlencode 'question=현재 국내 ETF 총보수 알려줘'
+```
+
 ## Request
 
 ```http

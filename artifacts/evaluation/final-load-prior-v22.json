@@ -6,22 +6,22 @@
     "count": 35,
     "success_count": 35,
     "failure_count": 0,
-    "total_ms": 254410.3662520065,
-    "mean_ms": 7268.867607200185,
-    "p95_ms": 11007.569506007712,
+    "total_ms": 257177.8708549682,
+    "mean_ms": 7347.939167284806,
+    "p95_ms": 11351.361326000188,
     "stage_mean_ms": {
-      "database": 1985.7714285714285,
+      "database": 1599.9142857142858,
       "evidence": 0.0,
-      "planner": 4089.7428571428572,
+      "planner": 4733.228571428572,
       "render": 0.0,
-      "wording": 1023.8285714285714
+      "wording": 842.3428571428572
     },
     "stage_p95_ms": {
-      "database": 4019.0,
+      "database": 3514.0,
       "evidence": 0.0,
-      "planner": 6034.0,
+      "planner": 6750.0,
       "render": 0.0,
-      "wording": 3051.0
+      "wording": 1326.0
     }
   },
   "samples": [
@@ -30,13 +30,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 7979.655303002801,
+      "total_ms": 6316.940700999112,
       "stage_ms": {
-        "database": 941.0,
+        "database": 896.0,
         "evidence": 0.0,
-        "planner": 6017.0,
+        "planner": 4556.0,
         "render": 0.0,
-        "wording": 828.0
+        "wording": 672.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -49,13 +49,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5118.207246996462,
+      "total_ms": 6162.798322999151,
       "stage_ms": {
-        "database": 768.0,
+        "database": 731.0,
         "evidence": 0.0,
-        "planner": 3368.0,
+        "planner": 4677.0,
         "render": 0.0,
-        "wording": 813.0
+        "wording": 577.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -68,13 +68,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5245.013237989042,
+      "total_ms": 6448.711676988751,
       "stage_ms": {
-        "database": 868.0,
+        "database": 837.0,
         "evidence": 0.0,
-        "planner": 3347.0,
+        "planner": 4607.0,
         "render": 0.0,
-        "wording": 863.0
+        "wording": 836.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -87,13 +87,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5117.664037970826,
+      "total_ms": 6541.392963001272,
       "stage_ms": {
-        "database": 797.0,
+        "database": 750.0,
         "evidence": 0.0,
-        "planner": 3298.0,
+        "planner": 4893.0,
         "render": 0.0,
-        "wording": 855.0
+        "wording": 731.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -106,17 +106,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 11599.243627977557,
+      "total_ms": 10968.576644998393,
       "stage_ms": {
-        "database": 4686.0,
+        "database": 4144.0,
         "evidence": 0.0,
-        "planner": 5708.0,
+        "planner": 5604.0,
         "render": 0.0,
-        "wording": 1035.0
+        "wording": 1043.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -125,17 +125,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10658.784905041102,
+      "total_ms": 9979.008941008942,
       "stage_ms": {
-        "database": 3834.0,
+        "database": 3296.0,
         "evidence": 0.0,
-        "planner": 5603.0,
+        "planner": 5766.0,
         "render": 0.0,
-        "wording": 1054.0
+        "wording": 749.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -144,17 +144,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10214.15051096119,
+      "total_ms": 11144.478574002278,
       "stage_ms": {
-        "database": 3550.0,
+        "database": 3265.0,
         "evidence": 0.0,
-        "planner": 5490.0,
+        "planner": 6742.0,
         "render": 0.0,
-        "wording": 1002.0
+        "wording": 968.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -163,13 +163,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 8209.664316033013,
+      "total_ms": 8072.073226998327,
       "stage_ms": {
-        "database": 2986.0,
+        "database": 1584.0,
         "evidence": 0.0,
-        "planner": 3874.0,
+        "planner": 5158.0,
         "render": 0.0,
-        "wording": 1177.0
+        "wording": 1160.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -182,13 +182,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 9719.45626201341,
+      "total_ms": 7603.833190994919,
       "stage_ms": {
-        "database": 2904.0,
+        "database": 1493.0,
         "evidence": 0.0,
-        "planner": 3594.0,
+        "planner": 5268.0,
         "render": 0.0,
-        "wording": 3051.0
+        "wording": 674.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -201,13 +201,13 @@
       "case_id": "ORG-20260824-U-001",
       "question_type": "unsupported_code_table",
       "status_code": 200,
-      "total_ms": 3591.367518994957,
+      "total_ms": 3444.6453389973613,
       "stage_ms": {
-        "database": 122.0,
+        "database": 123.0,
         "evidence": 0.0,
-        "planner": 2668.0,
+        "planner": 2629.0,
         "render": 0.0,
-        "wording": 635.0
+        "wording": 524.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -220,13 +220,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5440.558005997445,
+      "total_ms": 5201.857924999786,
       "stage_ms": {
-        "database": 885.0,
+        "database": 823.0,
         "evidence": 0.0,
-        "planner": 3559.0,
+        "planner": 3381.0,
         "render": 0.0,
-        "wording": 829.0
+        "wording": 828.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -239,13 +239,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5077.78126798803,
+      "total_ms": 5076.572364996537,
       "stage_ms": {
-        "database": 778.0,
+        "database": 740.0,
         "evidence": 0.0,
-        "planner": 3333.0,
+        "planner": 3453.0,
         "render": 0.0,
-        "wording": 795.0
+        "wording": 715.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -258,13 +258,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5301.947396015748,
+      "total_ms": 6153.205900991452,
       "stage_ms": {
-        "database": 861.0,
+        "database": 721.0,
         "evidence": 0.0,
-        "planner": 3378.0,
+        "planner": 4637.0,
         "render": 0.0,
-        "wording": 892.0
+        "wording": 624.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -277,13 +277,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 4891.560017014854,
+      "total_ms": 5336.848057995667,
       "stage_ms": {
-        "database": 764.0,
+        "database": 822.0,
         "evidence": 0.0,
-        "planner": 3334.0,
+        "planner": 3465.0,
         "render": 0.0,
-        "wording": 624.0
+        "wording": 881.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -296,17 +296,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10541.02452204097,
+      "total_ms": 11351.361326000188,
       "stage_ms": {
-        "database": 3837.0,
+        "database": 3470.0,
         "evidence": 0.0,
-        "planner": 5603.0,
+        "planner": 6707.0,
         "render": 0.0,
-        "wording": 933.0
+        "wording": 1004.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -315,17 +315,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10282.01084700413,
+      "total_ms": 11095.907971000997,
       "stage_ms": {
-        "database": 3785.0,
+        "database": 3195.0,
         "evidence": 0.0,
-        "planner": 5400.0,
+        "planner": 6750.0,
         "render": 0.0,
-        "wording": 927.0
+        "wording": 982.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -334,17 +334,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10546.303777955472,
+      "total_ms": 10177.399398991838,
       "stage_ms": {
-        "database": 4019.0,
+        "database": 3409.0,
         "evidence": 0.0,
-        "planner": 5352.0,
+        "planner": 5925.0,
         "render": 0.0,
-        "wording": 1007.0
+        "wording": 672.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -353,13 +353,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 7618.741727026645,
+      "total_ms": 6700.687030999688,
       "stage_ms": {
-        "database": 2745.0,
+        "database": 1513.0,
         "evidence": 0.0,
-        "planner": 3626.0,
+        "planner": 3695.0,
         "render": 0.0,
-        "wording": 1080.0
+        "wording": 1326.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -372,13 +372,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 10763.38974101236,
+      "total_ms": 7626.071225997293,
       "stage_ms": {
-        "database": 2876.0,
+        "database": 1534.0,
         "evidence": 0.0,
-        "planner": 3625.0,
+        "planner": 4795.0,
         "render": 0.0,
-        "wording": 4093.0
+        "wording": 1129.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -391,13 +391,13 @@
       "case_id": "ORG-20260824-U-001",
       "question_type": "unsupported_code_table",
       "status_code": 200,
-      "total_ms": 3642.6821050117724,
+      "total_ms": 3654.221367003629,
       "stage_ms": {
-        "database": 125.0,
+        "database": 121.0,
         "evidence": 0.0,
-        "planner": 2713.0,
+        "planner": 2672.0,
         "render": 0.0,
-        "wording": 636.0
+        "wording": 692.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -410,13 +410,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5124.533596041147,
+      "total_ms": 6264.585647004424,
       "stage_ms": {
-        "database": 778.0,
+        "database": 717.0,
         "evidence": 0.0,
-        "planner": 3333.0,
+        "planner": 3322.0,
         "render": 0.0,
-        "wording": 845.0
+        "wording": 2054.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -429,13 +429,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5122.222136007622,
+      "total_ms": 5193.300430997624,
       "stage_ms": {
-        "database": 765.0,
+        "database": 752.0,
         "evidence": 0.0,
-        "planner": 3330.0,
+        "planner": 3424.0,
         "render": 0.0,
-        "wording": 858.0
+        "wording": 769.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -448,13 +448,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 4924.808563024271,
+      "total_ms": 4962.606763001531,
       "stage_ms": {
-        "database": 820.0,
+        "database": 759.0,
         "evidence": 0.0,
-        "planner": 3348.0,
+        "planner": 3347.0,
         "render": 0.0,
-        "wording": 590.0
+        "wording": 688.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -467,13 +467,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5045.424371026456,
+      "total_ms": 13699.125115002971,
       "stage_ms": {
-        "database": 778.0,
+        "database": 805.0,
         "evidence": 0.0,
-        "planner": 3429.0,
+        "planner": 12037.0,
         "render": 0.0,
-        "wording": 669.0
+        "wording": 685.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -486,17 +486,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10534.952985995915,
+      "total_ms": 9976.921938010491,
       "stage_ms": {
-        "database": 3899.0,
+        "database": 3359.0,
         "evidence": 0.0,
-        "planner": 5483.0,
+        "planner": 5433.0,
         "render": 0.0,
-        "wording": 985.0
+        "wording": 1015.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -505,17 +505,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 11007.569506007712,
+      "total_ms": 9491.31682299776,
       "stage_ms": {
-        "database": 3868.0,
+        "database": 3075.0,
         "evidence": 0.0,
-        "planner": 6045.0,
+        "planner": 5434.0,
         "render": 0.0,
-        "wording": 924.0
+        "wording": 813.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -524,17 +524,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10497.324289986864,
+      "total_ms": 9754.277929998352,
       "stage_ms": {
-        "database": 3533.0,
+        "database": 3344.0,
         "evidence": 0.0,
-        "planner": 6034.0,
+        "planner": 5443.0,
         "render": 0.0,
-        "wording": 762.0
+        "wording": 799.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     },
@@ -543,13 +543,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 7830.848476965912,
+      "total_ms": 7374.501590995351,
       "stage_ms": {
-        "database": 2862.0,
+        "database": 1515.0,
         "evidence": 0.0,
-        "planner": 3699.0,
+        "planner": 5021.0,
         "render": 0.0,
-        "wording": 1102.0
+        "wording": 671.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -562,13 +562,13 @@
       "case_id": "ORG-20260824-H-007",
       "question_type": "zero_missing_policy",
       "status_code": 200,
-      "total_ms": 7773.997771961149,
+      "total_ms": 6041.162478009937,
       "stage_ms": {
-        "database": 2818.0,
+        "database": 1498.0,
         "evidence": 0.0,
-        "planner": 3645.0,
+        "planner": 3703.0,
         "render": 0.0,
-        "wording": 1144.0
+        "wording": 672.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -581,13 +581,13 @@
       "case_id": "ORG-20260824-U-001",
       "question_type": "unsupported_code_table",
       "status_code": 200,
-      "total_ms": 3594.3516919505782,
+      "total_ms": 3787.571526991087,
       "stage_ms": {
         "database": 122.0,
         "evidence": 0.0,
-        "planner": 2618.0,
+        "planner": 2731.0,
         "render": 0.0,
-        "wording": 686.0
+        "wording": 768.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -600,13 +600,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5257.866466999985,
+      "total_ms": 6453.475300993887,
       "stage_ms": {
-        "database": 803.0,
+        "database": 828.0,
         "evidence": 0.0,
-        "planner": 3423.0,
+        "planner": 4803.0,
         "render": 0.0,
-        "wording": 864.0
+        "wording": 655.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -619,13 +619,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5441.46915699821,
+      "total_ms": 5049.164235999342,
       "stage_ms": {
-        "database": 865.0,
+        "database": 715.0,
         "evidence": 0.0,
-        "planner": 3390.0,
+        "planner": 3440.0,
         "render": 0.0,
-        "wording": 1020.0
+        "wording": 725.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -638,13 +638,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5223.080630006734,
+      "total_ms": 5067.575456996565,
       "stage_ms": {
-        "database": 771.0,
+        "database": 714.0,
         "evidence": 0.0,
-        "planner": 3633.0,
+        "planner": 3306.0,
         "render": 0.0,
-        "wording": 650.0
+        "wording": 878.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -657,13 +657,13 @@
       "case_id": "ORG-20260824-E-002",
       "question_type": "simple_rank",
       "status_code": 200,
-      "total_ms": 5050.023995980155,
+      "total_ms": 5163.78567701031,
       "stage_ms": {
-        "database": 902.0,
+        "database": 813.0,
         "evidence": 0.0,
-        "planner": 3370.0,
+        "planner": 3342.0,
         "render": 0.0,
-        "wording": 610.0
+        "wording": 841.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
@@ -676,17 +676,17 @@
       "case_id": "ORG-20260824-H-009",
       "question_type": "heterogeneous_cross_product",
       "status_code": 200,
-      "total_ms": 10422.686239005998,
+      "total_ms": 9841.907790992991,
       "stage_ms": {
-        "database": 3787.0,
+        "database": 3514.0,
         "evidence": 0.0,
-        "planner": 5471.0,
+        "planner": 5497.0,
         "render": 0.0,
-        "wording": 996.0
+        "wording": 662.0
       },
       "response_schema_valid": true,
       "request_succeeded": true,
-      "answer_sha256": "291095c65ab1276d1692859ec89c0182789947fd5d6dff705e8d2f51fdae1aea",
+      "answer_sha256": "36531d11519c3b5ea5acf301225ca3e51b1c1d3b7055ea35a33bf9a76c5fee7b",
       "version_sha256": "3983f9833d733df4ecf59a6f70e3e83aa512db82ae0a008565447b076654c3c1",
       "error_category": null
     }

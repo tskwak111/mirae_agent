@@ -15,24 +15,24 @@
         "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.36"
       },
       "case_count": 35,
-      "product_set_f1": 0.07042253521126761,
+      "product_set_f1": 0.07246376811594203,
       "order_accuracy": 0.0,
       "numeric_exact_match": 0.0,
       "evidence_coverage": 0.0,
       "limitation_accuracy": 0.08571428571428572,
-      "repeat_stability": 0.9142857142857143,
+      "repeat_stability": 1.0,
       "latency": {
         "count": 70,
-        "success_count": 21,
-        "failure_count": 49,
-        "total_ms": 1628939.0,
-        "mean_ms": 23270.557142857142,
-        "p95_ms": 76356.0,
+        "success_count": 20,
+        "failure_count": 50,
+        "total_ms": 1732805.0,
+        "mean_ms": 24754.35714285714,
+        "p95_ms": 75371.0,
         "stage_mean_ms": {},
         "stage_p95_ms": {}
       },
-      "prompt_tokens": 969182,
-      "completion_tokens": 17128,
+      "prompt_tokens": 971244,
+      "completion_tokens": 16890,
       "error_count": 25
     },
     {
@@ -54,20 +54,20 @@
       "numeric_exact_match": 0.0,
       "evidence_coverage": 0.0,
       "limitation_accuracy": 0.0,
-      "repeat_stability": 0.9142857142857143,
+      "repeat_stability": 1.0,
       "latency": {
         "count": 70,
         "success_count": 50,
         "failure_count": 20,
-        "total_ms": 2300785.0,
-        "mean_ms": 32868.357142857145,
-        "p95_ms": 55590.0,
+        "total_ms": 2319639.0,
+        "mean_ms": 33137.7,
+        "p95_ms": 55660.0,
         "stage_mean_ms": {},
         "stage_p95_ms": {}
       },
       "prompt_tokens": 313090,
-      "completion_tokens": 13731,
-      "error_count": 11
+      "completion_tokens": 13728,
+      "error_count": 10
     },
     {
       "variant": "C_deterministic_executor",
@@ -83,25 +83,25 @@
         "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.36"
       },
       "case_count": 35,
-      "product_set_f1": 0.0007283199715343645,
-      "order_accuracy": 0.0005211547692518686,
-      "numeric_exact_match": 0.3869565217391304,
+      "product_set_f1": 0.0007373911005195921,
+      "order_accuracy": 0.0004396053774983387,
+      "numeric_exact_match": 0.43043478260869567,
       "evidence_coverage": 0.0,
       "limitation_accuracy": 0.0,
-      "repeat_stability": 0.9142857142857143,
+      "repeat_stability": 1.0,
       "latency": {
         "count": 70,
         "success_count": 42,
         "failure_count": 28,
-        "total_ms": 2308031.0,
-        "mean_ms": 32971.87142857143,
-        "p95_ms": 55754.0,
+        "total_ms": 2327073.0,
+        "mean_ms": 33243.9,
+        "p95_ms": 55810.0,
         "stage_mean_ms": {},
         "stage_p95_ms": {}
       },
       "prompt_tokens": 313090,
-      "completion_tokens": 13731,
-      "error_count": 15
+      "completion_tokens": 13728,
+      "error_count": 14
     },
     {
       "variant": "D_grain_time_state_metric_policy",
@@ -117,25 +117,25 @@
         "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.36"
       },
       "case_count": 35,
-      "product_set_f1": 0.45703125,
+      "product_set_f1": 0.5150375939849624,
       "order_accuracy": 0.20958083832335328,
-      "numeric_exact_match": 0.3521739130434783,
+      "numeric_exact_match": 0.39565217391304347,
       "evidence_coverage": 0.0,
-      "limitation_accuracy": 0.2,
-      "repeat_stability": 0.9142857142857143,
+      "limitation_accuracy": 0.22857142857142856,
+      "repeat_stability": 1.0,
       "latency": {
         "count": 70,
         "success_count": 38,
         "failure_count": 32,
-        "total_ms": 2317015.0,
-        "mean_ms": 33100.21428571428,
-        "p95_ms": 55794.0,
+        "total_ms": 2337977.0,
+        "mean_ms": 33399.671428571426,
+        "p95_ms": 55849.0,
         "stage_mean_ms": {},
         "stage_p95_ms": {}
       },
       "prompt_tokens": 313090,
-      "completion_tokens": 13731,
-      "error_count": 17
+      "completion_tokens": 13728,
+      "error_count": 16
     },
     {
       "variant": "E_evidence_verifier_conditional_dual_lens",
@@ -151,25 +151,25 @@
         "platform": "Linux-6.8.0-124-generic-x86_64-with-glibc2.36"
       },
       "case_count": 35,
-      "product_set_f1": 0.47368421052631576,
-      "order_accuracy": 0.25949367088607594,
-      "numeric_exact_match": 0.391304347826087,
-      "evidence_coverage": 0.17084282460136674,
-      "limitation_accuracy": 0.5428571428571428,
-      "repeat_stability": 0.9142857142857143,
+      "product_set_f1": 0.5330739299610895,
+      "order_accuracy": 0.3227848101265823,
+      "numeric_exact_match": 0.43478260869565216,
+      "evidence_coverage": 0.21867881548974943,
+      "limitation_accuracy": 0.5714285714285714,
+      "repeat_stability": 1.0,
       "latency": {
         "count": 70,
         "success_count": 40,
         "failure_count": 30,
-        "total_ms": 2343645.0,
-        "mean_ms": 33480.642857142855,
-        "p95_ms": 55997.0,
+        "total_ms": 2361376.0,
+        "mean_ms": 33733.94285714286,
+        "p95_ms": 56048.0,
         "stage_mean_ms": {},
         "stage_p95_ms": {}
       },
       "prompt_tokens": 313090,
-      "completion_tokens": 13731,
-      "error_count": 16
+      "completion_tokens": 13728,
+      "error_count": 15
     }
   ]
 }
