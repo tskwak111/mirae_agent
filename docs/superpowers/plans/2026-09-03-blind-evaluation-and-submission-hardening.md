@@ -674,7 +674,7 @@ git commit -m "perf: record blind holdout and current ablation"
 - Produces: parseable Turtle graphs rooted at `http://mafest.ai/product#` that describe the implemented identities, native grains, registered metrics/state, evidence, and provenance relationships.
 - Does not produce: a second runtime rules engine or unsupported holdings facts.
 
-- [ ] **Step 1: Write the failing ontology contract test**
+- [x] **Step 1: Write the failing ontology contract test**
 
 Use `rdflib` as a dev/test dependency only because no Turtle parser is currently installed.
 
@@ -698,7 +698,7 @@ def test_domain_classes_share_product_and_evidence_contract() -> None:
 
 Also assert the exact five filenames, Korean labels, `instrument/listed_product/fund_item` grain individuals, source locator, raw/normalized value, quality status, applicable date, and no reference to live external APIs.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 ```bash
 uv run pytest tests/contract/test_submission_ontology.py -q
@@ -712,7 +712,7 @@ uv add --dev 'rdflib>=7,<8'
 uv lock
 ```
 
-- [ ] **Step 3: Write the minimum truthful Turtle graphs**
+- [x] **Step 3: Write the minimum truthful Turtle graphs**
 
 Start `common.ttl` with exact shared declarations:
 
@@ -733,7 +733,7 @@ fp:applicableDate a owl:DatatypeProperty ; rdfs:domain fp:Evidence ; rdfs:range 
 
 Each domain file adds only classes/properties represented by its official schema and registry. Plain ETF and ETN remain distinct, public fund identifies `itm_no` as `fund_item`, overseas one-year return is absent, and `BUYABLE_QUANTITY` is not an eligibility property.
 
-- [ ] **Step 4: Run GREEN and ontology aggregate**
+- [x] **Step 4: Run GREEN and ontology aggregate**
 
 ```bash
 uv run pytest tests/contract/test_submission_ontology.py tests/contract/test_competition_compliance.py -q
@@ -741,7 +741,7 @@ uv run ruff check tests/contract/test_submission_ontology.py
 uv run mypy tests/contract/test_submission_ontology.py
 ```
 
-- [ ] **Step 5: Document and commit Task 8**
+- [x] **Step 5: Document and commit Task 8**
 
 Add the ontology inventory and validation command to README.
 

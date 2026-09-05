@@ -1,0 +1,40 @@
+@prefix fp: <http://mafest.ai/product#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fp:OverseasETF a owl:Class ;
+    rdfs:subClassOf fp:ListedProduct ;
+    rdfs:label "해외 ETF"@ko ;
+    fp:nativeGrain fp:listed_product .
+
+fp:OverseasETN a owl:Class ;
+    rdfs:subClassOf fp:ListedProduct ;
+    rdfs:label "해외 ETN"@ko ;
+    fp:nativeGrain fp:listed_product .
+
+fp:overseas_etf_aum a fp:Metric ;
+    rdfs:label "운용규모"@ko ;
+    fp:registryId "overseas_etf.aum" ;
+    fp:sourceTable "PREF02N001" ;
+    fp:sourceColumn "du_last_aum" ;
+    fp:unit "currency" ;
+    fp:period "source_as_of" .
+
+fp:overseas_etf_total_fee a fp:Metric ;
+    rdfs:label "총보수"@ko ;
+    fp:registryId "overseas_etf.total_fee" ;
+    fp:sourceTable "PREF02N001" ;
+    fp:sourceColumn "cu_charge_rt" ;
+    fp:unit "percent" .
+
+fp:overseas_etf_return_1d a fp:Metric ;
+    rdfs:label "1일 수익률"@ko ;
+    fp:registryId "overseas_etf.return_1d" ;
+    fp:sourceTable "PREF02N001" ;
+    fp:sourceColumn "du_er_1d" ;
+    fp:unit "percent" ;
+    fp:period "1d" .
+
+fp:overseas_listed_active_at_as_of a fp:StateRule ;
+    rdfs:label "기준일 상장 상태"@ko ;
+    fp:registryId "overseas_listed.active_at_as_of" .

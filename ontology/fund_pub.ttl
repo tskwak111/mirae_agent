@@ -1,0 +1,63 @@
+@prefix fp: <http://mafest.ai/product#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fp:PublicFund a owl:Class ;
+    rdfs:subClassOf fp:Product ;
+    rdfs:label "공모펀드"@ko ;
+    fp:nativeGrain fp:fund_item ;
+    fp:identityField fp:itm_no .
+
+fp:FundAttribute a owl:Class ; rdfs:label "펀드 속성"@ko .
+fp:hasFundAttribute a owl:ObjectProperty ;
+    rdfs:domain fp:PublicFund ;
+    rdfs:range fp:FundAttribute ;
+    rdfs:label "펀드 속성 보유"@ko .
+fp:itm_no a fp:IdentifierField ;
+    rdfs:label "펀드 상품번호"@ko ;
+    fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "itm_no" .
+fp:prfd_attr_cd a fp:IdentifierField ;
+    rdfs:label "다중 펀드 속성 코드"@ko ;
+    fp:sourceTable "PRFD02N001" ;
+    fp:sourceColumn "prfd_attr_cd" .
+
+fp:public_fund_aum a fp:Metric ;
+    rdfs:label "순자산"@ko ;
+    fp:registryId "public_fund.aum" ;
+    fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_nast_suma" ;
+    fp:unit "currency" ;
+    fp:period "source_snapshot" .
+
+fp:public_fund_return_1w a fp:Metric ; rdfs:label "1주 수익률"@ko ;
+    fp:registryId "public_fund.return_1w" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_wk1_ern_r" ; fp:unit "percent" ; fp:period "1w" .
+fp:public_fund_return_1m a fp:Metric ; rdfs:label "1개월 수익률"@ko ;
+    fp:registryId "public_fund.return_1m" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_mm1_ern_r" ; fp:unit "percent" ; fp:period "1m" .
+fp:public_fund_return_3m a fp:Metric ; rdfs:label "3개월 수익률"@ko ;
+    fp:registryId "public_fund.return_3m" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_mm3_ern_r" ; fp:unit "percent" ; fp:period "3m" .
+fp:public_fund_return_6m a fp:Metric ; rdfs:label "6개월 수익률"@ko ;
+    fp:registryId "public_fund.return_6m" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_mm6_ern_r" ; fp:unit "percent" ; fp:period "6m" .
+fp:public_fund_return_18m a fp:Metric ; rdfs:label "18개월 수익률"@ko ;
+    fp:registryId "public_fund.return_18m" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_mm18_ern_r" ; fp:unit "percent" ; fp:period "18m" .
+fp:public_fund_return_1y a fp:Metric ; rdfs:label "1년 수익률"@ko ;
+    fp:registryId "public_fund.return_1y" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_yr1_ern_r" ; fp:unit "percent" ; fp:period "1y" .
+fp:public_fund_return_2y a fp:Metric ; rdfs:label "2년 수익률"@ko ;
+    fp:registryId "public_fund.return_2y" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_yr2_ern_r" ; fp:unit "percent" ; fp:period "2y" .
+fp:public_fund_return_3y a fp:Metric ; rdfs:label "3년 수익률"@ko ;
+    fp:registryId "public_fund.return_3y" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_yr3_ern_r" ; fp:unit "percent" ; fp:period "3y" .
+fp:public_fund_return_5y a fp:Metric ; rdfs:label "5년 수익률"@ko ;
+    fp:registryId "public_fund.return_5y" ; fp:sourceTable "PRFD01N001" ;
+    fp:sourceColumn "fd_yr5_ern_r" ; fp:unit "percent" ; fp:period "5y" .
+
+fp:public_fund_saleable_at_as_of a fp:StateRule ;
+    rdfs:label "기준일 판매 가능"@ko ;
+    fp:registryId "public_fund.saleable_at_as_of" .

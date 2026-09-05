@@ -1,0 +1,32 @@
+@prefix fp: <http://mafest.ai/product#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fp:DomesticBond a owl:Class ;
+    rdfs:subClassOf fp:Product ;
+    rdfs:label "국내채권"@ko ;
+    fp:nativeGrain fp:instrument .
+
+fp:bond_buy_yield a fp:Metric ;
+    rdfs:label "매수수익률"@ko ;
+    fp:registryId "bond.buy_yield" ;
+    fp:sourceTable "PRBD01N001" ;
+    fp:sourceColumn "buy_yield" ;
+    fp:unit "percent" .
+
+fp:bond_credit_rating a fp:Metric ;
+    rdfs:label "신용등급"@ko ;
+    fp:registryId "bond.credit_rating" ;
+    fp:sourceTable "PRBD01N001" ;
+    fp:sourceColumn "crd_grd" .
+
+fp:bond_remaining_days_at_as_of a fp:Metric ;
+    rdfs:label "기준일 잔존일수"@ko ;
+    fp:registryId "bond.remaining_days_at_as_of" ;
+    fp:sourceTable "PRBD01N001" ;
+    fp:sourceColumn "mat_dt" ;
+    fp:unit "day" .
+
+fp:bond_purchasable_at_as_of a fp:StateRule ;
+    rdfs:label "기준일 구매 가능"@ko ;
+    fp:registryId "bond.purchasable_at_as_of" .

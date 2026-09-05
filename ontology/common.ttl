@@ -1,0 +1,37 @@
+@prefix fp: <http://mafest.ai/product#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+fp:Product a owl:Class ; rdfs:label "금융상품"@ko .
+fp:ListedProduct a owl:Class ; rdfs:subClassOf fp:Product ; rdfs:label "상장상품"@ko .
+fp:Evidence a owl:Class ; rdfs:label "근거"@ko .
+fp:ResultGrain a owl:Class ; rdfs:label "결과 단위"@ko .
+fp:Metric a owl:Class ; rdfs:label "지표"@ko .
+fp:StateRule a owl:Class ; rdfs:label "상태 규칙"@ko .
+fp:IdentifierField a owl:Class ; rdfs:label "식별자 필드"@ko .
+
+fp:instrument a fp:ResultGrain ; rdfs:label "채권 종목"@ko .
+fp:listed_product a fp:ResultGrain ; rdfs:label "상장 상품"@ko .
+fp:fund_item a fp:ResultGrain ; rdfs:label "공모펀드 상품"@ko .
+
+fp:hasEvidence a owl:ObjectProperty ; rdfs:domain fp:Product ; rdfs:range fp:Evidence .
+fp:nativeGrain a owl:ObjectProperty ; rdfs:range fp:ResultGrain .
+fp:identityField a owl:ObjectProperty ; rdfs:range fp:IdentifierField .
+
+fp:sourceTable a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:sourceFile a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:sourceSheet a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:sourceRowNumber a owl:DatatypeProperty ; rdfs:range xsd:integer .
+fp:sourceColumn a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:rawValue a owl:DatatypeProperty ; rdfs:domain fp:Evidence ; rdfs:range xsd:string .
+fp:normalizedValue a owl:DatatypeProperty ; rdfs:domain fp:Evidence .
+fp:transformationRuleVersion a owl:DatatypeProperty ;
+    rdfs:domain fp:Evidence ;
+    rdfs:range xsd:string .
+fp:qualityStatus a owl:DatatypeProperty ; rdfs:domain fp:Evidence ; rdfs:range xsd:string .
+fp:applicableDate a owl:DatatypeProperty ; rdfs:domain fp:Evidence ; rdfs:range xsd:date .
+fp:registryId a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:unit a owl:DatatypeProperty ; rdfs:range xsd:string .
+fp:period a owl:DatatypeProperty ; rdfs:range xsd:string .

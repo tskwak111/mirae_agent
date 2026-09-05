@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 7 captured the frozen
-48-case holdout and the current 35-case A–E ablation without changing the candidate
-after reveal. The next task is Task 8's five mandatory submission ontologies.
+**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 8 added and validated
+the five mandatory submission ontologies without changing runtime behavior. The next
+task is Task 9's technical proposal and visual verification.
 
 ## Frozen baseline
 
@@ -62,8 +62,26 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Blind-evaluation hardening Task 8 Step 1: add and validate the five mandatory
-submission ontologies without changing frozen runtime behavior.**
+**Blind-evaluation hardening Task 9 Step 1: build and visually verify the technical
+proposal against the evidence index and official submission requirements.**
+
+## Blind-evaluation hardening Task 8 closure
+
+- Added the exact five required Turtle files under `ontology/` using the
+  `http://mafest.ai/product#` namespace. They document product identity and native
+  grains, registered metrics/states, and the Source Fidelity evidence locator without
+  becoming a runtime rules engine or inventing holdings facts.
+- Frozen boundaries are explicit: ETF and ETN classes remain distinct, public funds use
+  `itm_no`/`fund_item`, overseas products expose only the provided one-day return, and
+  the invalid source quantity is absent from eligibility semantics.
+- TDD RED first failed because `rdflib` was absent, then failed all nine contracts while
+  the five files were absent. GREEN passed 9 focused tests; the submission-compliance
+  aggregate passed 14 tests. Scoped Ruff and clean non-incremental mypy passed.
+
+Exact next development task:
+
+**Blind-evaluation hardening Task 9 Step 1: produce the evidence-bound technical
+proposal PDF and visually verify every page.**
 
 ## Blind-evaluation hardening Task 7 closure
 

@@ -47,6 +47,17 @@ The sealed public route is documented in
 and release status is in
 [docs/implementation/STATUS.md](docs/implementation/STATUS.md).
 
+## Submission ontologies
+
+The required Turtle inventory is `ontology/common.ttl`, `ontology/bond_kr.ttl`,
+`ontology/etf_kr.ttl`, `ontology/etf_gl.ttl`, and `ontology/fund_pub.ttl`. These files
+document the implemented product grains, registered metrics and states, and Source
+Fidelity evidence model; they are not a second runtime rules engine.
+
+```bash
+uv run pytest tests/contract/test_submission_ontology.py -q
+```
+
 ## Run with Docker
 
 ```bash

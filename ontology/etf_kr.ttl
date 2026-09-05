@@ -1,0 +1,55 @@
+@prefix fp: <http://mafest.ai/product#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+fp:DomesticETF a owl:Class ;
+    rdfs:subClassOf fp:ListedProduct ;
+    rdfs:label "국내 ETF"@ko ;
+    fp:nativeGrain fp:listed_product .
+
+fp:DomesticETN a owl:Class ;
+    rdfs:subClassOf fp:ListedProduct ;
+    rdfs:label "국내 ETN"@ko ;
+    fp:nativeGrain fp:listed_product .
+
+fp:domestic_etf_aum a fp:Metric ;
+    rdfs:label "순자산총액"@ko ;
+    fp:registryId "domestic_etf.aum" ;
+    fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "pd_net_tamt" ;
+    fp:unit "currency" ;
+    fp:period "snapshot" .
+
+fp:domestic_etf_total_fee a fp:Metric ;
+    rdfs:label "총보수"@ko ;
+    fp:registryId "domestic_etf.total_fee" ;
+    fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "cu_charge_rt" ;
+    fp:unit "percent" .
+
+fp:domestic_etf_tracking_error a fp:Metric ;
+    rdfs:label "추적오차"@ko ;
+    fp:registryId "domestic_etf.tracking_error" ;
+    fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_chas_errt" ;
+    fp:unit "percent" .
+
+fp:domestic_etf_return_1m a fp:Metric ; rdfs:label "1개월 수익률"@ko ;
+    fp:registryId "domestic_etf.return_1m" ; fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_er_1m" ; fp:unit "percent" ; fp:period "1m" .
+fp:domestic_etf_return_3m a fp:Metric ; rdfs:label "3개월 수익률"@ko ;
+    fp:registryId "domestic_etf.return_3m" ; fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_er_3m" ; fp:unit "percent" ; fp:period "3m" .
+fp:domestic_etf_return_6m a fp:Metric ; rdfs:label "6개월 수익률"@ko ;
+    fp:registryId "domestic_etf.return_6m" ; fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_er_6m" ; fp:unit "percent" ; fp:period "6m" .
+fp:domestic_etf_return_1y a fp:Metric ; rdfs:label "1년 수익률"@ko ;
+    fp:registryId "domestic_etf.return_1y" ; fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_er_1y" ; fp:unit "percent" ; fp:period "1y" .
+fp:domestic_etf_return_ytd a fp:Metric ; rdfs:label "연초 이후 수익률"@ko ;
+    fp:registryId "domestic_etf.return_ytd" ; fp:sourceTable "PREF01N001" ;
+    fp:sourceColumn "du_er_ytd" ; fp:unit "percent" ; fp:period "ytd" .
+
+fp:domestic_listed_active_at_as_of a fp:StateRule ;
+    rdfs:label "기준일 거래 가능 상태"@ko ;
+    fp:registryId "domestic_listed.active_at_as_of" .
