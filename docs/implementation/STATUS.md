@@ -1,8 +1,8 @@
 # Implementation Status
 
-**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 8 added and validated
-the five mandatory submission ontologies without changing runtime behavior. The next
-task is Task 9's technical proposal and visual verification.
+**Last updated:** 2026-09-05 — Blind-evaluation hardening Task 9 produced and verified
+the editable 15-slide technical proposal and its 15-page submission PDF. The next task
+is Task 10's final-candidate applicability decision and final release gate.
 
 ## Frozen baseline
 
@@ -62,8 +62,38 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**Blind-evaluation hardening Task 9 Step 1: build and visually verify the technical
-proposal against the evidence index and official submission requirements.**
+**Blind-evaluation hardening Task 10 Step 1: decide whether the existing sealed runtime
+candidate and Task 10 performance evidence remain applicable.**
+
+## Blind-evaluation hardening Task 9 closure
+
+- Created `docs/submission/FinProof_Technical_Proposal.pptx` as an editable 15-slide
+  deck with three native charts and the exact organizer-required narrative, then created
+  the matching 15-page submission PDF. PPTX/PDF SHA-256 values are respectively
+  `290744f20a2581f6ec09a73238a3ca5a4cb00b785c7433b6c33f844e2749cbe1` and
+  `823ebcd13156c87c10a27d422e7eeba5d07e2628e9a7edbde5e8550b7d86e334`.
+- Presentation finalization found 15 slides, 3 native charts, zero package findings,
+  and zero layout findings. Every PPTX slide and every PDF page was rendered and
+  visually checked; Korean text, margins, page numbers, charts, diagrams, and critical
+  values were legible with no clipping or overlap. An automated slide-8
+  connector-over-text warning was visually disproved in both formats.
+- LibreOffice's vector PDF export dropped Korean glyphs in this environment, so it was
+  rejected. The accepted PDF is a 1280×720 rendered-slide export; the editable PPTX is
+  retained as the searchable source. `pdfinfo` confirmed 15 pages, and PPTX XML checks
+  confirmed all 15 headings plus `144/144`, `25/48`, `23/48`, `11,351.361`,
+  `517.063`, and the submission deadline.
+- A separate read-only claim/design review returned READY. Its four metric observations
+  were already explicit proposal limitations; the fifth was the disproved layout
+  warning. Root classification is therefore 0 Critical / 0 Important blockers.
+- No production behavior changed, so no behavior TDD test was applicable. `unzip -t`,
+  finalizer JSON checks, PDF page-count checks, critical-token checks, and
+  `git diff --check` all passed. Task 9 artifact commit: `3a86282`.
+
+Exact next development task:
+
+**Blind-evaluation hardening Task 10 Step 1: verify that Tasks 8-9 changed only
+ontology/docs/proposal assets, retain the sealed runtime reports if applicable, and
+start the final independent review and single full gate.**
 
 ## Blind-evaluation hardening Task 8 closure
 

@@ -764,11 +764,11 @@ git commit -m "docs: add mandatory FinProof ontologies"
 - Consumes: only verified report paths and hashes from Tasks 5-8.
 - Produces: an editable deck and submission PDF covering the organizer's required proposal outline.
 
-- [ ] **Step 1: Load the presentation and PDF skills before authoring**
+- [x] **Step 1: Load the presentation and PDF skills before authoring**
 
 Follow their template, rendering, and artifact-operation requirements. Do not manually assemble a PDF without visual QA.
 
-- [ ] **Step 2: Create the exact 15-page narrative**
+- [x] **Step 2: Create the exact 15-page narrative**
 
 ```text
 1 cover and one-sentence value proposition
@@ -790,15 +790,15 @@ Follow their template, rendering, and artifact-operation requirements. Do not ma
 
 Every number must resolve to `PROPOSAL_EVIDENCE_INDEX.md`. State that the accepted soak is 517.063 seconds, not 24 hours; separate deterministic-core and live-HCX latency; do not claim unavailable holdings coverage.
 
-- [ ] **Step 3: Render every page and perform visual QA**
+- [x] **Step 3: Render every page and perform visual QA**
 
 Verify Korean font rendering, margins, page numbers, graph/table labels, no clipping/overlap, readable diagrams, and consistent colors. Re-render after every material correction. Also extract PDF text and confirm all 15 headings and critical numeric claims.
 
-- [ ] **Step 4: Run an independent claim/design review**
+- [x] **Step 4: Run an independent claim/design review**
 
 Reviewer checks official required sections, source attribution, metric fidelity, architecture truth, limitations, and legibility. Only Critical/Important findings block; correct once and re-render.
 
-- [ ] **Step 5: Commit Task 9**
+- [x] **Step 5: Commit Task 9**
 
 ```bash
 git add docs/submission/FinProof_Technical_Proposal.pptx docs/submission/FinProof_Technical_Proposal.pdf docs/submission/PROPOSAL_EVIDENCE_INDEX.md docs/submission/SUBMISSION_CHECKLIST.md
