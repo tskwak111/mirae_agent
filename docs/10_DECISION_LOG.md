@@ -10,6 +10,28 @@ Statuses:
 - `RESOLVED_INTERNAL`: an internal contract conflict was explicitly resolved and linked to a frozen decision
 - `RESOLVED_MIGRATION`: a non-product handoff discrepancy was corrected without choosing product behavior
 
+## 2026-09-06 pre-deadline submission documentation revision
+
+The project owner explicitly requested a final inspection, short bounded corrections,
+natural proposal copy, and the team name `Agent.종필` before the September 6 deadline.
+The official task PDF page 7 prohibits changes **after the deadline**, not after an
+earlier push. This resolves the internal early-publication wording for this task only:
+proposal files and submission documentation may receive a fast-forward descendant
+revision before the owner-confirmed September 6 end-of-day cutoff. This is not new
+organizer permission and does not reopen a runtime contract.
+
+Preserve `finproof-submission` at `712f0ba`, deployed image `sha256:cf7f56…a1252`,
+source data, prompts, policies, results and release manifest. Do not call HCX, inspect
+private holdout plaintext, rebuild/deploy, or rewrite Git history. Documentation
+changes need source/claim checks, full-page render review and a bounded independent
+review. Runtime gate results remain explicitly attributed to their existing commit.
+Any runtime issue requiring a new image is backlog unless it is a demonstrated
+release blocker; the current read-only audit found none.
+
+The supplied official PDF does not establish a 20/40/40 score weighting. Remove that
+unsupported attribution from the proposal and evidence index. Page 7 states `09.06`;
+the precise end-of-day cutoff is owner-provided, not quoted from the PDF.
+
 ## Frozen decisions
 
 | ID | Date | Status | Decision | Rationale |

@@ -1,10 +1,12 @@
 # FinProof Release Record
 
-**Freeze date:** 2026-09-06 KST, before the 23:59 deadline. The metadata child's Git timestamp is the exact freeze time.
+**Runtime freeze:** 2026-09-06 KST. The original metadata child's Git timestamp is the exact freeze time. The owner-confirmed submission cutoff is September 6 end of day, operationally capped at 23:59 KST; the official PDF itself states `09.06`.
+
+**Pre-deadline documentation revision:** 2026-09-06, at the owner's explicit request. The revised proposal and submission guide are a fast-forward descendant of `712f0bacd1def9fe36d16823f882f1bae52c3bc6`. The `finproof-submission` tag remains on that original commit. No runtime, data, prompt, policy, result, image or release-manifest identity changed. See the dated scope resolution in `docs/10_DECISION_LOG.md`.
 
 - Organizer private repository: https://github.com/miraeasset-aifestival-2026-product/fin-211
 - Evaluation endpoint: https://101-79-30-91.sslip.io/answer
-- Publication unit: metadata child plus annotated `finproof-submission` tag, fast-forwarded to organizer `main` and personal `origin/main`. Organizer initial history is preserved.
+- Original publication unit: metadata child plus annotated `finproof-submission` tag. Publish the documentation descendant to organizer `main` and personal `origin/main` without moving that tag or rewriting either repository's history.
 
 ## Immutable identities
 
@@ -19,8 +21,8 @@
 | Final soak report SHA-256 | `7fed2e7f0e1cbd7abdfb4422c8dee11a97b0f7fa6f5defb4e1476a148dd47641` |
 | Current A-E ablation SHA-256 | `b394e7f536b8028b5a3caa94489407210051a62a4765c6d069ed0631ff8ccc0e` |
 | API specification SHA-256 | `2d5a9960e4a4490cf0c9bb21fa69da66e2bfb35526578f5600449a93f2f5ad73` |
-| Proposal PPTX SHA-256 | `267da08cdb42337ce1495c5283af20853e896265b5b1cfe2af1b4a4f17452bb2` |
-| Proposal PDF SHA-256 | `b46d95f468605269e172297aa730d35e1720378dc21c30dd48e0e6820dbca279` |
+| Revised proposal PPTX SHA-256 | `04839ace9c14198751a2f965be1c8db0aa6cc4f4f8ba9b3d70c6ce6ce0456108` |
+| Revised proposal PDF SHA-256 | `3546e50fd72e852c0d09a32d8b73c40c738587d2c6807cc273cc0f9453f3eb38` |
 | Release manifest file SHA-256 | `b6ba2e5ca961bb08f27a4db0ca77d8bfe1cd3f4ce7b1a8a7066d9ef0a52672cd` |
 | Release manifest internal checksum | `a5bb6e130e27e92bb1a456c9f2d853c7a65eefac6736439d0275a0532b94a577` |
 
@@ -35,7 +37,18 @@ The manifest covers its parent Git object, not itself or the metadata child. All
 - Load: **35/35**, failure 0, mean 7,268.868 ms, p95 11,007.570 ms. This is the reviewed four-case weighted mix, not 35 unique questions.
 - Soak: **20 cycles / 80 observations**, failure 0, drift 0, **1,123.6383504400146 active seconds**. Both runners exited 0. Endpoint logs recorded 115 completions without errors, OOM, or restart. The run stayed within the approved 460-call HCX ceiling.
 - HTTPS: valid TLS, missing-parameter 422, disallowed method/path 404, HTTP redirect 308. Schema probes generated no HCX calls.
-- Proposal: 15 slides, three native charts, no package/layout findings. Matched-scale comparison changed only slides 12, 13, 15. PDF: 15 rendered pages; all embedded images match the verified slide renders. Korean text, values, page numbers and layout were checked. The documented raster PDF fallback and editable PPTX are retained.
+- Original tagged proposal: 15 slides and three native charts, with the earlier raster PDF fallback. Its PPTX/PDF hashes remain recoverable at `finproof-submission`: `267da08c…bb2` / `b46d95f4…279`. This is historical evidence, not the current proposal format.
+
+## Documentation revision verification
+
+- Team `Agent.종필` is on the cover, page branding, submission guide and author metadata. FinProof remains the system name; 곽태성 remains the named participant. Tool metadata and development history were not falsified or erased.
+- Removed the unsupported 20/40/40 weighting and corrected the PDF page/deadline attribution. Clarified the D-039 hybrid wording boundary and evaluation-mode safe failure. Replaced the unsupported holdings success scenario with a labeled supported design example, not a new live result.
+- Revised PPTX: 15 slides, one native chart and one native table. Package/layout findings: 0. The chart includes all six reported holdout axes, including plan fields 48.96%; the latency table separates workloads and candidates.
+- Revised PDF: 15 pages, searchable Korean, tagging enabled, author `Agent.종필`. All 254 native slide text fragments are preserved. All pages were visually inspected; the final two small edits affected only pages 8 and 12, re-inspected after confirming the other 13 page renders were pixel-identical.
+- Bundled LibreOffice export initially lacked the Korean font configuration. A task-local Fontconfig file pointing to available system fonts and a writable temporary cache corrected the export. No project dependency or deployed image changed. PDF producer metadata remains intact.
+- Fresh checks: `verify_handoff.py` PASS (61 files, 9 inputs, 19,074,953 bytes), `audit_source_data.py --check` PASS (53,375 rows, 2026-08-24), competition compliance PASS, bound release-manifest verification PASS, and `git diff --check` clean. Full pytest/Ruff/mypy were not repeated for documentation-only edits; the existing full gate remains attributed to `ba530fc` above.
+- Fresh service check: HTTPS missing-parameter response 422, TLS verification 0. Both exact-image containers running, OOM false, restart count 0; endpoint memory 1.817 GiB, proxy 52.88 MiB. These probes sent no HCX question.
+- Independent `/root/submission_polish_review` inspected all 15 revised PDF pages, official pages 6-7, source/claim consistency and exact promoted hashes: **Critical 0 / Important 0 / READY**. The review closed without a correction loop. Closure records were then updated once.
 
 ## Rebuild boundary
 
@@ -55,3 +68,10 @@ Host validation creates nested `__pycache__` before Docker COPY; rebuilds are no
 ## Residual risks
 
 This is not a 24-hour soak. Earlier OOM, network and drift diagnostics remain separate, as do prior v22 acceptance and v4 ablation reports. Holdout measured 25/48 successes and 23 safe failures; current A-E error counts are 25/11/15/17/16. These are disclosed limitations, not target-level language accuracy or zero-error acceptance. Holdings coverage remains unavailable and organizer latency scoring is undisclosed. Continuous operation depends on NCP credit, networking, DNS/TLS and HCX availability.
+
+The final read-only runtime audit found no demonstrated release-critical defect. A
+pre-existing privacy-hardening item remains: default Uvicorn access logs can retain
+question/query strings in private Docker logs even though application events are
+redacted. The deployed command has no `--no-access-log` flag. Suppression belongs in
+an authorized maintenance window with a new image's contract and acceptance checks;
+this documentation revision neither changes logging nor claims complete log redaction.

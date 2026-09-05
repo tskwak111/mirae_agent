@@ -57,3 +57,21 @@ fresh live acceptance are recorded in `../submission/RELEASE_RECORD.md`.
 Residual holdout safe failures, nonzero ablation errors, missing holdings coverage, and
 bounded soak duration remain disclosed limitations, not grounds for inventing scores
 or expanding the closed correction scope.
+
+## Pre-deadline submission documentation review (2026-09-06)
+
+Independent reviewer `/root/submission_polish_review` reviewed the documentation-only
+diff from `712f0ba`, the revised PPTX/PDF, all 15 rendered PDF pages, official task
+pages 6-7, D-039 and recorded evaluation aggregates. No runtime or closed evaluation
+area was reopened, and no private holdout plaintext or HCX call was used.
+
+Verdict: **Critical 0 / Important 0 / READY for documentation-only closure**.
+The review found no blocking claim, submission-coverage or layout defect. Team
+`Agent.종필`, searchable/tagged Korean PDF, exact promoted hashes, 53,375-row source
+audit, unchanged original tag and clean diff were checked. Reviewed PPTX SHA-256:
+`04839ace9c14198751a2f965be1c8db0aa6cc4f4f8ba9b3d70c6ce6ce0456108`;
+PDF SHA-256: `3546e50fd72e852c0d09a32d8b73c40c738587d2c6807cc273cc0f9453f3eb38`.
+
+The review ended immediately at 0C/0I. Only mechanical closure records/hashes and
+publication remain after that verdict; this is not a claim of perfect end-to-end
+answer accuracy or permission to alter the frozen runtime.

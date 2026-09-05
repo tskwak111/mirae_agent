@@ -1,8 +1,49 @@
 # Implementation Status
 
-**Last updated:** 2026-09-06 — Blind-evaluation hardening Task 10 final verification
-and release packaging are closed. Publish the metadata child and annotated tag as one
-submission transaction, then retain the exact HTTPS service through 2026-09-20.
+**Last updated:** 2026-09-06 — Task 10 runtime release remains frozen. The owner's
+pre-deadline documentation polish is verified and independently closed at 0C/0I.
+Publish this documentation descendant to both main branches without moving the
+original tag, then retain the exact HTTPS service through 2026-09-20.
+
+## Pre-deadline documentation polish closure
+
+- Scope: team `Agent.종필`, natural proposal copy, truthful source attribution,
+  scoring/measurement distinctions, and a submission guide. No runtime behavior,
+  data, prompt, policy, image, result or original tag changed. The dated decision-log
+  entry resolves early-publication wording against the official post-deadline rule.
+- Revised 15-page PPTX/PDF removes unsupported 20/40/40 weighting, accurately
+  describes D-039, separates 144-case replay from 48-case holdout and the weighted
+  four-case 35-request load, and keeps missing holdings and short-soak limits visible.
+- PPTX: one native chart and one native table; package/layout findings 0. PDF: tagged,
+  searchable Korean, team author metadata, 254/254 native text fragments preserved.
+  All 15 pages inspected. A final subtitle/unit-label adjustment affected only pages
+  8/12; the other 13 were pixel-identical to the inspected render.
+- Runtime tests were not changed and no behavior change required a RED/GREEN cycle.
+  Artifact export checks exposed a missing native-table validation option and an
+  existing receipt-path collision; these task-local authoring settings were corrected.
+  Missing Korean font configuration was fixed in the temporary export environment,
+  replacing the old raster PDF without changing dependencies or the server.
+- Observed commands: handoff PASS (61 files/9 inputs/19,074,953 bytes), source audit
+  PASS (53,375 rows, 2026-08-24), competition compliance PASS, bound release manifest
+  verification PASS, artifact text/metadata/package/layout checks PASS, diff check
+  clean. No full pytest/Ruff/mypy repeat for document-only changes; earlier results
+  below remain explicitly historical and tied to their candidate.
+- HTTPS: 422 for missing query parameters, TLS verified. Exact endpoint and proxy
+  running with no OOM/restarts; endpoint 1.817 GiB. No additional HCX call or private
+  holdout inspection occurred.
+- Independent `/root/submission_polish_review`: **0 Critical / 0 Important / READY**
+  after reviewing revised claims, all 15 pages, official requirements and hashes.
+  Closed immediately; no further review loop.
+- Current PPTX SHA-256 `04839ace9c14198751a2f965be1c8db0aa6cc4f4f8ba9b3d70c6ce6ce0456108`.
+  Current PDF SHA-256 `3546e50fd72e852c0d09a32d8b73c40c738587d2c6807cc273cc0f9453f3eb38`.
+- Residual runtime limits remain disclosed. Default Uvicorn query-string access
+  logging is a pre-existing maintenance backlog item, not changed in this scope.
+- Exact next action: stage only the nine changed documentation/proposal files,
+  commit, fast-forward organizer/main and origin/main, verify remote SHA and unchanged
+  `finproof-submission` (`712f0ba`), and keep monitoring the identical deployed service.
+
+The phase and original Task 10 records below are historical verification evidence;
+their earlier proposal-render descriptions do not describe the revised files above.
 
 ## Frozen baseline
 

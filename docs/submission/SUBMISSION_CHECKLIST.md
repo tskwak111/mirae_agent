@@ -2,6 +2,7 @@
 
 ## Frozen package
 
+- [x] Pre-deadline documentation revision authorized by the owner; team `Agent.종필` reflected. Original `finproof-submission` tag stays at `712f0ba`; only a documentation descendant is published to both main branches.
 - [x] Covered package: `5edea2d3fcf39f590013c32a7b0c611ffed177a8`.
 - [x] Runtime inputs identical to full-gate / live-image source `ba530fc`.
 - [x] Official 2026-08-24 data: 53,375 audited rows.
@@ -9,7 +10,7 @@
 - [x] Exact hashes are recorded in `RELEASE_RECORD.md`.
 - [x] Organizer repository is PRIVATE with WRITE permission; initial history preserved.
 - [x] Source, Dockerfile, pyproject/lock, README, five Turtle ontologies, PDF/PPTX, API specification, and release metadata included.
-- [x] Publication unit is the metadata child plus annotated `finproof-submission` tag. Push that exact child/tag to organizer main and personal origin/main, then verify remote refs before declaring submission complete.
+- [x] Original metadata child/tag published and verified. For the documentation revision, fast-forward both main branches without changing that tag; verify exact remote refs before reporting publication.
 
 ## Verification
 
@@ -36,12 +37,13 @@
 
 ## Proposal
 
-- [x] Editable 15-slide PPTX and three native charts, no package/layout findings.
-- [x] Updated slides 12, 13, 15 only; other slides identical at matched render scale.
-- [x] All 15 PDF pages rendered; embedded images exactly match verified slides.
+- [x] Revised editable 15-slide PPTX, one native chart and one native table, no package/layout findings.
+- [x] Team branding and natural Korean revised throughout; unsupported weighting removed; actual HCX role and workload/accuracy limits clarified.
+- [x] All 15 searchable PDF pages rendered and inspected; all 254 native slide text fragments preserved.
 - [x] Korean text, numbers, charts, diagrams and page layout checked.
-- [x] PDF raster fallback disclosed; editable PPTX retained.
+- [x] Korean font export corrected with a task-local render configuration; tagged text PDF replaces the old raster fallback. Original tagged artifacts remain in Git history.
 - [x] Holdout failures, nonzero A-E errors, unavailable holdings, distinct workloads and bounded soak duration remain explicit.
+- [x] Independent documentation review: Critical 0 / Important 0 / READY. Revised hashes recorded once in `RELEASE_RECORD.md`.
 
 ## After publication
 
