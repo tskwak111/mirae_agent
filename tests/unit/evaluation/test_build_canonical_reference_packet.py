@@ -384,7 +384,8 @@ def test_rejects_question_collision_with_reviewed_suite_before_artifact_open(
     review_root.mkdir(parents=True)
     canonical.mkdir(parents=True)
     packet = _approved_packet()
-    packet["cases"][0]["question"] = "중복   질문"
+    cases = cast(list[dict[str, object]], packet["cases"])
+    cases[0]["question"] = "중복   질문"
     input_path = review_root / "approved-plans.json"
     input_path.write_text(json.dumps(packet, ensure_ascii=False), encoding="utf-8")
     existing = json.loads(

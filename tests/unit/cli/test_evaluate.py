@@ -112,7 +112,7 @@ def test_evaluation_routes_blind_suites_only_through_blind_loader(
         tmp_path / f"{suite}.json",
         EvaluationMode.PLAN_ONLY,
         repository_root=tmp_path,
-        service=Service(),
+        service=cast(cli_evaluate.RobustnessService, Service()),
     )
 
     assert calls == [(suite, tmp_path)]
