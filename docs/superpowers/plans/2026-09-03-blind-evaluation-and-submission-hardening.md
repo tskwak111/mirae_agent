@@ -897,7 +897,10 @@ git push organizer finproof-submission
 
 Before tagging, prove `FINPROOF_COVERED_COMMIT` is the metadata commit's parent and no
 tag with that name exists. Leave only explicitly preserved user-owned files unstaged.
-Keep the exact service active from `2026-09-07` through `2026-09-20`. After freeze,
+The later official notice D-042 supersedes the original PDF's operation window:
+keep the exact service active from `2026-09-07 10:00 KST` through
+`2026-09-11 15:00 KST`. Submission push must finish by `2026-09-06 23:59 KST`.
+After the deadline,
 permit monitoring and identical-image restart only; no code, data, prompt, policy,
 image, or result change without organizer authorization.
 

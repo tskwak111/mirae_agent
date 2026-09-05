@@ -1,6 +1,6 @@
 # FinProof Release Record
 
-**Runtime freeze:** 2026-09-06 KST. The original metadata child's Git timestamp is the exact freeze time. The owner-confirmed submission cutoff is September 6 end of day, operationally capped at 23:59 KST; the official PDF itself states `09.06`.
+**Runtime freeze:** 2026-09-06 KST. The original metadata child's Git timestamp is the exact freeze time. The later official notice explicitly confirms the submission deadline as 2026-09-06 23:59 KST and prohibits changes afterward (D-042). The separately evaluated accuracy candidate was not adopted; the deployed incumbent and original tag remain unchanged.
 
 **Pre-deadline documentation revision:** 2026-09-06, at the owner's explicit request. The revised proposal and submission guide are a fast-forward descendant of `712f0bacd1def9fe36d16823f882f1bae52c3bc6`. The `finproof-submission` tag remains on that original commit. No runtime, data, prompt, policy, result, image or release-manifest identity changed. See the dated scope resolution in `docs/10_DECISION_LOG.md`.
 
@@ -20,9 +20,10 @@
 | Final load report SHA-256 | `8cc38cad40302ee2bfd48f18ea4ce4cbf816e3739e8ae2174415792ce5d472af` |
 | Final soak report SHA-256 | `7fed2e7f0e1cbd7abdfb4422c8dee11a97b0f7fa6f5defb4e1476a148dd47641` |
 | Current A-E ablation SHA-256 | `b394e7f536b8028b5a3caa94489407210051a62a4765c6d069ed0631ff8ccc0e` |
-| API specification SHA-256 | `2d5a9960e4a4490cf0c9bb21fa69da66e2bfb35526578f5600449a93f2f5ad73` |
-| Revised proposal PPTX SHA-256 | `04839ace9c14198751a2f965be1c8db0aa6cc4f4f8ba9b3d70c6ce6ce0456108` |
-| Revised proposal PDF SHA-256 | `3546e50fd72e852c0d09a32d8b73c40c738587d2c6807cc273cc0f9453f3eb38` |
+| Original covered API specification SHA-256 | `2d5a9960e4a4490cf0c9bb21fa69da66e2bfb35526578f5600449a93f2f5ad73` |
+| Current API documentation SHA-256 (D-042 dates only; request/response unchanged) | `8d7b0f6938472755efeafc0d9a64ab03c83cfa030d264d66c8c393fa85047459` |
+| Revised proposal PPTX SHA-256 | `1f066b47d7808fdf7b8c619f600e9680785e83295171e46d529e492e77d07490` |
+| Revised proposal PDF SHA-256 | `2466bed7aa3acc8f76b95bfc80efee9dce38a9ee8335d4865e6c119539396431` |
 | Release manifest file SHA-256 | `b6ba2e5ca961bb08f27a4db0ca77d8bfe1cd3f4ce7b1a8a7066d9ef0a52672cd` |
 | Release manifest internal checksum | `a5bb6e130e27e92bb1a456c9f2d853c7a65eefac6736439d0275a0532b94a577` |
 
@@ -39,7 +40,7 @@ The manifest covers its parent Git object, not itself or the metadata child. All
 - HTTPS: valid TLS, missing-parameter 422, disallowed method/path 404, HTTP redirect 308. Schema probes generated no HCX calls.
 - Original tagged proposal: 15 slides and three native charts, with the earlier raster PDF fallback. Its PPTX/PDF hashes remain recoverable at `finproof-submission`: `267da08c…bb2` / `b46d95f4…279`. This is historical evidence, not the current proposal format.
 
-## Documentation revision verification
+## Earlier documentation polish verification (8018d0c)
 
 - Team `Agent.종필` is on the cover, page branding, submission guide and author metadata. FinProof remains the system name; 곽태성 remains the named participant. Tool metadata and development history were not falsified or erased.
 - Removed the unsupported 20/40/40 weighting and corrected the PDF page/deadline attribution. Clarified the D-039 hybrid wording boundary and evaluation-mode safe failure. Replaced the unsupported holdings success scenario with a labeled supported design example, not a new live result.
@@ -49,6 +50,15 @@ The manifest covers its parent Git object, not itself or the metadata child. All
 - Fresh checks: `verify_handoff.py` PASS (61 files, 9 inputs, 19,074,953 bytes), `audit_source_data.py --check` PASS (53,375 rows, 2026-08-24), competition compliance PASS, bound release-manifest verification PASS, and `git diff --check` clean. Full pytest/Ruff/mypy were not repeated for documentation-only edits; the existing full gate remains attributed to `ba530fc` above.
 - Fresh service check: HTTPS missing-parameter response 422, TLS verification 0. Both exact-image containers running, OOM false, restart count 0; endpoint memory 1.817 GiB, proxy 52.88 MiB. These probes sent no HCX question.
 - Independent `/root/submission_polish_review` inspected all 15 revised PDF pages, official pages 6-7, source/claim consistency and exact promoted hashes: **Critical 0 / Important 0 / READY**. The review closed without a correction loop. Closure records were then updated once.
+
+## Latest official-window documentation verification
+
+- D-042 records the later notice with a separately labeled prior host observation. The proposal's page 15 operation date, API guide, submission guide, evidence index, checklist and operation plan now agree on the official window and deadline. No new performance claim was added.
+- The revised PPTX changes only page 15's date text and its source note. All other package parts, including the native chart workbook, table, theme and author metadata, are byte-identical to `8018d0c`. A task-local package-preserving export retained the original chart relationship that the general import/export path omitted; no chart values or formulas were recreated.
+- Fresh package, layout, reference-font, embedded-chart-workbook and first-party import checks passed with zero findings. All 15 PDF pages were rendered. Pages 1-14 are pixel-identical to the previously inspected render; page 15 was visually checked. Searchable Korean, all 254 slide text fragments and author `Agent.종필` remain intact.
+- Fresh handoff, source audit, competition compliance, bound release-manifest verification and diff checks passed. Runtime inputs remain identical to `8018d0c`; the mandatory runtime gate above remains historical and was not rerun for this documentation-only edit. No production behavior changed, so no production RED/GREEN cycle applies.
+- HTTPS returned the expected missing-parameter 422 with TLS verification 0. No HCX question was sent for this revision. The declined accuracy experiment remains outside this submission branch and is not included in its validation claims.
+- Independent `/root/official_window_doc_review`: **Critical 0 / Important 0 / READY**. The reviewer independently checked hashes, unchanged runtime inputs, the original tag, artifact preservation and page 15. One minor attribution word was removed; no behavior correction or review loop was required. Closure is recorded once before publishing this documentation descendant to both main branches.
 
 ## Rebuild boundary
 
@@ -63,7 +73,7 @@ Host validation creates nested `__pycache__` before Docker COPY; rebuilds are no
 - Evaluation mode uses HCX-007. Server secret file is mode 600; no secret value is in this record or image.
 - HTTPS container `finproof-https`: pinned Caddy `sha256:5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648`; config SHA-256 `a46c60734cc9bbe686e01d0af1240372047a8eff8fc2bf0519a0cbddbc74c192`.
 - Both containers use `unless-stopped`; Docker is boot-enabled. TCP 80/443 are public under explicit approval. Key-only SSH uses 2222, ACG-restricted to the approved operator IP, and no longer occupies 443.
-- Keep this exact service active 2026-09-07 through 2026-09-20 KST. After freeze, only monitoring and identical-image restart are allowed without organizer authorization. Do not send extra HCX questions for health monitoring.
+- Required operation is 2026-09-07 10:00 through 2026-09-11 15:00 KST under the later official notice (D-042), superseding the older PDF period. After the submission deadline, only monitoring and identical-image restart are allowed without organizer authorization. Do not send extra HCX questions for health monitoring. Organizer caller IP: `34.47.123.221`; optional outbound health test succeeded from NCP at 2026-09-06 02:40:45 KST with synchronized clocks. No firewall change or automatic server deletion is implied.
 
 ## Residual risks
 

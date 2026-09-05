@@ -4,10 +4,16 @@
 
 - HTTPS endpoint: `https://101-79-30-91.sslip.io/answer`
 - Method: `GET`; no API key or login is required by the evaluator.
-- Evaluation service window: 2026-09-07 through 2026-09-20 (KST).
+- Evaluation service window: 2026-09-07 10:00 through 2026-09-11 15:00 (KST),
+  per the latest official notice (D-042).
+- Submission deadline: 2026-09-06 23:59 KST; no submission changes afterward.
 - Submission repository: `https://github.com/miraeasset-aifestival-2026-product/fin-211`.
 - Frozen runtime/image identities and verification evidence: `RELEASE_RECORD.md` and
   `../../release/manifest.json`.
+
+The organizer's caller IP is `34.47.123.221`. Its optional HTTP health endpoint
+checks participant-to-organizer connectivity only; it is not our public API route
+or evidence that the organizer has successfully called our service.
 
 ```bash
 curl --get 'https://101-79-30-91.sslip.io/answer' \

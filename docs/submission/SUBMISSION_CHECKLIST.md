@@ -47,4 +47,11 @@
 
 ## After publication
 
-Keep the exact service active 2026-09-07 through 2026-09-20 KST. Monitor without extra HCX questions. Do not rebuild or change code, data, prompts, policies, images or results without organizer authorization. Check provider/server availability and NCP credit; only identical-image restart is permitted under the frozen operations scope.
+Complete submission push by **2026-09-06 23:59 KST**. Under the latest official
+notice (D-042), keep the exact service active **2026-09-07 10:00 through
+2026-09-11 15:00 KST**. Monitor without extra HCX questions. Do not rebuild or change
+code, data, prompts, policies, images or results after the deadline without organizer
+authorization. Check provider/server availability and NCP credit; only identical-image
+restart is permitted under the frozen operations scope. The organizer's caller IP is
+`34.47.123.221`. The completed optional outbound health check does not prove inbound
+answer collection. No firewall change or automatic server deletion is implied.

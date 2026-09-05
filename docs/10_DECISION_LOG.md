@@ -30,12 +30,16 @@ release blocker; the current read-only audit found none.
 
 The supplied official PDF does not establish a 20/40/40 score weighting. Remove that
 unsupported attribution from the proposal and evidence index. Page 7 states `09.06`;
-the precise end-of-day cutoff is owner-provided, not quoted from the PDF.
+the precise end-of-day cutoff is owner-provided, not quoted from the PDF. The later
+official notice now explicitly confirms 23:59 KST and replaces the operation window
+(D-042). This documentation-only revision applies those dates without changing the
+incumbent runtime or adopting the separately rejected accuracy experiment.
 
 ## Frozen decisions
 
 | ID | Date | Status | Decision | Rationale |
 |---|---|---|---|---|
+| D-042 | 2026-09-06 | OFFICIAL_OVERRIDE | Submission push must finish by 2026-09-06 23:59 KST; no post-deadline submission changes. Required endpoint operation is 2026-09-07 10:00 through 2026-09-11 15:00 KST, superseding the earlier PDF's September 7–20 window. Organizer caller IP is 34.47.123.221; its optional HTTP health endpoint tests participant-to-organizer connectivity, not inbound answer reachability. | owner-supplied latest official notice in `source_material/official_notices/2026-09-06-evaluation-window-and-healthcheck.md`; no runtime or firewall change implied |
 | D-001 | 2026-08-07 | FROZEN | Product name is FinProof | concise evidence/verification identity |
 | D-002 | 2026-08-07 | FROZEN | HCX plans; deterministic code executes | numeric/query reliability and auditability |
 | D-003 | 2026-08-07 | FROZEN | Source Fidelity is a global invariant | official data is evaluation reference |

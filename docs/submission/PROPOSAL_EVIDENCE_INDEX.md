@@ -7,7 +7,7 @@ hashes are recorded separately in `RELEASE_RECORD.md`.
 | Claim | Evidence | Observed result |
 |---|---|---|
 | Official evaluation method | `source_material/competition_task_financial_product_agent.pdf`, page 6 | quantitative non-public GET questions plus qualitative review of problem definition, technical completeness/performance, creativity/scalability, answer accuracy/completeness, and industry utility/risk management; no numeric weighting stated |
-| Official submission and operation dates | same official task PDF, page 7; project owner's deadline confirmation | PDF states September 6 and service operation September 7-20; the owner supplied September 6 end of day, operationally capped at 23:59 KST; post-deadline changes are prohibited |
+| Official submission and operation dates | `source_material/official_notices/2026-09-06-evaluation-window-and-healthcheck.md`; D-042 | latest notice confirms submission September 6 23:59 KST and operation September 7 10:00 to September 11 15:00 KST, superseding the older PDF's September 7-20 period; post-deadline changes are prohibited |
 | Official API latency guidance | official task PDF; `source_material/official_notices/2026-08-24-data-refresh-and-runtime-rules.md` | response within 60 seconds recommended; 300 seconds is the physical no-response cutoff stated in the later official notice |
 | Official data identity | official artifact manifest | 2026-08-24; 53,375 source rows; 13 tables; logical hash `977b3409…a9a8` |
 | Exact cross-source identity | artifact tables | 217 exact links and 434 link-evidence rows |

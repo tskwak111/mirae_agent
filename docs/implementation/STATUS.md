@@ -1,11 +1,41 @@
 # Implementation Status
 
-**Last updated:** 2026-09-06 — Task 10 runtime release remains frozen. The owner's
-pre-deadline documentation polish is verified and independently closed at 0C/0I.
-Publish this documentation descendant to both main branches without moving the
-original tag, then retain the exact HTTPS service through 2026-09-20.
+**Last updated:** 2026-09-06 — The incumbent Task 10 runtime and original submission
+tag remain frozen. Latest official-window documentation is verified and independently
+closed at 0C/0I. Submission cutoff is 09-06 23:59 KST; required operation is
+09-07 10:00 through 09-11 15:00 KST (D-042).
 
-## Pre-deadline documentation polish closure
+## Latest official-window documentation closure
+
+- Branch `codex/submission-official-window` starts at published `8018d0c`. Only
+  documentation, the official notice transcription and proposal assets change.
+  The declined accuracy experiment remains on `codex/predeadline-accuracy` at
+  `d90d81e`; do not merge it, rerun it or claim its gate as incumbent acceptance.
+- The last proposal page and source note now use the latest operation window.
+  PPTX package comparison found only slide15/note15 content changed. All 15 PDF
+  pages were rendered; pages1-14 are pixel-identical to the inspected original,
+  page15 visually checked, all254 text fragments retained. Native chart/workbook,
+  table, fonts and team author `Agent.종필` are preserved. Current hashes are in
+  `docs/submission/RELEASE_RECORD.md`.
+- Observed: `uv run --offline python tools/verify_handoff.py` PASS (61files/9inputs/
+  19,074,953bytes); `audit_source_data.py --check` PASS (53,375rows,2026-08-24);
+  `check_competition_compliance.py --check` passed; `verify_release_manifest.py`
+  with the recorded live digest and mounted manifest passed; `git diff --check`
+  clean. Package/layout/reference-font/embedded-workbook/import and PDF checks pass.
+- No production behavior changed, so production RED/GREEN and a new full runtime
+  suite do not apply. Temporary export fixes preserved the original chart package
+  and set the bundled runtime import environment; no repository dependency changed.
+- Independent `/root/official_window_doc_review`: **0 Critical / 0 Important / READY**.
+  The sole minor attribution wording was corrected and the review closed immediately.
+- Fresh public queryless probe: HTTP422/TLSverify0. Endpoint/proxy match recorded
+  image digests, running/OOMfalse/restart0. Organizer repo remains PRIVATE/WRITE;
+  before publication both mains are8018d0c and original tag remains712f0ba.
+- Exact next action: commit this document-only closure, fast-forward both approved
+  main branches, verify the exact remote commit and unchanged original tag, then
+  hourly non-HCX monitoring through09-11 15:00KST. Once refs match, skip publication
+  and continue monitoring. No redeploy, rebuild, firewall change or extra HCX call.
+
+## Historical pre-deadline documentation polish closure (8018d0c)
 
 - Scope: team `Agent.종필`, natural proposal copy, truthful source attribution,
   scoring/measurement distinctions, and a submission guide. No runtime behavior,
@@ -103,7 +133,8 @@ Plan: `docs/superpowers/plans/2026-08-07-04-evaluation-and-release.md`
 
 ## Current next task
 
-**After publication, monitor the frozen NCP HTTPS endpoint through 2026-09-20 KST.
+**After verifying publication, monitor the frozen NCP HTTPS endpoint through
+2026-09-11 15:00 KST under D-042.
 No development checkpoint remains. No code, data, prompt, policy, image, or result
 change is permitted without organizer authorization.**
 
