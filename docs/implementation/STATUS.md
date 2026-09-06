@@ -1,6 +1,51 @@
 # Implementation Status
 
-**Last updated:** 2026-09-06 22:25 KST — Final supplied proposal verified at0C/0I.
+**Last updated:** 2026-09-06 23:27 KST — Pre-deadline CI fixture correction.
+The incumbent runtime, proposal, release manifest and original tag remain unchanged.
+Full CI is pending; this record does not certify a green workflow.
+
+## Pre-deadline CI fixture correction
+
+- Scope: the owner's request to repair CI, limited to two test files and the
+  quality job time budget. No production code, data, prompt, dependency lock,
+  image, deployment, proposal or evaluation result changes. No live HCX calls.
+- Reproduced the existing short-soak failure with a one-second selector:
+  final requests reported `planner_failure`. Its mock matched only the raw
+  question, while production sends `build_user_prompt(question)`. Reused that
+  existing helper in the mock; preserved all traffic and assertions. The
+  original 30-second selector then passed in36.32s.
+- Reproduced both Linux failures in a network-disabled incumbent-image container:
+  absent `F_GETPATH` raised AttributeError during fixture setup; immediate
+  unlink/recreation reused the marker inode, so the expected identity rejection
+  did not occur. Tolerated the already-absent platform attribute and retained
+  the original descriptor while allocating the replacement. The fixture now
+  asserts distinct identities; all security rejection assertions remain intact.
+  Both same Linux checks passed afterward; the complete affected artifact test
+  file passed407 tests in9.65s.
+- The quality job's30-minute cap was shorter than the incumbent's historical
+  2933.74-second full suite. Increased it to240 minutes without changing or
+  removing any command, selector or check. This does not guarantee completion.
+- Fresh Ruff format/check passed; mypy passed340 files; source audit passed
+  53375 rows; handoff passed61 files/9inputs/19074953 bytes; schema catalog
+  passed280 columns; competition compliance and diff check passed. Repository
+  automation/container contracts passed7 tests.
+- An initial local full-suite attempt was interrupted after package-build/install
+  failures under restricted cache/network access and a stale editable registry
+  left from the prior branch. No repository code was changed for these issues.
+  Reinstalled only finproof with `uv sync --frozen --all-groups
+  --reinstall-package finproof`; the affected package-resource tests then passed
+  54 tests in4.62s; the30-second soak again passed in39.22s with the refreshed
+  package. The full `uv run pytest -q` has been restarted with normal
+  package access and remains pending at this record's publication.
+- Independent bounded review of the three-file correction:0 Critical/0 Important,
+  READY; reviewer also observed2 focused tests passing. Review closed immediately.
+- Unresolved: the earlier Docker smoke job exceeded its240-minute limit; no
+  specific assertion failure was established. It remains enabled and unchanged.
+  Exact next action: publish this CI-only correction before23:59KST, observe the
+  new full workflow and local gate, and report their actual result. Do not claim
+  all-green prematurely or modify the submission after the deadline.
+
+**Previous checkpoint:** 2026-09-06 22:25 KST — Final supplied proposal verified at0C/0I.
 Keep the incumbent runtime and publish only the documentation descendant.
 The two-case correction did not improve product/numeric reference agreement;
 its closure remains separate at `c873d2d`, not merged into this submission.

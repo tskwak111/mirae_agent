@@ -580,7 +580,7 @@ def test_descriptor_path_uses_linux_proc_fd_when_f_getpath_is_unavailable(
         return os.fspath(tmp_path)
 
     try:
-        monkeypatch.delattr(parquet_io.fcntl, "F_GETPATH")
+        monkeypatch.delattr(parquet_io.fcntl, "F_GETPATH", raising=False)
         monkeypatch.setattr(parquet_io.os, "readlink", readlink)
         assert parquet_io._descriptor_path(descriptor) == os.fspath(tmp_path)
     finally:
@@ -663,17 +663,24 @@ def test_unique_workspace_revalidates_exact_modes_marker_bytes_and_every_identit
                 )
                 os.mkdir(workspace._root_name, mode=0o700, dir_fd=workspace._parent_fd)
             elif case == "marker-aba":
-                os.unlink(workspace._MARKER_NAME, dir_fd=workspace._root_fd)
-                marker = os.open(
-                    workspace._MARKER_NAME,
-                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
-                    0o600,
-                    dir_fd=workspace._root_fd,
-                )
+                original = os.open(workspace._MARKER_NAME, os.O_RDONLY, dir_fd=workspace._root_fd)
                 try:
-                    os.write(marker, workspace._MARKER_BYTES)
+                    # Keep the unlinked inode alive so replacement cannot reuse its identity.
+                    os.unlink(workspace._MARKER_NAME, dir_fd=workspace._root_fd)
+                    marker = os.open(
+                        workspace._MARKER_NAME,
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                        0o600,
+                        dir_fd=workspace._root_fd,
+                    )
+                    try:
+                        before, after = os.fstat(original), os.fstat(marker)
+                        assert (before.st_dev, before.st_ino) != (after.st_dev, after.st_ino)
+                        os.write(marker, workspace._MARKER_BYTES)
+                    finally:
+                        os.close(marker)
                 finally:
-                    os.close(marker)
+                    os.close(original)
             else:
                 os.rmdir(workspace._SPILL_NAME, dir_fd=workspace._root_fd)
                 os.mkdir(workspace._SPILL_NAME, mode=0o700, dir_fd=workspace._root_fd)

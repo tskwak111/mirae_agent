@@ -12,6 +12,7 @@ import httpx
 import pytest
 from jsonschema import Draft202012Validator
 
+from finproof.planner.prompts import build_user_prompt
 from tests.e2e.test_evaluation_api import _recorded_hcx, evaluation_app
 
 _SECONDS = os.getenv("FINPROOF_SOAK_SECONDS")
@@ -74,7 +75,7 @@ async def _recorded_resilience_hcx(request: httpx.Request) -> httpx.Response:
         fact_pack = None
     if isinstance(fact_pack, dict) and fact_pack.get("format") == "finproof.fact-pack.v1":
         return _recorded_hcx(request)
-    case = next(name for name, marker in _CASES if marker == question)
+    case = next(name for name, marker in _CASES if build_user_prompt(marker) == question)
     if case == "timeout":
         raise httpx.ReadTimeout("recorded timeout", request=request)
     if case == "rate_limit":
