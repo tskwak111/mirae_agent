@@ -22,8 +22,8 @@
 | Current A-E ablation SHA-256 | `b394e7f536b8028b5a3caa94489407210051a62a4765c6d069ed0631ff8ccc0e` |
 | Original covered API specification SHA-256 | `2d5a9960e4a4490cf0c9bb21fa69da66e2bfb35526578f5600449a93f2f5ad73` |
 | Current API documentation SHA-256 (D-042 dates only; request/response unchanged) | `8d7b0f6938472755efeafc0d9a64ab03c83cfa030d264d66c8c393fa85047459` |
-| Revised proposal PPTX SHA-256 | `1f066b47d7808fdf7b8c619f600e9680785e83295171e46d529e492e77d07490` |
-| Revised proposal PDF SHA-256 | `2466bed7aa3acc8f76b95bfc80efee9dce38a9ee8335d4865e6c119539396431` |
+| Revised proposal PPTX SHA-256 | `ec2df041dc0234e53e351fa82d5e8d32b22ccaafb86cebfb176ac8e3bda90f32` |
+| Revised proposal PDF SHA-256 | `f208e9687f74ed7903e26bb7e1e569a7aba3dba989c966c4d7b65565e0a33171` |
 | Release manifest file SHA-256 | `b6ba2e5ca961bb08f27a4db0ca77d8bfe1cd3f4ce7b1a8a7066d9ef0a52672cd` |
 | Release manifest internal checksum | `a5bb6e130e27e92bb1a456c9f2d853c7a65eefac6736439d0275a0532b94a577` |
 
@@ -59,6 +59,41 @@ The manifest covers its parent Git object, not itself or the metadata child. All
 - Fresh handoff, source audit, competition compliance, bound release-manifest verification and diff checks passed. Runtime inputs remain identical to `8018d0c`; the mandatory runtime gate above remains historical and was not rerun for this documentation-only edit. No production behavior changed, so no production RED/GREEN cycle applies.
 - HTTPS returned the expected missing-parameter 422 with TLS verification 0. No HCX question was sent for this revision. The declined accuracy experiment remains outside this submission branch and is not included in its validation claims.
 - Independent `/root/official_window_doc_review`: **Critical 0 / Important 0 / READY**. The reviewer independently checked hashes, unchanged runtime inputs, the original tag, artifact preservation and page 15. One minor attribution word was removed; no behavior correction or review loop was required. Closure is recorded once before publishing this documentation descendant to both main branches.
+
+## Final owner-supplied proposal verification
+
+- Documentation-only descendant of freshly verified published `d4cf85f`.
+  The later two-case experiment did not improve product/numeric agreement and
+  remains separately preserved at `c873d2d`. No experiment is promoted.
+- Owner's supplied readable deck SHA-256
+  `accd89a7ad57632f5ac87dfb11318c14ed5ec0edae351052d8f1b6af6520b6b6`.
+  Preserved its design, editable tables and chart. Removed the internal A-E
+  diagnostic slide, shortened clipped titles/body text and internal procedure
+  wording, and corrected the final page's outdated operation dates. Fourteen
+  slides retain measured limitations and the distinction between candidates.
+  Participants follow the supplied cover: 곽태성·유영준, team Agent.종필.
+- Artifact import/export lost the chart's embedded workbook relationship.
+  Restored the original chart, relationship and workbook byte-for-byte rather
+  than regenerating values. Native chart/workbook, six tables, package, layout,
+  reference-font and first-party import checks passed with zero findings.
+- The final PDF has14 searchable, tagged pages and author Agent.종필. All256
+  slide text fragments are present. All14 page renders are byte-identical to
+  the visually inspected pre-metadata export. Producer/tool metadata remains
+  intact; no development history or provenance was falsified.
+- Independent bounded review of all14 pages:0 Critical/0 Important/READY.
+  Minor participant and slide-number references in accompanying docs corrected;
+  no runtime code change or new accuracy claim.
+- Fresh queryless HTTPS probe:422, TLSverify0. Recorded endpoint/proxy images
+  unchanged, running=true, OOM=false, restart0, unless-stopped. Memory observed
+  1.818GiB/28.39MiB respectively. No HCX question was sent.
+- Initial release verification used the local experiment artifact manifest and
+  correctly rejected its differing file hash. Read-only retrieval of the actual
+  deployed manifest matched recorded `31d8a995…09259`; verify against that exact
+  mounted manifest, not a different locally published artifact.
+- Fresh handoff/source audit/compliance and bound release verification passed.
+  Handoff/compliance/release contract selectors:23 passed in2.67s; diffcheck clean.
+  No runtime full suite was repeated for documentation-only changes. The runtime
+  gate remains explicitly attributed to ba530fc above.
 
 ## Rebuild boundary
 

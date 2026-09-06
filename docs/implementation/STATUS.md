@@ -1,6 +1,46 @@
 # Implementation Status
 
-**Last updated:** 2026-09-06 — The incumbent Task 10 runtime and original submission
+**Last updated:** 2026-09-06 22:25 KST — Final supplied proposal verified at0C/0I.
+Keep the incumbent runtime and publish only the documentation descendant.
+The two-case correction did not improve product/numeric reference agreement;
+its closure remains separate at `c873d2d`, not merged into this submission.
+
+## Final owner-supplied proposal closure
+
+- Base: freshly queried organizer/main and origin/main both
+  `d4cf85f1f0c3e60a1a1ba26d8cdc9afdf9eaf90c`. New branch
+  `codex/final-proposal-submission`, documentation-only. Runtime inputs, source,
+  data, prompt, policies, image and release manifest are unchanged.
+- Final14-slide proposal follows the owner's readable deck. Removed the internal
+  A-E diagnostic page, shortened clipped titles/body text and internal process
+  language. Corrected final-page operation window. Kept measured limitations,
+  workload/candidate distinctions, supported scope and HCX wording boundary.
+  Team Agent.종필, participants 곽태성·유영준 follow the supplied cover.
+- Final PPTX SHA-256 `ec2df041dc0234e53e351fa82d5e8d32b22ccaafb86cebfb176ac8e3bda90f32`;
+  PDF `f208e9687f74ed7903e26bb7e1e569a7aba3dba989c966c4d7b65565e0a33171`.
+  Original chart/workbook bytes restored after import/export dropped the workbook
+  relationship. Package/layout/reference-font/native-chart/import checks passed.
+  Six editable tables and one editable chart. Fourteen tagged searchable PDF
+  pages,256 text fragments preserved, author Agent.종필. All final page renders
+  are byte-identical to the inspected pre-metadata pages.
+- Independent bounded review:0 Critical/0 Important/READY. No correction loop.
+  Minor participant and old slide references in docs corrected mechanically.
+- Fresh `.venv/bin/python -m pytest -q` for handoff/compliance/release contracts:
+  23 passed in2.67s. Source audit53375 rows/20260824; handoff61files/9inputs/
+  19074953bytes; competition compliance and diffcheck passed. Bound release
+  verification passed with the actual deployed manifest and recorded image.
+  The first attempt correctly rejected a different local experiment manifest;
+  no source manifest was altered to make it pass. No runtime full suite repeated
+  for this documentation-only change; historical runtime gate remains attributed
+  to ba530fc, not newly executed here.
+- Queryless HTTPS422/TLSverify0. Endpoint/proxy recorded images unchanged,
+  running=true, OOM=false, restart0, unless-stopped. Memory1.818GiB/28.39MiB.
+  No HCX calls, redeployment or configuration changes in this publication scope.
+- Exact next action: commit these eight documentation/assets paths, fast-forward
+  organizer/main and origin/main before23:59KST, verify both refs and unchanged
+  original tag. Then quiet read-only operation monitoring through09-11 15:00KST.
+
+**Previous checkpoint:** The incumbent Task 10 runtime and original submission
 tag remain frozen. Latest official-window documentation is verified and independently
 closed at 0C/0I. Submission cutoff is 09-06 23:59 KST; required operation is
 09-07 10:00 through 09-11 15:00 KST (D-042).

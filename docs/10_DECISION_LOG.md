@@ -10,6 +10,19 @@ Statuses:
 - `RESOLVED_INTERNAL`: an internal contract conflict was explicitly resolved and linked to a frozen decision
 - `RESOLVED_MIGRATION`: a non-product handoff discrepancy was corrected without choosing product behavior
 
+## 2026-09-06 final owner-supplied proposal scope
+
+The owner requests retaining the defensible incumbent if the final two-case
+experiment does not improve correctness, and submitting the supplied readable
+PPT after removing irrelevant content. The experiment ended with zero product
+and numeric reference agreement on both cases. Its evidence is preserved on
+`codex/accuracy-operation-fields` at `c873d2d`; it is not merged or promoted.
+This branch starts at freshly verified organizer/main and origin/main
+`d4cf85f1f0c3e60a1a1ba26d8cdc9afdf9eaf90c` and changes documentation only.
+Publish as a fast-forward before23:59KST, preserve the original submission tag
+and runtime/image/data/prompt/policy identities. Retaining the incumbent is a
+release fallback, not proof of best overall accuracy or complete semantics.
+
 ## 2026-09-06 pre-deadline submission documentation revision
 
 The project owner explicitly requested a final inspection, short bounded corrections,

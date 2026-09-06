@@ -29,14 +29,18 @@ hashes are recorded separately in `RELEASE_RECORD.md`.
 ## Claim limits
 
 - The team is `Agent.종필`; the system name remains `FinProof` and the named
-  participant is 곽태성.
+  participants on the owner-supplied cover are 곽태성 and 유영준.
 - D-039 is a hybrid answer-generation boundary: HCX-007 receives the verified
   FactPack and returns one of two allowed non-material lead-ins. The application
   appends the exact verified deterministic body. Do not describe HCX as freely
   generating or rewriting material financial claims. Evaluation-mode failures do
   not fall back to an unvalidated or HCX-free answer.
-- Proposal slide 10 is a labeled design example, not an additional observed live
+- Proposal slide 8 is a labeled design example, not an additional observed live
   acceptance. No new HCX call was made for the documentation revision.
+- Final owner-supplied proposal revision has14 slides. The internal A-E diagnostic
+  slide was omitted for focus; its report and adverse results remain in this index
+  and RELEASE_RECORD.md. Slides11-13 retain the separate workload and accuracy
+  limits. The current slide14 uses the latest official operation window.
 - A successful holdout response is not necessarily a correct answer. Keep the
   aggregate field/product/numeric/evidence/semantic scores visible alongside the
   25 successful responses and 23 safe failures.

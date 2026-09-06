@@ -37,12 +37,12 @@
 
 ## Proposal
 
-- [x] Revised editable 15-slide PPTX, one native chart and one native table, no package/layout findings.
+- [x] Final owner-supplied editable 14-slide PPTX, one native chart and six native tables, no package/layout findings.
 - [x] Team branding and natural Korean revised throughout; unsupported weighting removed; actual HCX role and workload/accuracy limits clarified.
-- [x] All 15 searchable PDF pages rendered and inspected; all 254 native slide text fragments preserved.
+- [x] All 14 searchable PDF pages rendered and inspected; all 256 native slide text fragments preserved.
 - [x] Korean text, numbers, charts, diagrams and page layout checked.
 - [x] Korean font export corrected with a task-local render configuration; tagged text PDF replaces the old raster fallback. Original tagged artifacts remain in Git history.
-- [x] Holdout failures, nonzero A-E errors, unavailable holdings, distinct workloads and bounded soak duration remain explicit.
+- [x] Holdout failures, unavailable holdings, distinct workloads and bounded soak remain explicit. The omitted A-E diagnostic slide's adverse results remain in the evidence index and release record.
 - [x] Independent documentation review: Critical 0 / Important 0 / READY. Revised hashes recorded once in `RELEASE_RECORD.md`.
 
 ## After publication
